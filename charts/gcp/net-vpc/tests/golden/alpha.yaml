@@ -1,0 +1,218 @@
+---
+# Source: net-vpc/templates/psa.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: alpha-psa-servicenetworking-googleapis-com-myrange
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psa_range:servicenetworking-googleapis-com-myrange"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: servicenetworking-googleapis-com-myrange
+  location: global
+  purpose: VPC_PEERING
+  addressType: INTERNAL
+  address: "10.0.4.0"
+  prefixLength: 22
+  networkRef:
+    name: alpha
+---
+# Source: net-vpc/templates/network.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: alpha
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-network
+  description: "Terraform-managed."
+  autoCreateSubnetworks: false
+  deleteDefaultRoutesOnCreate: false
+  routingMode: GLOBAL
+  networkFirewallPolicyEnforcementOrder: AFTER_CLASSIC_FIREWALL
+---
+# Source: net-vpc/templates/network-attachments.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkAttachment
+metadata:
+  name: alpha-attachment-my-attachment
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_attachment:my-attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-attachment
+  location: europe-west1
+  projectRef:
+    external: "my-project"
+  connectionPreference: ACCEPT_AUTOMATIC
+  subnetworkRefs:
+    - name: alpha-subnet-europe-west1-psc-clients
+  producerAcceptLists:
+    - kind: Project
+      external: "producer-project"
+---
+# Source: net-vpc/templates/psa.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkPeeringRoutesConfig
+metadata:
+  name: alpha-psa-routes-servicenetworking-googleapis-com-5f87f17a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psa_routes:servicenetworking.googleapis.com"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: servicenetworking-googleapis-com
+  projectRef:
+    external: "my-project"
+  networkRef:
+    name: alpha
+  exportCustomRoutes: true
+  importCustomRoutes: true
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: alpha-route-directpath-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:directpath-googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-network-directpath-googleapis
+  networkRef:
+    name: alpha
+  destRange: "34.126.0.0/18"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: alpha-route-private-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:private-googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-network-private-googleapis
+  networkRef:
+    name: alpha
+  destRange: "199.36.153.8/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: alpha-route-restricted-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:restricted-googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-network-restricted-googleapis
+  networkRef:
+    name: alpha
+  destRange: "199.36.153.4/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: alpha-subnet-europe-west1-psc-clients
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/psc-clients"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: psc-clients
+  region: europe-west1
+  networkRef:
+    name: alpha
+  ipCidrRange: "10.0.0.0/24"
+  description: "Terraform-managed."
+  privateIpGoogleAccess: true
+---
+# Source: net-vpc/templates/psa.yaml
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1beta1
+kind: ServiceNetworkingConnection
+metadata:
+  name: alpha-psa-servicenetworking-googleapis-com-c624660c
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psa:servicenetworking.googleapis.com"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  service: servicenetworking.googleapis.com
+  networkRef:
+    name: alpha
+  reservedPeeringRanges:
+    - name: alpha-psa-servicenetworking-googleapis-com-myrange
+---
+# Source: net-vpc/templates/psa.yaml
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1alpha1
+kind: ServiceNetworkingPeeredDNSDomain
+metadata:
+  name: alpha-psa-domain-servicenetworking-googleapis-com-inte-5d93c67e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psa_domain:servicenetworking.googleapis.com:internal.example.com."
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: servicenetworking-googleapis-com-internal-example-com
+  dnsSuffix: "internal.example.com."
+  networkRef:
+    name: alpha

@@ -11,14 +11,51 @@ escape hatch), `drafts/delivery/README.md` (hooks, CRDs, the dependency
 graph), `drafts/capabilities/README.md`; `docs/gcp-inventory.md` here
 (every fabric module against Config Connector).
 
+## Decisions
+
+The builder's answers of 2026-11-09, applied in the sections below.
+
+1. **Naming and shape.** `gcp-<module>` is the Package name. Follow
+   fabric's own module naming closely, and its pattern: one core resource
+   per module, with auxiliary and related resources (IAM, attachments)
+   around it. "That's the same pattern we should follow here, and one that
+   works well for composition." So a chart is named for its module, its
+   core object is the first thing it renders (`bucket`, `network`,
+   `project`, `service_account`), and everything else hangs off it. A new
+   catalog entry is a module-shaped thing, not a stack of unrelated
+   resources; what spans modules is a Template.
+2. **Outputs are selective, as Terraform's are.** "We should strive to be
+   more selective about what we output, similar to how Terraform does it."
+   A Package outputs fabric's declared outputs and nothing more, never a
+   whole object. Binding every rendered object as `resources.<id>`,
+   whatever its kind, is only the mechanism that lets CEL select them:
+   "By object of any type, and we can select them. That's even better."
+   The component's values are bound too, as `inputs`.
+3. **Alpha kinds only behind an opt-in value per chart** (`allow_alpha`).
+   **Beta kinds are on by default.**
+4. **Factories**: the generator is accepted in principle, and the builder
+   wants to see it first: "I'd want to know what that looks like a little
+   bit better." The worked example is in "Factories, worked". It is not
+   built.
+5. **Authoritative IAM**: the kind is `IAMRoleBinding`, being built in
+   config-connector-extensions. The builder prefers non-authoritative IAM,
+   so the additive `IAMPolicyMember` stays the default, `IAMPartialPolicy`
+   serves the authoritative variables as designed, and `IAMRoleBinding`
+   is used only where fabric's `iam_bindings` need it (section "IAM").
+6. **Live runs**: the service account
+   `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` is approved
+   and made (no keys). Rules in "Testing".
+7. **Entry points are `task`** (Taskfile.yml), as in every repo: `task
+   test`, `task test-live`, `task inventory`.
+
 ## Summary
 
 1. **One Helm chart per fabric module, one Package per chart.** The chart
    renders Config Connector objects. Its values are the module's
    Terraform variables (same names, types, defaults and validations, in
    `values.schema.json`), so a module block becomes a values file one to
-   one. Its Package's outputs are the module's outputs, CEL over the live
-   objects.
+   one. Its Package's outputs are the module's declared outputs and
+   nothing more, selected by CEL from the live objects and the values.
 2. **Nothing is dropped silently.** A variable Config Connector cannot
    express stays in the schema and stops the render with a message naming
    the gap.
@@ -27,18 +64,22 @@ graph), `drafts/capabilities/README.md`; `docs/gcp-inventory.md` here
    None of the 91 modules needs it today (section "kro or Helm").
 4. **IAM**: additive variables become `IAMPolicyMember`, authoritative
    ones `IAMPartialPolicy`, never `IAMPolicy`. Role-authoritative IAM is
-   the largest gap, 43 modules (gap 1 in the inventory).
+   the largest gap, 43 modules (gap 1 in the inventory); the kind that
+   closes it is `IAMRoleBinding`.
 5. **References**: Config Connector references inside a chart, Bundt's
    `valueFrom` between charts.
 6. **Deletion**: Config Connector's default (delete), as Bundt decided;
    `deletion_policy: ABANDON` keeps the resources.
 7. **Organization and folder Packages run only where the platform team's
    identity does**, never in a team's namespace.
-8. **Tests in three layers**: render (every change, offline), a fake cloud
+8. **Alpha kinds are opt-in per chart** (`allow_alpha`); beta kinds are
+   on.
+9. **Tests in three layers**: render (every change, offline), a fake cloud
    (an offload VM), a real project (pilot only, cleaned up).
 
 The pilot ports iam-service-account, gcs, net-vpc and the core of
-project, and proves render and the fake cloud end to end ("Pilot").
+project, and proves render, the fake cloud and (for three of the four) a
+real project ("Pilot").
 
 ## A Package per module
 
@@ -90,8 +131,30 @@ Connector release (or a config-connector-extensions kind) closes the gap,
 the chart's next minor version maps it.
 
 Three kinds of refusal, each saying which it is: a gap (no kind or field;
-listed in the inventory), alpha (a `v1alpha1` kind; see "Questions"), and
-"not ported yet" (Config Connector has it; the pilot did not map it).
+listed in the inventory), alpha (a `v1alpha1` kind; see "Alpha kinds"),
+and "not ported yet" (Config Connector has it; the pilot did not map it).
+
+### Alpha kinds
+
+Beta (`v1beta1`) kinds are always on. A feature that needs a `v1alpha1`
+kind, whose schema Config Connector may change between releases, is
+refused until the component sets the chart's `allow_alpha: true`:
+
+```text
+net-vpc: network_attachments needs the alpha Config Connector kind
+ComputeNetworkAttachment: set allow_alpha: true to accept that its schema
+may change (docs/design.md, "Alpha kinds")
+```
+
+`allow_alpha` is a value of the chart, so a Template or an Instance sets
+it per component, a Stack for a whole team's use, and a Policy (L3) can
+forbid it per Environment. A chart has the value once it ports an alpha
+kind: `net-vpc` (network attachments, PSA route exchange, peered DNS
+domains) and `gcs` (managed folders) have it; `iam-service-account` and
+`project` do not yet. An alpha feature is render-tested against the kind's
+schema and not applied to a cloud until a fake-cloud or live case covers
+it, which each chart's README says. An alpha kind not ported yet is
+refused even with `allow_alpha`.
 
 ### Names
 
@@ -125,39 +188,50 @@ listed in the inventory), alpha (a `v1alpha1` kind; see "Questions"), and
 ### Outputs
 
 A Package's outputs are CEL over its rendered resources' live status
-(packages.md R8). The binding is not specified yet; the charts assume
-this one, and the pilot evaluates it (`tools/catalogtool outputs`):
+(packages.md R8). The binding is not specified yet; the charts assume this
+one, and the pilot evaluates it (`tools/catalogtool outputs`):
 
-- each object whose annotation `hfl.dev/id` is set is bound as
-  `resources.<id>` (or `resources["subnet:europe-west1/apps"]`);
-- the CEL environment has the standard library plus `strings`, `lists`
-  and two-variable comprehensions (`transformMapEntry`), which map
-  outputs such as net-vpc's `subnet_ids` need.
+- each rendered object whose annotation `hfl.dev/id` is set is bound as
+  `resources.<id>` (or `resources["subnet:europe-west1/apps"]`), **whatever
+  its kind**: CEL selects what an output needs from them;
+- the component's values, the chart's defaults under the component's
+  inputs, are bound as `inputs`;
+- the CEL environment is the standard library plus `strings`, `lists` and
+  two-variable comprehensions (`transformMapEntry`), which map outputs
+  such as net-vpc's `subnet_ids` need.
+
+**Outputs are selective, as Terraform's are** (decision 2). A Package
+outputs fabric's declared outputs, for what the chart ports, and nothing
+more; it never outputs a whole object, and an output is never added
+because an object has the field. What another component's input takes is
+an ID, a self link, an email, a URL. Where fabric's declared output is a
+map of whole objects, the chart outputs the one field consumers take, and
+says so (net-vpc's `subnets_proxy_only`, `subnets_psc` and
+`subnets_private_nat` are self links). Outputs that are whole Terraform
+objects (`gcs.bucket`, `iam-service-account.service_account`,
+`net-vpc.network` and `subnets`) are not outputs.
 
 | fabric output | Package output |
 | --- | --- |
 | `iam-service-account.email` | `resources.service_account.status.email` |
-| `gcs.url` | `resources.bucket.status.url` |
+| `gcs.url` | `inputs.bucket_create ? resources.bucket.status.url : 'gs://' + <bucket name from inputs>` |
+| `gcs.name`, `project.project_id`, `net-vpc.name` | computed from `inputs`, as fabric computes them |
 | `net-vpc.subnet_ids` | `resources.transformMapEntry(k, v, v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose), {k.substring(7): 'projects/' + … + v.spec.resourceID})` |
 | `project.number` | `resources.project.status.number` |
 
 Differences from Terraform:
 
-- Fabric computes many outputs from inputs, so dependents need not wait
-  (`email` is known before the account exists). In Bundt every output is
-  read from live objects, so a dependent waits until the producer is
-  ready, which Bundt does anyway ("Dependents wait until ready",
-  drafts/delivery).
-- Outputs that are whole Terraform objects (`gcs.bucket`,
-  `iam-service-account.service_account`, `net-vpc.subnets`) are not
-  ported: a Package output is a value another component's input takes.
-- Outputs of something the chart did not make (`bucket_create: false`,
-  `vpc_reuse`) have no value.
-- A few outputs have no source: `net-vpc.network_id` (ComputeNetwork does
-  not report the numeric ID; a field gap).
-
-Whether `inputs` should be bound too (fabric outputs computed from inputs,
-such as `project_id` when the project is reused) is a question.
+- Fabric computes some outputs from inputs, so dependents need not wait
+  (`email` is known before the account exists). Binding `inputs` gives the
+  same for the outputs that are plain functions of inputs (a bucket's name,
+  a project's ID); the rest are read from live objects, so a dependent
+  waits until the producer is ready, which Bundt does anyway ("Dependents
+  wait until ready", drafts/delivery).
+- An output of an object the chart did not make (`bucket_create: false`,
+  `vpc_reuse`) has no value unless inputs give it.
+- A few outputs have no source: `net-vpc.network_id` and
+  `net-vpc.internal_ipv6_range` (ComputeNetwork does not report them; field
+  gaps).
 
 ## Submodules and factories
 
@@ -189,22 +263,220 @@ whole hierarchies (folders, then projects, each with service accounts,
 buckets, budgets) from a tree of YAML files. They are not one chart. A
 Bundt Template has no loops (templates.md A11: generating structure is a
 Package's job), and one chart creating fifty projects is one component,
-one plan line and one blast radius. Recommended: a generator that reads
-the factory's YAML tree and writes Bundt documents, one Instance per
-project (of a `gcp-project-baseline` Template: project, its service
-accounts, buckets, budget), and folders as components of a platform
-Stack; Bundt then plans, approves and deletes per project. See
-"Questions".
+one plan line and one blast radius. The builder accepted, in principle, a
+generator that reads the factory's YAML tree and writes Bundt documents,
+one Instance per project, and wants to see what that looks like first:
+"Factories, worked" below is a real factory file, the documents the
+generator would write from it, and how an edit becomes a plan. The
+generator is not built.
 
 **Not Packages**: `cloud-config-container` (cloud-init text for VMs, a
 helper not a resource) and `projects-data-source` (a read). The
 `__experimental_deprecated` modules are left out.
 
+## Factories, worked
+
+**Input.** A real fabric project factory file: `data/projects/dev-ta-app0-be.yaml`
+from `modules/project-factory/README.md` at v60.0.0 (`f706bc3b`), with
+lines removed and none changed, and the factory's `defaults` and `context`
+beside it (the factory's own variables, here with one value each):
+
+```yaml
+# data/projects/dev-ta-app0-be.yaml (fabric's example, lines removed)
+billing_account: 012345-67890A-BCDEF0
+labels:
+ app: app-0
+ team: team-a
+parent: $folder_ids:team-a/app-0
+iam_by_principals:
+  $iam_principals:service_accounts/dev-ta-app0-be/app-0-be:
+    - roles/storage.objectViewer
+service_accounts:
+  app-0-be:
+    display_name: "Backend instances."
+    # assign roles on this project projects
+    iam_self_roles:
+      - roles/logging.logWriter
+      - roles/monitoring.metricWriter
+    # assign roles on this service account
+    iam:
+      roles/iam.serviceAccountUser:
+        - $iam_principals:service_accounts/_self_/app-0-fe
+  app-0-fe:
+    display_name: "Frontend instances."
+    iam_self_roles:
+      - roles/logging.logWriter
+      - roles/monitoring.metricWriter
+buckets:
+  app-0-bucket-a:
+    location: europe-west8
+    iam:
+      roles/storage.objectViewer:
+        - $iam_principals:service_agents/_self_/compute
+  app-0-bucket-b:
+    location: europe-west8
+    logging_config:
+      log_bucket: $storage_buckets:log-bucket
+      log_object_prefix: log-prefix
+services:
+  - compute.googleapis.com
+  - container.googleapis.com
+  - storage.googleapis.com
+```
+
+```yaml
+# the factory's other inputs (the generator's config, one file)
+defaults: {prefix: hfl}                 # fabric: bucket names start with it
+context:                                # fabric's `context` variable, as is
+  storage_buckets: {log-bucket: hfl-central-logs}
+folders: data/folders                   # data/folders/team-a/app-0/.config.yaml makes the folder
+```
+
+**The generator** reads the tree and writes documents. What each element
+becomes:
+
+| fabric factory element | Bundt |
+| --- | --- |
+| a `projects/<file>.yaml` | a Stack `<file>` of the platform team and one Instance of it, in the platform Environment; the Stack lists its components inline (the escape hatch, drafts/agreed), since a Template cannot loop over a file's service accounts and buckets |
+| the file's project keys (`parent`, `billing_account`, `labels`, `services`, `iam*`, `org_policies`, `contacts`, ...) | the inputs of the component `project` (`gcp-project`) |
+| `service_accounts.<n>` | a component `sa-<n>` (`gcp-iam-service-account`); `iam_self_roles` becomes `iam_project_roles` on the project's ID |
+| `buckets.<n>` | a component `bucket-<n>` (`gcp-gcs`), with the factory's `prefix` |
+| `$iam_principals:service_accounts/<this project>/<sa>`, `.../_self_/<sa>` | `"${components.sa-<sa>.outputs.iam_email}"`: an expression on a component of the same Instance, which also orders them |
+| `$iam_principals:service_agents/_self_/<agent>` | `"serviceAccount:service-${components.project.outputs.number}@<agent domain>"`, the domain from fabric's `service-agents.yaml` |
+| `$folder_ids:`, `$project_ids:` of something this factory makes | a literal written by the generator, read from the Instance that made it (the folders go first, in their own Instance); Bundt expressions cannot read another Instance's outputs |
+| any other `$context:` lookup | the literal from the factory's `context` |
+| a project's `iam*` entry whose principal is one of its own service accounts | moved to that account's `iam_project_roles`: the account's component needs the project's ID, so the project's component cannot also need the account's email, a cycle Bundt blocks |
+| `iam_by_principals` (a map keyed by principal) with another principal that is an expression | rewritten as `iam_bindings_additive` entries with the principal as a value: a map's keys are never evaluated (templates.md A23), so a key cannot hold `${...}` |
+| a project's `deletion_policy` and the factory's defaults for it | `cloudResources: keep` on the Instance's `project` and bucket components (instances.md R36), else Bundt's default, delete |
+| the file's path and Git commit | the annotation `hfl.dev/factory` on the Stack and the Instance |
+
+**Output**: for that one file, two documents. The Stack (components cut
+to three of its five, same shape):
+
+```yaml
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: dev-ta-app0-be
+  scope: platform
+  annotations: {hfl.dev/factory: "data/projects/dev-ta-app0-be.yaml@4f2a9c1"}
+spec:
+  components:                          # inline; this shape is an assumption
+    - name: project
+      package: {name: gcp-project, version: 0.1.0}
+      inputs:
+        name: dev-ta-app0-be
+        parent: folders/3456789012     # $folder_ids:team-a/app-0, from the folders Instance
+        billing_account: 012345-67890A-BCDEF0
+        labels: {app: app-0, team: team-a}
+        services: [compute.googleapis.com, container.googleapis.com, storage.googleapis.com]
+    - name: sa-app-0-be
+      package: {name: gcp-iam-service-account, version: 0.1.0}
+      inputs:
+        project_id: "${components.project.outputs.project_id}"
+        name: app-0-be
+        display_name: Backend instances.
+        iam_project_roles:             # iam_self_roles, and the project's own iam_by_principals entry for this account
+          dev-ta-app0-be: [roles/logging.logWriter, roles/monitoring.metricWriter, roles/storage.objectViewer]
+        iam:
+          roles/iam.serviceAccountUser: ["${components.sa-app-0-fe.outputs.iam_email}"]
+    - name: bucket-app-0-bucket-a
+      package: {name: gcp-gcs, version: 0.1.0}
+      inputs:
+        project_id: "${components.project.outputs.project_id}"
+        prefix: hfl
+        name: app-0-bucket-a
+        location: europe-west8
+        iam:
+          roles/storage.objectViewer:
+            - "serviceAccount:service-${components.project.outputs.number}@compute-system.iam.gserviceaccount.com"
+    # sa-app-0-fe and bucket-app-0-bucket-b: the same way;
+    # bucket-b has logging_config.log_bucket: hfl-central-logs, from `context`
+```
+
+and the Instance:
+
+```yaml
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: dev-ta-app0-be
+  scope: platform/gcp-org              # an Environment whose Target runs Config Connector with organization roles
+  annotations: {hfl.dev/factory: "data/projects/dev-ta-app0-be.yaml@4f2a9c1"}
+spec:
+  stack: dev-ta-app0-be                # an inline Stack has no Template version; how an Instance names it is open
+  components:
+    project: {cloudResources: keep}
+    bucket-app-0-bucket-a: {cloudResources: keep}
+    bucket-app-0-bucket-b: {cloudResources: keep}
+```
+
+That file makes a project, two service accounts and two buckets: five live
+components, `dev-ta-app0-be-project`, `-sa-app-0-be`, `-sa-app-0-fe`,
+`-bucket-app-0-bucket-a` and `-bucket-b`. Bundt orders them by the
+expressions: `project` first, then (ready) the others, the service accounts
+and buckets side by side except `sa-app-0-be` after `sa-app-0-fe`.
+
+**How an edit becomes a plan.** The factory repository holds the tree.
+CI runs the generator on every change to it and submits **one plan scoped
+to the platform team's factory Team** (plans.md R28: a plan with a scope
+deletes what the scope holds and the plan does not), so a file that
+disappears is deleted. That needs a Team of its own, `gcp-factory`, which
+holds nothing a person made by hand. Reviewers read the plan beside the
+pull request; approving it applies it.
+
+1. **Add `run.googleapis.com` to `services`.** The generator rewrites one
+   Stack; the plan has one change, an `update` of `dev-ta-app0-be-project`
+   (`inputs.services` gains an entry), whose rendered diff shows one new
+   `Service` object, and a `no change` for every other live component of
+   every project. Nothing else moves.
+2. **Remove `app-0-bucket-b`.** The Stack no longer lists it: one `delete`
+   of `dev-ta-app0-be-bucket-app-0-bucket-b`. With `cloudResources: keep`
+   on it, the object leaves Bundt and the bucket stays in Google Cloud
+   (Terraform's equivalent is `terraform state rm`). Without `keep` the
+   bucket is deleted, and a bucket with objects makes the delete fail
+   rather than lose them (`force_destroy` is false).
+3. **Rename the service account `app-0-fe` to `app-0-front`.** Components
+   are named for their keys, so the plan shows a `delete` and a `create`:
+   the account is replaced and every binding naming the old one is gone
+   until the new one is ready. This is Terraform's behaviour without a
+   `moved` block; the generator cannot tell a rename from a delete and an
+   add, and the plan says what it will do.
+4. **Delete the file.** The Stack and Instance are absent: `delete` of the
+   Instance and its five live components. The project and the buckets
+   stay (`keep`); the service accounts go.
+5. **A new project file** is a `create` of one Stack and one Instance and
+   five components, ordered as above.
+6. **Move a project to another folder** (`parent`): one `update` of
+   `project`, whose diff is the `Project`'s `folderRef`; Config Connector
+   moves the project.
+
+What this shows and what it does not:
+
+- It needs from Bundt: an inline Stack (L2, the escape hatch), outputs
+  readable as `${components.<name>.outputs.<o>}` inside an Instance (the
+  spec has them), `cloudResources: keep` per component (the spec has it),
+  and a Team-scoped plan (the spec has it).
+- It needs a decision from the builder: whether one Instance per project is
+  the unit (recommended: a project is what a team asks for, reviews and
+  deletes), and whether the folders may be an Instance of their own whose
+  outputs the generator copies into projects as literals, because Bundt
+  has no cross-Instance reference today (parked: "Contracts, exports and
+  bindings").
+- The generator itself is small: a YAML reader, the table above, and a
+  document writer. fabric's context lookups are its only hard part, and
+  they are a table.
+- Gaps it meets in the pilot charts: none for this file. A file using
+  `shared_vpc_service_config.service_agent_iam`, `pam_entitlements`, a
+  `kms` block or `tags` meets a refusal naming the gap, as a module block
+  would.
+
 ## IAM
 
 | fabric variable | Config Connector | Semantics |
 | --- | --- | --- |
-| `iam` `{ROLE: [MEMBERS]}`, `iam_by_principals` `{PRINCIPAL: [ROLES]}` (merged, as fabric merges them), `iam_bindings` `{KEY: {role, members, condition}}` | one `IAMPartialPolicy` per resource, a binding per role (and condition) | fabric: authoritative per role, members added out of band are removed. Here: the listed members are kept; others are left alone; deleting the component removes only the listed members |
+| `iam` `{ROLE: [MEMBERS]}`, `iam_by_principals` `{PRINCIPAL: [ROLES]}` (merged, as fabric merges them) | one `IAMPartialPolicy` per resource, a binding per role | fabric: authoritative per role, members added out of band are removed. Here: the listed members are kept; others are left alone; deleting the component removes only the listed members |
+| `iam_bindings` `{KEY: {role, members, condition}}` | `IAMPartialPolicy` today; one `IAMRoleBinding` each once config-connector-extensions ships it (decision 5) | with `IAMRoleBinding`, exact, as fabric's: the role's members on the resource are the listed ones |
 | `iam_bindings_additive` `{KEY: {member, role, condition}}`, `iam_by_principals_additive` | one `IAMPolicyMember` each | the same: additive |
 | roles granted *to* a service account elsewhere (`iam_project_roles`, `iam_storage_bindings`, ...) | one `IAMPolicyMember` each, `memberFrom.serviceAccountRef` naming the chart's account | the same; the member is resolved by Config Connector, no email crosses the plan |
 | IAM on a resource IAMPolicyMember cannot reference (regional secrets, managed folders, log views, 32 types) | none | a gap (inventory, gap 2) |
@@ -215,9 +487,14 @@ helper not a resource) and `projects-data-source` (a read). The
   must not be mixed with the other two kinds on one resource.
 - **The authoritative gap.** `IAMPartialPolicy` is the closest kind, and
   differs in one way that matters for security: a member someone adds by
-  hand to a role the chart manages stays. Gap 1 proposes
-  `IAMPolicyBinding` in config-connector-extensions (one role on one
-  resource, its members exactly), which would make fabric's `iam` exact.
+  hand to a role the chart manages stays. Gap 1 is `IAMRoleBinding` in
+  config-connector-extensions (the builder's name: one role, with its
+  condition, on one resource, its members exactly), which makes fabric's
+  `iam_bindings` exact. The builder prefers non-authoritative IAM, so the
+  default stays additive (`IAMPolicyMember`), `iam` and `iam_by_principals`
+  stay `IAMPartialPolicy`, and `IAMRoleBinding` serves `iam_bindings`
+  only, in each chart's next minor version after the kind ships; a chart
+  README says which it uses.
 - **Principals from other components** come through Bundt:
   `members: ["serviceAccount:${components.runtime.outputs.email}"]`, or
   the `iam_email` output through `valueFrom`. fabric's `$iam_principals:`
@@ -406,29 +683,43 @@ hand are no longer removed), until gap 1 is closed.
 
 ## Testing
 
-Three layers. Only the first runs on a laptop.
+Three layers. Only the first runs on a laptop. The entry points are
+tasks (`task --list`).
 
-1. **Render**, `hack/test.sh`, every change, a few seconds: shared helper
+1. **Render**, `task test`, every change, a few seconds: shared helper
    copies match; `helm lint`; the Package document matches the chart and
    every output compiles as CEL; each test case renders to its golden
    file; every render validates with `kubeconform -strict` against JSON
    schemas made from Config Connector v1.160.0's CRDs, every object closed
    (`additionalProperties: false`), so a misspelt or missing field fails;
    each `*.fail.yaml` is refused with its expected message.
-2. **Fake cloud**, `hack/mock-apply.sh`, on an offload VM: the
-   config-connector-extensions fake cloud (a kind cluster with Config
-   Connector's CRDs; Config Connector's own manager on the host, every
-   Google API answered by mockgcp). Each chart's `mock.values.yaml` is
-   applied server-side; every object must become Ready; the Package's
-   outputs are evaluated against the live objects; every object is
-   deleted at once and must be gone. Limits: mockgcp's coverage (no liens,
-   no Shared VPC), no Config Connector webhooks (so the project annotation
-   is explicit), and Config Connector at config-connector-extensions' pin
-   (ahead of v1.160.0).
-3. **Live**, pilot only, after the fake cloud passes: project
-   `hfl-dev-514205` only, from an offload VM acting as a service account
-   (never a downloaded key), tiny resources named per run, deleted
-   straight after, and a check that nothing is left.
+2. **Fake cloud**, `task test-mock` (`hack/mock-apply.sh`), on an offload
+   VM: the config-connector-extensions fake cloud (a kind cluster with
+   Config Connector's CRDs; Config Connector's own manager on the host,
+   every Google API answered by mockgcp). Each chart's `mock.values.yaml`
+   is applied server-side; every object must become Ready; the Package's
+   outputs are evaluated against the live objects and the values; every
+   object is deleted at once and must be gone. Limits: mockgcp's coverage
+   (no liens, no Shared VPC, no subnet IAM), no Config Connector webhooks
+   (so the project annotation is explicit), no deletion defender (the
+   script does its part), and Config Connector at
+   config-connector-extensions' pin (ahead of v1.160.0). Alpha features
+   are not in the fake-cloud cases.
+3. **Live**, `task test-live` (`hack/live-apply.sh`), pilot only, after the
+   fake cloud passes: an offload VM acting as
+   `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` (no keys;
+   the builder approved it, 2026-11-09). The rules, enforced by the
+   script: project `hfl-dev-514205` only, and every `gcloud` call passes
+   `--project`; tiny resources (a service account, a bucket, a network with
+   one /28 subnet and a route; no VMs, no databases, nothing billed while
+   idle); every name starts with a run ID (`cat-<month day hour
+   minute>-<4 hex>`) and every object that takes labels carries
+   `catalog-run`; the test deletes what it makes and then checks Google
+   Cloud no longer has it; a sweeper runs before and after (this run's
+   resources, then any `cat-` leftover more than two hours old); at the end
+   it lists what is left in the project, and the VM deletes itself. The
+   `project` chart's live run waits for a test folder that does not exist
+   yet.
 
 Not covered yet: upgrades between chart versions (comparing two versions'
 renders for replaced resources and renamed objects, which is the major
@@ -442,8 +733,8 @@ Four charts (`UPSTREAM.md`, "What is ported"):
 | Chart | Fabric module (size) | Ported | Refused (gap, alpha, not ported) |
 | --- | --- | --- | --- |
 | `iam-service-account` | M | all of it | reuse, tag bindings, context |
-| `gcs` | L | all but the gaps | object retention, hierarchical namespace, rpo, objects, managed folders (alpha), KMS autokeys |
-| `net-vpc` | L | network, every subnet kind, the subnet factory, subnet IAM, routes, googleapis routes, peering, Shared VPC host, DNS policy, PSA, the global firewall policy association | BGP fields, internal ranges, network attachments, policy-based routes, service connection policies (alpha), regional firewall policy associations, PSA route export and peered domains (alpha) |
+| `gcs` | L | all but the gaps; managed folders behind `allow_alpha` | object retention, hierarchical namespace, rpo, objects, managed folder IAM, KMS autokeys |
+| `net-vpc` | L | network, every subnet kind, the subnet factory, subnet IAM, routes, googleapis routes, peering, Shared VPC host, DNS policy, PSA, the global firewall policy association; network attachments, PSA route exchange and peered DNS domains behind `allow_alpha` | BGP fields, internal ranges, policy-based routes, service connection policies (alpha, not ported yet), regional firewall policy associations |
 | `project` | XL | the project (or a reused one), services, IAM, organization policies (with dry run), lien, essential contacts, Shared VPC service attachment and network users | about two thirds of the module (logging, tags, quotas, alerts, ...) not ported yet; metadata, default network tier, default service accounts (gaps) |
 
 ## Pilot results
@@ -489,27 +780,33 @@ for it (`hack/live-apply.sh` is written, not run).
 
 ## Questions
 
-1. **Package names.** Recommended: `gcp-<module>` for the Package and the
-   fabric module's name for the chart; the prefix avoids clashes with the
-   AWS and Azure catalogs. Alternatively one name for both.
-2. **The outputs binding.** Recommended: objects bound as
-   `resources.<hfl.dev/id>`, with CEL's strings, lists and two-variable
-   comprehension extensions (needed for map outputs). Settles how
-   packages.md R8 reads "the rendered resources". Also: bind `inputs`?
-   Recommended yes, for outputs fabric computes from inputs.
-3. **Alpha kinds.** Recommended: charts refuse them by default and allow
-   them behind a per-chart `allow_alpha: true` value, so foundational
-   features (deny policies, SCC mute configs, internal ranges) are usable
-   by teams who accept the risk.
-4. **Factories.** Recommended: a generator from fabric's factory YAML to
-   Bundt documents (one Instance per project), not a chart that loops.
-5. **Authoritative IAM.** Recommended: build `IAMPolicyBinding` in
-   config-connector-extensions (gap 1) before teams migrate IAM-heavy
-   modules; until then `IAMPartialPolicy`, with the difference stated in
-   each chart's README.
-6. **kro.** Recommended: Helm as the default engine, kro only by the test
-   above, and the runtime-value gaps closed as reference fields in
-   config-connector-extensions instead.
-7. **Where org-level Packages run.** Recommended: a capability
+Answered by the builder on 2026-11-09 (see "Decisions"): the Package
+names (`gcp-<module>`), selective outputs and the `resources` and `inputs`
+binding, alpha kinds opt-in per chart, the factory generator in principle,
+the name `IAMRoleBinding`, and the live account. Not answered (the
+builder did not rule on them, so they stay recommendations); none blocks
+the pilot:
+
+1. **kro.** Recommended: Helm as the default engine, kro only by the test
+   in "kro or Helm", and the runtime-value gaps closed as reference fields
+   in config-connector-extensions instead.
+2. **Where org-level Packages run.** Recommended: a capability
    (`hfl.dev/gcp-scope`) that only the platform team's Environment
    provides.
+3. **The factory generator** (after the builder has seen "Factories,
+   worked"):
+   - one Instance per project, of an inline Stack, as the unit.
+     Recommended yes: a project is what a team asks for, reviews and
+     deletes.
+   - an inline Stack's shape, and how an Instance names it (it has no
+     Template version). Bundt's L2 escape hatch decides it; the example
+     assumes `spec.components` as a Template has it.
+   - folders in an Instance of their own whose outputs the generator
+     copies into projects as literals. Recommended yes until Bundt has
+     cross-Instance references.
+   - a Team of its own for the factory, so a Team-scoped plan can delete
+     what vanished from the tree. Recommended yes.
+4. **`IAMRoleBinding` in the charts.** Recommended: switch `iam_bindings`
+   to it in each chart's next minor version after the kind ships, and
+   keep `iam` and `iam_by_principals` on `IAMPartialPolicy` (the builder's
+   preference for non-authoritative IAM).

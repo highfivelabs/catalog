@@ -69,17 +69,28 @@ Refused because Config Connector cannot express them:
 
 ## Outputs
 
+Fabric's declared outputs for what the chart ports, selected.
+
 | Output | From |
 | --- | --- |
-| `project_id`, `id` | `spec.resourceID` |
+| `project_id`, `id` | the component's inputs, as fabric computes them (`<prefix>-<name>`), so they have a value with `project_reuse` too |
 | `name` | `spec.name` |
 | `number` | `status.number` |
 | `services` | the services the chart enables, sorted |
+| `organization_policies_ids` | `projects/<id>/policies/<policy>` per policy |
 
-With `project_reuse` there is no project object, so these have no value.
+With `project_reuse` there is no project object, so `name` and `number`
+have no value.
+
+## Alpha
+
+The chart has no `allow_alpha` value yet: it ports no alpha kind.
+`iam_deny_policies`, `scc_mute_configs` and `scc_sha_custom_modules` need
+one and are listed under "Not ported"; they will come behind
+`allow_alpha` (docs/design.md, "Alpha kinds").
 
 ## Tests
 
-`hack/test.sh project`: three render cases, four refusals.
+`task test CHART=project`: three render cases, four refusals.
 `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
 neither) is applied to the fake cloud.

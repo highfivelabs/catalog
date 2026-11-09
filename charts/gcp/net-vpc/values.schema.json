@@ -238,9 +238,9 @@
           "deletion_policy": {"type": ["string", "null"], "enum": ["ABANDON", null]},
           "ranges": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9.]+/[0-9]+$"}},
           "labels": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
-          "export_routes": {"description": "Not supported when true.", "$ref": "#/definitions/boolOrNull"},
-          "import_routes": {"description": "Not supported when true.", "$ref": "#/definitions/boolOrNull"},
-          "peered_domains": {"description": "Not supported.", "$ref": "#/definitions/stringList"},
+          "export_routes": {"description": "Alpha when true (needs allow_alpha): ComputeNetworkPeeringRoutesConfig.", "$ref": "#/definitions/boolOrNull"},
+          "import_routes": {"description": "Alpha when true (needs allow_alpha): ComputeNetworkPeeringRoutesConfig.", "$ref": "#/definitions/boolOrNull"},
+          "peered_domains": {"description": "Alpha (needs allow_alpha): ServiceNetworkingPeeredDNSDomain.", "$ref": "#/definitions/stringList"},
           "range_prefix": {"$ref": "#/definitions/stringOrNull"},
           "service_producer": {"$ref": "#/definitions/stringOrNull"}
         }
@@ -259,11 +259,27 @@
       }
     },
     "deletion_policy": {"type": ["string", "null"], "enum": ["DELETE", "ABANDON", "PREVENT", null]},
+    "allow_alpha": {"description": "Accept features that need an alpha (v1alpha1) Config Connector kind.", "type": "boolean"},
+    "network_attachments": {
+      "description": "PSC network attachments (alpha: needs allow_alpha).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subnet"],
+        "properties": {
+          "subnet": {"description": "REGION/SUBNET, a subnet of this chart.", "type": "string", "pattern": "^[^/]+/[^/]+$"},
+          "automatic_connection": {"$ref": "#/definitions/boolOrNull"},
+          "description": {"description": "Not supported: the kind has no description; only the default is accepted.", "$ref": "#/definitions/stringOrNull"},
+          "producer_accept_lists": {"description": "Project IDs.", "$ref": "#/definitions/stringList"},
+          "producer_reject_lists": {"description": "Project IDs.", "$ref": "#/definitions/stringList"}
+        }
+      }
+    },
     "bgp_config": {"description": "Not supported: ComputeNetwork has no BGP fields.", "type": ["object", "null"]},
-    "internal_ranges": {"description": "Not supported: alpha.", "type": "array"},
-    "network_attachments": {"description": "Not supported: alpha.", "type": "object"},
-    "policy_based_routes": {"description": "Not supported: alpha.", "type": "object"},
-    "service_connection_policies": {"description": "Not supported: alpha.", "type": "object"},
+    "internal_ranges": {"description": "Not supported: an alpha kind, not ported yet.", "type": "array"},
+    "policy_based_routes": {"description": "Not supported: an alpha kind, not ported yet.", "type": "object"},
+    "service_connection_policies": {"description": "Not supported: an alpha kind, not ported yet.", "type": "object"},
     "context": {"description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.", "type": "object"}
   }
 }

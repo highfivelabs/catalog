@@ -1,0 +1,25 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/gcs/managed-folders.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0. An alpha kind
+(StorageManagedFolder): needs allow_alpha.
+*/ -}}
+{{- include "kcc.alpha" (list $ "managed_folders" .Values.managed_folders "StorageManagedFolder") }}
+{{- range $path, $f := .Values.managed_folders }}
+{{- $f = $f | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "managed_folders %s force_destroy" $path) $f.force_destroy "StorageManagedFolder has no force_destroy field") }}
+{{- range $iam := list "iam" "iam_bindings" "iam_bindings_additive" }}
+{{- include "kcc.unsupported" (list $ (printf "managed_folders %s %s" $path $iam) (index $f $iam) "IAMPolicyMember and IAMPartialPolicy cannot reference a managed folder (docs/gcp-inventory.md, gap 2)") }}
+{{- end }}
+{{- $name := ternary $path (printf "%s/" $path) (hasSuffix "/" $path) }}
+---
+apiVersion: storage.cnrm.cloud.google.com/v1alpha1
+kind: StorageManagedFolder
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "folder" $path)) "id" (printf "managed_folder:%s" $path) "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  storagebucketRef:
+    {{- include "gcs.bucketRef" $ | nindent 4 }}
+{{- end }}

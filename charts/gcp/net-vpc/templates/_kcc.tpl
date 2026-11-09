@@ -93,6 +93,21 @@ silently dropped.
 {{- end -}}
 
 {{/*
+kcc.alpha: stop the render when a feature that needs a v1alpha1 Config
+Connector kind is used without the chart's allow_alpha value. Alpha kinds
+may change their schema between Config Connector releases, so a team opts
+in per component (docs/design.md, "Alpha kinds"); beta (v1beta1) kinds are
+always on.
+  {{ include "kcc.alpha" (list $ "network_attachments" .Values.network_attachments "ComputeNetworkAttachment") }}
+*/}}
+{{- define "kcc.alpha" -}}
+{{- $root := index . 0 -}}{{- $name := index . 1 -}}{{- $value := index . 2 -}}{{- $kind := index . 3 -}}
+{{- if and (not (empty $value)) (not $root.Values.allow_alpha) -}}
+{{- fail (printf "%s: %s needs the alpha Config Connector kind %s: set allow_alpha: true to accept that its schema may change (docs/design.md, \"Alpha kinds\")" $root.Chart.Name $name $kind) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 kcc.condition: an IAM condition from fabric's {expression, title, description}.
 */}}
 {{- define "kcc.condition" -}}

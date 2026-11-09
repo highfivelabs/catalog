@@ -33,7 +33,7 @@ A new fabric release is a new port, not a merge: diff the module between
 the two commits (`git diff <old>..<new> -- modules/<module>`), carry each
 change into the chart, bump the chart's version (docs/design.md,
 "Versioning"), and update the rows above and the chart's annotations. A
-new Config Connector release: update the rows above, run `hack/test.sh`
+new Config Connector release: update the rows above, run `task test`
 (it re-fetches the CRDs and re-validates every render), and re-read the
 gaps in `docs/gcp-inventory.md`: a gap that the release closes becomes a
 value the chart now supports.

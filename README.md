@@ -13,14 +13,16 @@ its outputs.
 | `charts/gcp/<module>/` | one chart per ported module, with its Bundt Package (`package.yaml`), README and tests |
 | `lib/_kcc.tpl` | helpers every chart carries a copy of (`hack/sync-lib.sh`) |
 | `tools/catalogtool` | Config Connector CRDs to kubeconform schemas; Package checks; outputs evaluated against live objects |
-| `hack/test.sh` | render tests (offline, seconds) |
-| `hack/mock-apply.sh` | the fake-cloud apply (an offload VM, never a laptop) |
-| `hack/inventory/run.sh` | regenerates the inventory's tables |
+| `Taskfile.yml` | the entry points: `task test`, `test-live`, `test-mock`, `inventory` (`task --list`) |
+| `hack/test.sh` | render tests (offline, seconds), behind `task test` |
+| `hack/mock-apply.sh`, `hack/live-apply.sh` | the fake-cloud and real-project applies (an offload VM, never a laptop), behind `task test-mock` and `task test-live` |
+| `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
 | `UPSTREAM.md` | the fabric and Config Connector commits everything is pinned to |
 
 ```sh
-hack/test.sh                 # all charts; needs helm, kubeconform, go, git
-UPDATE=1 hack/test.sh gcs    # accept a chart's new renders
+task test                    # all charts; needs task, helm, kubeconform, go, git
+task test CHART=gcs          # one chart
+task test-update CHART=gcs   # accept a chart's new renders
 ```
 
 Charts: `iam-service-account`, `gcs`, `net-vpc`, `project` (partial).

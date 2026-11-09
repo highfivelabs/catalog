@@ -33,6 +33,7 @@ The module's variables, with the same names, types and defaults.
 | `notification_config` | a `StorageNotification`; with `create_topic` (the default) also the `PubSubTopic` and an `IAMPartialPolicy` granting `roles/pubsub.publisher` to `sa_email` |
 | `tag_bindings` | one `TagsLocationTagBinding` each |
 | `deletion_policy` | not a fabric gcs variable; `ABANDON` keeps the bucket and topic |
+| `allow_alpha`, `managed_folders` | alpha (render-tested, not applied): with `allow_alpha: true`, one `StorageManagedFolder` per path; otherwise refused |
 
 Refused when set:
 
@@ -40,7 +41,7 @@ Refused when set:
 | --- | --- |
 | `enable_object_retention`, `enable_hierarchical_namespace`, `rpo` | `StorageBucket` has no such field (field gaps; `rpo` is Config Connector PR #13713) |
 | `objects_to_upload` | Config Connector has no bucket object kind (gap 5) |
-| `managed_folders` | `StorageManagedFolder` is alpha, and IAMPolicyMember cannot reference it |
+| `managed_folders[].iam*`, `managed_folders[].force_destroy: true` | IAMPolicyMember cannot reference a managed folder (gap 2), and the kind has no `force_destroy` |
 | `kms_autokeys` | a key handle's key is known only after apply, and the bucket cannot reference a handle (gap 8) |
 | `context` | use Bundt's `${...}` expressions and `valueFrom` |
 
@@ -48,14 +49,14 @@ Refused when set:
 
 | Output | From |
 | --- | --- |
-| `name`, `id` | the bucket's `spec.resourceID` |
-| `url` | `status.url` |
+| `name`, `id` | the component's inputs, as fabric computes them (`<prefix>-<name>`, lower-cased) |
+| `url` | `status.url`; `gs://<name>` with `bucket_create: false` |
 | `notification` | the notification's `status.selfLink`, or null |
 | `topic` | `projects/<p>/topics/<topic>` when the chart made the topic, or null |
 
-With `bucket_create: false` there is no bucket object, so `name`, `id`
-and `url` have no value. fabric's `bucket` and `objects` outputs are not
-ported.
+These are fabric's declared outputs, selected (docs/design.md,
+"Outputs"); fabric's `bucket` and `objects` (whole Terraform objects) are
+not outputs.
 
 ## Differences from the module
 
@@ -65,5 +66,5 @@ ported.
 
 ## Tests
 
-`hack/test.sh gcs`: four render cases, four refusals.
+`task test CHART=gcs`: five render cases, six refusals.
 `tests/mock.values.yaml` is applied to the fake cloud.

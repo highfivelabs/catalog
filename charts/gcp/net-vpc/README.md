@@ -45,6 +45,7 @@ The module's variables, with the same names, types and defaults.
 | `dns_policy` | `DNSPolicy` |
 | `psa_configs` | a global `ComputeAddress` per range and a `ServiceNetworkingConnection` per producer |
 | `firewall_policy_associations.global` | `ComputeNetworkFirewallPolicyAssociation` |
+| `allow_alpha` | not a fabric variable: accepts the features below that need an alpha Config Connector kind (see "Alpha") |
 | `deletion_policy` | not a fabric net-vpc variable; `ABANDON` keeps every cloud resource |
 
 ### Factories
@@ -65,15 +66,27 @@ factories_data:
 
 `factories_config` is accepted and ignored.
 
+### Alpha
+
+Beta kinds are always on. These features need a `v1alpha1` kind, whose
+schema may change between Config Connector releases, so each is refused
+until the component sets `allow_alpha: true`. They are render-tested
+against the kinds' schemas (`tests/alpha.values.yaml`) and have not been
+applied to a cloud, real or fake.
+
+| Variable | Renders |
+| --- | --- |
+| `network_attachments` | `ComputeNetworkAttachment` per attachment, on a subnet of this chart (`description` is not supported) |
+| `psa_configs[].export_routes`, `import_routes` | `ComputeNetworkPeeringRoutesConfig` (only for `servicenetworking.googleapis.com`, whose peering name is known) |
+| `psa_configs[].peered_domains` | `ServiceNetworkingPeeredDNSDomain` per domain |
+
 Refused when set:
 
 | Variable | Why |
 | --- | --- |
 | `bgp_config` | `ComputeNetwork` has no BGP fields (field gap) |
-| `internal_ranges`, subnet `reserved_internal_range` | `NetworkConnectivityInternalRange` is alpha |
-| `network_attachments`, `policy_based_routes`, `service_connection_policies` | alpha kinds |
+| `internal_ranges`, subnet `reserved_internal_range`, `policy_based_routes`, `service_connection_policies` | alpha kinds not ported yet, even with `allow_alpha` |
 | subnet `ip_collection`, `allow_subnet_cidr_routes_overlap` | `ComputeSubnetwork` has no such field (field gaps) |
-| `psa_configs[].export_routes`, `import_routes`, `peered_domains` | `ComputeNetworkPeeringRoutesConfig` and `ServiceNetworkingPeeredDNSDomain` are alpha |
 | `firewall_policy_associations` other than `global` | no regional network firewall policy association kind (gap 6) |
 | `context` | use Bundt's `${...}` expressions and `valueFrom` |
 
@@ -82,12 +95,19 @@ Refused when set:
 | Output | From |
 | --- | --- |
 | `name`, `id`, `self_link`, `project_id` | the network |
-| `subnet_ids`, `subnet_self_links`, `subnet_ips`, `subnet_regions`, `subnet_secondary_ranges` | regular subnets, keyed `<region>/<name>` |
+| `subnet_ids`, `subnet_self_links`, `subnet_ips`, `subnet_regions`, `subnet_secondary_ranges`, `subnet_ipv6_external_prefixes` | regular subnets, keyed `<region>/<name>` |
 | `subnets_proxy_only`, `subnets_psc`, `subnets_private_nat` | self links of those subnets, keyed `<region>/<name>` |
 
-`network_id` is not available: `ComputeNetwork` does not report the
-numeric ID. With `vpc_reuse` the network outputs have no value. Outputs
-holding Terraform objects (`network`, `subnets`) are not ported.
+These are fabric's declared outputs, selected (docs/design.md,
+"Outputs"). Not outputs: `network_id` and `internal_ipv6_range`
+(`ComputeNetwork` does not report them: field gaps), the maps of internal
+ranges, service connection policies and network attachments (those
+features are alpha or refused), and fabric's whole-object outputs
+(`network`, `subnets`). Where fabric's output is a map of whole subnet
+objects (`subnets_proxy_only`, `subnets_psc`, `subnets_private_nat`) the
+output is the self link, the field consumers take. `name` and
+`project_id` come from the component's inputs; with `vpc_reuse` the
+network's `id` and `self_link` have no value.
 
 ## Differences from the module
 
@@ -98,5 +118,5 @@ holding Terraform objects (`network`, `subnets`) are not ported.
 
 ## Tests
 
-`hack/test.sh net-vpc`: four render cases, four refusals.
+`task test CHART=net-vpc`: five render cases, seven refusals.
 `tests/mock.values.yaml` is applied to the fake cloud.

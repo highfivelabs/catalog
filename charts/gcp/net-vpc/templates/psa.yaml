@@ -12,9 +12,8 @@ Copyright 2025 Google LLC, Apache-2.0: Private Service Access.
 {{- fail "net-vpc: at most one psa_configs entry is possible for each service producer" }}
 {{- end }}
 {{- $producers = append $producers $producer }}
-{{- include "kcc.unsupported" (list $ (printf "psa_configs %s export_routes" $producer) $c.export_routes "ComputeNetworkPeeringRoutesConfig is alpha in v1.160.0") }}
-{{- include "kcc.unsupported" (list $ (printf "psa_configs %s import_routes" $producer) $c.import_routes "ComputeNetworkPeeringRoutesConfig is alpha in v1.160.0") }}
-{{- include "kcc.unsupported" (list $ (printf "psa_configs %s peered_domains" $producer) $c.peered_domains "ServiceNetworkingPeeredDNSDomain is alpha in v1.160.0") }}
+{{- include "kcc.alpha" (list $ (printf "psa_configs %s export_routes or import_routes" $producer) (or $c.export_routes $c.import_routes) "ComputeNetworkPeeringRoutesConfig") }}
+{{- include "kcc.alpha" (list $ (printf "psa_configs %s peered_domains" $producer) $c.peered_domains "ServiceNetworkingPeeredDNSDomain") }}
 {{- if and $c.deletion_policy (ne $c.deletion_policy "ABANDON") }}
 {{- fail "net-vpc: psa_configs deletion_policy supports only ABANDON" }}
 {{- end }}
@@ -52,4 +51,36 @@ spec:
     {{- range $addr := $ranges }}
     - name: {{ include "kcc.name" (list $.Release.Name "psa" $addr) }}
     {{- end }}
+{{- /* Alpha: the peering's route exchange (ComputeNetworkPeeringRoutesConfig). */}}
+{{- if or $c.export_routes $c.import_routes }}
+{{- if ne $producer "servicenetworking.googleapis.com" }}
+{{- fail (printf "net-vpc: psa_configs %s export_routes or import_routes: the peering's name is known only for servicenetworking.googleapis.com" $producer) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkPeeringRoutesConfig
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psa-routes" $producer)) "id" (printf "psa_routes:%s" $producer) "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ replace "." "-" $producer }}
+  projectRef:
+    external: {{ required "net-vpc: project_id is needed for PSA route exchange" $.Values.project_id | quote }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+  exportCustomRoutes: {{ $c.export_routes | default false }}
+  importCustomRoutes: {{ $c.import_routes | default false }}
+{{- end }}
+{{- /* Alpha: peered DNS domains (ServiceNetworkingPeeredDNSDomain). */}}
+{{- range $d := ($c.peered_domains | default list) }}
+---
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1alpha1
+kind: ServiceNetworkingPeeredDNSDomain
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psa-domain" $producer $d)) "id" (printf "psa_domain:%s:%s" $producer $d) "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ printf "%s%s" $prefix (trimSuffix "-" (replace "." "-" $d)) }}
+  dnsSuffix: {{ $d | quote }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+{{- end }}
 {{- end }}

@@ -68,6 +68,6 @@ fabric's `service_account` output (the Terraform object) is not ported.
 
 ## Tests
 
-`hack/test.sh iam-service-account`: three render cases, five refusals.
+`task test CHART=iam-service-account`: three render cases, five refusals.
 `tests/mock.values.yaml` is applied to the fake cloud by
 `hack/mock-apply.sh`.
