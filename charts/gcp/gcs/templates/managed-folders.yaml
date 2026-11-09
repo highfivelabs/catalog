@@ -20,6 +20,11 @@ metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "folder" $path)) "id" (printf "managed_folder:%s" $path) "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
 spec:
   resourceID: {{ $name | quote }}
+  {{- /* The kind has no project annotation fallback: its identity code
+  reads spec.projectRef and stops on nil. It also takes the bucket by the
+  name it will have in Google Cloud, not by the object's name. */}}
+  projectRef:
+    external: {{ required "gcs: project_id is needed for managed_folders" $.Values.project_id | quote }}
   storagebucketRef:
-    {{- include "gcs.bucketRef" $ | nindent 4 }}
+    name: {{ include "gcs.bucketName" $ }}
 {{- end }}

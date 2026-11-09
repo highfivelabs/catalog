@@ -33,7 +33,7 @@ The module's variables, with the same names, types and defaults.
 | `notification_config` | a `StorageNotification`; with `create_topic` (the default) also the `PubSubTopic` and an `IAMPartialPolicy` granting `roles/pubsub.publisher` to `sa_email` |
 | `tag_bindings` | one `TagsLocationTagBinding` each |
 | `deletion_policy` | not a fabric gcs variable; `ABANDON` keeps the bucket and topic |
-| `allow_alpha`, `managed_folders` | alpha (render-tested, not applied): with `allow_alpha: true`, one `StorageManagedFolder` per path; otherwise refused |
+| `allow_alpha`, `managed_folders` | alpha: with `allow_alpha: true`, one `StorageManagedFolder` per path (needs `project_id`; the kind takes no project annotation and takes the bucket by the name it has in Google Cloud); otherwise refused |
 
 Refused when set:
 

@@ -47,6 +47,15 @@ The builder's answers of 2026-11-09, applied in the sections below.
    and made (no keys). Rules in "Testing".
 7. **Entry points are `task`** (Taskfile.yml), as in every repo: `task
    test`, `task test-live`, `task inventory`.
+8. **Factory findings accepted** (after the worked example): the generator
+   moves a project's grant to its own service account to the account's
+   side, rewrites entries keyed by principals that are expressions into
+   additive bindings, and writes folder IDs as literals for now.
+   Cross-Instance references are a gap the builder has planned in Bundt.
+9. **A test provisioner** is the pattern for live tests that need real
+   folders, projects, policies or identities ("Testing", "The test
+   provisioner"). The privileged principal it needs waits on a test
+   folder, and the builder creates it.
 
 ## Summary
 
@@ -457,12 +466,21 @@ What this shows and what it does not:
   readable as `${components.<name>.outputs.<o>}` inside an Instance (the
   spec has them), `cloudResources: keep` per component (the spec has it),
   and a Team-scoped plan (the spec has it).
+- The builder accepted the three findings of the example: a project's
+  grant to its own service account moves to the account's side (the cycle
+  otherwise); a principal that is an expression cannot be a map key, so
+  those entries become additive bindings; and folder IDs are literal
+  values for now.
+- **Cross-Instance references are a known gap, and the builder has
+  planned the fix in Bundt**: contracts, exports and bindings (L3 or
+  sooner, `asks/parked.md` and `drafts/capabilities`, "Central services").
+  When an Instance can export an output and another bind to it, the
+  folders Instance exports `team-a/app-0`'s ID and the project reads it;
+  the generator's literal folder IDs, and its two-pass order, go away.
 - It needs a decision from the builder: whether one Instance per project is
   the unit (recommended: a project is what a team asks for, reviews and
-  deletes), and whether the folders may be an Instance of their own whose
-  outputs the generator copies into projects as literals, because Bundt
-  has no cross-Instance reference today (parked: "Contracts, exports and
-  bindings").
+  deletes), and whether the folders may be an Instance of their own, whose
+  outputs the generator copies into projects as literals until then.
 - The generator itself is small: a YAML reader, the table above, and a
   document writer. fabric's context lookups are its only hard part, and
   they are a table.
@@ -719,7 +737,89 @@ tasks (`task --list`).
    resources, then any `cat-` leftover more than two hours old); at the end
    it lists what is left in the project, and the VM deletes itself. The
    `project` chart's live run waits for a test folder that does not exist
-   yet.
+   yet, and for the provisioner below.
+
+### The test provisioner
+
+Some charts cannot be tested with tiny resources in one fixed project:
+`project`, `folder`, `organization`, `billing-account`, `vpc-sc`, Shared
+VPC attachment, anything with an organization policy or a service agent.
+They need a real folder, projects with billing, policies at folder scope,
+identities. The builder approved the pattern (2026-11-09): "if there needs
+to be some outer provisioner in all cases that creates everything it needs
+to and manages everything it needs to for some given test, that's a
+perfectly good pattern. And if there's a privilege principal needed for
+that, we can create that."
+
+An **outer provisioner** creates everything one test needs, owns it for the
+test, and tears it down. The chart under test never creates its own
+surroundings, and never runs with the privilege needed to.
+
+- **Two principals.** The provisioner runs as a privileged principal,
+  `catalog-provisioner`, whose roles are confined to the test folder
+  (folder admin, project creator, billing user on the test billing
+  account, org-policy admin at folder scope), never organization-level
+  IAM. The chart runs as the low-privilege `catalog-live-tests`, which the
+  provisioner grants roles on what it created, and only that. Neither
+  principal exists beyond what is already made: the builder creates the
+  provisioner's principal when the test folder exists, and nothing here
+  creates a principal or touches organization IAM.
+- **A test declares its needs** in `tests/live.needs.yaml`, a description,
+  not a script:
+
+  ```yaml
+  # charts/gcp/project/tests/live.needs.yaml
+  needs:
+    folder: {}                              # a folder made for this run under the test folder
+    projects:
+      host: {services: [compute.googleapis.com]}
+      service: {}                           # created with the test billing account, under the run's folder
+    org_policies:
+      folder: {compute.skipDefaultNetworkCreation: {enforce: true}}
+    service_accounts: [runner]              # in the first project
+  values: live.values.yaml                  # may read ${needs.folder.id}, ${needs.projects.host.id}, ${needs.service_accounts.runner.email}
+  ```
+
+- **The provisioner** (`hack/live-provision.sh up|down RUN`) reads it,
+  creates each thing with the run ID in its name and `catalog-run` in its
+  labels, writes `needs.json` (the IDs) to the run's folder in the offload
+  bucket, and on `down` deletes everything labelled with the run, then
+  sweeps older leftovers, as the live script's sweeper does. It is the only
+  code that creates folders, projects or policies; a chart's test that
+  needs one without declaring it fails. Later it can itself be a Bundt
+  Template of catalog Packages (`gcp-folder`, `gcp-project`, ...), applied
+  by the privileged principal, so the catalog is tested with itself.
+- **Invoked from `task test-live`**, which already runs the render tests
+  and the fake cloud first. A chart with a `live.needs.yaml` gets, in
+  order, `provision up`, the chart's live apply as `catalog-live-tests`,
+  and `provision down`, which always runs:
+
+  ```yaml
+  # Taskfile.yml (sketch)
+  test-live:
+    deps: [test, cce-snapshot]
+    cmds:
+      - for: {var: CHARTS_WITH_NEEDS}
+        task: live-with-needs
+        vars: {CHART: "{{.ITEM}}"}
+      - task: live-simple          # charts that need nothing, as today
+  live-with-needs:
+    vars: {RUN: "cat-{{now | date \"010215 04\"}}-{{randAlphaNum 4 | lower}}"}
+    cmds:
+      - '{{.OFFLOAD}} run --sa {{.PROVISIONER_SA}} -- hack/live-provision.sh up {{.RUN}} charts/gcp/{{.CHART}}'
+      - defer: '{{.OFFLOAD}} run --sa {{.PROVISIONER_SA}} -- hack/live-provision.sh down {{.RUN}}'
+      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} -- env RUN={{.RUN}} NEEDS=gs://.../{{.RUN}}/needs.json hack/live-apply.sh {{.CHART}}'
+  ```
+
+  The two offload VMs are separate because a VM acts as one service
+  account; the provisioner's VM does not run while the chart's does, and
+  `defer` runs the teardown even when the chart's run fails.
+- **Limits** the provisioner keeps: the test folder is the only parent;
+  the test billing account carries a budget alert; resources are the
+  cheapest that exercise the chart (a project costs nothing idle); a run
+  that dies leaves labelled objects that the next run's sweeper removes;
+  and `offload ls` plus a list of the test folder's contents are checked
+  at the end of every run, as for the current live run.
 
 Not covered yet: upgrades between chart versions (comparing two versions'
 renders for replaced resources and renamed objects, which is the major
@@ -802,8 +902,8 @@ the pilot:
      Template version). Bundt's L2 escape hatch decides it; the example
      assumes `spec.components` as a Template has it.
    - folders in an Instance of their own whose outputs the generator
-     copies into projects as literals. Recommended yes until Bundt has
-     cross-Instance references.
+     copies into projects as literals. Accepted for now; Bundt's planned
+     contracts, exports and bindings remove it.
    - a Team of its own for the factory, so a Team-scoped plan can delete
      what vanished from the tree. Recommended yes.
 4. **`IAMRoleBinding` in the charts.** Recommended: switch `iam_bindings`
