@@ -12,14 +12,21 @@ Ported from cloud-foundation-fabric modules/gcs/managed-folders.tf
 {{- range $iam := list "iam" "iam_bindings" "iam_bindings_additive" }}
 {{- include "kcc.unsupported" (list $ (printf "managed_folders %s %s" $path $iam) (index $f $iam) "IAMPolicyMember and IAMPartialPolicy cannot reference a managed folder (docs/gcp-inventory.md, gap 2)") }}
 {{- end }}
-{{- $name := ternary $path (printf "%s/" $path) (hasSuffix "/" $path) }}
+{{- /* The kind's identity (ParseManagedFolderExternal) accepts a one-level
+folder name only: a "/" inside the name, or the trailing "/" Terraform
+requires, make the ID it reads back unparseable and the folder cannot be
+updated or deleted (found in the fake cloud). A nested path is a field gap. */}}
+{{- $name := trimSuffix "/" $path }}
+{{- if contains "/" $name }}
+{{- fail (printf "gcs: managed_folders %q: StorageManagedFolder supports one-level folder names only (a nested path cannot be read back by its identity code); docs/gcp-inventory.md, \"Field gaps\"" $path) }}
+{{- end }}
 ---
 apiVersion: storage.cnrm.cloud.google.com/v1alpha1
 kind: StorageManagedFolder
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "folder" $path)) "id" (printf "managed_folder:%s" $path) "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
 spec:
-  resourceID: {{ $name | quote }}
+  resourceID: {{ $name }}
   {{- /* The kind has no project annotation fallback: its identity code
   reads spec.projectRef and stops on nil. It also takes the bucket by the
   name it will have in Google Cloud, not by the object's name. */}}

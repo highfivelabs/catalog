@@ -124,6 +124,7 @@ not have. Each is refused by the chart when set.
 | Kind | Missing | Fabric variable | Upstream |
 | --- | --- | --- | --- |
 | `StorageBucket` | `rpo` | `gcs.rpo` | PR #13713 |
+| `StorageManagedFolder` (alpha) | nested folder names (`a/b`): its identity parser reads a one-level name only, so such a folder cannot be updated or deleted; and no project annotation fallback (panics without `spec.projectRef`) | `gcs.managed_folders` | found in the fake cloud; none found upstream |
 | `StorageBucket` | `hierarchicalNamespace` | `gcs.enable_hierarchical_namespace` | none found |
 | `StorageBucket` | `enableObjectRetention` | `gcs.enable_object_retention` | none found |
 | `ComputeNetwork` | `bgpAlwaysCompareMed`, `bgpBestPathSelectionMode`, `bgpInterRegionCost` | `net-vpc.bgp_config` | none found |

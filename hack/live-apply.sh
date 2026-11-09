@@ -108,13 +108,29 @@ cp hack/live/realcloud.go.txt "${CCE_DIR}/cmd/realcloud/main.go"
 export KUBECONFIG="${OUT}/kubeconfig"
 kind create cluster --name catalog-live --kubeconfig "${KUBECONFIG}" --wait 120s
 KCC="${CCE_DIR}/third_party/k8s-config-connector"
-for g in iam storage compute; do
-  for f in "${KCC}"/config/crds/resources/*."${g}".cnrm.cloud.google.com.yaml; do printf -- '---\n'; cat "$f"; done
-done | kubectl apply --server-side --force-conflicts -f - >/dev/null
+# Config Connector's own core CRDs (ConfigConnector, ConfigConnectorContext)
+# first: the manager's registration controller reads them and stops without.
+{ for f in "${KCC}"/operator/config/crd/bases/core.cnrm.cloud.google.com_*.yaml; do printf -- '---\n'; cat "$f"; done
+  for g in iam storage compute; do
+    for f in "${KCC}"/config/crds/resources/*."${g}".cnrm.cloud.google.com.yaml; do printf -- '---\n'; cat "$f"; done
+  done; } | kubectl apply --server-side --force-conflicts -f - >/dev/null
 kubectl wait --for=condition=Established crd --all --timeout=180s >/dev/null
 "${ROOT}/bin/realcloud" >"${OUT}/manager.log" 2>&1 &
 MANAGER_PID=$!
-for _ in $(seq 1 90); do grep -q "Starting workers" "${OUT}/manager.log" && break; sleep 2; done
+# Fail fast: a manager that stopped (the first live run's did, for want of
+# the core CRDs) reconciles nothing, and waiting ten minutes per chart for
+# Ready would only say so slowly.
+started=no
+for _ in $(seq 1 90); do
+  grep -q "Starting workers" "${OUT}/manager.log" && { started=yes; break; }
+  kill -0 "${MANAGER_PID}" 2>/dev/null || break
+  sleep 2
+done
+if [[ "${started}" != yes ]]; then
+  echo "live-apply: the manager did not start:" >&2; grep -v round_trippers "${OUT}/manager.log" | tail -15 >&2
+  { echo; echo "The manager did not start; nothing was applied."; } >>"${OUT}/summary.md" 2>/dev/null || true
+  exit 1
+fi
 NS=catalog-live
 kubectl create namespace "${NS}" --dry-run=client -o yaml \
   | kubectl annotate --local -f - "cnrm.cloud.google.com/project-id=${PROJECT}" -o yaml | kubectl apply -f - >/dev/null

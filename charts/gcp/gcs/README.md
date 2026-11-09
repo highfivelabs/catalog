@@ -41,6 +41,7 @@ Refused when set:
 | --- | --- |
 | `enable_object_retention`, `enable_hierarchical_namespace`, `rpo` | `StorageBucket` has no such field (field gaps; `rpo` is Config Connector PR #13713) |
 | `objects_to_upload` | Config Connector has no bucket object kind (gap 5) |
+| `managed_folders` with a nested path (`a/b`) | the kind's identity code reads a one-level name only, so such a folder could not be updated or deleted (field gap) |
 | `managed_folders[].iam*`, `managed_folders[].force_destroy: true` | IAMPolicyMember cannot reference a managed folder (gap 2), and the kind has no `force_destroy` |
 | `kms_autokeys` | a key handle's key is known only after apply, and the bucket cannot reference a handle (gap 8) |
 | `context` | use Bundt's `${...}` expressions and `valueFrom` |
@@ -66,5 +67,5 @@ not outputs.
 
 ## Tests
 
-`task test CHART=gcs`: five render cases, six refusals.
+`task test CHART=gcs`: five render cases, seven refusals.
 `tests/mock.values.yaml` is applied to the fake cloud.
