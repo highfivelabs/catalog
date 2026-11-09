@@ -1,0 +1,46 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: project
+spec:
+  version: "1.0.0"
+  components:
+    - name: project
+      package:
+        name: gcp-project
+        version: "0.1.0"
+      inputs:
+        name: project
+        services:
+          - container.googleapis.com
+          - stackdriver.googleapis.com
+        org_policies:
+          compute.disableGuestAttributesAccess:
+            rules:
+              - enforce: true
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: project
+  scope: my-team
+spec:
+  template: project
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: project-dev
+  scope: my-team/dev
+spec:
+  stack: project
+  version: "1.0.0"
+  components:
+    project:
+      values:
+        billing_account: 012345-6789AB-CDEF01
+        parent: folders/1234567890
+        prefix: hfl
+        iam:
+          roles/viewer:
+            - group:devs@example.com

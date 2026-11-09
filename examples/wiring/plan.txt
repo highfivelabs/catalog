@@ -1,0 +1,16 @@
+Plan preview: the converted documents, with each chart rendered by helm template.
+Layout after specs/record/plans.md R2 (one change per object); not captured from a running Bundt.
+
+  create  Template   wiring 1.0.0
+  create  Stack      my-team/wiring  (Template wiring)
+  create  Instance   my-team/dev/wiring-dev  (Stack wiring, Template version 1.0.0)
+  create  Component  wiring-dev-reader  (gcp-iam-service-account 0.1.0)
+            create  IAMServiceAccount          wiring-dev-reader  (named bucket-reader in the cloud)
+            outputs once Ready: email, iam_email, id, name, unique_id
+  create  Component  wiring-dev-bucket  (gcp-gcs 0.1.0)
+            after reader
+            create  IAMPolicyMember            wiring-dev-bucket-iam-reader
+            create  StorageBucket              wiring-dev-bucket  (named test-shared-data in the cloud)
+            outputs once Ready: id, name, notification, topic, url
+
+Findings: none. Approving the plan creates the documents and delivers the components.

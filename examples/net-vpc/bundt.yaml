@@ -1,0 +1,56 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-vpc
+spec:
+  version: "1.0.0"
+  components:
+    - name: vpc
+      package:
+        name: gcp-net-vpc
+        version: "0.1.0"
+      inputs:
+        name: my-network
+        subnets:
+          - ip_cidr_range: 10.0.0.0/24
+            name: production
+            region: europe-west1
+            secondary_ip_ranges:
+              pods:
+                ip_cidr_range: 172.16.0.0/20
+              services:
+                ip_cidr_range: 192.168.0.0/24
+          - ip_cidr_range: 10.0.16.0/24
+            name: production
+            region: europe-west2
+        routes:
+          gateway:
+            dest_range: 0.0.0.0/0
+            next_hop: default-internet-gateway
+            next_hop_type: gateway
+            priority: 100
+        shared_vpc_host: true
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-vpc
+  scope: my-team
+spec:
+  template: net-vpc
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-vpc-dev
+  scope: my-team/dev
+spec:
+  stack: net-vpc
+  version: "1.0.0"
+  components:
+    vpc:
+      values:
+        project_id: my-project
+        shared_vpc_service_projects:
+          - app-project-1
+          - app-project-2

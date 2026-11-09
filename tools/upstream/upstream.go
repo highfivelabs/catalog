@@ -80,6 +80,15 @@ type Refused struct {
 	// Partial marks a variable the chart accepts, with some of its fields
 	// (or values) refused: the reason says which.
 	Partial bool `yaml:"partial,omitempty"`
+	// Fields names the attributes inside the variable's value that are
+	// refused (any nesting), and Values the plain values that are; the
+	// converter looks for them to say exactly what cannot be carried.
+	// AlphaFields are attributes that need allow_alpha: true, and
+	// NeedsAllowAlpha says the whole variable does.
+	Fields          []string `yaml:"fields,omitempty"`
+	Values          []string `yaml:"values,omitempty"`
+	AlphaFields     []string `yaml:"alpha_fields,omitempty"`
+	NeedsAllowAlpha bool     `yaml:"needs_allow_alpha,omitempty"`
 }
 
 // Decode strictly decodes YAML into v: unknown fields are an error.

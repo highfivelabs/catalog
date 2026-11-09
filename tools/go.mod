@@ -16,6 +16,7 @@ require (
 	github.com/apparentlymart/go-textseg/v17 v17.0.1 // indirect
 	github.com/hashicorp/hcl/v2 v2.25.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/zclconf/go-cty v1.20.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
