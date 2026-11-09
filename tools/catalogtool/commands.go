@@ -9,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/highfivelabs/catalog/tools/convert"
 	"github.com/highfivelabs/catalog/tools/coverage"
 	"github.com/highfivelabs/catalog/tools/upstream"
+	"github.com/highfivelabs/catalog/tools/watch"
 )
 
 // coverageCmd: catalogtool coverage [--check] [--offline] [--cache DIR] | verify
@@ -97,13 +99,17 @@ func repoRoot() (string, error) {
 
 func upstreamCmd(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: catalogtool upstream check [CHART_DIR...]")
+		return fmt.Errorf("usage: catalogtool upstream check [CHART_DIR...] | watch | bump MODULE TAG")
 	}
 	root, err := repoRoot()
 	if err != nil {
 		return err
 	}
 	switch args[0] {
+	case "watch":
+		return watchCmd(root, args[1:])
+	case "bump":
+		return bumpCmd(root, args[1:])
 	case "check":
 		var only []string
 		for _, a := range args[1:] {
@@ -224,6 +230,125 @@ converted to the values that chart takes.`)
 	}
 	if res.Gaps() {
 		os.Exit(3)
+	}
+	return nil
+}
+
+// watchCmd: catalogtool upstream watch [--out FILE] [--json FILE] [--issue FILE] [--only ID,ID] [--date D]
+func watchCmd(root string, args []string) error {
+	o := watch.Options{Root: root, CacheDir: filepath.Join(root, ".cache", "upstream"), Date: time.Now().UTC().Format("2006-01-02"),
+		Progress: func(s string) { fmt.Fprintln(os.Stderr, "watch:", s) }}
+	out := filepath.Join(root, "docs", "upstream-status.md")
+	jsonOut := filepath.Join(root, "docs", "upstream-status.json")
+	issue := ""
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		val := func() (string, error) {
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("%s needs a value", arg)
+			}
+			return args[i], nil
+		}
+		var err error
+		var v string
+		switch arg {
+		case "--out":
+			out, err = val()
+		case "--json":
+			jsonOut, err = val()
+		case "--issue":
+			issue, err = val()
+		case "--date":
+			o.Date, err = val()
+		case "--only":
+			if v, err = val(); err == nil {
+				o.Only = strings.Split(v, ",")
+			}
+		default:
+			return fmt.Errorf("usage: catalogtool upstream watch [--out FILE] [--json FILE] [--issue FILE] [--only ID,ID] [--date YYYY-MM-DD]")
+		}
+		if err != nil {
+			return err
+		}
+	}
+	rep, err := watch.Run(o)
+	if err != nil {
+		return err
+	}
+	if rep.Checked == 0 {
+		return fmt.Errorf("no module could be checked: %s", strings.Join(rep.Unchecked, "; "))
+	}
+	for path, content := range map[string]func() ([]byte, error){
+		out:     func() ([]byte, error) { return []byte(rep.Markdown()), nil },
+		jsonOut: rep.JSON,
+	} {
+		if path == "" {
+			continue
+		}
+		b, err := content()
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, b, 0o644); err != nil {
+			return err
+		}
+	}
+	if issue != "" {
+		if err := os.WriteFile(issue, []byte(rep.IssueBody(60000)), 0o644); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("upstream watch: %d modules checked, %d up to date, %d behind, %d not checked\n", rep.Checked, rep.UpToDate, len(rep.Behind), len(rep.Unchecked))
+	return nil
+}
+
+// bumpCmd: catalogtool upstream bump MODULE TAG [--allow-downgrade]
+func bumpCmd(root string, args []string) error {
+	var pos []string
+	downgrade := false
+	for _, a := range args {
+		if a == "--allow-downgrade" {
+			downgrade = true
+		} else {
+			pos = append(pos, a)
+		}
+	}
+	if len(pos) != 2 {
+		return fmt.Errorf("usage: catalogtool upstream bump MODULE TAG [--allow-downgrade]   (MODULE: gcp/gcs, or gcs when unambiguous)")
+	}
+	f, err := upstream.Load(filepath.Join(root, "upstream", "modules.yaml"))
+	if err != nil {
+		return err
+	}
+	id, err := f.ResolveID(pos[0])
+	if err != nil {
+		return err
+	}
+	m := f.Find(id)
+	tags, err := upstream.ListTags(m.Repo, m.TagPattern)
+	if err != nil {
+		return err
+	}
+	var commit string
+	for _, t := range tags {
+		if t.Name == pos[1] {
+			commit = t.Commit
+		}
+	}
+	if commit == "" {
+		return fmt.Errorf("%s has no release tag %q (git ls-remote --tags)", m.Repo, pos[1])
+	}
+	changed, err := upstream.Bump(root, id, pos[1], commit, time.Now().UTC().Format("2006-01-02"), downgrade)
+	for _, c := range changed {
+		fmt.Println("updated", c)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s pinned to %s (%s)\n", id, pos[1], commit)
+	if m.Chart != "" {
+		fmt.Printf("Reminder: this moves only the pin. The chart %s must already carry the module's changes between %s and %s; bump its version (Chart.yaml, package.yaml) if its behaviour changed (docs/design.md, \"Versioning\").\n", m.Chart, m.Version, pos[1])
 	}
 	return nil
 }

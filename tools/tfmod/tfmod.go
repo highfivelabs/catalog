@@ -40,8 +40,10 @@ type Variable struct {
 	// Defaults are the attribute defaults declared with optional(type, default) at
 	// the top level of the object, by attribute name, when the type declares them.
 	Defaults map[string]cty.Value
-	// DefaultExpr is the source text of the variable's default, if any.
+	// DefaultExpr is the source text of the variable's default, if any, and
+	// TypeExpr the declared type's, both with whitespace collapsed.
 	DefaultExpr string
+	TypeExpr    string
 }
 
 // Output is one `output` block.
@@ -232,7 +234,7 @@ func variable(b *hclsyntax.Block, src []byte) (Variable, error) {
 	v := Variable{Name: b.Labels[0], Required: true, Nullable: true, Type: "any", TypeCty: cty.DynamicPseudoType}
 	if a, ok := b.Body.Attributes["default"]; ok {
 		v.Required, v.HasDefault = false, true
-		v.DefaultExpr = strings.TrimSpace(string(a.Expr.Range().SliceBytes(src)))
+		v.DefaultExpr = strings.Join(strings.Fields(string(a.Expr.Range().SliceBytes(src))), " ")
 	}
 	if a, ok := b.Body.Attributes["description"]; ok {
 		v.Description = literalString(a.Expr)
@@ -243,6 +245,7 @@ func variable(b *hclsyntax.Block, src []byte) (Variable, error) {
 		}
 	}
 	if a, ok := b.Body.Attributes["type"]; ok {
+		v.TypeExpr = strings.Join(strings.Fields(string(a.Expr.Range().SliceBytes(src))), " ")
 		t, defs, diags := typeexpr.TypeConstraintWithDefaults(a.Expr)
 		if diags.HasErrors() {
 			return v, fmt.Errorf("type: %s", diags.Error())
