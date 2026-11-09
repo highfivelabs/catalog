@@ -14,6 +14,10 @@
 //	    helm, spec.version equal to the chart's version, and every output
 //	    a CEL expression that compiles.
 //
+//	catalogtool upstream check [CHART_DIR...]
+//	    Check upstream/modules.yaml and each chart's upstream.yaml
+//	    against it and against the chart's Chart.yaml (upstream.go).
+//
 //	catalogtool outputs PACKAGE_YAML OBJECTS_JSON [VALUES_YAML...]
 //	    Evaluate a Package's spec.outputs, CEL as Bundt evaluates them
 //	    (docs/design.md, "Outputs"), against live objects: OBJECTS_JSON is
@@ -40,8 +44,17 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		if run, ok := commands[os.Args[1]]; ok {
+			if err := run(os.Args[2:]); err != nil {
+				fmt.Fprintln(os.Stderr, "catalogtool:", err)
+				os.Exit(1)
+			}
+			return
+		}
+	}
 	if len(os.Args) < 4 || (os.Args[1] != "outputs" && len(os.Args) != 4) {
-		fmt.Fprintln(os.Stderr, "usage: catalogtool schemas CRD_DIR OUT_DIR | check PACKAGE_YAML CHART_YAML | outputs PACKAGE_YAML OBJECTS_JSON [VALUES_YAML...]")
+		fmt.Fprintln(os.Stderr, "usage: catalogtool schemas CRD_DIR OUT_DIR | upstream check [CHART_DIR...] | check PACKAGE_YAML CHART_YAML | outputs PACKAGE_YAML OBJECTS_JSON [VALUES_YAML...]")
 		os.Exit(2)
 	}
 	var err error

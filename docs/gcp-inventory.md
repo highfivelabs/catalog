@@ -237,7 +237,7 @@ not have. Each is refused by the chart when set.
 
 This module implements the creation and management of one GCP project including IAM, organization policies, Shared VPC host or service attac…
 
-Rank 1. Coverage: **partial**. Size: XL (4634 lines of Terraform, 58 variables, 27 outputs).
+Rank 1. Terraform module: [`modules/project`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project). Coverage: **partial**. Size: XL (4634 lines of Terraform, 58 variables, 27 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -295,7 +295,7 @@ Rank 1. Coverage: **partial**. Size: XL (4634 lines of Terraform, 58 variables, 
 
 This module allows the creation and management of folders, including support for IAM bindings, organization policies, and hierarchical firew…
 
-Rank 2. Coverage: **partial**. Size: L (1883 lines of Terraform, 31 variables, 9 outputs).
+Rank 2. Terraform module: [`modules/folder`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/folder). Coverage: **partial**. Size: L (1883 lines of Terraform, 31 variables, 9 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -328,7 +328,7 @@ Rank 2. Coverage: **partial**. Size: L (1883 lines of Terraform, 31 variables, 9
 
 This module allows managing several organization properties
 
-Rank 3. Coverage: **partial**. Size: XL (3534 lines of Terraform, 35 variables, 23 outputs).
+Rank 3. Terraform module: [`modules/organization`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/organization). Coverage: **partial**. Size: XL (3534 lines of Terraform, 35 variables, 23 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -372,7 +372,7 @@ Rank 3. Coverage: **partial**. Size: XL (3534 lines of Terraform, 35 variables, 
 
 This module allows simplified creation and management of one a service account and its IAM bindings.
 
-Rank 4. Coverage: **full**. Size: M (838 lines of Terraform, 28 variables, 6 outputs).
+Rank 4. Terraform module: [`modules/iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account). Coverage: **full**. Size: M (838 lines of Terraform, 28 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -390,7 +390,7 @@ Rank 4. Coverage: **full**. Size: M (838 lines of Terraform, 28 variables, 6 out
 
 This module allows creation and management of VPC networks including subnetworks and subnetwork IAM bindings, and most features and options…
 
-Rank 5. Coverage: **partial**. Size: L (1867 lines of Terraform, 29 variables, 23 outputs).
+Rank 5. Terraform module: [`modules/net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc). Coverage: **partial**. Size: L (1867 lines of Terraform, 29 variables, 23 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -418,7 +418,7 @@ Rank 5. Coverage: **partial**. Size: L (1867 lines of Terraform, 29 variables, 2
 
 This module allows creation and management of different types of firewall rules for a single VPC network
 
-Rank 6. Coverage: **full**. Size: M (511 lines of Terraform, 8 variables, 2 outputs).
+Rank 6. Terraform module: [`modules/net-vpc-firewall`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-firewall). Coverage: **full**. Size: M (511 lines of Terraform, 8 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -428,7 +428,7 @@ Rank 6. Coverage: **full**. Size: M (511 lines of Terraform, 8 variables, 2 outp
 
 Simple Cloud NAT management, with optional router creation.
 
-Rank 7. Coverage: **full**. Size: M (466 lines of Terraform, 16 variables, 6 outputs).
+Rank 7. Terraform module: [`modules/net-cloudnat`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloudnat). Coverage: **full**. Size: M (466 lines of Terraform, 16 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -439,7 +439,7 @@ Rank 7. Coverage: **full**. Size: M (466 lines of Terraform, 16 variables, 6 out
 
 This module allows simple management of Google Cloud DNS zones and records. It supports creating public, private, forwarding, peering, servi…
 
-Rank 8. Coverage: **full**. Size: M (478 lines of Terraform, 9 variables, 6 outputs).
+Rank 8. Terraform module: [`modules/dns`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dns). Coverage: **full**. Size: M (478 lines of Terraform, 9 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -451,7 +451,7 @@ Rank 8. Coverage: **full**. Size: M (478 lines of Terraform, 9 variables, 6 outp
 
 This module allows creating and managing KMS crypto keys and IAM bindings at both the keyring and crypto key level. An existing keyring can…
 
-Rank 9. Coverage: **full**. Size: M (548 lines of Terraform, 10 variables, 7 outputs).
+Rank 9. Terraform module: [`modules/kms`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/kms). Coverage: **full**. Size: M (548 lines of Terraform, 10 variables, 7 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -466,7 +466,7 @@ Rank 9. Coverage: **full**. Size: M (548 lines of Terraform, 10 variables, 7 out
 
 ### gcs
 
-Rank 10. Coverage: **partial**. Size: L (1044 lines of Terraform, 36 variables, 7 outputs).
+Rank 10. Terraform module: [`modules/gcs`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcs). Coverage: **partial**. Size: L (1044 lines of Terraform, 36 variables, 7 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -487,7 +487,7 @@ Rank 10. Coverage: **partial**. Size: L (1044 lines of Terraform, 36 variables, 
 
 This module simplifies the creation of repositories using Google Cloud Artifact Registry.
 
-Rank 11. Coverage: **full**. Size: M (793 lines of Terraform, 17 variables, 4 outputs).
+Rank 11. Terraform module: [`modules/artifact-registry`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/artifact-registry). Coverage: **full**. Size: M (793 lines of Terraform, 17 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -500,7 +500,7 @@ Rank 11. Coverage: **full**. Size: M (793 lines of Terraform, 17 variables, 4 ou
 
 This module allows managing one or more secrets with versions and IAM bindings. Version data can be passed via [write-only attributes](https…
 
-Rank 12. Coverage: **partial**. Size: M (733 lines of Terraform, 4 variables, 5 outputs).
+Rank 12. Terraform module: [`modules/secret-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secret-manager). Coverage: **partial**. Size: M (733 lines of Terraform, 4 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -519,7 +519,7 @@ Rank 12. Coverage: **partial**. Size: M (733 lines of Terraform, 4 variables, 5 
 
 This module manages the creation of Cloud SQL instances with potential read replicas in other regions. It can also create an initial set of…
 
-Rank 13. Coverage: **full**. Size: L (983 lines of Terraform, 35 variables, 17 outputs).
+Rank 13. Terraform module: [`modules/cloudsql-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance). Coverage: **full**. Size: L (983 lines of Terraform, 35 variables, 17 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -533,7 +533,7 @@ Rank 13. Coverage: **full**. Size: L (983 lines of Terraform, 35 variables, 17 o
 
 This module offers a way to create and manage Google Kubernetes Engine (GKE) [Standard clusters](https://cloud.google.com/kubernetes-engine/…
 
-Rank 14. Coverage: **full, with alpha**. Size: L (1846 lines of Terraform, 25 variables, 15 outputs).
+Rank 14. Terraform module: [`modules/gke-cluster-standard`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-cluster-standard). Coverage: **full, with alpha**. Size: L (1846 lines of Terraform, 25 variables, 15 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -548,7 +548,7 @@ Rank 14. Coverage: **full, with alpha**. Size: L (1846 lines of Terraform, 25 va
 
 This module offers a way to create and manage Google Kubernetes Engine (GKE) [Autopilot clusters](https://cloud.google.com/kubernetes-engine…
 
-Rank 15. Coverage: **full, with alpha**. Size: L (1459 lines of Terraform, 21 variables, 15 outputs).
+Rank 15. Terraform module: [`modules/gke-cluster-autopilot`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-cluster-autopilot). Coverage: **full, with alpha**. Size: L (1459 lines of Terraform, 21 variables, 15 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -563,7 +563,7 @@ Rank 15. Coverage: **full, with alpha**. Size: L (1459 lines of Terraform, 21 va
 
 This module allows simplified creation and management of individual GKE nodepools, setting sensible defaults (eg a service account is create…
 
-Rank 16. Coverage: **full**. Size: M (828 lines of Terraform, 20 variables, 4 outputs).
+Rank 16. Terraform module: [`modules/gke-nodepool`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool). Coverage: **full**. Size: M (828 lines of Terraform, 20 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -574,7 +574,7 @@ Rank 16. Coverage: **full**. Size: M (828 lines of Terraform, 20 variables, 4 ou
 
 This module allows managing a single Pub/Sub topic, including multiple subscriptions and IAM bindings at the topic and subscriptions levels,…
 
-Rank 17. Coverage: **full**. Size: M (633 lines of Terraform, 14 variables, 6 outputs).
+Rank 17. Terraform module: [`modules/pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub). Coverage: **full**. Size: M (633 lines of Terraform, 14 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -590,7 +590,7 @@ Rank 17. Coverage: **full**. Size: M (633 lines of Terraform, 14 variables, 6 ou
 
 This module allows managing a single BigQuery dataset, including access configuration, tables and views.
 
-Rank 18. Coverage: **full, with alpha**. Size: L (1123 lines of Terraform, 24 variables, 12 outputs).
+Rank 18. Terraform module: [`modules/bigquery-dataset`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigquery-dataset). Coverage: **full, with alpha**. Size: L (1123 lines of Terraform, 24 variables, 12 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -606,7 +606,7 @@ Rank 18. Coverage: **full, with alpha**. Size: L (1123 lines of Terraform, 24 va
 
 Cloud Run Services and Jobs, with support for IAM roles and Eventarc trigger creation. This module uses provider default value for `deletion…
 
-Rank 19. Coverage: **partial**. Size: XL (2585 lines of Terraform, 21 variables, 12 outputs).
+Rank 19. Terraform module: [`modules/cloud-run-v2`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-run-v2). Coverage: **partial**. Size: XL (2585 lines of Terraform, 21 variables, 12 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -628,7 +628,7 @@ Rank 19. Coverage: **partial**. Size: XL (2585 lines of Terraform, 21 variables,
 
 This module allows managing resources and policies related to a billing account
 
-Rank 20. Coverage: **partial**. Size: M (871 lines of Terraform, 11 variables, 2 outputs).
+Rank 20. Terraform module: [`modules/billing-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/billing-account). Coverage: **partial**. Size: M (871 lines of Terraform, 11 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -647,7 +647,7 @@ Rank 20. Coverage: **partial**. Size: M (871 lines of Terraform, 11 variables, 2
 
 This module manages logging buckets for a project, folder, organization or.
 
-Rank 21. Coverage: **partial**. Size: M (448 lines of Terraform, 12 variables, 2 outputs).
+Rank 21. Terraform module: [`modules/logging-bucket`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/logging-bucket). Coverage: **partial**. Size: M (448 lines of Terraform, 12 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -665,7 +665,7 @@ Rank 21. Coverage: **partial**. Size: M (448 lines of Terraform, 12 variables, 2
 
 This module allows creation and management of two different firewall policy types
 
-Rank 22. Coverage: **partial**. Size: L (1148 lines of Terraform, 13 variables, 1 outputs).
+Rank 22. Terraform module: [`modules/net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy). Coverage: **partial**. Size: L (1148 lines of Terraform, 13 variables, 1 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -685,7 +685,7 @@ Rank 22. Coverage: **partial**. Size: L (1148 lines of Terraform, 13 variables, 
 
 This module offers a unified interface to manage VPC Service Controls [Access Policy](https://cloud.google.com/access-context-manager/docs/c…
 
-Rank 23. Coverage: **full**. Size: XL (2010 lines of Terraform, 12 variables, 6 outputs).
+Rank 23. Terraform module: [`modules/vpc-sc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/vpc-sc). Coverage: **full**. Size: XL (2010 lines of Terraform, 12 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -699,7 +699,7 @@ Rank 23. Coverage: **full**. Size: XL (2010 lines of Terraform, 12 variables, 6 
 
 This module implements end-to-end creation processes for a folder hierarchy,   projects and billing budgets via YAML data configurations.
 
-Rank 24. Coverage: **composite**. Size: XL (3799 lines of Terraform, 8 variables, 16 outputs). composes folder, project, iam-service-account, gcs, kms, pubsub, bigquery-dataset, logging-bucket, billing-account, data-catalog-policy-tag, dataplex-aspect-types; ported by porting those modules and composing them in a Bundt Template.
+Rank 24. Terraform module: [`modules/project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory). Coverage: **composite**. Size: XL (3799 lines of Terraform, 8 variables, 16 outputs). composes folder, project, iam-service-account, gcs, kms, pubsub, bigquery-dataset, logging-bucket, billing-account, data-catalog-policy-tag, dataplex-aspect-types; ported by porting those modules and composing them in a Bundt Template.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -710,13 +710,13 @@ Rank 24. Coverage: **composite**. Size: XL (3799 lines of Terraform, 8 variables
 
 This module implements the creation of VPCs, subnets, routes, and firewall rules via YAML configurations. It is designed to be embedded in o…
 
-Rank 25. Coverage: **composite**. Size: S (272 lines of Terraform, 4 variables, 3 outputs). composes net-vpc and net-vpc-firewall; ported by porting those modules and composing them in a Bundt Template.
+Rank 25. Terraform module: [`modules/net-vpc-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-factory). Coverage: **composite**. Size: S (272 lines of Terraform, 4 variables, 3 outputs). composes net-vpc and net-vpc-firewall; ported by porting those modules and composing them in a Bundt Template.
 
 ### net-vpc-peering
 
 This module allows creation of a VPC Network Peering between two networks.
 
-Rank 26. Coverage: **full**. Size: S (204 lines of Terraform, 7 variables, 2 outputs).
+Rank 26. Terraform module: [`modules/net-vpc-peering`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-peering). Coverage: **full**. Size: S (204 lines of Terraform, 7 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -726,7 +726,7 @@ Rank 26. Coverage: **full**. Size: S (204 lines of Terraform, 7 variables, 2 out
 
 This module allows reserving Compute Engine external, global, and internal addresses. The module also supports managing VPC network attachme…
 
-Rank 27. Coverage: **full, with alpha**. Size: M (613 lines of Terraform, 9 variables, 8 outputs).
+Rank 27. Terraform module: [`modules/net-address`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-address). Coverage: **full, with alpha**. Size: M (613 lines of Terraform, 9 variables, 8 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -740,7 +740,7 @@ Rank 27. Coverage: **full, with alpha**. Size: M (613 lines of Terraform, 9 vari
 
 This module makes it easy to deploy either GCP-to-GCP or GCP-to-On-prem [Cloud HA VPN](https://cloud.google.com/network-connectivity/docs/vp…
 
-Rank 28. Coverage: **partial**. Size: L (933 lines of Terraform, 19 variables, 18 outputs). submodules or factory data: recipe-vpn-aws-gcp.
+Rank 28. Terraform module: [`modules/net-vpn-ha`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-ha). Coverage: **partial**. Size: L (933 lines of Terraform, 19 variables, 18 outputs). submodules or factory data: recipe-vpn-aws-gcp.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -763,7 +763,7 @@ Rank 28. Coverage: **partial**. Size: L (933 lines of Terraform, 19 variables, 1
 
 This module allows creating a Cloud Identity group and assigning members.
 
-Rank 29. Coverage: **full**. Size: S (175 lines of Terraform, 6 variables, 2 outputs).
+Rank 29. Terraform module: [`modules/cloud-identity-group`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-identity-group). Coverage: **full**. Size: S (175 lines of Terraform, 6 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -774,7 +774,7 @@ Rank 29. Coverage: **full**. Size: S (175 lines of Terraform, 6 variables, 2 out
 
 This module allows management of a Google Cloud DNS policy and its rules.
 
-Rank 30. Coverage: **full, with alpha**. Size: S (276 lines of Terraform, 9 variables, 3 outputs).
+Rank 30. Terraform module: [`modules/dns-response-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dns-response-policy). Coverage: **full, with alpha**. Size: S (276 lines of Terraform, 9 variables, 3 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -785,7 +785,7 @@ Rank 30. Coverage: **full, with alpha**. Size: S (276 lines of Terraform, 9 vari
 
 This module allows you to create a certificate manager map and associated entries, certificates, DNS authorizations and issueance configs. M…
 
-Rank 31. Coverage: **full, with alpha**. Size: S (282 lines of Terraform, 5 variables, 5 outputs).
+Rank 31. Terraform module: [`modules/certificate-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/certificate-manager). Coverage: **full, with alpha**. Size: S (282 lines of Terraform, 5 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -799,7 +799,7 @@ Rank 31. Coverage: **full, with alpha**. Size: S (282 lines of Terraform, 5 vari
 
 This module allows managing Global HTTP/HTTPS Classic Load Balancers (GLBs). It's designed to expose the full configuration of the underlyin…
 
-Rank 32. Coverage: **full, with alpha**. Size: XL (3127 lines of Terraform, 17 variables, 13 outputs).
+Rank 32. Terraform module: [`modules/net-lb-app-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-ext). Coverage: **full, with alpha**. Size: XL (3127 lines of Terraform, 17 variables, 13 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -823,7 +823,7 @@ Rank 32. Coverage: **full, with alpha**. Size: XL (3127 lines of Terraform, 17 v
 
 This module allows managing a GCE Internal Load Balancer and integrates the forwarding rule, regional backend, and optional health check res…
 
-Rank 33. Coverage: **full**. Size: L (1389 lines of Terraform, 24 variables, 19 outputs). submodules or factory data: recipe-ilb-next-hop.
+Rank 33. Terraform module: [`modules/net-lb-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-int). Coverage: **full**. Size: L (1389 lines of Terraform, 24 variables, 19 outputs). submodules or factory data: recipe-ilb-next-hop.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -838,7 +838,7 @@ Rank 33. Coverage: **full**. Size: L (1389 lines of Terraform, 24 variables, 19 
 
 This module allows managing a GCE Network Load Balancer and integrates the forwarding rule, regional backend, and optional health check reso…
 
-Rank 34. Coverage: **full**. Size: M (646 lines of Terraform, 11 variables, 12 outputs).
+Rank 34. Terraform module: [`modules/net-lb-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-ext). Coverage: **full**. Size: M (646 lines of Terraform, 11 variables, 12 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -851,7 +851,7 @@ Rank 34. Coverage: **full**. Size: M (646 lines of Terraform, 11 variables, 12 o
 
 This module allows managing Internal HTTP/HTTPS Load Balancers (L7 ILBs). It's designed to expose the full configuration of the underlying r…
 
-Rank 35. Coverage: **partial**. Size: XL (2770 lines of Terraform, 22 variables, 13 outputs).
+Rank 35. Terraform module: [`modules/net-lb-app-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-int). Coverage: **partial**. Size: XL (2770 lines of Terraform, 22 variables, 13 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -874,7 +874,7 @@ Rank 35. Coverage: **partial**. Size: XL (2770 lines of Terraform, 22 variables,
 
 This module can operate in two distinct modes
 
-Rank 36. Coverage: **partial**. Size: XL (2404 lines of Terraform, 43 variables, 13 outputs).
+Rank 36. Terraform module: [`modules/compute-vm`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/compute-vm). Coverage: **partial**. Size: XL (2404 lines of Terraform, 43 variables, 13 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -901,7 +901,7 @@ Rank 36. Coverage: **partial**. Size: XL (2404 lines of Terraform, 43 variables,
 
 This module allows creating a managed instance group supporting one or more application versions via instance templates. Optionally, a healt…
 
-Rank 37. Coverage: **full, with alpha**. Size: L (1085 lines of Terraform, 21 variables, 4 outputs).
+Rank 37. Terraform module: [`modules/compute-mig`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/compute-mig). Coverage: **full, with alpha**. Size: L (1085 lines of Terraform, 21 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -917,7 +917,7 @@ Rank 37. Coverage: **full, with alpha**. Size: L (1085 lines of Terraform, 21 va
 
 This module allows managing a single Service Directory namespace, including multiple services,.
 
-Rank 38. Coverage: **full**. Size: S (249 lines of Terraform, 8 variables, 7 outputs).
+Rank 38. Terraform module: [`modules/service-directory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/service-directory). Coverage: **full**. Size: S (249 lines of Terraform, 8 variables, 7 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -931,7 +931,7 @@ Rank 38. Coverage: **full**. Size: S (249 lines of Terraform, 8 variables, 7 out
 
 This module manages Google Cloud Workflows, providing end-to-end support for serverless workflow orchestration, execution call logging, envi…
 
-Rank 39. Coverage: **full, with alpha**. Size: M (798 lines of Terraform, 18 variables, 13 outputs).
+Rank 39. Terraform module: [`modules/workflows`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/workflows). Coverage: **full, with alpha**. Size: M (798 lines of Terraform, 18 variables, 13 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -946,7 +946,7 @@ Rank 39. Coverage: **full, with alpha**. Size: M (798 lines of Terraform, 18 var
 
 Cloud Function management, with support for IAM roles, optional bucket creation and bundle via GCS URI, local zip, or local source folder.
 
-Rank 40. Coverage: **partial**. Size: L (917 lines of Terraform, 25 variables, 14 outputs).
+Rank 40. Terraform module: [`modules/cloud-function-v2`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-function-v2). Coverage: **partial**. Size: L (917 lines of Terraform, 25 variables, 14 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -964,7 +964,7 @@ Rank 40. Coverage: **partial**. Size: L (917 lines of Terraform, 25 variables, 1
 
 This module manages the creation of an AlloyDB cluster. It also supports cross-region replication scenario by setting up a secondary cluster…
 
-Rank 41. Coverage: **full**. Size: L (1458 lines of Terraform, 33 variables, 30 outputs).
+Rank 41. Terraform module: [`modules/alloydb`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/alloydb). Coverage: **full**. Size: L (1458 lines of Terraform, 33 variables, 30 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -978,7 +978,7 @@ Rank 41. Coverage: **full**. Size: L (1458 lines of Terraform, 33 variables, 30 
 
 This module allows to create a spanner instance with associated spanner instance config and databases in the instance. Additionally it allow…
 
-Rank 42. Coverage: **full, with alpha**. Size: M (426 lines of Terraform, 7 variables, 6 outputs).
+Rank 42. Terraform module: [`modules/spanner-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/spanner-instance). Coverage: **full, with alpha**. Size: M (426 lines of Terraform, 7 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -994,7 +994,7 @@ Rank 42. Coverage: **full, with alpha**. Size: M (426 lines of Terraform, 7 vari
 
 This module allows managing a single BigTable instance, including access configuration and tables.
 
-Rank 43. Coverage: **full**. Size: S (308 lines of Terraform, 11 variables, 4 outputs).
+Rank 43. Terraform module: [`modules/bigtable-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigtable-instance). Coverage: **full**. Size: S (308 lines of Terraform, 11 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1007,7 +1007,7 @@ Rank 43. Coverage: **full**. Size: S (308 lines of Terraform, 11 variables, 4 ou
 
 This module allows to crete a firestore datatabase, fields, indexes and documents.
 
-Rank 44. Coverage: **full, with alpha**. Size: M (452 lines of Terraform, 7 variables, 7 outputs).
+Rank 44. Terraform module: [`modules/firestore`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/firestore). Coverage: **full, with alpha**. Size: M (452 lines of Terraform, 7 variables, 7 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1021,7 +1021,7 @@ Rank 44. Coverage: **full, with alpha**. Size: M (452 lines of Terraform, 7 vari
 
 This module allows simplified creation and management of Google Cloud Managed Kafka clusters, including topics, Kafka Connect clusters, and…
 
-Rank 45. Coverage: **full, with alpha**. Size: S (283 lines of Terraform, 11 variables, 4 outputs).
+Rank 45. Terraform module: [`modules/managed-kafka`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/managed-kafka). Coverage: **full, with alpha**. Size: S (283 lines of Terraform, 11 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1034,7 +1034,7 @@ Rank 45. Coverage: **full, with alpha**. Size: S (283 lines of Terraform, 11 var
 
 This module provisions and configures Cloud Armor security policies along wi.
 
-Rank 46. Coverage: **full, with alpha**. Size: XL (2216 lines of Terraform, 33 variables, 9 outputs). submodules or factory data: recipe-glb-waf, recipe-regional-waf.
+Rank 46. Terraform module: [`modules/net-cloud-armor`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloud-armor). Coverage: **full, with alpha**. Size: XL (2216 lines of Terraform, 33 variables, 9 outputs). submodules or factory data: recipe-glb-waf, recipe-regional-waf.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1050,7 +1050,7 @@ Rank 46. Coverage: **full, with alpha**. Size: XL (2216 lines of Terraform, 33 v
 
 This module allows creation and management of Secure Web Proxy, and its URL lists.
 
-Rank 47. Coverage: **partial**. Size: M (474 lines of Terraform, 14 variables, 4 outputs).
+Rank 47. Terraform module: [`modules/net-swp`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-swp). Coverage: **partial**. Size: M (474 lines of Terraform, 14 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1065,7 +1065,7 @@ Rank 47. Coverage: **partial**. Size: M (474 lines of Terraform, 14 variables, 4
 
 This module allows managing External Regional HTTP/HTTPS Application Load Balancers. It's designed to expose the full configuration of the u…
 
-Rank 48. Coverage: **partial**. Size: XL (2481 lines of Terraform, 19 variables, 10 outputs).
+Rank 48. Terraform module: [`modules/net-lb-app-ext-regional`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-ext-regional). Coverage: **partial**. Size: XL (2481 lines of Terraform, 19 variables, 10 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1086,7 +1086,7 @@ Rank 48. Coverage: **partial**. Size: XL (2481 lines of Terraform, 19 variables,
 
 This module allows managing Cross-regional Internal HTTP/HTTPS Load Balancers (L7 ILBs). It's designed to expose the full configuration of t…
 
-Rank 49. Coverage: **full, with alpha**. Size: XL (2742 lines of Terraform, 23 variables, 14 outputs). submodules or factory data: recipe-cross-reg-int-app-lb-vm-dns.
+Rank 49. Terraform module: [`modules/net-lb-app-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-int-cross-region). Coverage: **full, with alpha**. Size: XL (2742 lines of Terraform, 23 variables, 14 outputs). submodules or factory data: recipe-cross-reg-int-app-lb-vm-dns.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1106,7 +1106,7 @@ Rank 49. Coverage: **full, with alpha**. Size: XL (2742 lines of Terraform, 23 v
 
 This module allows managing Internal TCP proxy Load Balancers. It's designed to expose the full configuration of the underlying resources, a…
 
-Rank 50. Coverage: **partial**. Size: L (958 lines of Terraform, 14 variables, 13 outputs).
+Rank 50. Terraform module: [`modules/net-lb-proxy-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int). Coverage: **partial**. Size: L (958 lines of Terraform, 14 variables, 13 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1126,7 +1126,7 @@ Rank 50. Coverage: **partial**. Size: L (958 lines of Terraform, 14 variables, 1
 
 This module allows managing Cross-region Internal Proxy Network Load Balancers (L4 proxy ILBs). It's designed to expose the full configurati…
 
-Rank 51. Coverage: **full, with alpha**. Size: M (782 lines of Terraform, 14 variables, 15 outputs).
+Rank 51. Terraform module: [`modules/net-lb-proxy-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int-cross-region). Coverage: **full, with alpha**. Size: M (782 lines of Terraform, 14 variables, 15 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1143,7 +1143,7 @@ Rank 51. Coverage: **full, with alpha**. Size: M (782 lines of Terraform, 14 var
 
 This module makes it easy to deploy a [Classic VPN](https://docs.cloud.google.com/network-connectivity/docs/vpn/concepts/overview#classic-vp…
 
-Rank 52. Coverage: **full**. Size: S (328 lines of Terraform, 9 variables, 9 outputs).
+Rank 52. Terraform module: [`modules/net-vpn-static`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-static). Coverage: **full**. Size: S (328 lines of Terraform, 9 variables, 9 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1158,7 +1158,7 @@ Rank 52. Coverage: **full**. Size: S (328 lines of Terraform, 9 variables, 9 out
 
 This module makes it easy to deploy a [Classic VPN](https://docs.cloud.google.com/network-connectivity/docs/vpn/concepts/overview#classic-vp…
 
-Rank 53. Coverage: **partial**. Size: M (515 lines of Terraform, 8 variables, 12 outputs).
+Rank 53. Terraform module: [`modules/net-vpn-dynamic`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-dynamic). Coverage: **partial**. Size: M (515 lines of Terraform, 8 variables, 12 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1176,7 +1176,7 @@ Rank 53. Coverage: **partial**. Size: M (515 lines of Terraform, 8 variables, 12
 
 This module allows for the provisioning of VLAN Attachments for [Dedicated Interconnect](https://cloud.google.com/network-connectivity/docs/…
 
-Rank 54. Coverage: **partial**. Size: M (557 lines of Terraform, 15 variables, 9 outputs).
+Rank 54. Terraform module: [`modules/net-vlan-attachment`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vlan-attachment). Coverage: **partial**. Size: M (557 lines of Terraform, 15 variables, 9 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1192,7 +1192,7 @@ Rank 54. Coverage: **partial**. Size: M (557 lines of Terraform, 15 variables, 9
 
 This module allows for the provisioning of [HA VPN over Interconnect](https://cloud.google.com/network-connectivity/docs/interconnect/concep…
 
-Rank 55. Coverage: **partial**. Size: M (470 lines of Terraform, 8 variables, 9 outputs).
+Rank 55. Terraform module: [`modules/net-ipsec-over-interconnect`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-ipsec-over-interconnect). Coverage: **partial**. Size: M (470 lines of Terraform, 8 variables, 9 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1209,7 +1209,7 @@ Rank 55. Coverage: **partial**. Size: M (470 lines of Terraform, 8 variables, 9 
 
 This module allows management of NCC Spokes backed by Router Appliances. Network virtual appliances used as router appliances allow to conne…
 
-Rank 56. Coverage: **partial**. Size: M (400 lines of Terraform, 8 variables, 5 outputs).
+Rank 56. Terraform module: [`modules/ncc-spoke-ra`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/ncc-spoke-ra). Coverage: **partial**. Size: M (400 lines of Terraform, 8 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1224,7 +1224,7 @@ Rank 56. Coverage: **partial**. Size: M (400 lines of Terraform, 8 variables, 5 
 
 This module allows simplified creation and management of a GKE Hub object and its features for a given set of clusters. The given list of cl…
 
-Rank 57. Coverage: **full**. Size: M (655 lines of Terraform, 8 variables, 1 outputs).
+Rank 57. Terraform module: [`modules/gke-hub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-hub). Coverage: **full**. Size: M (655 lines of Terraform, 8 variables, 1 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1236,7 +1236,7 @@ Rank 57. Coverage: **full**. Size: M (655 lines of Terraform, 8 variables, 1 out
 
 This module simplifies the creation of a Binary Authorization policy, attestors and attestor IAM bindings.
 
-Rank 58. Coverage: **partial**. Size: S (234 lines of Terraform, 5 variables, 3 outputs).
+Rank 58. Terraform module: [`modules/binauthz`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/binauthz). Coverage: **partial**. Size: S (234 lines of Terraform, 5 variables, 3 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1249,7 +1249,7 @@ Rank 58. Coverage: **partial**. Size: S (234 lines of Terraform, 5 variables, 3 
 
 The module allows you to create one or more CAs and an optional CA pool.
 
-Rank 59. Coverage: **partial**. Size: M (547 lines of Terraform, 9 variables, 5 outputs).
+Rank 59. Terraform module: [`modules/certificate-authority-service`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/certificate-authority-service). Coverage: **partial**. Size: M (547 lines of Terraform, 9 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1262,7 +1262,7 @@ Rank 59. Coverage: **partial**. Size: M (547 lines of Terraform, 9 variables, 5 
 
 This Terraform module creates a Google Cloud Backup and DR backup plan and, optionally, a backup vault.
 
-Rank 60. Coverage: **full, with alpha**. Size: S (259 lines of Terraform, 7 variables, 4 outputs).
+Rank 60. Terraform module: [`modules/backup-dr`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/backup-dr). Coverage: **full, with alpha**. Size: S (259 lines of Terraform, 7 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1274,7 +1274,7 @@ Rank 60. Coverage: **full, with alpha**. Size: S (259 lines of Terraform, 7 vari
 
 Cloud Deploy Module for creating and managing Delivery Pipelines, Targets, Automations, Deploy Policies and resource-level IAM roles.
 
-Rank 61. Coverage: **partial**. Size: L (1123 lines of Terraform, 14 variables, 4 outputs).
+Rank 61. Terraform module: [`modules/cloud-deploy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-deploy). Coverage: **partial**. Size: L (1123 lines of Terraform, 14 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1291,7 +1291,7 @@ Rank 61. Coverage: **partial**. Size: L (1123 lines of Terraform, 14 variables, 
 
 This module allows to create a Cloud Build v2 connection with associated repositories and triggers linked to each of them. Additionally, it…
 
-Rank 62. Coverage: **partial**. Size: M (546 lines of Terraform, 13 variables, 5 outputs).
+Rank 62. Terraform module: [`modules/cloud-build-v2-connection`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-build-v2-connection). Coverage: **partial**. Size: M (546 lines of Terraform, 13 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1305,7 +1305,7 @@ Rank 62. Coverage: **partial**. Size: M (546 lines of Terraform, 13 variables, 5
 
 This module allows to create a Secure Source Manager instance and repositories in it. Additionally it allows creating instance IAM bindings…
 
-Rank 63. Coverage: **partial**. Size: S (381 lines of Terraform, 11 variables, 4 outputs).
+Rank 63. Terraform module: [`modules/secure-source-manager-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secure-source-manager-instance). Coverage: **partial**. Size: S (381 lines of Terraform, 11 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1321,7 +1321,7 @@ Rank 63. Coverage: **partial**. Size: S (381 lines of Terraform, 11 variables, 4
 
 This module allows managing a single Cloud Source Repository, including IAM bindings and basic Cloud Build triggers.
 
-Rank 64. Coverage: **full**. Size: S (276 lines of Terraform, 7 variables, 3 outputs).
+Rank 64. Terraform module: [`modules/source-repository`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/source-repository). Coverage: **full**. Size: S (276 lines of Terraform, 7 variables, 3 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1334,7 +1334,7 @@ Rank 64. Coverage: **full**. Size: S (276 lines of Terraform, 7 variables, 3 out
 
 This module allows creating a BigQuery connection.
 
-Rank 65. Coverage: **partial**. Size: S (391 lines of Terraform, 12 variables, 4 outputs).
+Rank 65. Terraform module: [`modules/bigquery-connection`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigquery-connection). Coverage: **partial**. Size: S (391 lines of Terraform, 12 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1346,7 +1346,7 @@ Rank 65. Coverage: **partial**. Size: S (391 lines of Terraform, 12 variables, 4
 
 This module allows managing Analytics Hub Exchange and Listing resource.
 
-Rank 66. Coverage: **partial**. Size: S (358 lines of Terraform, 14 variables, 2 outputs).
+Rank 66. Terraform module: [`modules/analytics-hub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/analytics-hub). Coverage: **partial**. Size: S (358 lines of Terraform, 14 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1360,7 +1360,7 @@ Rank 66. Coverage: **partial**. Size: S (358 lines of Terraform, 14 variables, 2
 
 This module allows to create a BigLake Metastore with databases and corresponding tables in each database.
 
-Rank 67. Coverage: **full, with alpha**. Size: S (156 lines of Terraform, 4 variables, 6 outputs).
+Rank 67. Terraform module: [`modules/biglake-catalog`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/biglake-catalog). Coverage: **full, with alpha**. Size: S (156 lines of Terraform, 4 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1372,7 +1372,7 @@ Rank 67. Coverage: **full, with alpha**. Size: S (156 lines of Terraform, 4 vari
 
 This module allows managing a dataform repository, allows adding IAM permissions. Also enables attaching a remote repository.
 
-Rank 68. Coverage: **partial**. Size: S (215 lines of Terraform, 8 variables, 0 outputs).
+Rank 68. Terraform module: [`modules/dataform-repository`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataform-repository). Coverage: **partial**. Size: S (215 lines of Terraform, 8 variables, 0 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1384,7 +1384,7 @@ Rank 68. Coverage: **partial**. Size: S (215 lines of Terraform, 8 variables, 0 
 
 This module Manages a Google Cloud Dataproc cluster resource, including IAM.
 
-Rank 69. Coverage: **full**. Size: M (720 lines of Terraform, 9 variables, 2 outputs).
+Rank 69. Terraform module: [`modules/dataproc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataproc). Coverage: **full**. Size: M (720 lines of Terraform, 9 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1396,7 +1396,7 @@ Rank 69. Coverage: **full**. Size: M (720 lines of Terraform, 9 variables, 2 out
 
 This module allows simple management of 'Google Data Fusion' instances. It supports creating Basic o.
 
-Rank 70. Coverage: **full**. Size: S (257 lines of Terraform, 14 variables, 6 outputs).
+Rank 70. Terraform module: [`modules/datafusion`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/datafusion). Coverage: **full**. Size: S (257 lines of Terraform, 14 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1409,7 +1409,7 @@ Rank 70. Coverage: **full**. Size: S (257 lines of Terraform, 14 variables, 6 ou
 
 This module manages the creation of a Dataplex instance along with lake, zone & assets in single regions.
 
-Rank 71. Coverage: **partial**. Size: S (263 lines of Terraform, 7 variables, 4 outputs).
+Rank 71. Terraform module: [`modules/dataplex`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex). Coverage: **partial**. Size: S (263 lines of Terraform, 7 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1423,7 +1423,7 @@ Rank 71. Coverage: **partial**. Size: S (263 lines of Terraform, 7 variables, 4 
 
 This module manages the creation of Dataplex DataScan resources.
 
-Rank 72. Coverage: **partial**. Size: M (765 lines of Terraform, 16 variables, 4 outputs).
+Rank 72. Terraform module: [`modules/dataplex-datascan`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-datascan). Coverage: **partial**. Size: M (765 lines of Terraform, 16 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1435,7 +1435,7 @@ Rank 72. Coverage: **partial**. Size: M (765 lines of Terraform, 16 variables, 4
 
 This module allows managing Dataplex Aspect Types and their associated IAM.
 
-Rank 73. Coverage: **partial**. Size: S (343 lines of Terraform, 5 variables, 4 outputs).
+Rank 73. Terraform module: [`modules/dataplex-aspect-types`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-aspect-types). Coverage: **partial**. Size: S (343 lines of Terraform, 5 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1447,7 +1447,7 @@ Rank 73. Coverage: **partial**. Size: S (343 lines of Terraform, 5 variables, 4 
 
 This module simplifies the creation of Data Catalog Policy Tags. Policy Tags can be used to configu.
 
-Rank 74. Coverage: **full**. Size: M (474 lines of Terraform, 12 variables, 2 outputs).
+Rank 74. Terraform module: [`modules/data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag). Coverage: **full**. Size: M (474 lines of Terraform, 12 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1462,7 +1462,7 @@ Rank 74. Coverage: **full**. Size: M (474 lines of Terraform, 12 variables, 2 ou
 
 This module allows managing Data Catalog Tag on GCP resources such as B.
 
-Rank 75. Coverage: **full, with alpha**. Size: S (146 lines of Terraform, 2 variables, 1 outputs).
+Rank 75. Terraform module: [`modules/data-catalog-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-tag). Coverage: **full, with alpha**. Size: S (146 lines of Terraform, 2 variables, 1 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1472,7 +1472,7 @@ Rank 75. Coverage: **full, with alpha**. Size: S (146 lines of Terraform, 2 vari
 
 This module allows managing Data Catalog Tag Templates.
 
-Rank 76. Coverage: **partial**. Size: S (351 lines of Terraform, 4 variables, 2 outputs).
+Rank 76. Terraform module: [`modules/data-catalog-tag-template`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-tag-template). Coverage: **partial**. Size: S (351 lines of Terraform, 4 variables, 2 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1484,7 +1484,7 @@ Rank 76. Coverage: **partial**. Size: S (351 lines of Terraform, 4 variables, 2 
 
 This module allows creating an API with its associated API config and API gateway. It also allows you grant IAM roles on the created resourc…
 
-Rank 77. Coverage: **partial**. Size: M (522 lines of Terraform, 11 variables, 11 outputs). submodules or factory data: recipe-multi-region.
+Rank 77. Terraform module: [`modules/api-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/api-gateway). Coverage: **partial**. Size: M (522 lines of Terraform, 11 variables, 11 outputs). submodules or factory data: recipe-multi-region.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1504,7 +1504,7 @@ Rank 77. Coverage: **partial**. Size: M (522 lines of Terraform, 11 variables, 1
 
 This module simplifies the creation of a Apigee resources (organization, environment groups, environment group attachments, environments, in…
 
-Rank 78. Coverage: **partial**. Size: M (827 lines of Terraform, 13 variables, 10 outputs). submodules or factory data: recipe-apigee-swp.
+Rank 78. Terraform module: [`modules/apigee`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/apigee). Coverage: **partial**. Size: M (827 lines of Terraform, 13 variables, 10 outputs). submodules or factory data: recipe-apigee-swp.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1526,7 +1526,7 @@ Rank 78. Coverage: **partial**. Size: M (827 lines of Terraform, 13 variables, 1
 
 This module allows simple management of 'Google Cloud Endpoints' services. It supports creating ['Ope.
 
-Rank 79. Coverage: **none**. Size: S (143 lines of Terraform, 5 variables, 3 outputs).
+Rank 79. Terraform module: [`modules/endpoints`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/endpoints). Coverage: **none**. Size: S (143 lines of Terraform, 5 variables, 3 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1537,7 +1537,7 @@ Rank 79. Coverage: **none**. Size: S (143 lines of Terraform, 5 variables, 3 out
 
 Cloud Function management, with support for IAM roles, optional bucket creation and bundle via GCS URI, local zip, or local source folder.
 
-Rank 80. Coverage: **partial**. Size: M (759 lines of Terraform, 24 variables, 10 outputs).
+Rank 80. Terraform module: [`modules/cloud-function-v1`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-function-v1). Coverage: **partial**. Size: M (759 lines of Terraform, 24 variables, 10 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1553,7 +1553,7 @@ Rank 80. Coverage: **partial**. Size: M (759 lines of Terraform, 24 variables, 1
 
 This module allows to create a workstation cluster with associated workstation configs and workstations. In addition to this it allows to se…
 
-Rank 81. Coverage: **partial**. Size: M (738 lines of Terraform, 12 variables, 5 outputs).
+Rank 81. Terraform module: [`modules/workstation-cluster`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/workstation-cluster). Coverage: **partial**. Size: M (738 lines of Terraform, 12 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1569,7 +1569,7 @@ Rank 81. Coverage: **partial**. Size: M (738 lines of Terraform, 12 variables, 5
 
 The module manages one or more Google Cloud VMWare Engine Private Clouds.
 
-Rank 82. Coverage: **full, with alpha**. Size: S (337 lines of Terraform, 5 variables, 5 outputs).
+Rank 82. Terraform module: [`modules/gcve-private-cloud`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcve-private-cloud). Coverage: **full, with alpha**. Size: S (337 lines of Terraform, 5 variables, 5 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1583,7 +1583,7 @@ Rank 82. Coverage: **full, with alpha**. Size: S (337 lines of Terraform, 5 vari
 
 This module manages the creation of a Looker Core instance.
 
-Rank 83. Coverage: **none**. Size: M (435 lines of Terraform, 15 variables, 11 outputs).
+Rank 83. Terraform module: [`modules/looker-core`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/looker-core). Coverage: **none**. Size: M (435 lines of Terraform, 15 variables, 11 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1593,7 +1593,7 @@ Rank 83. Coverage: **none**. Size: M (435 lines of Terraform, 15 variables, 11 o
 
 This module handles the creation of AI Applications data sources, en.
 
-Rank 84. Coverage: **partial**. Size: L (1666 lines of Terraform, 8 variables, 8 outputs).
+Rank 84. Terraform module: [`modules/ai-applications`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/ai-applications). Coverage: **partial**. Size: L (1666 lines of Terraform, 8 variables, 8 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1613,7 +1613,7 @@ Rank 84. Coverage: **partial**. Size: L (1666 lines of Terraform, 8 variables, 8
 
 The module facilitates the deployments of Gemini Enterprise Agent Platform (GEAP) - Agent Gateways.
 
-Rank 85. Coverage: **partial**. Size: L (920 lines of Terraform, 15 variables, 7 outputs).
+Rank 85. Terraform module: [`modules/geap-agent-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-agent-gateway). Coverage: **partial**. Size: L (920 lines of Terraform, 15 variables, 7 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1628,7 +1628,7 @@ Rank 85. Coverage: **partial**. Size: L (920 lines of Terraform, 15 variables, 7
 
 The module deploys Gemini Enterprise Agent Platform (GEAP) - Agent Runtime and related dependencies.
 
-Rank 86. Coverage: **partial**. Size: L (1132 lines of Terraform, 14 variables, 3 outputs).
+Rank 86. Terraform module: [`modules/geap-agent-runtime`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-agent-runtime). Coverage: **partial**. Size: L (1132 lines of Terraform, 14 variables, 3 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1642,7 +1642,7 @@ Rank 86. Coverage: **partial**. Size: L (1132 lines of Terraform, 14 variables, 
 
 This module manages Gemini Enterprise Agent Platform (GEAP) Workbench (Jupyter Notebook) instances, supporting machine types, GPU hardware a…
 
-Rank 87. Coverage: **partial**. Size: M (668 lines of Terraform, 30 variables, 11 outputs).
+Rank 87. Terraform module: [`modules/geap-workbench`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-workbench). Coverage: **partial**. Size: M (668 lines of Terraform, 30 variables, 11 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1654,7 +1654,7 @@ Rank 87. Coverage: **partial**. Size: M (668 lines of Terraform, 30 variables, 1
 
 This module allows creation and management of custom rules as well as [r.
 
-Rank 88. Coverage: **partial**. Size: S (180 lines of Terraform, 5 variables, 0 outputs).
+Rank 88. Terraform module: [`modules/secops-rules`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secops-rules). Coverage: **partial**. Size: S (180 lines of Terraform, 5 variables, 0 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1666,7 +1666,7 @@ Rank 88. Coverage: **partial**. Size: S (180 lines of Terraform, 5 variables, 0 
 
 This module simplifies the creation of GCS buckets used by Google Container Registry.
 
-Rank 89. Coverage: **none**. Size: S (113 lines of Terraform, 3 variables, 1 outputs).
+Rank 89. Terraform module: [`modules/container-registry`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/container-registry). Coverage: **none**. Size: S (113 lines of Terraform, 3 variables, 1 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1677,13 +1677,13 @@ Rank 89. Coverage: **none**. Size: S (113 lines of Terraform, 3 variables, 1 out
 
 This module extends functionality of [google_projects](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/pro…
 
-Rank 90. Coverage: **n/a**. Size: S (169 lines of Terraform, 5 variables, 2 outputs). data sources only (a read, not a resource).
+Rank 90. Terraform module: [`modules/projects-data-source`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/projects-data-source). Coverage: **n/a**. Size: S (169 lines of Terraform, 5 variables, 2 outputs). data sources only (a read, not a resource).
 
 ### cloud-config-container
 
 This set of modules creates specialized [cloud-config](https://cloud.google.com/container-optimized-os/docs/how-to/run-container-instance#st…
 
-Rank 91. Coverage: **n/a**. Size: L (1954 lines of Terraform, 72 variables, 11 outputs). generates cloud-init text; no resources; submodules or factory data: nginx-tls, envoy-sni-dyn-fwd-proxy, nginx, envoy-traffic-director, mysql, cos-generic-metadata ….
+Rank 91. Terraform module: [`modules/cloud-config-container`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-config-container). Coverage: **n/a**. Size: L (1954 lines of Terraform, 72 variables, 11 outputs). generates cloud-init text; no resources; submodules or factory data: nginx-tls, envoy-sni-dyn-fwd-proxy, nginx, envoy-traffic-director, mysql, cos-generic-metadata ….
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |

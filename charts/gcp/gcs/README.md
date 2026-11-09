@@ -65,6 +65,16 @@ not outputs.
 - The notification can be created before the publisher grant is in
   place; Config Connector retries until it is.
 
+## Upstream
+
+Ported from Cloud Foundation Fabric's
+[`modules/gcs`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcs)
+at v60.0.0 (`f706bc3b`, Apache-2.0). [`upstream.yaml`](upstream.yaml) records
+the repository, path, release, commit, licence and the date last synced, and
+the module is listed in [`upstream/modules.yaml`](../../../upstream/modules.yaml)
+with every other module the catalog tracks. To take a newer release, see
+[`UPSTREAM.md`](../../../UPSTREAM.md), "Moving the pins".
+
 ## Tests
 
 `task test CHART=gcs`: five render cases, seven refusals.

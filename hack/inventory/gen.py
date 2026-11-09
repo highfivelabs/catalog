@@ -43,6 +43,9 @@ def coverage(m,v):
     if ct["gap"]==0 and ct["hfl"]==0 and ct["alpha"]==0: return "full"
     if ct["gap"]==0 and ct["hfl"]==0: return "full, with alpha"
     return "partial"
+# Each module's page at the pinned fabric tag, from upstream/modules.yaml.
+import yaml
+URL={x["module"]:x["url"] for x in yaml.safe_load(open(sys.argv[2]))["modules"] if x["cloud"]=="gcp"}
 rows=[]; stats={}
 for i,m in enumerate(RANK,1):
     v=mods[m]; cov=coverage(m,v); stats[cov]=stats.get(cov,0)+1
@@ -68,7 +71,7 @@ for i,m,v,cov in rows:
     if m in COMPOSITE: extra.append(COMPOSITE[m]+"; ported by porting those modules and composing them in a Bundt Template")
     if m in NA: extra.append(NA[m])
     if v["submodules"]: extra.append("submodules or factory data: "+", ".join(v["submodules"][:6])+(" …" if len(v["submodules"])>6 else ""))
-    out.append(f"Rank {i}. Coverage: **{cov}**. Size: {size(v)} ({v['tf_lines']} lines of Terraform, {v['variables']} variables, {v['outputs']} outputs)."+(" "+"; ".join(extra)+"." if extra else ""))
+    out.append(f"Rank {i}. Terraform module: [`modules/{m}`]({URL[m]}). Coverage: **{cov}**. Size: {size(v)} ({v['tf_lines']} lines of Terraform, {v['variables']} variables, {v['outputs']} outputs)."+(" "+"; ".join(extra)+"." if extra else ""))
     out.append("")
     if v["rows"]:
         out.append("| Terraform resource | Config Connector | |")

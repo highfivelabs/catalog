@@ -31,7 +31,7 @@ for m in "${WORK}"/fabric/modules/*/; do
   m="$(basename "$m")"
   printf '%s|%s\n' "$m" "$(sed -n '1,12p' "${WORK}/fabric/modules/$m/README.md" 2>/dev/null | grep -v '^#' | grep -v '^\s*$' | grep -v '^<!--\|^- \[' | head -1 | cut -c1-140)"
 done >"${WORK}/desc.txt"
-(cd "${WORK}" && py "${HERE}/gen.py" "${WORK}/body.md")
+(cd "${WORK}" && py "${HERE}/gen.py" "${WORK}/body.md" "${ROOT}/upstream/modules.yaml")
 doc="${ROOT}/docs/gcp-inventory.md"
 marker='<!-- generated below by hack/inventory/run.sh; edit above this line -->'
 { sed "/^${marker//\//\\/}\$/,\$d" "${doc}"; echo "${marker}"; echo; cat "${WORK}/body.md"; } >"${doc}.new"

@@ -5,6 +5,7 @@
 # Render tests for every chart, offline and light (docs/design.md,
 # "Testing"):
 #
+#   0. upstream/modules.yaml and each chart's upstream.yaml agree (task upstream-check);
 #   1. each chart's templates/_kcc.tpl is lib/_kcc.tpl;
 #   2. helm lint;
 #   3. its Package document matches the chart and its outputs compile;
@@ -32,6 +33,9 @@ SCHEMAS="${ROOT}/.cache/schemas-${VERSION}"
 fail=0; passed=0
 bad() { echo "FAIL $*"; fail=$((fail + 1)); }
 ok() { passed=$((passed + 1)); }
+
+# upstream/modules.yaml and every chart's upstream.yaml agree.
+if out="$(bin/catalogtool upstream check 2>&1)"; then ok; else bad "upstream: pins"; echo "${out}"; fi
 
 charts=("$@")
 if [[ ${#charts[@]} -eq 0 ]]; then
