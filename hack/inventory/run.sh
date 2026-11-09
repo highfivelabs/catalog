@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Regenerate the tables of docs/gcp-inventory.md (everything after the
 # "generated below" marker) from fabric and Config Connector at the
-# commits in UPSTREAM.md. Light: shallow, sparse clones and Python with
+# commits in UPSTREAM.md, and docs/coverage/gcp-resource-kinds.csv, the
+# same classification as data (read by hack/coverage). Light: shallow, sparse clones and Python with
 # PyYAML (through uv).
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -12,7 +13,7 @@ WORK="${ROOT}/.cache/inventory"
 row() { sed -n "s/^| $1 | \`\([^\`]*\)\`.*/\1/p" "${ROOT}/UPSTREAM.md"; }
 FABRIC_TAG="$(row 'Fabric release')"; FABRIC_COMMIT="$(row 'Fabric commit')"
 KCC_TAG="$(row 'Config Connector release')"; KCC_COMMIT="$(row 'Config Connector commit')"
-mkdir -p "${WORK}"
+mkdir -p "${WORK}" "${ROOT}/docs/coverage"
 fetch() { # dir repo tag commit paths...
   local dir="$1" repo="$2" tag="$3" commit="$4"; shift 4
   if [[ ! -d "${dir}/.git" ]]; then
@@ -31,7 +32,7 @@ for m in "${WORK}"/fabric/modules/*/; do
   m="$(basename "$m")"
   printf '%s|%s\n' "$m" "$(sed -n '1,12p' "${WORK}/fabric/modules/$m/README.md" 2>/dev/null | grep -v '^#' | grep -v '^\s*$' | grep -v '^<!--\|^- \[' | head -1 | cut -c1-140)"
 done >"${WORK}/desc.txt"
-(cd "${WORK}" && py "${HERE}/gen.py" "${WORK}/body.md" "${ROOT}/upstream/modules.yaml")
+(cd "${WORK}" && py "${HERE}/gen.py" "${WORK}/body.md" "${ROOT}/upstream/modules.yaml" "${ROOT}/docs/coverage/gcp-resource-kinds.csv")
 doc="${ROOT}/docs/gcp-inventory.md"
 marker='<!-- generated below by hack/inventory/run.sh; edit above this line -->'
 { sed "/^${marker//\//\\/}\$/,\$d" "${doc}"; echo "${marker}"; echo; cat "${WORK}/body.md"; } >"${doc}.new"
