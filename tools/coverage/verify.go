@@ -16,11 +16,12 @@ import (
 
 // samples are tried in turn as a refused variable's value; the first that
 // gets past the chart's schema shows whether the chart refuses it.
-var samples = []string{`{"a":"b"}`, `["a"]`, `"a"`, `true`, `1`, `[{}]`, `{"a":{}}`, `[{"a":"b"}]`}
+var samples = []string{`{"a":"b"}`, `["a"]`, `"a"`, `true`, `1`, `[{}]`, `{"a":{}}`, `[{"a":"b"}]`, `{"a":{"subnet":"europe-west1/s"}}`}
 
 // Verify renders each chart with every variable its upstream.yaml says is
 // refused (wholly) set to a value, and checks that the render fails with
-// the chart's "is not supported" message naming the variable. So the
+// the chart's "is not supported" message naming the variable (or, for a
+// variable that needs allow_alpha, its "needs the alpha" message). So the
 // coverage numbers cannot claim a refusal the chart does not make. A
 // variable refused only in part cannot be checked this way and is counted
 // in skipped.
@@ -46,13 +47,24 @@ func Verify(root string) (checked, skipped int, problems []string, err error) {
 		if len(base) == 0 {
 			return checked, skipped, problems, fmt.Errorf("%s has no tests/*.values.yaml", m.Chart)
 		}
+		// Prefer a case that does not already opt in to alpha kinds.
+		for _, b := range base {
+			if data, err := os.ReadFile(b); err == nil && !strings.Contains(string(data), "allow_alpha") {
+				base = []string{b}
+				break
+			}
+		}
 		for _, r := range cu.Refused {
-			if r.Partial {
+			if r.Partial && !r.NeedsAllowAlpha {
 				skipped++
 				continue
 			}
 			checked++
 			want := ": " + r.Variable + " is not supported"
+			if r.Partial {
+				// Accepted only with allow_alpha: true.
+				want = ": " + r.Variable + " needs the alpha"
+			}
 			ok, last := false, ""
 			for _, s := range append(enumSamples(filepath.Join(root, m.Chart, "values.schema.json"), r.Variable), samples...) {
 				cmd := exec.Command("helm", "template", "verify", filepath.Join(root, m.Chart), "--namespace", "test",

@@ -1,0 +1,41 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: iam-service-account
+spec:
+  version: "1.0.0"
+  components:
+    - name: vm-default
+      package:
+        name: gcp-iam-service-account
+        version: "0.1.0"
+      inputs:
+        name: vm-default
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: iam-service-account
+  scope: my-team
+spec:
+  template: iam-service-account
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: iam-service-account-dev
+  scope: my-team/dev
+spec:
+  stack: iam-service-account
+  version: "1.0.0"
+  components:
+    vm-default:
+      values:
+        project_id: myproject
+        iam:
+          roles/iam.serviceAccountUser:
+            - group:vm-admins@example.com
+        iam_project_roles:
+          myproject:
+            - roles/logging.logWriter
+            - roles/monitoring.metricWriter

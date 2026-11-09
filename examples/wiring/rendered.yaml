@@ -1,0 +1,58 @@
+# component wiring-dev-reader
+---
+# Source: iam-service-account/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: wiring-dev-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "wiring-dev-reader"
+    app.kubernetes.io/name: iam-service-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: bucket-reader
+  displayName: "Terraform-managed."
+# component wiring-dev-bucket
+---
+# Source: gcs/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: wiring-dev-bucket-iam-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "wiring-dev-bucket"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-reader"
+spec:
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    name: wiring-dev-bucket
+  role: "roles/storage.objectViewer"
+  member: "${components.reader.outputs.iam_email}"
+---
+# Source: gcs/templates/bucket.yaml
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  name: wiring-dev-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "wiring-dev-bucket"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: test-shared-data
+  location: "EU"
+  storageClass: STANDARD
+  uniformBucketLevelAccess: true

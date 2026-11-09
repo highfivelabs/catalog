@@ -1,0 +1,50 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: gaps
+spec:
+  version: "1.0.0"
+  components:
+    - name: archive
+      package:
+        name: gcp-gcs
+        version: "0.1.0"
+      inputs:
+        name: archive
+        location: EU
+        storage_class: ARCHIVE
+        retention_policy:
+          retention_period: 31536000
+        managed_folders:
+          reports:
+            force_destroy: false
+    - name: scratch
+      package:
+        name: gcp-gcs
+        version: "0.1.0"
+      inputs:
+        location: EU
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: gaps
+  scope: my-team
+spec:
+  template: gaps
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: gaps-dev
+  scope: my-team/dev
+spec:
+  stack: gaps
+  version: "1.0.0"
+  components:
+    archive:
+      values:
+        project_id: myproject
+    scratch:
+      values:
+        project_id: myproject

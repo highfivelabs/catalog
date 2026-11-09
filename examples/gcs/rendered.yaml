@@ -1,0 +1,50 @@
+# component gcs-dev-bucket
+---
+# Source: gcs/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: gcs-dev-bucket-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gcs-dev-bucket"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    name: gcs-dev-bucket
+  bindings:
+    - role: "roles/storage.objectViewer"
+      members:
+        - member: "group:devs@example.com"
+---
+# Source: gcs/templates/bucket.yaml
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  name: gcs-dev-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gcs-dev-bucket"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: test-my-bucket
+  location: "EU"
+  storageClass: STANDARD
+  uniformBucketLevelAccess: true
+  versioning:
+    enabled: true
+  lifecycleRule:
+    - action:
+        type: Delete
+      condition:
+        age: 365

@@ -1,0 +1,49 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: wiring
+spec:
+  version: "1.0.0"
+  components:
+    - name: reader
+      package:
+        name: gcp-iam-service-account
+        version: "0.1.0"
+      inputs:
+        name: bucket-reader
+    - name: bucket
+      package:
+        name: gcp-gcs
+        version: "0.1.0"
+      inputs:
+        name: shared-data
+        location: EU
+        iam_bindings_additive:
+          reader:
+            member: ${components.reader.outputs.iam_email}
+            role: roles/storage.objectViewer
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: wiring
+  scope: my-team
+spec:
+  template: wiring
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: wiring-dev
+  scope: my-team/dev
+spec:
+  stack: wiring
+  version: "1.0.0"
+  components:
+    reader:
+      values:
+        project_id: myproject
+    bucket:
+      values:
+        project_id: myproject
+        prefix: test
