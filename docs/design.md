@@ -861,7 +861,7 @@ The alpha features are in it.
 
 **Live** (`task test-live`, offload VM `off-catalog-1109174031-14417` as
 `catalog-live-tests`, run `cat-11091741-509b`, project `hfl-dev-514205`,
-catalog `132034d`, 2026-11-09): **11 of 11 objects Ready, deleted from the
+catalog `132034d`, 2026-11-09): **10 of 10 objects Ready, deleted from the
 cluster and gone from Google Cloud, outputs evaluated against the real
 objects, 0 failures; the sweeper found nothing before, swept nothing
 after, and the project held no `cat-` resource at the end** (checked
