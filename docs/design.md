@@ -839,44 +839,67 @@ Four charts (`UPSTREAM.md`, "What is ported"):
 
 ## Pilot results
 
-**Render** (`hack/test.sh`, 2026-11-09, laptop): 57 of 57 checks pass:
-14 render cases match their golden files and validate with
-`kubeconform -strict` against Config Connector v1.160.0's CRD schemas,
-17 refusals stop with their expected messages, and the four Package
-documents match their charts with every output compiling.
+**Render** (`task test`, 2026-11-09, laptop): 66 of 66 checks pass: 16
+render cases match their golden files and validate with `kubeconform
+-strict` against Config Connector v1.160.0's CRD schemas, 22 refusals stop
+with their expected messages, and the four Package documents match their
+charts with every output compiling.
 
-**Fake cloud** (`hack/mock-apply.sh`, offload VM
-`off-catalog-1109091250-20677`, e2-standard-8, catalog commit `54fb283`,
-config-connector-extensions `1de95478`, Config Connector at its pin
-`672414b8` against mockgcp, 2026-11-09): **26 of 26 objects Ready, every
-chart's outputs evaluated against the live objects, and all 26 deleted
-together**, as Bundt prunes a component.
+**Fake cloud** (`task test-mock`, offload VM `off-catalog-1109174031-31255`,
+catalog `132034d`, config-connector-extensions `1de95478`, Config
+Connector at its pin `672414b8` against mockgcp, 2026-11-09): **28 of 28
+objects Ready, every chart's outputs evaluated against the live objects and
+the values, and all 28 deleted together**, as Bundt prunes a component.
+The alpha features are in it.
 
 | Chart | Objects Ready and deleted | Outputs evaluated |
 | --- | --- | --- |
-| `gcs` | 6 of 6: bucket, its IAM (partial policy and member), topic, topic IAM, notification | `name`, `id`, `url`, `notification`, `topic` |
+| `gcs` | 7 of 7: bucket, its IAM (partial policy and member), topic, topic IAM, notification, a managed folder (alpha) | `name`, `id`, `url`, `notification`, `topic` |
 | `iam-service-account` | 4 of 4: account, IAM on it, an additive member, a role granted on the project | `email`, `iam_email`, `id`, `name`, `unique_id` |
-| `net-vpc` | 9 of 9: network, three subnets (one regular, one proxy-only, one from the factory), four routes (three googleapis, one by IP), DNS policy | network and subnet maps |
-| `project` | 7 of 7: project, two services, IAM (partial policy and member), an organization policy, an essential contact | `project_id`, `id`, `name`, `number`, `services` |
+| `net-vpc` | 10 of 10: network, three subnets (regular, proxy-only, factory), four routes, DNS policy, a network attachment (alpha) | network and subnet maps |
+| `project` | 7 of 7: project, two services, IAM (partial policy and member), an organization policy, an essential contact | `project_id`, `id`, `name`, `number`, `services`, `organization_policies_ids` |
 
-The first fake-cloud run (offload VM `off-catalog-1109083144-22594`,
-commit `c461e94`) found what the second fixed:
+**Live** (`task test-live`, offload VM `off-catalog-1109174031-14417` as
+`catalog-live-tests`, run `cat-11091741-509b`, project `hfl-dev-514205`,
+catalog `132034d`, 2026-11-09): **11 of 11 objects Ready, deleted from the
+cluster and gone from Google Cloud, outputs evaluated against the real
+objects, 0 failures; the sweeper found nothing before, swept nothing
+after, and the project held no `cat-` resource at the end** (checked
+again by hand: no service account, bucket, network, route or subnet, and
+no offload VM of this work left).
 
-- IAM on an external project failed without the reference's
-  `apiVersion` ("failed to load ServiceMapping for GroupVersionKind /,
-  Kind=Project"); every external IAM reference now names it.
-- Nothing deleted: the fake cloud runs Config Connector's manager but not
-  its deletion defender, which a real install runs as its own pod, so
-  `hack/mock-apply.sh` does the defender's part. Reported to
-  config-connector-extensions, with its `up.sh` applying
+| Chart | Objects, all Ready and gone | Made in Google Cloud |
+| --- | --- | --- |
+| `iam-service-account` | 2: account, IAM on it | a service account |
+| `gcs` | 2: bucket, IAM on it | a bucket (`force_destroy`, public access prevention enforced) |
+| `net-vpc` | 6: network, a /28 subnet, a route by IP and the three googleapis routes | a network, a subnet, four routes |
+
+`project` was not run live: it needs the test folder and the provisioner
+("The test provisioner"). Alpha features were not run live.
+
+**What the runs revealed**, all fixed:
+
+- The first live run (`off-catalog-1109161315-10988`, catalog `694c1d0`)
+  applied nothing: the manager stopped at start because the cluster lacked
+  Config Connector's core CRDs (`core.cnrm.cloud.google.com`). Every
+  object waited ten minutes for Ready and none was made, so the sweeper
+  and the project check were trivially clean. `hack/live-apply.sh` now
+  installs them and stops at once if the manager is not running.
+- First fake-cloud run: IAM on an external project failed without the
+  reference's `apiVersion` ("failed to load ServiceMapping for
+  GroupVersionKind /, Kind=Project"); every external IAM reference now
+  names it.
+- Nothing deleted in the fake cloud: it runs Config Connector's manager but
+  not its deletion defender, a pod of its own in a real install, so
+  `hack/mock-apply.sh` and `hack/live-apply.sh` do the defender's part.
+  Reported to config-connector-extensions, with its `up.sh` applying
   `config/crds/kustomization.yaml` (moved aside in the scratch copy).
-
-Not provable in the fake cloud, and covered only by render tests: subnet
-IAM (mockgcp does not implement a subnetwork's `getIamPolicy`), liens and
-Shared VPC (mockgcp has neither).
-
-**Live**: not run. It waits for the builder to approve a service account
-for it (`hack/live-apply.sh` is written, not run).
+- The managed folder (alpha) panicked without `spec.projectRef` (its
+  identity code has no project annotation fallback), takes the bucket by
+  the name it has in Google Cloud, and cannot be updated or deleted if its
+  ID has a `/` in it or on the end: one-level names only, a field gap.
+- mockgcp has no subnet IAM, liens or Shared VPC; those are covered by
+  render tests only.
 
 ## Questions
 
