@@ -66,6 +66,16 @@ fabric's `service_account` output (the Terraform object) is not ported.
 - Outputs come from the live account, so a dependent waits until it is
   ready.
 
+## Upstream
+
+Ported from Cloud Foundation Fabric's
+[`modules/iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account)
+at v60.0.0 (`f706bc3b`, Apache-2.0). [`upstream.yaml`](upstream.yaml) records
+the repository, path, release, commit, licence and the date last synced, and
+the module is listed in [`upstream/modules.yaml`](../../../upstream/modules.yaml)
+with every other module the catalog tracks. To take a newer release, see
+[`UPSTREAM.md`](../../../UPSTREAM.md), "Moving the pins".
+
 ## Tests
 
 `task test CHART=iam-service-account`: three render cases, five refusals.

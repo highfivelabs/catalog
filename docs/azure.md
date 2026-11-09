@@ -156,51 +156,51 @@ are listed, but are not seeds.
 
 | # | Module | Provider | Year | Total | Tag, commit |
 | --- | --- | --- | --- | --- | --- |
-| 1 | naming (archived; no resources) | azurerm | 8,336,284 | 22,898,636 | |
-| 2 | avm-res-network-virtualnetwork | azurerm | 7,131,017 | 8,259,157 | v0.23.0 `874b2d1ce38c` |
-| 3 | avm-utl-interfaces (no resources) | azure | 6,597,108 | 6,936,367 | |
-| 4 | avm-res-network-networksecuritygroup | azurerm | 4,108,779 | 4,856,855 | v0.6.0 `c5283612e428` |
-| 5 | avm-res-storage-storageaccount | azurerm | 3,964,392 | 5,401,219 | v0.11.0 `226f9bbefcc9` |
-| 6 | avm-res-keyvault-vault | azurerm | 3,794,829 | 5,229,598 | v0.13.0 `7c53adbc7f4f` |
-| 7 | avm-res-compute-virtualmachine | azurerm | 3,681,412 | 4,168,285 | v0.21.0 `a6e951bdebcf` |
-| 8 | avm-utl-regions (no resources) | azurerm | 3,314,606 | 4,464,361 | |
-| 9 | avm-res-resources-resourcegroup | azurerm | 2,753,674 | 3,728,662 | v0.5.0 `4c7e926d9aa1` |
-| 10 | avm-res-managedidentity-userassignedidentity | azurerm | 2,520,215 | 3,565,638 | v0.6.0 `7a0c461789f0` |
-| 11 | avm-res-operationalinsights-workspace | azurerm | 1,129,542 | 1,583,538 | v0.5.1 `b4ffa3ff87ac` |
-| 12 | avm-res-network-routetable | azurerm | 1,087,375 | 1,566,240 | v0.6.0 `7482f30b5f92` |
-| 13 | avm-res-network-natgateway | azurerm | 1,057,695 | 1,178,796 | v0.3.2 `597df2389d99` |
-| 14 | avm-res-network-privatednszone | azurerm | 1,032,578 | 1,623,379 | v0.6.0 `97ed94c12535` |
-| 15 | avm-utl-roledefinitions (no resources) | azure | 783,679 | 806,072 | |
-| 16 | avm-res-network-publicipaddress | azurerm | 767,152 | 1,148,881 | v0.2.1 `2790d091b373` |
-| 17 | avm-res-network-loadbalancer | azurerm | 716,805 | 803,838 | v0.5.0 `e83d34778efe` |
-| 18 | avm-res-containerregistry-registry | azurerm | 691,266 | 974,026 | v0.9.0 `7f2dc78bb5db` |
-| 19 | avm-res-network-firewallpolicy | azurerm | 660,760 | 1,017,127 | v0.3.4 `8580240f33fe` |
-| 20 | avm-res-containerservice-managedcluster | azurerm | 653,189 | 828,090 | v0.9.0 `1925e0490783` |
-| 21 | lz-vending (archived) | azurerm | 645,346 | 1,512,101 | v7.0.3 `ddc6b5989a01` |
-| 22 | avm-res-dbforpostgresql-flexibleserver | azurerm | 627,646 | 749,702 | v0.2.3 `70d6e9c947f8` |
-| 23 | avm-res-cognitiveservices-account | azurerm | 607,551 | 1,148,932 | v0.11.1 `02ac1c992bba` |
-| 24 | avm-ptn-alz-sub-vending | azure | 570,438 | 574,735 | v0.3.4 `28577b03cf4a` |
-| 25 | avm-res-insights-component | azurerm | 564,949 | 730,504 | v0.5.0 `8c75ae7771d6` |
-| 26 | avm-res-app-containerapp | azurerm | 564,500 | 661,369 | v0.9.0 `ae03166abab0` |
-| 27 | avm-res-web-site | azurerm | 562,169 | 819,963 | v0.24.1 `56c704e9f440` |
-| 28 | avm-res-network-privateendpoint | azurerm | 531,573 | 838,784 | v0.3.1 `84e427dd16ca` |
-| 29 | avm-res-authorization-roleassignment | azurerm | 497,839 | 672,657 | v0.3.1 `8f90a2110e81` |
-| 30 | avm-res-network-bastionhost | azurerm | 497,770 | 743,252 | v0.9.0 `7c7d294caf81` |
-| 31 | avm-res-sql-server | azurerm | 492,441 | 621,999 | v0.2.1 `dd3461fc43de` |
-| 32 | avm-res-network-azurefirewall | azurerm | 450,037 | 703,693 | v0.5.0 `e88c8db23982` |
-| 33 | avm-res-web-serverfarm | azurerm | 433,905 | 594,099 | v2.0.8 `077bbb36ea58` |
-| 34 | aks (archived) | azurerm | 406,315 | 1,399,384 | 11.7.0 `58ffc7c71a36` |
-| 35 | avm-ptn-alz | azurerm | 400,560 | 639,791 | v0.22.0 `e2a318c3eba9` |
-| 36 | avm-res-documentdb-databaseaccount | azurerm | 396,414 | 534,300 | v0.12.0 `9939de3a2e36` |
-| 37 | avm-res-network-dnsresolver | azurerm | 393,028 | 645,221 | v0.8.0 `73b1df385505` |
-| 38 | avm-res-cache-redis | azurerm | 390,989 | 493,207 | v0.5.0 `7469021fb795` |
-| 39 | regions (archived) | azurerm | 364,289 | 823,168 | |
-| 40 | avm-res-app-managedenvironment | azurerm | 350,236 | 411,158 | v0.6.0 `c6709095a923` |
-| 41 | avm-res-network-applicationgateway | azurerm | 347,827 | 475,384 | v0.6.0 `f5961205a904` |
-| 42 | avm-ptn-network-private-link-private-dns-zones | azurerm | 338,739 | 549,979 | v0.23.2 `4d2214f16280` |
-| 43 | vnet (archived) | azurerm | 319,356 | 3,424,330 | 5.0.1 `27359ed29033` |
-| 44 | avm-res-network-ddosprotectionplan | azurerm | 288,387 | 465,403 | v0.3.0 `2d455cb9c6c6` |
-| 45 | avm-ptn-alz-management | azurerm | 281,649 | 471,782 | v0.10.0 `3026684f8aa4` |
+| 1 | [naming](https://registry.terraform.io/modules/Azure/naming/azurerm) (archived; no resources) | azurerm | 8,336,284 | 22,898,636 | |
+| 2 | [avm-res-network-virtualnetwork](https://registry.terraform.io/modules/Azure/avm-res-network-virtualnetwork/azurerm) | azurerm | 7,131,017 | 8,259,157 | v0.23.0 `874b2d1ce38c` |
+| 3 | [avm-utl-interfaces](https://registry.terraform.io/modules/Azure/avm-utl-interfaces/azure) (no resources) | azure | 6,597,108 | 6,936,367 | |
+| 4 | [avm-res-network-networksecuritygroup](https://registry.terraform.io/modules/Azure/avm-res-network-networksecuritygroup/azurerm) | azurerm | 4,108,779 | 4,856,855 | v0.6.0 `c5283612e428` |
+| 5 | [avm-res-storage-storageaccount](https://registry.terraform.io/modules/Azure/avm-res-storage-storageaccount/azurerm) | azurerm | 3,964,392 | 5,401,219 | v0.11.0 `226f9bbefcc9` |
+| 6 | [avm-res-keyvault-vault](https://registry.terraform.io/modules/Azure/avm-res-keyvault-vault/azurerm) | azurerm | 3,794,829 | 5,229,598 | v0.13.0 `7c53adbc7f4f` |
+| 7 | [avm-res-compute-virtualmachine](https://registry.terraform.io/modules/Azure/avm-res-compute-virtualmachine/azurerm) | azurerm | 3,681,412 | 4,168,285 | v0.21.0 `a6e951bdebcf` |
+| 8 | [avm-utl-regions](https://registry.terraform.io/modules/Azure/avm-utl-regions/azurerm) (no resources) | azurerm | 3,314,606 | 4,464,361 | |
+| 9 | [avm-res-resources-resourcegroup](https://registry.terraform.io/modules/Azure/avm-res-resources-resourcegroup/azurerm) | azurerm | 2,753,674 | 3,728,662 | v0.5.0 `4c7e926d9aa1` |
+| 10 | [avm-res-managedidentity-userassignedidentity](https://registry.terraform.io/modules/Azure/avm-res-managedidentity-userassignedidentity/azurerm) | azurerm | 2,520,215 | 3,565,638 | v0.6.0 `7a0c461789f0` |
+| 11 | [avm-res-operationalinsights-workspace](https://registry.terraform.io/modules/Azure/avm-res-operationalinsights-workspace/azurerm) | azurerm | 1,129,542 | 1,583,538 | v0.5.1 `b4ffa3ff87ac` |
+| 12 | [avm-res-network-routetable](https://registry.terraform.io/modules/Azure/avm-res-network-routetable/azurerm) | azurerm | 1,087,375 | 1,566,240 | v0.6.0 `7482f30b5f92` |
+| 13 | [avm-res-network-natgateway](https://registry.terraform.io/modules/Azure/avm-res-network-natgateway/azurerm) | azurerm | 1,057,695 | 1,178,796 | v0.3.2 `597df2389d99` |
+| 14 | [avm-res-network-privatednszone](https://registry.terraform.io/modules/Azure/avm-res-network-privatednszone/azurerm) | azurerm | 1,032,578 | 1,623,379 | v0.6.0 `97ed94c12535` |
+| 15 | [avm-utl-roledefinitions](https://registry.terraform.io/modules/Azure/avm-utl-roledefinitions/azure) (no resources) | azure | 783,679 | 806,072 | |
+| 16 | [avm-res-network-publicipaddress](https://registry.terraform.io/modules/Azure/avm-res-network-publicipaddress/azurerm) | azurerm | 767,152 | 1,148,881 | v0.2.1 `2790d091b373` |
+| 17 | [avm-res-network-loadbalancer](https://registry.terraform.io/modules/Azure/avm-res-network-loadbalancer/azurerm) | azurerm | 716,805 | 803,838 | v0.5.0 `e83d34778efe` |
+| 18 | [avm-res-containerregistry-registry](https://registry.terraform.io/modules/Azure/avm-res-containerregistry-registry/azurerm) | azurerm | 691,266 | 974,026 | v0.9.0 `7f2dc78bb5db` |
+| 19 | [avm-res-network-firewallpolicy](https://registry.terraform.io/modules/Azure/avm-res-network-firewallpolicy/azurerm) | azurerm | 660,760 | 1,017,127 | v0.3.4 `8580240f33fe` |
+| 20 | [avm-res-containerservice-managedcluster](https://registry.terraform.io/modules/Azure/avm-res-containerservice-managedcluster/azurerm) | azurerm | 653,189 | 828,090 | v0.9.0 `1925e0490783` |
+| 21 | [lz-vending](https://registry.terraform.io/modules/Azure/lz-vending/azurerm) (archived) | azurerm | 645,346 | 1,512,101 | v7.0.3 `ddc6b5989a01` |
+| 22 | [avm-res-dbforpostgresql-flexibleserver](https://registry.terraform.io/modules/Azure/avm-res-dbforpostgresql-flexibleserver/azurerm) | azurerm | 627,646 | 749,702 | v0.2.3 `70d6e9c947f8` |
+| 23 | [avm-res-cognitiveservices-account](https://registry.terraform.io/modules/Azure/avm-res-cognitiveservices-account/azurerm) | azurerm | 607,551 | 1,148,932 | v0.11.1 `02ac1c992bba` |
+| 24 | [avm-ptn-alz-sub-vending](https://registry.terraform.io/modules/Azure/avm-ptn-alz-sub-vending/azure) | azure | 570,438 | 574,735 | v0.3.4 `28577b03cf4a` |
+| 25 | [avm-res-insights-component](https://registry.terraform.io/modules/Azure/avm-res-insights-component/azurerm) | azurerm | 564,949 | 730,504 | v0.5.0 `8c75ae7771d6` |
+| 26 | [avm-res-app-containerapp](https://registry.terraform.io/modules/Azure/avm-res-app-containerapp/azurerm) | azurerm | 564,500 | 661,369 | v0.9.0 `ae03166abab0` |
+| 27 | [avm-res-web-site](https://registry.terraform.io/modules/Azure/avm-res-web-site/azurerm) | azurerm | 562,169 | 819,963 | v0.24.1 `56c704e9f440` |
+| 28 | [avm-res-network-privateendpoint](https://registry.terraform.io/modules/Azure/avm-res-network-privateendpoint/azurerm) | azurerm | 531,573 | 838,784 | v0.3.1 `84e427dd16ca` |
+| 29 | [avm-res-authorization-roleassignment](https://registry.terraform.io/modules/Azure/avm-res-authorization-roleassignment/azurerm) | azurerm | 497,839 | 672,657 | v0.3.1 `8f90a2110e81` |
+| 30 | [avm-res-network-bastionhost](https://registry.terraform.io/modules/Azure/avm-res-network-bastionhost/azurerm) | azurerm | 497,770 | 743,252 | v0.9.0 `7c7d294caf81` |
+| 31 | [avm-res-sql-server](https://registry.terraform.io/modules/Azure/avm-res-sql-server/azurerm) | azurerm | 492,441 | 621,999 | v0.2.1 `dd3461fc43de` |
+| 32 | [avm-res-network-azurefirewall](https://registry.terraform.io/modules/Azure/avm-res-network-azurefirewall/azurerm) | azurerm | 450,037 | 703,693 | v0.5.0 `e88c8db23982` |
+| 33 | [avm-res-web-serverfarm](https://registry.terraform.io/modules/Azure/avm-res-web-serverfarm/azurerm) | azurerm | 433,905 | 594,099 | v2.0.8 `077bbb36ea58` |
+| 34 | [aks](https://registry.terraform.io/modules/Azure/aks/azurerm) (archived) | azurerm | 406,315 | 1,399,384 | 11.7.0 `58ffc7c71a36` |
+| 35 | [avm-ptn-alz](https://registry.terraform.io/modules/Azure/avm-ptn-alz/azurerm) | azurerm | 400,560 | 639,791 | v0.22.0 `e2a318c3eba9` |
+| 36 | [avm-res-documentdb-databaseaccount](https://registry.terraform.io/modules/Azure/avm-res-documentdb-databaseaccount/azurerm) | azurerm | 396,414 | 534,300 | v0.12.0 `9939de3a2e36` |
+| 37 | [avm-res-network-dnsresolver](https://registry.terraform.io/modules/Azure/avm-res-network-dnsresolver/azurerm) | azurerm | 393,028 | 645,221 | v0.8.0 `73b1df385505` |
+| 38 | [avm-res-cache-redis](https://registry.terraform.io/modules/Azure/avm-res-cache-redis/azurerm) | azurerm | 390,989 | 493,207 | v0.5.0 `7469021fb795` |
+| 39 | [regions](https://registry.terraform.io/modules/Azure/regions/azurerm) (archived) | azurerm | 364,289 | 823,168 | |
+| 40 | [avm-res-app-managedenvironment](https://registry.terraform.io/modules/Azure/avm-res-app-managedenvironment/azurerm) | azurerm | 350,236 | 411,158 | v0.6.0 `c6709095a923` |
+| 41 | [avm-res-network-applicationgateway](https://registry.terraform.io/modules/Azure/avm-res-network-applicationgateway/azurerm) | azurerm | 347,827 | 475,384 | v0.6.0 `f5961205a904` |
+| 42 | [avm-ptn-network-private-link-private-dns-zones](https://registry.terraform.io/modules/Azure/avm-ptn-network-private-link-private-dns-zones/azurerm) | azurerm | 338,739 | 549,979 | v0.23.2 `4d2214f16280` |
+| 43 | [vnet](https://registry.terraform.io/modules/Azure/vnet/azurerm) (archived) | azurerm | 319,356 | 3,424,330 | 5.0.1 `27359ed29033` |
+| 44 | [avm-res-network-ddosprotectionplan](https://registry.terraform.io/modules/Azure/avm-res-network-ddosprotectionplan/azurerm) | azurerm | 288,387 | 465,403 | v0.3.0 `2d455cb9c6c6` |
+| 45 | [avm-ptn-alz-management](https://registry.terraform.io/modules/Azure/avm-ptn-alz-management/azurerm) | azurerm | 281,649 | 471,782 | v0.10.0 `3026684f8aa4` |
 
 The full commit SHAs, by tag:
 

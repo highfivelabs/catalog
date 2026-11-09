@@ -116,6 +116,16 @@ network's `id` and `self_link` have no value.
 - The remote peering and Shared VPC service attachments act in other
   projects: the namespace's Google service account needs roles there.
 
+## Upstream
+
+Ported from Cloud Foundation Fabric's
+[`modules/net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc)
+at v60.0.0 (`f706bc3b`, Apache-2.0). [`upstream.yaml`](upstream.yaml) records
+the repository, path, release, commit, licence and the date last synced, and
+the module is listed in [`upstream/modules.yaml`](../../../upstream/modules.yaml)
+with every other module the catalog tracks. To take a newer release, see
+[`UPSTREAM.md`](../../../UPSTREAM.md), "Moving the pins".
+
 ## Tests
 
 `task test CHART=net-vpc`: five render cases, seven refusals.

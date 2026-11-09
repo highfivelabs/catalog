@@ -89,46 +89,46 @@ from the Terraform Registry on 2026-11-09.
 
 | # | Module | Year | Total | Stars | Release, commit |
 | --- | --- | --- | --- | --- | --- |
-| 1 | iam | 119,564,916 | 440,704,638 | 876 | v6.8.2 `55514b7873c4` |
-| 2 | s3-bucket | 80,555,319 | 248,720,295 | 590 | v5.17.0 `9afa4fc8c8f1` |
-| 3 | vpc | 69,036,256 | 229,752,996 | 3281 | v6.7.3 `b3abd6df2ecf` |
-| 4 | eks | 64,376,823 | 193,908,942 | 5015 | v21.29.0 `91f11ea01656` |
-| 5 | kms | 62,311,808 | 157,651,716 | 53 | v4.2.2 `d25e459bd43d` |
-| 6 | lambda | 51,197,696 | 153,908,303 | 1043 | v8.13.0 `e73238631a03` |
-| 7 | security-group | 41,355,011 | 154,247,965 | 591 | v6.0.0 `58d8e895915f` |
-| 8 | rds | 27,069,610 | 83,142,885 | 961 | v7.2.2 `175da043429c` |
-| 9 | rds-aurora | 23,779,053 | 90,406,226 | 421 | v10.4.2 `652c0648a304` |
-| 10 | acm | 23,606,983 | 73,492,448 | 206 | v6.3.1 `aae84c011dd6` |
-| 11 | ec2-instance | 22,484,794 | 58,363,640 | 812 | v6.4.1 `294fb8928bc0` |
-| 12 | sqs | 21,692,594 | 58,539,510 | 105 | v5.2.2 `dd73a96c0155` |
-| 13 | route53 | 21,094,517 | 63,635,799 | 154 | v6.5.1 `883f987d6bb3` |
-| 14 | ecs | 19,998,875 | 40,179,700 | 677 | v7.6.1 `60b428812ddc` |
-| 15 | alb | 19,656,755 | 61,459,747 | 467 | v10.5.1 `6c6e48c10d45` |
-| 16 | dynamodb-table | 16,954,878 | 39,882,327 | 117 | v5.5.2 `c38423ae6c92` |
-| 17 | eventbridge | 11,817,480 | 30,243,066 | 156 | v4.3.3 `e29707a5057e` |
-| 18 | cloudwatch | 10,778,130 | 30,556,830 | 180 | v6.0.0 `f6dff9f79a5f` |
-| 19 | autoscaling | 10,768,106 | 28,649,488 | 311 | v9.3.2 `f90a581bcca0` |
-| 20 | secrets-manager | 10,646,728 | 18,862,408 | 42 | v2.2.0 `f3d3da1c8018` |
-| 21 | cloudfront | 9,456,598 | 36,416,517 | 139 | v6.7.1 `5b9a0a480220` |
-| 22 | eks-pod-identity | 8,495,394 | 12,050,786 | 106 | v2.10.0 `f72040b99272` |
-| 23 | ecr | 8,322,199 | 19,531,245 | 75 | v3.2.0 `b6ef04d088cf` |
-| 24 | sns | 7,651,573 | 21,211,577 | 112 | v7.2.0 `4538b7e208f5` |
-| 25 | elasticache | 7,393,809 | 10,961,035 | 32 | v1.11.2 `41a277b73b9d` |
-| 26 | key-pair | 4,560,759 | 12,797,983 | 85 | v3.0.1 `f3221d392c43` |
-| 27 | ssm-parameter | 4,294,882 | 7,111,407 | 23 | |
-| 28 | step-functions | 3,616,045 | 10,057,107 | 81 | |
-| 29 | efs | 3,523,365 | 10,722,007 | 30 | v2.2.1 `e0ec33d84363` |
-| 30 | vpn-gateway | 3,206,707 | 6,396,959 | 117 | |
-| 31 | rds-proxy | 2,778,921 | 6,922,624 | 60 | |
-| 32 | transit-gateway | 2,078,861 | 6,362,624 | 163 | |
-| 33 | apigateway-v2 | 2,008,915 | 6,735,371 | 165 | |
-| 34 | notify-slack | 1,812,555 | 7,828,719 | 500 | |
-| 35 | opensearch | 1,505,196 | 2,830,741 | 29 | |
-| 36 | msk-kafka-cluster | 1,437,921 | 2,994,991 | 61 | |
-| 37 | managed-service-prometheus | 1,305,164 | 1,374,676 | 34 | |
-| 38 | datadog-forwarders | 1,180,148 | 3,090,088 | 66 | |
-| 39 | dms | 759,615 | 2,284,862 | 74 | |
-| 40 | network-firewall | 606,792 | 5,214,935 | 20 | |
+| 1 | [iam](https://registry.terraform.io/modules/terraform-aws-modules/iam/aws) | 119,564,916 | 440,704,638 | 876 | v6.8.2 `55514b7873c4` |
+| 2 | [s3-bucket](https://registry.terraform.io/modules/terraform-aws-modules/s3-bucket/aws) | 80,555,319 | 248,720,295 | 590 | v5.17.0 `9afa4fc8c8f1` |
+| 3 | [vpc](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws) | 69,036,256 | 229,752,996 | 3281 | v6.7.3 `b3abd6df2ecf` |
+| 4 | [eks](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws) | 64,376,823 | 193,908,942 | 5015 | v21.29.0 `91f11ea01656` |
+| 5 | [kms](https://registry.terraform.io/modules/terraform-aws-modules/kms/aws) | 62,311,808 | 157,651,716 | 53 | v4.2.2 `d25e459bd43d` |
+| 6 | [lambda](https://registry.terraform.io/modules/terraform-aws-modules/lambda/aws) | 51,197,696 | 153,908,303 | 1043 | v8.13.0 `e73238631a03` |
+| 7 | [security-group](https://registry.terraform.io/modules/terraform-aws-modules/security-group/aws) | 41,355,011 | 154,247,965 | 591 | v6.0.0 `58d8e895915f` |
+| 8 | [rds](https://registry.terraform.io/modules/terraform-aws-modules/rds/aws) | 27,069,610 | 83,142,885 | 961 | v7.2.2 `175da043429c` |
+| 9 | [rds-aurora](https://registry.terraform.io/modules/terraform-aws-modules/rds-aurora/aws) | 23,779,053 | 90,406,226 | 421 | v10.4.2 `652c0648a304` |
+| 10 | [acm](https://registry.terraform.io/modules/terraform-aws-modules/acm/aws) | 23,606,983 | 73,492,448 | 206 | v6.3.1 `aae84c011dd6` |
+| 11 | [ec2-instance](https://registry.terraform.io/modules/terraform-aws-modules/ec2-instance/aws) | 22,484,794 | 58,363,640 | 812 | v6.4.1 `294fb8928bc0` |
+| 12 | [sqs](https://registry.terraform.io/modules/terraform-aws-modules/sqs/aws) | 21,692,594 | 58,539,510 | 105 | v5.2.2 `dd73a96c0155` |
+| 13 | [route53](https://registry.terraform.io/modules/terraform-aws-modules/route53/aws) | 21,094,517 | 63,635,799 | 154 | v6.5.1 `883f987d6bb3` |
+| 14 | [ecs](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) | 19,998,875 | 40,179,700 | 677 | v7.6.1 `60b428812ddc` |
+| 15 | [alb](https://registry.terraform.io/modules/terraform-aws-modules/alb/aws) | 19,656,755 | 61,459,747 | 467 | v10.5.1 `6c6e48c10d45` |
+| 16 | [dynamodb-table](https://registry.terraform.io/modules/terraform-aws-modules/dynamodb-table/aws) | 16,954,878 | 39,882,327 | 117 | v5.5.2 `c38423ae6c92` |
+| 17 | [eventbridge](https://registry.terraform.io/modules/terraform-aws-modules/eventbridge/aws) | 11,817,480 | 30,243,066 | 156 | v4.3.3 `e29707a5057e` |
+| 18 | [cloudwatch](https://registry.terraform.io/modules/terraform-aws-modules/cloudwatch/aws) | 10,778,130 | 30,556,830 | 180 | v6.0.0 `f6dff9f79a5f` |
+| 19 | [autoscaling](https://registry.terraform.io/modules/terraform-aws-modules/autoscaling/aws) | 10,768,106 | 28,649,488 | 311 | v9.3.2 `f90a581bcca0` |
+| 20 | [secrets-manager](https://registry.terraform.io/modules/terraform-aws-modules/secrets-manager/aws) | 10,646,728 | 18,862,408 | 42 | v2.2.0 `f3d3da1c8018` |
+| 21 | [cloudfront](https://registry.terraform.io/modules/terraform-aws-modules/cloudfront/aws) | 9,456,598 | 36,416,517 | 139 | v6.7.1 `5b9a0a480220` |
+| 22 | [eks-pod-identity](https://registry.terraform.io/modules/terraform-aws-modules/eks-pod-identity/aws) | 8,495,394 | 12,050,786 | 106 | v2.10.0 `f72040b99272` |
+| 23 | [ecr](https://registry.terraform.io/modules/terraform-aws-modules/ecr/aws) | 8,322,199 | 19,531,245 | 75 | v3.2.0 `b6ef04d088cf` |
+| 24 | [sns](https://registry.terraform.io/modules/terraform-aws-modules/sns/aws) | 7,651,573 | 21,211,577 | 112 | v7.2.0 `4538b7e208f5` |
+| 25 | [elasticache](https://registry.terraform.io/modules/terraform-aws-modules/elasticache/aws) | 7,393,809 | 10,961,035 | 32 | v1.11.2 `41a277b73b9d` |
+| 26 | [key-pair](https://registry.terraform.io/modules/terraform-aws-modules/key-pair/aws) | 4,560,759 | 12,797,983 | 85 | v3.0.1 `f3221d392c43` |
+| 27 | [ssm-parameter](https://registry.terraform.io/modules/terraform-aws-modules/ssm-parameter/aws) | 4,294,882 | 7,111,407 | 23 | |
+| 28 | [step-functions](https://registry.terraform.io/modules/terraform-aws-modules/step-functions/aws) | 3,616,045 | 10,057,107 | 81 | |
+| 29 | [efs](https://registry.terraform.io/modules/terraform-aws-modules/efs/aws) | 3,523,365 | 10,722,007 | 30 | v2.2.1 `e0ec33d84363` |
+| 30 | [vpn-gateway](https://registry.terraform.io/modules/terraform-aws-modules/vpn-gateway/aws) | 3,206,707 | 6,396,959 | 117 | |
+| 31 | [rds-proxy](https://registry.terraform.io/modules/terraform-aws-modules/rds-proxy/aws) | 2,778,921 | 6,922,624 | 60 | |
+| 32 | [transit-gateway](https://registry.terraform.io/modules/terraform-aws-modules/transit-gateway/aws) | 2,078,861 | 6,362,624 | 163 | |
+| 33 | [apigateway-v2](https://registry.terraform.io/modules/terraform-aws-modules/apigateway-v2/aws) | 2,008,915 | 6,735,371 | 165 | |
+| 34 | [notify-slack](https://registry.terraform.io/modules/terraform-aws-modules/notify-slack/aws) | 1,812,555 | 7,828,719 | 500 | |
+| 35 | [opensearch](https://registry.terraform.io/modules/terraform-aws-modules/opensearch/aws) | 1,505,196 | 2,830,741 | 29 | |
+| 36 | [msk-kafka-cluster](https://registry.terraform.io/modules/terraform-aws-modules/msk-kafka-cluster/aws) | 1,437,921 | 2,994,991 | 61 | |
+| 37 | [managed-service-prometheus](https://registry.terraform.io/modules/terraform-aws-modules/managed-service-prometheus/aws) | 1,305,164 | 1,374,676 | 34 | |
+| 38 | [datadog-forwarders](https://registry.terraform.io/modules/terraform-aws-modules/datadog-forwarders/aws) | 1,180,148 | 3,090,088 | 66 | |
+| 39 | [dms](https://registry.terraform.io/modules/terraform-aws-modules/dms/aws) | 759,615 | 2,284,862 | 74 | |
+| 40 | [network-firewall](https://registry.terraform.io/modules/terraform-aws-modules/network-firewall/aws) | 606,792 | 5,214,935 | 20 | |
 
 The full commit SHAs, by tag:
 
