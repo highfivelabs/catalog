@@ -446,7 +446,46 @@ Four charts (`UPSTREAM.md`, "What is ported"):
 | `net-vpc` | L | network, every subnet kind, the subnet factory, subnet IAM, routes, googleapis routes, peering, Shared VPC host, DNS policy, PSA, the global firewall policy association | BGP fields, internal ranges, network attachments, policy-based routes, service connection policies (alpha), regional firewall policy associations, PSA route export and peered domains (alpha) |
 | `project` | XL | the project (or a reused one), services, IAM, organization policies (with dry run), lien, essential contacts, Shared VPC service attachment and network users | about two thirds of the module (logging, tags, quotas, alerts, ...) not ported yet; metadata, default network tier, default service accounts (gaps) |
 
-Results are in "Pilot results" below.
+## Pilot results
+
+**Render** (`hack/test.sh`, 2026-11-09, laptop): 57 of 57 checks pass:
+14 render cases match their golden files and validate with
+`kubeconform -strict` against Config Connector v1.160.0's CRD schemas,
+17 refusals stop with their expected messages, and the four Package
+documents match their charts with every output compiling.
+
+**Fake cloud** (`hack/mock-apply.sh`, offload VM
+`off-catalog-1109091250-20677`, e2-standard-8, catalog commit `54fb283`,
+config-connector-extensions `1de95478`, Config Connector at its pin
+`672414b8` against mockgcp, 2026-11-09): **26 of 26 objects Ready, every
+chart's outputs evaluated against the live objects, and all 26 deleted
+together**, as Bundt prunes a component.
+
+| Chart | Objects Ready and deleted | Outputs evaluated |
+| --- | --- | --- |
+| `gcs` | 6 of 6: bucket, its IAM (partial policy and member), topic, topic IAM, notification | `name`, `id`, `url`, `notification`, `topic` |
+| `iam-service-account` | 4 of 4: account, IAM on it, an additive member, a role granted on the project | `email`, `iam_email`, `id`, `name`, `unique_id` |
+| `net-vpc` | 9 of 9: network, three subnets (one regular, one proxy-only, one from the factory), four routes (three googleapis, one by IP), DNS policy | network and subnet maps |
+| `project` | 7 of 7: project, two services, IAM (partial policy and member), an organization policy, an essential contact | `project_id`, `id`, `name`, `number`, `services` |
+
+The first fake-cloud run (offload VM `off-catalog-1109083144-22594`,
+commit `c461e94`) found what the second fixed:
+
+- IAM on an external project failed without the reference's
+  `apiVersion` ("failed to load ServiceMapping for GroupVersionKind /,
+  Kind=Project"); every external IAM reference now names it.
+- Nothing deleted: the fake cloud runs Config Connector's manager but not
+  its deletion defender, which a real install runs as its own pod, so
+  `hack/mock-apply.sh` does the defender's part. Reported to
+  config-connector-extensions, with its `up.sh` applying
+  `config/crds/kustomization.yaml` (moved aside in the scratch copy).
+
+Not provable in the fake cloud, and covered only by render tests: subnet
+IAM (mockgcp does not implement a subnetwork's `getIamPolicy`), liens and
+Shared VPC (mockgcp has neither).
+
+**Live**: not run. It waits for the builder to approve a service account
+for it (`hack/live-apply.sh` is written, not run).
 
 ## Questions
 
