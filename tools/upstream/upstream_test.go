@@ -30,6 +30,7 @@ modules:
   - id: gcp/gcs
     cloud: gcp
     module: gcs
+    rank: 1
     repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
     path: modules/gcs
     tag_pattern: "v*"

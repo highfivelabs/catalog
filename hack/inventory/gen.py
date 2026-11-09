@@ -84,4 +84,18 @@ for i,m,v,cov in rows:
             out.append(f"| `{r['tf']}` | {k} | {mark} |")
         out.append("")
 open(sys.argv[1],"w").write("\n".join(out)+"\n")
-print(stats, len(rows))
+# The same classification as a CSV, which docs/coverage reads (hack/coverage):
+# one row per Terraform resource type of each fabric module. class: stable
+# (a v1beta1 Config Connector kind), alpha (v1alpha1 only), extensions (a
+# config-connector-extensions gap kind) or none. Helper resources
+# (random_*, tls_*, terraform_data ...) and non-Google ones are left out.
+CLASS={"beta":"stable","alpha":"alpha","gap":"none","hfl":"extensions"}
+if len(sys.argv) > 3:
+    import csv
+    with open(sys.argv[3],"w",newline="") as f:
+        w=csv.writer(f,lineterminator="\n")
+        w.writerow(["module","resource_type","count","class","kind"])
+        for m in sorted(mods):
+            for r in sorted(mods[m]["rows"],key=lambda r:r["tf"]):
+                if r["cls"]=="na": continue
+                w.writerow([m,r["tf"],r["n"],CLASS[r["cls"]],(r["kcc"] or "") if r["cls"]!="gap" else ""])

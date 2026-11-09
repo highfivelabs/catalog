@@ -26,6 +26,7 @@ type Module struct {
 	ID          string `yaml:"id"`
 	Cloud       string `yaml:"cloud"`
 	Module      string `yaml:"module"`
+	Rank        int    `yaml:"rank"`
 	Repo        string `yaml:"repo"`
 	Path        string `yaml:"path"`
 	TagPattern  string `yaml:"tag_pattern"`
@@ -63,6 +64,22 @@ type ChartUpstream struct {
 	ModuleURL   string `yaml:"module_url"`
 	RegistryURL string `yaml:"registry_url"`
 	Synced      string `yaml:"synced"`
+	// Refused are the module variables the chart keeps in its values but
+	// refuses when set (docs/coverage reads them).
+	Refused []Refused `yaml:"refused,omitempty"`
+}
+
+// Refused is a module variable the chart refuses, wholly or in part.
+type Refused struct {
+	Variable string `yaml:"variable"`
+	// Kind is why: gap (Config Connector has no kind or field), alpha (only
+	// a v1alpha1 kind), not-ported (Config Connector has it; the chart does
+	// not map it yet) or by-design (Bundt replaces it).
+	Kind   string `yaml:"kind"`
+	Reason string `yaml:"reason"`
+	// Partial marks a variable the chart accepts, with some of its fields
+	// (or values) refused: the reason says which.
+	Partial bool `yaml:"partial,omitempty"`
 }
 
 // Decode strictly decodes YAML into v: unknown fields are an error.
@@ -137,6 +154,7 @@ func (f *File) Problems(root string) []string {
 	}
 	seen := map[string]bool{}
 	charts := map[string]string{}
+	ranks := map[string]string{}
 	for _, m := range f.Modules {
 		who := m.ID
 		if who == "" {
@@ -171,6 +189,14 @@ func (f *File) Problems(root string) []string {
 		if m.RegistryURL != "" && !strings.HasPrefix(m.RegistryURL, "https://registry.terraform.io/modules/") {
 			bad("%s: registry_url %q", who, m.RegistryURL)
 		}
+		if m.Rank < 1 {
+			bad("%s: rank is needed", who)
+		}
+		rk := fmt.Sprintf("%s#%d", m.Cloud, m.Rank)
+		if other, dup := ranks[rk]; dup {
+			bad("%s: rank %d is also %s's", who, m.Rank, other)
+		}
+		ranks[rk] = who
 		if m.Chart != "" {
 			if other, dup := charts[m.Chart]; dup {
 				bad("%s: chart %s is also claimed by %s", who, m.Chart, other)

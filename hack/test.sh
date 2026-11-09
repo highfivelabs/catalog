@@ -5,7 +5,8 @@
 # Render tests for every chart, offline and light (docs/design.md,
 # "Testing"):
 #
-#   0. upstream/modules.yaml and each chart's upstream.yaml agree (task upstream-check);
+#   0. upstream/modules.yaml and each chart's upstream.yaml agree (task upstream-check),
+#      and every variable the latter lists as refused is refused (task coverage-verify);
 #   1. each chart's templates/_kcc.tpl is lib/_kcc.tpl;
 #   2. helm lint;
 #   3. its Package document matches the chart and its outputs compile;
@@ -36,6 +37,8 @@ ok() { passed=$((passed + 1)); }
 
 # upstream/modules.yaml and every chart's upstream.yaml agree.
 if out="$(bin/catalogtool upstream check 2>&1)"; then ok; else bad "upstream: pins"; echo "${out}"; fi
+# the variables each chart's upstream.yaml says it refuses really are refused.
+if out="$(bin/catalogtool coverage verify 2>&1)"; then ok; echo "ok   ${out}"; else bad "coverage verify"; echo "${out}"; fi
 
 charts=("$@")
 if [[ ${#charts[@]} -eq 0 ]]; then
