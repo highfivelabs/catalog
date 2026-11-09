@@ -1,0 +1,42 @@
+// Copyright 2026 High Five Labs
+// SPDX-License-Identifier: Apache-2.0
+
+// realcloud runs Config Connector's own controller manager, unchanged and
+// with every controller, against a Kubernetes cluster and real Google
+// Cloud, with Application Default Credentials (on an offload VM: the VM's
+// service account, from the metadata server; never a key). It is
+// config-connector-extensions' cmd/fakecloud without mockgcp, and is
+// built inside a scratch copy of that repository so it uses the same
+// pinned Config Connector (hack/live-apply.sh copies it to
+// cmd/realcloud/main.go there). Kept as .go.txt here: this repository's
+// Go module does not hold Config Connector.
+package main
+
+import (
+	"flag"
+
+	"github.com/GoogleCloudPlatform/k8s-config-connector/pkg/controller/kccmanager"
+	// Registers every direct controller, as Config Connector's cmd/manager does.
+	_ "github.com/GoogleCloudPlatform/k8s-config-connector/pkg/controller/direct/register"
+	"github.com/GoogleCloudPlatform/k8s-config-connector/pkg/krmtotf"
+	"github.com/GoogleCloudPlatform/k8s-config-connector/pkg/stateintospec"
+	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+func main() {
+	flag.Parse()
+	ctx := ctrl.SetupSignalHandler()
+	ctrl.SetLogger(klog.NewKlogr())
+	krmtotf.SetUserAgentForTerraformProvider()
+	mgr, err := kccmanager.New(ctx, ctrl.GetConfigOrDie(), kccmanager.Config{
+		StateIntoSpecDefaultValue: stateintospec.StateIntoSpecDefaultValueV1Beta1,
+	})
+	if err != nil {
+		klog.Fatalf("realcloud: %v", err)
+	}
+	klog.Info("realcloud: Config Connector against Google Cloud, Application Default Credentials")
+	if err := mgr.Start(ctx); err != nil {
+		klog.Fatalf("realcloud: %v", err)
+	}
+}

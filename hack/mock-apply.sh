@@ -40,6 +40,19 @@ if [[ -z "${CCE_DIR:-}" ]]; then
   git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
     git -C "${CCE_DIR}" -c user.email=mock@example.com -c user.name=mock commit -qm "cce from ${CCE_TARBALL}"
 fi
+CCE_DIR="$(cd "${CCE_DIR}" && pwd)"
+# Workaround, in this scratch copy only: config-connector-extensions'
+# hack/fake-cloud/up.sh applies config/crds/*.yaml, which at 1de95478
+# also matches kustomization.yaml, and kubectl refuses it. Reported to
+# config-connector-extensions; remove when its up.sh skips it.
+if [[ -f "${CCE_DIR}/config/crds/kustomization.yaml" ]]; then
+  mkdir -p "${CCE_DIR}/.moved" && mv "${CCE_DIR}/config/crds/kustomization.yaml" "${CCE_DIR}/.moved/"
+fi
+if [[ ! -d "${CCE_DIR}/.git" ]]; then
+  # hack/upstream.sh wants a git checkout to compare against.
+  git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
+    git -C "${CCE_DIR}" -c user.email=mock@example.com -c user.name=mock commit -qm "cce snapshot"
+fi
 echo "== config-connector-extensions from ${CCE_TARBALL:-${CCE_DIR}}"
 
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
@@ -72,7 +85,10 @@ for values in charts/*/*/tests/mock.values.yaml; do
     | kubectl apply -f - >/dev/null
   helm template "${rel}" "${dir}" --namespace "${ns}" -f "${values}" >"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
-  mapfile -t objects < <(kubectl get -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" -o jsonpath='{range .items[*]}{.kind}/{.metadata.name}{"\n"}{end}')
+  # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
+  mapfile -t objects < <(kubectl get -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" -o json \
+    | jq -r '.items[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
+  short() { local k="${1%%.*}" n="${1#*/}"; jq -r --arg k "$k" --arg n "$n" '.items[] | select((.kind | ascii_downcase) == $k and .metadata.name == $n) | "\(.kind)/\(.metadata.name)"' "${OUT}/${chart}/live.json"; }
   deadline=$(( $(date +%s) + TIMEOUT ))
   declare -A ready=()
   for o in "${objects[@]}"; do
@@ -92,21 +108,39 @@ for values in charts/*/*/tests/mock.values.yaml; do
   echo "-- outputs (${outputs_ok})"; cat "${OUT}/${chart}/outputs.json" "${OUT}/${chart}/outputs.err"
   # Delete the component as Bundt prunes it: every object at once.
   kubectl delete -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
+  # The fake cloud runs Config Connector's controller manager but not its
+  # deletion defender (a separate pod, cnrm-deletiondefender, in a real
+  # install), so nothing releases the cnrm.cloud.google.com/deletion-defender
+  # finalizer of Config Connector's own kinds. Do what that pod does when
+  # the kind's CRD is not being uninstalled: remove it. Config Connector's
+  # controller then deletes the resource in the fake cloud and removes its
+  # own finalizer.
   deadline=$(( $(date +%s) + TIMEOUT ))
-  for o in "${objects[@]}"; do
-    left=$(( deadline - $(date +%s) )); (( left < 5 )) && left=5
-    kubectl wait -n "${ns}" --for=delete "${o}" --timeout="${left}s" >/dev/null 2>&1 || true
+  while (( $(date +%s) < deadline )); do
+    left=0
+    for o in "${objects[@]}"; do
+      f="$(kubectl get -n "${ns}" "${o}" -o jsonpath='{.metadata.finalizers}' 2>/dev/null)" || continue
+      left=$((left + 1))
+      if [[ "${f}" == *deletion-defender* ]]; then
+        kubectl get -n "${ns}" "${o}" -o json \
+          | jq '.metadata.finalizers |= map(select(. != "cnrm.cloud.google.com/deletion-defender"))' \
+          | kubectl replace -f - >/dev/null 2>&1 || true
+      fi
+    done
+    (( left == 0 )) && break
+    sleep 3
   done
   for o in "${objects[@]}"; do
     total=$((total + 1))
+    d="$(short "$o")"; d="${d:-$o}"
     msg="$(kubectl get -n "${ns}" "${o}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}' 2>/dev/null | tr '\n|' '  ' | cut -c1-160 || true)"
     if kubectl get -n "${ns}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     if [[ -z "${msg}" ]]; then
-      msg="$(jq -r --arg k "${o%%/*}" --arg n "${o#*/}" '.items[] | select(.kind==$k and .metadata.name==$n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' "${OUT}/${chart}/live.json" | tr '\n|' '  ' | cut -c1-160)"
+      msg="$(jq -r --arg d "${d}" '.items[] | select("\(.kind)/\(.metadata.name)" == $d) | (.status.conditions // [])[] | select(.type=="Ready") | .message' "${OUT}/${chart}/live.json" | tr '\n|' '  ' | cut -c1-160)"
     fi
     [[ "${ready[$o]}" == yes && "${deleted}" == yes ]] || failed=$((failed + 1))
-    echo "| ${chart} | ${o} | ${ready[$o]} | ${deleted} | ${msg} |" >>"${summary}"
-    echo "   ${o}: ready=${ready[$o]} deleted=${deleted} ${msg}"
+    echo "| ${chart} | ${d} | ${ready[$o]} | ${deleted} | ${msg} |" >>"${summary}"
+    echo "   ${d}: ready=${ready[$o]} deleted=${deleted} ${msg}"
   done
   echo "| ${chart} | outputs | ${outputs_ok} | | $(tr '\n' ' ' <"${OUT}/${chart}/outputs.err" | cut -c1-160) |" >>"${summary}"
   [[ "${outputs_ok}" == yes ]] || failed=$((failed + 1))
