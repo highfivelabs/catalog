@@ -1,0 +1,30 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/shared-vpc.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: the service project side. Grants to
+service agents need the project number, known only after apply, and are
+not ported (README.md, "Not ported").
+*/ -}}
+{{- $c := .Values.shared_vpc_service_config | default dict }}
+{{- if $c.host_project }}
+{{- range $f := list "service_agent_iam" "service_agent_subnet_iam" "service_iam_grants" "network_subnet_users" }}
+{{- include "kcc.unsupported" (list $ (printf "shared_vpc_service_config.%s" $f) (index $c $f) "grants to service agents name the project number, known only after apply") }}
+{{- end }}
+{{- $host := trimPrefix "projects/" $c.host_project }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-shared-vpc" .Release.Name) "id" "shared_vpc_service" "project" $host "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+{{- $additive := dict }}
+{{- range $m := ($c.network_users | default list) }}
+{{- $_ := set $additive (printf "network-user-%s" $m) (dict "member" $m "role" "roles/compute.networkUser") }}
+{{- end }}
+{{- range $k, $b := ($c.iam_bindings_additive | default dict) }}
+{{- $_ := set $additive $k $b }}
+{{- end }}
+{{- include "kcc.iam" (dict "root" $ "base" (printf "%s-host" .Release.Name) "idPrefix" "host:" "resourceRef" (dict "kind" "Project" "external" (printf "projects/%s" $host)) "v" (dict "iam_bindings_additive" $additive)) }}
+{{- end }}

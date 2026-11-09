@@ -1,0 +1,223 @@
+---
+# Source: net-vpc/templates/network.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-vpc
+  description: "Terraform-managed."
+  autoCreateSubnetworks: false
+  deleteDefaultRoutesOnCreate: false
+  routingMode: GLOBAL
+  networkFirewallPolicyEnforcementOrder: AFTER_CLASSIC_FIREWALL
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: mock-route-directpath-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:directpath-googleapis"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-vpc-directpath-googleapis
+  networkRef:
+    name: mock
+  destRange: "34.126.0.0/18"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: mock-route-private-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:private-googleapis"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-vpc-private-googleapis
+  networkRef:
+    name: mock
+  destRange: "199.36.153.8/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: mock-route-restricted-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:restricted-googleapis"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-vpc-restricted-googleapis
+  networkRef:
+    name: mock
+  destRange: "199.36.153.4/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: mock-route-to-appliance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:to-appliance"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-vpc-to-appliance
+  networkRef:
+    name: mock
+  destRange: "192.168.0.0/24"
+  description: "Terraform-managed."
+  nextHopIp: "10.0.0.5"
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: mock-subnet-us-central1-apps
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:us-central1/apps"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: apps
+  region: us-central1
+  networkRef:
+    name: mock
+  ipCidrRange: "10.0.0.0/24"
+  description: "Terraform-managed."
+  privateIpGoogleAccess: true
+  secondaryIpRange:
+    - rangeName: pods
+      ipCidrRange: "172.16.0.0/20"
+  logConfig:
+    flowSampling: 0.5
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: mock-subnet-us-central1-proxy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:us-central1/proxy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: proxy
+  region: us-central1
+  networkRef:
+    name: mock
+  ipCidrRange: "10.0.1.0/24"
+  description: "Terraform-managed proxy-only subnet for Regional HTTPS, Internal HTTPS or Cross-Regional HTTPS Internal LB."
+  purpose: REGIONAL_MANAGED_PROXY
+  role: ACTIVE
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: mock-subnet-us-east1-from-factory
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:us-east1/from-factory"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: from-factory
+  region: us-east1
+  networkRef:
+    name: mock
+  ipCidrRange: "10.1.0.0/24"
+  description: "Terraform-managed."
+  privateIpGoogleAccess: true
+---
+# Source: net-vpc/templates/dns-policy.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSPolicy
+metadata:
+  name: mock-dns-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dns_policy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-vpc
+  enableInboundForwarding: true
+  enableLogging: false
+  networks:
+    - networkRef:
+        name: mock
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-subnet-us-central1-apps-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:us-central1/apps:iam"
+spec:
+  resourceRef:
+    apiVersion: compute.cnrm.cloud.google.com/v1beta1
+    kind: ComputeSubnetwork
+    name: mock-subnet-us-central1-apps
+  bindings:
+    - role: "roles/compute.networkUser"
+      members:
+        - member: "user:dev@example.com"

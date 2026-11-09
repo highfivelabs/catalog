@@ -1,0 +1,242 @@
+---
+# Source: project/templates/services.yaml
+apiVersion: serviceusage.cnrm.cloud.google.com/v1beta1
+kind: Service
+metadata:
+  name: create-service-compute
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service:compute.googleapis.com"
+    cnrm.cloud.google.com/disable-dependent-services: "false"
+    cnrm.cloud.google.com/disable-on-destroy: "false"
+spec:
+  resourceID: compute.googleapis.com
+  projectRef:
+    name: create
+---
+# Source: project/templates/services.yaml
+apiVersion: serviceusage.cnrm.cloud.google.com/v1beta1
+kind: Service
+metadata:
+  name: create-service-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service:storage.googleapis.com"
+    cnrm.cloud.google.com/disable-dependent-services: "false"
+    cnrm.cloud.google.com/disable-on-destroy: "false"
+spec:
+  resourceID: storage.googleapis.com
+  projectRef:
+    name: create
+---
+# Source: project/templates/shared-vpc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  name: create-shared-vpc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "shared_vpc_service"
+    cnrm.cloud.google.com/project-id: "host-project"
+spec:
+  projectRef:
+    name: create
+---
+# Source: project/templates/project.yaml
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  name: create-contact-ops-example-com-648d92f6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "contact:ops@example.com"
+spec:
+  projectRef:
+    name: create
+  email: "ops@example.com"
+  languageTag: en
+  notificationCategorySubscriptions: ["ALL"]
+---
+# Source: project/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: create-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    name: create
+  bindings:
+    - role: "roles/viewer"
+      members:
+        - member: "group:devs@example.com"
+---
+# Source: project/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: create-iam-admin
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-admin"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    name: create
+  role: "roles/owner"
+  member: "user:a@example.com"
+---
+# Source: project/templates/shared-vpc.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: create-host-iam-network-user-group-devs-example-com-60079ea2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "host:iam-additive-network-user-group:devs@example.com"
+spec:
+  resourceRef:
+    external: projects/host-project
+    kind: Project
+  role: "roles/compute.networkUser"
+  member: "group:devs@example.com"
+---
+# Source: project/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: create-org-policy-compute-disableguestattributesaccess-0899d9d4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.disableGuestAttributesAccess"
+spec:
+  resourceID: compute.disableGuestAttributesAccess
+  projectRef:
+    name: create
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: project/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: create-org-policy-compute-vmexternalipaccess-ac36cdb4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.vmExternalIpAccess"
+spec:
+  resourceID: compute.vmExternalIpAccess
+  projectRef:
+    name: create
+  dryRunSpec:
+    rules:
+    - denyAll: true
+---
+# Source: project/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: create-org-policy-iam-allowedpolicymemberdomains-d5b37fbc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:iam.allowedPolicyMemberDomains"
+spec:
+  resourceID: iam.allowedPolicyMemberDomains
+  projectRef:
+    name: create
+  spec:
+    rules:
+    - condition:
+        expression: resource.matchTag('1234/env', 'dev')
+        title: dev
+      values:
+        allowedValues:
+        - C0xxxxxxx
+---
+# Source: project/templates/project.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Project
+metadata:
+  name: create
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "project"
+    cnrm.cloud.google.com/auto-create-network: "false"
+spec:
+  resourceID: hfl-app-dev
+  name: "hfl-app-dev"
+  folderRef:
+    external: "1234567890"
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+---
+# Source: project/templates/project.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: ResourceManagerLien
+metadata:
+  name: create-lien
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "create"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lien"
+spec:
+  parent:
+    projectRef:
+      name: create
+  restrictions: [resourcemanager.projects.delete]
+  origin: created-by-bundt
+  reason: "do not delete"

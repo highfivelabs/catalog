@@ -1,0 +1,84 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/subnets.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+*/ -}}
+{{- $descriptions := dict
+  "regular" "Terraform-managed."
+  "proxy_only" "Terraform-managed proxy-only subnet for Regional HTTPS, Internal HTTPS or Cross-Regional HTTPS Internal LB."
+  "private_nat" "Terraform-managed private NAT subnet."
+  "psc" "Terraform-managed subnet for Private Service Connect (PSC NAT)." }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $key, $s := (include "netvpc.subnets" . | fromJson) }}
+{{- include "kcc.unsupported" (list $ (printf "subnet %s ip_collection" $key) $s.ip_collection "ComputeSubnetwork has no ip_collection field") }}
+{{- include "kcc.unsupported" (list $ (printf "subnet %s allow_subnet_cidr_routes_overlap" $key) $s.allow_subnet_cidr_routes_overlap "ComputeSubnetwork has no allow_subnet_cidr_routes_overlap field") }}
+{{- include "kcc.unsupported" (list $ (printf "subnet %s reserved_internal_range" $key) $s.reserved_internal_range "internal ranges are alpha in v1.160.0") }}
+{{- $ipv6Only := and $s.ipv6 $s.ipv6.ipv6_only }}
+{{- if and (not $ipv6Only) (not $s.ip_cidr_range) }}
+{{- fail (printf "net-vpc: subnet %s needs ip_cidr_range (or ipv6.ipv6_only)" $key) }}
+{{- end }}
+{{- $name := include "kcc.name" (list $.Release.Name "subnet" $s.region $s.name) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $name "id" (printf "subnet:%s" $key) "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $s.name }}
+  region: {{ $s.region }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+  {{- if not $ipv6Only }}
+  ipCidrRange: {{ $s.ip_cidr_range | quote }}
+  {{- end }}
+  {{- $d := (kindIs "invalid" $s.description) | ternary (get $descriptions $s._type) $s.description }}
+  {{- with $d }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if eq $s._type "regular" }}
+  privateIpGoogleAccess: {{ (kindIs "invalid" $s.enable_private_access) | ternary true $s.enable_private_access }}
+  {{- with $s.ipv6 }}
+  stackType: {{ (.ipv6_only | default false) | ternary "IPV6_ONLY" "IPV4_IPV6" }}
+  ipv6AccessType: {{ .access_type | default "INTERNAL" }}
+  {{- end }}
+  {{- with $s.secondary_ip_ranges }}
+  secondaryIpRange:
+    {{- range $rname, $r := . }}
+    {{- include "kcc.unsupported" (list $ (printf "subnet %s secondary range %s reserved_internal_range" $key $rname) $r.reserved_internal_range "internal ranges are alpha in v1.160.0") }}
+    - rangeName: {{ $rname }}
+      ipCidrRange: {{ $r.ip_cidr_range | quote }}
+    {{- end }}
+  {{- end }}
+  {{- else if eq $s._type "proxy_only" }}
+  purpose: {{ ($s.global | default false) | ternary "GLOBAL_MANAGED_PROXY" "REGIONAL_MANAGED_PROXY" }}
+  role: {{ ((kindIs "invalid" $s.active) | ternary true $s.active) | ternary "ACTIVE" "BACKUP" }}
+  {{- else if eq $s._type "private_nat" }}
+  purpose: PRIVATE_NAT
+  {{- else if eq $s._type "psc" }}
+  purpose: PRIVATE_SERVICE_CONNECT
+  {{- end }}
+  {{- if and (has $s._type (list "regular" "psc")) $s.flow_logs_config }}
+  {{- with $s.flow_logs_config }}
+  logConfig:
+    {{- with .aggregation_interval }}
+    aggregationInterval: {{ . }}
+    {{- end }}
+    {{- with .filter_expression }}
+    filterExpr: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .flow_sampling) }}
+    flowSampling: {{ .flow_sampling }}
+    {{- end }}
+    {{- with .metadata }}
+    metadata: {{ . }}
+    {{- end }}
+    {{- if and (eq (.metadata | default "") "CUSTOM_METADATA") .metadata_fields }}
+    metadataFields: {{ toJson .metadata_fields }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+{{- if ne $s._type "private_nat" }}
+{{- include "kcc.iam" (dict "root" $ "base" $name "idPrefix" (printf "subnet:%s:" $key) "resourceRef" (dict "apiVersion" "compute.cnrm.cloud.google.com/v1beta1" "kind" "ComputeSubnetwork" "name" $name) "v" $s) }}
+{{- end }}
+{{- end }}

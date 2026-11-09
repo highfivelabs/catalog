@@ -1,0 +1,23 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: Shared VPC host and service projects.
+*/ -}}
+{{- if .Values.shared_vpc_host }}
+{{- $abandon := include "kcc.abandon" . }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCHostProject
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-shared-vpc-host" .Release.Name) "id" "shared_vpc_host" "project" .Values.project_id "abandon" $abandon) | nindent 2 }}
+{{- range $p := .Values.shared_vpc_service_projects }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "service-project" $p)) "id" (printf "shared_vpc_service_project:%s" $p) "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ trimPrefix "projects/" $p | quote }}
+{{- end }}
+{{- end }}

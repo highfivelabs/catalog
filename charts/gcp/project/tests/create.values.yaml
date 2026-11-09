@@ -1,0 +1,24 @@
+# A new project with services, IAM, organization policies, a lien, a contact and Shared VPC.
+name: app-dev
+prefix: hfl
+parent: folders/1234567890
+billing_account: 012345-6789AB-CDEF01
+labels: {env: dev}
+lien_reason: do not delete
+services: [compute.googleapis.com, storage.googleapis.com]
+iam:
+  roles/viewer: ["group:devs@example.com"]
+iam_bindings_additive:
+  admin: {member: "user:a@example.com", role: roles/owner}
+org_policies:
+  compute.disableGuestAttributesAccess: {rules: [{enforce: true}]}
+  "dry_run:compute.vmExternalIpAccess": {rules: [{deny: {all: true}}]}
+  iam.allowedPolicyMemberDomains:
+    rules:
+      - allow: {values: [C0xxxxxxx]}
+        condition: {expression: "resource.matchTag('1234/env', 'dev')", title: dev}
+contacts:
+  ops@example.com: [ALL]
+shared_vpc_service_config:
+  host_project: host-project
+  network_users: ["group:devs@example.com"]

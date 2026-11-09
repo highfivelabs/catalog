@@ -1,0 +1,198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gcs values (fabric gcs v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name"],
+  "allOf": [
+    {
+      "description": "Bucket location needs to be defined when creating a bucket.",
+      "if": {"properties": {"bucket_create": {"const": true}}},
+      "then": {"properties": {"location": {"type": "string", "minLength": 1}}}
+    }
+  ],
+  "definitions": {
+    "stringOrNull": {"type": ["string", "null"]},
+    "boolOrNull": {"type": ["boolean", "null"]},
+    "stringList": {"type": ["array", "null"], "items": {"type": "string"}},
+    "condition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["expression", "title"],
+      "properties": {
+        "expression": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "membersByRole": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "iamBindings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["members", "role"],
+        "properties": {
+          "members": {"type": "array", "items": {"type": "string"}},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "iamBindingsAdditive": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["member", "role"],
+        "properties": {
+          "member": {"type": "string"},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    }
+  },
+  "properties": {
+    "name": {"description": "Bucket name suffix.", "type": "string", "minLength": 1},
+    "prefix": {"description": "Optional prefix used to generate the bucket name. Cannot be empty: use null.", "type": ["string", "null"], "minLength": 1},
+    "project_id": {"description": "Bucket project; null takes the namespace's.", "type": ["string", "null"]},
+    "location": {"description": "Bucket location.", "type": ["string", "null"]},
+    "bucket_create": {"description": "Create bucket.", "type": "boolean"},
+    "storage_class": {
+      "description": "Bucket storage class.",
+      "type": "string",
+      "enum": ["STANDARD", "MULTI_REGIONAL", "REGIONAL", "NEARLINE", "COLDLINE", "ARCHIVE"]
+    },
+    "force_destroy": {"description": "Delete the bucket's objects with it.", "type": ["boolean", "null"]},
+    "uniform_bucket_level_access": {"type": ["boolean", "null"]},
+    "labels": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+    "default_event_based_hold": {"$ref": "#/definitions/boolOrNull"},
+    "requester_pays": {"$ref": "#/definitions/boolOrNull"},
+    "public_access_prevention": {"type": ["string", "null"], "enum": ["enforced", "inherited", null]},
+    "versioning": {"$ref": "#/definitions/boolOrNull"},
+    "autoclass": {"description": "If true, storage_class must be STANDARD.", "$ref": "#/definitions/boolOrNull"},
+    "cors": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "origin": {"$ref": "#/definitions/stringList"},
+        "method": {"$ref": "#/definitions/stringList"},
+        "response_header": {"$ref": "#/definitions/stringList"},
+        "max_age_seconds": {"type": ["integer", "null"]}
+      }
+    },
+    "custom_placement_config": {"$ref": "#/definitions/stringList"},
+    "encryption_key": {"$ref": "#/definitions/stringOrNull"},
+    "logging_config": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["log_bucket"],
+      "properties": {
+        "log_bucket": {"type": "string"},
+        "log_object_prefix": {"$ref": "#/definitions/stringOrNull"}
+      }
+    },
+    "lifecycle_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "condition"],
+        "properties": {
+          "action": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {"type": "string", "enum": ["Delete", "SetStorageClass", "AbortIncompleteMultipartUpload"]},
+              "storage_class": {"$ref": "#/definitions/stringOrNull"}
+            },
+            "if": {"properties": {"type": {"const": "SetStorageClass"}}},
+            "then": {"required": ["storage_class"], "properties": {"storage_class": {"type": "string"}}}
+          },
+          "condition": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "age": {"type": ["integer", "null"]},
+              "created_before": {"$ref": "#/definitions/stringOrNull"},
+              "custom_time_before": {"$ref": "#/definitions/stringOrNull"},
+              "days_since_custom_time": {"type": ["integer", "null"]},
+              "days_since_noncurrent_time": {"type": ["integer", "null"]},
+              "matches_prefix": {"$ref": "#/definitions/stringList"},
+              "matches_storage_class": {"$ref": "#/definitions/stringList"},
+              "matches_suffix": {"$ref": "#/definitions/stringList"},
+              "noncurrent_time_before": {"$ref": "#/definitions/stringOrNull"},
+              "num_newer_versions": {"type": ["integer", "null"]},
+              "with_state": {"type": ["string", "null"], "enum": ["LIVE", "ARCHIVED", "ANY", null]}
+            }
+          }
+        }
+      }
+    },
+    "retention_policy": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["retention_period"],
+      "properties": {
+        "retention_period": {"description": "Seconds, as a string or a number.", "type": ["string", "integer"], "pattern": "^[0-9]+$"},
+        "is_locked": {"$ref": "#/definitions/boolOrNull"}
+      }
+    },
+    "soft_delete_retention": {"type": ["integer", "null"], "minimum": 0},
+    "website": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "main_page_suffix": {"$ref": "#/definitions/stringOrNull"},
+        "not_found_page": {"$ref": "#/definitions/stringOrNull"}
+      }
+    },
+    "ip_filter": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "allow_cross_org_vpcs": {"$ref": "#/definitions/boolOrNull"},
+        "allow_all_service_agent_access": {"$ref": "#/definitions/boolOrNull"},
+        "public_network_sources": {"$ref": "#/definitions/stringList"},
+        "vpc_network_sources": {"type": ["object", "null"], "additionalProperties": {"type": "array", "items": {"type": "string"}}}
+      }
+    },
+    "notification_config": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["enabled", "payload_format", "sa_email", "topic_name"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "payload_format": {"type": "string", "enum": ["JSON_API_V1", "NONE"]},
+        "sa_email": {"type": "string"},
+        "topic_name": {"type": "string"},
+        "create_topic": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "create": {"type": ["boolean", "null"]},
+            "kms_key_id": {"$ref": "#/definitions/stringOrNull"}
+          }
+        },
+        "event_types": {"$ref": "#/definitions/stringList"},
+        "custom_attributes": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+        "object_name_prefix": {"$ref": "#/definitions/stringOrNull"}
+      }
+    },
+    "tag_bindings": {"type": "object", "additionalProperties": {"type": "string"}},
+    "iam": {"$ref": "#/definitions/membersByRole"},
+    "iam_by_principals": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "iam_bindings": {"$ref": "#/definitions/iamBindings"},
+    "iam_bindings_additive": {"$ref": "#/definitions/iamBindingsAdditive"},
+    "deletion_policy": {"type": ["string", "null"], "enum": ["DELETE", "ABANDON", "PREVENT", null]},
+    "enable_object_retention": {"description": "Not supported: StorageBucket has no object retention.", "type": ["boolean", "null"]},
+    "enable_hierarchical_namespace": {"description": "Not supported: StorageBucket has no hierarchical namespace.", "type": ["boolean", "null"]},
+    "rpo": {"description": "Not supported: StorageBucket has no rpo (Config Connector PR #13713).", "type": ["string", "null"], "enum": ["ASYNC_TURBO", "DEFAULT", null]},
+    "objects_to_upload": {"description": "Not supported: Config Connector has no bucket object kind.", "type": "object"},
+    "managed_folders": {"description": "Not supported: StorageManagedFolder is alpha and cannot take IAM.", "type": "object"},
+    "kms_autokeys": {"description": "Not supported: the key a KMSKeyHandle makes is known only after apply, and StorageBucket cannot reference a handle.", "type": "object"},
+    "context": {"description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.", "type": "object"}
+  }
+}

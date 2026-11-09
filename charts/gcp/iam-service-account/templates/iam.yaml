@@ -1,0 +1,62 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/iam-service-account/iam.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+IAM on the service account (the account is the resource), then roles
+granted to it on other resources (the account is the member).
+*/ -}}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (dict "apiVersion" "iam.cnrm.cloud.google.com/v1beta1" "kind" "IAMServiceAccount" "name" .Release.Name) "v" .Values) }}
+{{- /*
+Each grant: {kind, external, role, condition}. Fabric's *_roles
+({ID: [ROLES]}) and *_bindings ({KEY: {<id field>, role, condition}})
+both become one IAMPolicyMember per role, with the account as member.
+*/ -}}
+{{- $grants := dict -}}
+{{- $kinds := list
+  (list "billing" "BillingAccount" "iam_billing_roles" "iam_billing_bindings" "billing_account_id")
+  (list "folder" "Folder" "iam_folder_roles" "iam_folder_bindings" "folder_id")
+  (list "organization" "Organization" "iam_organization_roles" "iam_organization_bindings" "organization_id")
+  (list "project" "Project" "iam_project_roles" "iam_project_bindings" "project_id")
+  (list "sa" "IAMServiceAccount" "iam_sa_roles" "iam_sa_bindings" "service_account_id")
+  (list "storage" "StorageBucket" "iam_storage_roles" "iam_storage_bindings" "bucket") -}}
+{{- range $k := $kinds -}}
+{{- $short := index $k 0 -}}{{- $kind := index $k 1 -}}{{- $field := index $k 4 -}}
+{{- range $id, $roles := (index $.Values (index $k 2)) -}}
+{{- range $role := $roles -}}
+{{- $_ := set $grants (printf "%s|%s-%s" $short $id $role) (dict "kind" $kind "id" $id "role" $role) -}}
+{{- end -}}
+{{- end -}}
+{{- range $key, $b := (index $.Values (index $k 3)) -}}
+{{- $_ := set $grants (printf "%s|%s" $short $key) (dict "kind" $kind "id" (index $b $field) "role" $b.role "condition" $b.condition) -}}
+{{- end -}}
+{{- end -}}
+{{- range $key, $g := $grants }}
+{{- $id := toString $g.id }}
+{{- $external := $id }}
+{{- if eq $g.kind "Folder" }}{{ $external = printf "folders/%s" (trimPrefix "folders/" $id) }}{{ end }}
+{{- if eq $g.kind "Organization" }}{{ $external = trimPrefix "organizations/" $id }}{{ end }}
+{{- if eq $g.kind "Project" }}{{ $external = printf "projects/%s" (trimPrefix "projects/" $id) }}{{ end }}
+{{- if and (eq $g.kind "IAMServiceAccount") (not (hasPrefix "projects/" $id)) }}
+{{- $project := regexFind "@[^.]+" $id | trimPrefix "@" }}
+{{- $external = printf "projects/%s/serviceAccounts/%s" $project $id }}
+{{- end }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "grant" $key)) "id" (printf "grant-%s" $key)) | nindent 2 }}
+spec:
+  resourceRef:
+    kind: {{ $g.kind }}
+    external: {{ $external | quote }}
+  role: {{ $g.role | quote }}
+  memberFrom:
+    serviceAccountRef:
+      name: {{ $.Release.Name }}
+  {{- with $g.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}

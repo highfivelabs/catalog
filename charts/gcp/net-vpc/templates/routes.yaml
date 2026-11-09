@@ -1,0 +1,63 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/routes.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+*/ -}}
+{{- $v := .Values }}
+{{- $googleapis := dict
+  "directpath" "34.126.0.0/18"
+  "directpath-6" "2001:4860:8040::/42"
+  "private" "199.36.153.8/30"
+  "private-6" "2600:2d00:2:2000::/64"
+  "restricted" "199.36.153.4/30"
+  "restricted-6" "2600:2d00:2:1000::/64" }}
+{{- $routes := dict }}
+{{- if kindIs "invalid" $v.vpc_reuse }}
+{{- range $k, $on := ($v.create_googleapis_routes | default dict) }}
+{{- if $on }}
+{{- $_ := set $routes (printf "%s-googleapis" $k) (dict "dest_range" (get $googleapis $k) "next_hop_type" "gateway" "next_hop" "default-internet-gateway" "priority" 1000 "description" "Terraform-managed.") }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $k, $r := ($v.routes | default dict) }}
+{{- $_ := set $routes $k $r }}
+{{- end }}
+{{- range $key, $r := $routes }}
+{{- if not (has $r.next_hop_type (list "gateway" "instance" "ip" "vpn_tunnel" "ilb")) }}
+{{- fail (printf "net-vpc: route %s: unsupported next hop type %q" $key $r.next_hop_type) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "route" $key)) "id" (printf "route:%s" $key) "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ $r.name | default (printf "%s-%s" $v.name $key) }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+  destRange: {{ $r.dest_range | quote }}
+  {{- with ((kindIs "invalid" $r.description) | ternary "Terraform-managed." $r.description) }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $r.priority) }}
+  priority: {{ $r.priority | int64 }}
+  {{- end }}
+  {{- with $r.tags }}
+  tags: {{ toJson . }}
+  {{- end }}
+  {{- if eq $r.next_hop_type "gateway" }}
+  nextHopGateway: {{ $r.next_hop | quote }}
+  {{- else if eq $r.next_hop_type "ip" }}
+  nextHopIp: {{ $r.next_hop | quote }}
+  {{- else if eq $r.next_hop_type "instance" }}
+  nextHopInstanceRef:
+    external: {{ $r.next_hop | quote }}
+  {{- else if eq $r.next_hop_type "vpn_tunnel" }}
+  nextHopVPNTunnelRef:
+    external: {{ $r.next_hop | quote }}
+  {{- else if eq $r.next_hop_type "ilb" }}
+  nextHopILBRef:
+    external: {{ $r.next_hop | quote }}
+  {{- end }}
+{{- end }}

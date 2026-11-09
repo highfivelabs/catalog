@@ -1,0 +1,23 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# With bucket_create false the chart makes no bucket object, so name, id
+# and url have no value.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-gcs
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.bucket.spec.resourceID
+    id: resources.bucket.spec.resourceID
+    url: resources.bucket.status.url
+    notification: "'notification' in resources ? resources.notification.status.selfLink : null"
+    topic: >-
+      'topic' in resources
+      ? dyn('projects/' + resources.topic.metadata.annotations['cnrm.cloud.google.com/project-id'] + '/topics/' + resources.topic.spec.resourceID)
+      : null

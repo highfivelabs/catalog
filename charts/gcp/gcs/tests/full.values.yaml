@@ -1,0 +1,39 @@
+# Most fields, IAM, a notification with its topic, and a tag binding.
+name: My-Bucket
+prefix: hfl
+project_id: mock-project
+location: US-CENTRAL1
+versioning: true
+force_destroy: true
+labels: {env: dev}
+lifecycle_rules:
+  old:
+    action: {type: Delete}
+    condition: {age: 30, with_state: ANY}
+  cold:
+    action: {type: SetStorageClass, storage_class: COLDLINE}
+    condition: {age: 90}
+retention_policy: {retention_period: "86400"}
+soft_delete_retention: 0
+cors: {origin: ["*"], method: [GET]}
+iam:
+  roles/storage.objectViewer: ["group:a@example.com"]
+iam_bindings_additive:
+  writer: {member: "serviceAccount:x@mock-project.iam.gserviceaccount.com", role: roles/storage.objectCreator}
+notification_config:
+  enabled: true
+  payload_format: JSON_API_V1
+  sa_email: service-123@gs-project-accounts.iam.gserviceaccount.com
+  topic_name: bucket-events
+tag_bindings: {env: tagValues/123}
+public_access_prevention: enforced
+autoclass: true
+custom_placement_config: [US-CENTRAL1, US-EAST1]
+encryption_key: projects/kms-project/locations/us/keyRings/ring/cryptoKeys/key
+logging_config: {log_bucket: log-bucket, log_object_prefix: logs}
+website: {main_page_suffix: index.html, not_found_page: 404.html}
+ip_filter:
+  allow_all_service_agent_access: true
+  public_network_sources: [203.0.113.0/24]
+  vpc_network_sources:
+    projects/myproject/global/networks/default: [10.0.0.0/8]

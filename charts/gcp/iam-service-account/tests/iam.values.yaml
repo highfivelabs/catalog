@@ -1,0 +1,38 @@
+# Every IAM variable, and roles granted on each kind of resource.
+project_id: myproject
+name: app-runtime
+prefix: team-a
+display_name: App runtime
+description: Runs the app.
+deletion_policy: ABANDON
+iam:
+  roles/iam.serviceAccountUser: ["group:devs@example.com"]
+iam_by_principals:
+  "group:devs@example.com": [roles/iam.serviceAccountTokenCreator]
+  "user:lead@example.com": [roles/iam.serviceAccountUser]
+iam_bindings:
+  conditional:
+    role: roles/iam.serviceAccountAdmin
+    members: ["user:admin@example.com"]
+    condition: {title: expires, expression: 'request.time < timestamp("2027-01-01T00:00:00Z")'}
+iam_bindings_additive:
+  token: {member: "user:a@example.com", role: roles/iam.workloadIdentityUser}
+iam_by_principals_additive:
+  "user:b@example.com": [roles/iam.serviceAccountViewer]
+iam_billing_roles:
+  ABCDE-12345-ABCDE: [roles/billing.user]
+iam_folder_roles:
+  folders/1234567890: [roles/resourcemanager.folderViewer]
+iam_organization_roles:
+  "1234567890": [roles/browser]
+iam_project_roles:
+  myproject: [roles/logging.logWriter]
+iam_project_bindings:
+  conditional:
+    project_id: other-project
+    role: roles/storage.objectViewer
+    condition: {title: prefix, expression: 'resource.name.startsWith("projects/_/buckets/x")'}
+iam_sa_roles:
+  other@myproject.iam.gserviceaccount.com: [roles/iam.serviceAccountTokenCreator]
+iam_storage_roles:
+  my-bucket: [roles/storage.objectAdmin]

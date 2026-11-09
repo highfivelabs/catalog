@@ -1,0 +1,55 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/psa.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: Private Service Access.
+*/ -}}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $producers := list }}
+{{- range $c := .Values.psa_configs }}
+{{- $producer := $c.service_producer | default "servicenetworking.googleapis.com" }}
+{{- if has $producer $producers }}
+{{- fail "net-vpc: at most one psa_configs entry is possible for each service producer" }}
+{{- end }}
+{{- $producers = append $producers $producer }}
+{{- include "kcc.unsupported" (list $ (printf "psa_configs %s export_routes" $producer) $c.export_routes "ComputeNetworkPeeringRoutesConfig is alpha in v1.160.0") }}
+{{- include "kcc.unsupported" (list $ (printf "psa_configs %s import_routes" $producer) $c.import_routes "ComputeNetworkPeeringRoutesConfig is alpha in v1.160.0") }}
+{{- include "kcc.unsupported" (list $ (printf "psa_configs %s peered_domains" $producer) $c.peered_domains "ServiceNetworkingPeeredDNSDomain is alpha in v1.160.0") }}
+{{- if and $c.deletion_policy (ne $c.deletion_policy "ABANDON") }}
+{{- fail "net-vpc: psa_configs deletion_policy supports only ABANDON" }}
+{{- end }}
+{{- $prefix := printf "%s-" (replace "." "-" $producer) }}
+{{- if not (kindIs "invalid" $c.range_prefix) }}{{ $prefix = (eq $c.range_prefix "") | ternary "" (printf "%s-" $c.range_prefix) }}{{ end }}
+{{- $ranges := list }}
+{{- range $rname, $cidr := $c.ranges }}
+{{- $addr := printf "%s%s" $prefix $rname }}
+{{- $ranges = append $ranges $addr }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psa" $addr)) "id" (printf "psa_range:%s" $addr) "project" $.Values.project_id "labels" $c.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $addr }}
+  location: global
+  purpose: VPC_PEERING
+  addressType: INTERNAL
+  address: {{ splitList "/" $cidr | first | quote }}
+  prefixLength: {{ splitList "/" $cidr | last | int64 }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+{{- end }}
+---
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1beta1
+kind: ServiceNetworkingConnection
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psa" $producer)) "id" (printf "psa:%s" $producer) "project" $.Values.project_id "abandon" (or $abandon (eq ($c.deletion_policy | default "") "ABANDON"))) | nindent 2 }}
+spec:
+  service: {{ $producer }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+  reservedPeeringRanges:
+    {{- range $addr := $ranges }}
+    - name: {{ include "kcc.name" (list $.Release.Name "psa" $addr) }}
+    {{- end }}
+{{- end }}

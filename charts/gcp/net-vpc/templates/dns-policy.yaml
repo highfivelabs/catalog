@@ -1,0 +1,34 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: the DNS policy.
+*/ -}}
+{{- with .Values.dns_policy }}
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-dns-policy" $.Release.Name) "id" "dns_policy" "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ $.Values.name }}
+  {{- if not (kindIs "invalid" .inbound) }}
+  enableInboundForwarding: {{ .inbound }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .logging) }}
+  enableLogging: {{ .logging }}
+  {{- end }}
+  networks:
+    - networkRef:
+        {{- include "netvpc.networkRef" $ | nindent 8 }}
+  {{- with .outbound }}
+  alternativeNameServerConfig:
+    targetNameServers:
+      {{- range $ns := (.private_ns | default list) }}
+      - ipv4Address: {{ $ns | quote }}
+        forwardingPath: private
+      {{- end }}
+      {{- range $ns := (.public_ns | default list) }}
+      - ipv4Address: {{ $ns | quote }}
+      {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,84 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: the project, its lien and its
+essential contacts.
+*/ -}}
+{{- $v := .Values }}
+{{- range $var := list "custom_roles" "logging_sinks" "logging_exclusions" "logging_metrics" "logging_data_access" "log_scopes" "metric_scopes" "notification_channels" "alerts" "asset_feeds" "bigquery_reservations" "tags" "tag_bindings" "network_tags" "tags_config" "kms_autokeys" "service_encryption_key_ids" "workload_identity_pools" "pam_entitlements" "iam_deny_policies" "scc_mute_configs" "scc_sha_custom_modules" "shared_vpc_host_config" "vpc_sc" "quotas" "factories_config" "service_agents_config" "service_agents_folder_bindings" "service_agents_project_bindings" "iam_by_principals_conditional" }}
+{{- include "kcc.unsupported" (list $ $var (index $v $var) "not ported to this chart yet (charts/gcp/project/README.md, \"Not ported\")") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ "compute_metadata" $v.compute_metadata "ComputeProjectMetadata owns all of a project's metadata, while fabric sets single items; no per-item kind") }}
+{{- include "kcc.unsupported" (list $ "default_network_tier" $v.default_network_tier "Config Connector has no project default network tier") }}
+{{- include "kcc.unsupported" (list $ "cloud_armor_policy" $v.cloud_armor_policy "ComputeOrganizationSecurityPolicyAssociation is alpha in v1.160.0") }}
+{{- include "kcc.unsupported" (list $ "asset_search" $v.asset_search "a search is a read, not a resource") }}
+{{- include "kcc.unsupported" (list $ "universe" $v.universe "universes other than Google Cloud's are not supported") }}
+{{- include "kcc.unsupported" (list $ "skip_delete" $v.skip_delete "deprecated in fabric; use deletion_policy") }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- if ne ($v.default_service_account | default "keep") "keep" }}
+{{- include "kcc.unsupported" (list $ "default_service_account" $v.default_service_account "Config Connector cannot delete, deprivilege or disable a project's default service accounts") }}
+{{- end }}
+{{- $id := include "project.id" . }}
+{{- if not (regexMatch "^[a-z][a-z0-9-]{4,28}[a-z0-9]$" $id) }}
+{{- fail (printf "project: the project ID %q must be 6 to 30 lower-case letters, digits or hyphens, start with a letter and not end with a hyphen" $id) }}
+{{- end }}
+{{- if kindIs "invalid" $v.project_reuse }}
+{{- if not $v.parent }}
+{{- fail "project: parent (folders/ID or organizations/ID) is needed to create a project" }}
+{{- end }}
+{{- if not (regexMatch "^(organizations|folders)/[0-9]+$" $v.parent) }}
+{{- fail (printf "project: parent %q must be folders/ID or organizations/ID" $v.parent) }}
+{{- end }}
+{{- $annotations := dict "cnrm.cloud.google.com/auto-create-network" (toString $v.auto_create_network) }}
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Project
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "project" "labels" $v.labels "annotations" $annotations "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ $id }}
+  name: {{ $v.descriptive_name | default $id | quote }}
+  {{- if hasPrefix "folders/" $v.parent }}
+  folderRef:
+    external: {{ trimPrefix "folders/" $v.parent | quote }}
+  {{- else }}
+  organizationRef:
+    external: {{ trimPrefix "organizations/" $v.parent | quote }}
+  {{- end }}
+  {{- with $v.billing_account }}
+  billingAccountRef:
+    external: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- with $v.lien_reason }}
+---
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: ResourceManagerLien
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-lien" $.Release.Name) "id" "lien") | nindent 2 }}
+spec:
+  parent:
+    projectRef:
+      {{- include "project.ref" $ | nindent 6 }}
+  restrictions: [resourcemanager.projects.delete]
+  origin: created-by-bundt
+  reason: {{ . | quote }}
+{{- end }}
+{{- range $email, $types := $v.contacts }}
+{{- range $t := $types }}
+{{- if not (has $t (list "ALL" "SUSPENSION" "SECURITY" "TECHNICAL" "BILLING" "LEGAL" "PRODUCT_UPDATES")) }}
+{{- fail (printf "project: invalid contact notification value %q" $t) }}
+{{- end }}
+{{- end }}
+---
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "contact" $email)) "id" (printf "contact:%s" $email)) | nindent 2 }}
+spec:
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  email: {{ $email | quote }}
+  languageTag: en
+  notificationCategorySubscriptions: {{ toJson $types }}
+{{- end }}

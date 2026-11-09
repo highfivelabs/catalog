@@ -1,0 +1,78 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's net-vpc module
+# (v60.0.0): same names, types and defaults. values.schema.json carries
+# the types and the module's validations.
+
+# The name of the network being created.
+name: ""
+# The project of the network. null takes the namespace's project.
+project_id: null
+# An optional description of this resource (triggers recreation on change).
+description: Terraform-managed.
+auto_create_subnetworks: false
+delete_default_routes_on_create: false
+mtu: null
+# GLOBAL or REGIONAL.
+routing_mode: GLOBAL
+# BEFORE_CLASSIC_FIREWALL or AFTER_CLASSIC_FIREWALL.
+firewall_policy_enforcement_order: AFTER_CLASSIC_FIREWALL
+# {enable_ula_internal, internal_range}
+ipv6_config: {}
+# Reuse an existing network (by name) instead of creating one.
+# {use_data_source, attributes: {network_id}}
+vpc_reuse: null
+
+# Subnets: lists of {name, ip_cidr_range, region, ...} as in fabric.
+subnets: []
+subnets_proxy_only: []
+subnets_private_nat: []
+subnets_psc: []
+
+# Paths to data files and folders that enable factory functionality.
+# Unused here: a chart cannot read the caller's files. Put the files'
+# contents under factories_data instead (README.md, "Factories").
+factories_config: {}
+# The subnet factory's files as data, {FILE NAME (no .yaml): CONTENT}, each
+# CONTENT exactly a fabric subnet factory file.
+factories_data:
+  subnets: {}
+
+# Routes, {KEY: {name, description, dest_range, next_hop_type, next_hop,
+# priority, tags}}; next_hop_type is gateway, instance, ip, vpn_tunnel or ilb.
+routes: {}
+# Toggle creation of googleapis private/restricted routes.
+create_googleapis_routes:
+  directpath: true
+  directpath-6: false
+  private: true
+  private-6: false
+  restricted: true
+  restricted-6: false
+
+# VPC peering, {peer_vpc_self_link, create_remote_peer, export_routes, import_routes}.
+peering_config: null
+# Enable Shared VPC for this project, and its service projects.
+shared_vpc_host: false
+shared_vpc_service_projects: []
+# DNS policy, {inbound, logging, outbound: {private_ns, public_ns}}.
+dns_policy: null
+# Private Service Access, [{ranges: {NAME: CIDR}, deletion_policy,
+# labels, export_routes, import_routes, peered_domains, range_prefix,
+# service_producer}].
+psa_configs: []
+# Network firewall policies to associate, {global: {name, policy_id}}.
+firewall_policy_associations: {}
+
+# DELETE (the default) or ABANDON, for every object of the chart. Not a
+# fabric net-vpc variable (docs/design.md, "Deletion").
+deletion_policy: null
+
+# Not supported (docs/gcp-inventory.md, "Gaps"); refused when set.
+bgp_config: null
+internal_ranges: []
+network_attachments: {}
+policy_based_routes: {}
+service_connection_policies: {}
+context: {}

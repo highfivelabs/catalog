@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "iam-service-account values (fabric iam-service-account v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name"],
+  "definitions": {
+    "condition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["expression", "title"],
+      "properties": {
+        "expression": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "rolesByKey": {
+      "description": "{KEY: [ROLES]}",
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "membersByRole": {
+      "description": "{ROLE: [MEMBERS]}",
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "iamBindings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["members", "role"],
+        "properties": {
+          "members": {"type": "array", "items": {"type": "string"}},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "iamBindingsAdditive": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["member", "role"],
+        "properties": {
+          "member": {"type": "string"},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "grantsTo": {
+      "description": "{KEY: {<id field>, role, condition}}: roles granted to this service account on another resource",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["role"],
+        "properties": {
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    }
+  },
+  "properties": {
+    "name": {
+      "description": "Name of the service account to create.",
+      "type": "string",
+      "minLength": 1
+    },
+    "prefix": {
+      "description": "Prefix applied to service account names. Cannot be empty: use null.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "project_id": {"description": "Project where the service account is created; null takes the namespace's.", "type": ["string", "null"]},
+    "project_number": {"description": "Unused: Config Connector reads the number.", "type": ["string", "number", "null"]},
+    "display_name": {"description": "Display name of the service account to create.", "type": ["string", "null"]},
+    "description": {"description": "Optional description.", "type": ["string", "null"]},
+    "deletion_policy": {
+      "description": "Deletion policy: DELETE or ABANDON. PREVENT is refused at render.",
+      "type": ["string", "null"],
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    },
+    "iam": {"$ref": "#/definitions/membersByRole"},
+    "iam_by_principals": {"$ref": "#/definitions/rolesByKey"},
+    "iam_bindings": {"$ref": "#/definitions/iamBindings"},
+    "iam_bindings_additive": {"$ref": "#/definitions/iamBindingsAdditive"},
+    "iam_by_principals_additive": {"$ref": "#/definitions/rolesByKey"},
+    "iam_billing_roles": {"$ref": "#/definitions/rolesByKey"},
+    "iam_billing_bindings": {"$ref": "#/definitions/grantsTo"},
+    "iam_folder_roles": {"$ref": "#/definitions/rolesByKey"},
+    "iam_folder_bindings": {"$ref": "#/definitions/grantsTo"},
+    "iam_organization_roles": {"$ref": "#/definitions/rolesByKey"},
+    "iam_organization_bindings": {"$ref": "#/definitions/grantsTo"},
+    "iam_project_roles": {"$ref": "#/definitions/rolesByKey"},
+    "iam_project_bindings": {"$ref": "#/definitions/grantsTo"},
+    "iam_sa_roles": {"$ref": "#/definitions/rolesByKey"},
+    "iam_sa_bindings": {"$ref": "#/definitions/grantsTo"},
+    "iam_storage_roles": {"$ref": "#/definitions/rolesByKey"},
+    "iam_storage_bindings": {"$ref": "#/definitions/grantsTo"},
+    "service_account_reuse": {"description": "Not supported: a reused account is a reference, not a component.", "type": ["object", "null"]},
+    "create_ignore_already_exists": {"description": "Not supported: Config Connector acquires an existing account by resourceID.", "type": ["boolean", "null"]},
+    "tag_bindings": {"description": "Not supported: a tag binding's parent needs the account's unique ID, known only after apply.", "type": "object"},
+    "context": {"description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.", "type": "object"}
+  }
+}

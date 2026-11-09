@@ -1,0 +1,439 @@
+---
+# Source: net-vpc/templates/psa.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: full-psa-servicenetworking-googleapis-com-myrange
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psa_range:servicenetworking-googleapis-com-myrange"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: servicenetworking-googleapis-com-myrange
+  location: global
+  purpose: VPC_PEERING
+  addressType: INTERNAL
+  address: "10.0.4.0"
+  prefixLength: 22
+  networkRef:
+    name: full
+---
+# Source: net-vpc/templates/network.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc
+  description: "Terraform-managed."
+  autoCreateSubnetworks: false
+  deleteDefaultRoutesOnCreate: false
+  mtu: 1500
+  routingMode: GLOBAL
+  networkFirewallPolicyEnforcementOrder: AFTER_CLASSIC_FIREWALL
+---
+# Source: net-vpc/templates/firewall-policies.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  name: full-fw-policy-global
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_policy_association:global"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc-global
+  projectRef:
+    external: "mock-project"
+  attachmentTargetRef:
+    name: full
+  firewallPolicyRef:
+    external: "projects/my-project/global/firewallPolicies/policy"
+---
+# Source: net-vpc/templates/peering.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  name: full-peering
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peering_local"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc-hub
+  networkRef:
+    name: full
+  peerNetworkRef:
+    external: "projects/other/global/networks/hub"
+  exportCustomRoutes: true
+  importCustomRoutes: true
+---
+# Source: net-vpc/templates/peering.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  name: full-peering-remote
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peering_remote"
+spec:
+  resourceID: hub-my-vpc
+  networkRef:
+    external: "projects/other/global/networks/hub"
+  peerNetworkRef:
+    external: projects/mock-project/global/networks/my-vpc
+  exportCustomRoutes: true
+  importCustomRoutes: true
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: full-route-directpath-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:directpath-googleapis"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc-directpath-googleapis
+  networkRef:
+    name: full
+  destRange: "34.126.0.0/18"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: full-route-next-hop
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:next-hop"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc-next-hop
+  networkRef:
+    name: full
+  destRange: "192.168.128.0/24"
+  description: "Terraform-managed."
+  nextHopIp: "10.0.0.5"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: full-route-private-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:private-googleapis"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc-private-googleapis
+  networkRef:
+    name: full
+  destRange: "199.36.153.8/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: full-route-restricted-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:restricted-googleapis"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc-restricted-googleapis
+  networkRef:
+    name: full
+  destRange: "199.36.153.4/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/shared-vpc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCHostProject
+metadata:
+  name: full-shared-vpc-host
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "shared_vpc_host"
+    cnrm.cloud.google.com/project-id: "mock-project"
+---
+# Source: net-vpc/templates/shared-vpc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  name: full-service-project-service-project-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "shared_vpc_service_project:service-project-1"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "service-project-1"
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: full-subnet-europe-west1-pnat
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/pnat"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: pnat
+  region: europe-west1
+  networkRef:
+    name: full
+  ipCidrRange: "192.168.15.0/24"
+  description: "Terraform-managed private NAT subnet."
+  purpose: PRIVATE_NAT
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: full-subnet-europe-west1-production
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/production"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: production
+  region: europe-west1
+  networkRef:
+    name: full
+  ipCidrRange: "10.0.0.0/24"
+  description: "Terraform-managed."
+  privateIpGoogleAccess: true
+  secondaryIpRange:
+    - rangeName: pods
+      ipCidrRange: "172.16.0.0/20"
+    - rangeName: services
+      ipCidrRange: "192.168.0.0/24"
+  logConfig:
+    aggregationInterval: INTERVAL_10_MIN
+    flowSampling: 0.5
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: full-subnet-europe-west1-proxy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/proxy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: proxy
+  region: europe-west1
+  networkRef:
+    name: full
+  ipCidrRange: "10.0.1.0/24"
+  description: "Terraform-managed proxy-only subnet for Regional HTTPS, Internal HTTPS or Cross-Regional HTTPS Internal LB."
+  purpose: REGIONAL_MANAGED_PROXY
+  role: ACTIVE
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: full-subnet-europe-west1-psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/psc"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: psc
+  region: europe-west1
+  networkRef:
+    name: full
+  ipCidrRange: "10.0.3.0/24"
+  description: "Terraform-managed subnet for Private Service Connect (PSC NAT)."
+  purpose: PRIVATE_SERVICE_CONNECT
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: full-subnet-europe-west2-staging
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west2/staging"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: staging
+  region: europe-west2
+  networkRef:
+    name: full
+  ipCidrRange: "10.0.16.0/24"
+  privateIpGoogleAccess: false
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: full-subnet-europe-west4-factory-subnet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west4/factory-subnet"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: factory-subnet
+  region: europe-west4
+  networkRef:
+    name: full
+  ipCidrRange: "10.128.0.0/24"
+  description: "Sample description"
+  privateIpGoogleAccess: true
+  secondaryIpRange:
+    - rangeName: secondary-range-a
+      ipCidrRange: "192.168.128.0/24"
+---
+# Source: net-vpc/templates/dns-policy.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSPolicy
+metadata:
+  name: full-dns-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dns_policy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: my-vpc
+  enableInboundForwarding: true
+  enableLogging: false
+  networks:
+    - networkRef:
+        name: full
+  alternativeNameServerConfig:
+    targetNameServers:
+      - ipv4Address: "10.0.0.1"
+        forwardingPath: private
+      - ipv4Address: "8.8.8.8"
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-subnet-europe-west1-production-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/production:iam"
+spec:
+  resourceRef:
+    apiVersion: compute.cnrm.cloud.google.com/v1beta1
+    kind: ComputeSubnetwork
+    name: full-subnet-europe-west1-production
+  bindings:
+    - role: "roles/compute.networkUser"
+      members:
+        - member: "group:net@example.com"
+---
+# Source: net-vpc/templates/psa.yaml
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1beta1
+kind: ServiceNetworkingConnection
+metadata:
+  name: full-psa-servicenetworking-googleapis-com-c3f25641
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psa:servicenetworking.googleapis.com"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  service: servicenetworking.googleapis.com
+  networkRef:
+    name: full
+  reservedPeeringRanges:
+    - name: full-psa-servicenetworking-googleapis-com-myrange

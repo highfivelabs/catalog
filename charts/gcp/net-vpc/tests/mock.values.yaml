@@ -1,0 +1,20 @@
+# Applied to the fake cloud by hack/mock-apply.sh.
+project_id: mock-project
+name: catalog-vpc
+subnets:
+  - name: apps
+    region: us-central1
+    ip_cidr_range: 10.0.0.0/24
+    secondary_ip_ranges:
+      pods: {ip_cidr_range: 172.16.0.0/20}
+    flow_logs_config: {flow_sampling: 0.5}
+    iam:
+      roles/compute.networkUser: ["user:dev@example.com"]
+subnets_proxy_only:
+  - {name: proxy, region: us-central1, ip_cidr_range: 10.0.1.0/24}
+factories_data:
+  subnets:
+    from-factory: {region: us-east1, ip_cidr_range: 10.1.0.0/24}
+routes:
+  to-appliance: {dest_range: 192.168.0.0/24, next_hop_type: ip, next_hop: 10.0.0.5}
+dns_policy: {inbound: true, logging: false}

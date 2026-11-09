@@ -1,0 +1,66 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/gcs/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: the notification, its topic and
+the topic's publisher binding.
+*/ -}}
+{{- $n := .Values.notification_config }}
+{{- if and $n $n.enabled }}
+{{- $create := true }}
+{{- if and $n.create_topic (not (kindIs "invalid" $n.create_topic.create)) }}{{ $create = $n.create_topic.create }}{{ end }}
+{{- $topic := printf "%s-topic" .Release.Name }}
+{{- if $create }}
+---
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubTopic
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $topic "id" "topic" "project" .Values.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ $n.topic_name | quote }}
+  {{- with ($n.create_topic | default dict).kms_key_id }}
+  kmsKeyRef:
+    external: {{ . | quote }}
+  {{- end }}
+---
+{{- /* fabric: google_pubsub_topic_iam_binding, authoritative for the role */}}
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-iam" $topic) "id" "topic-iam") | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    name: {{ $topic }}
+  bindings:
+    - role: roles/pubsub.publisher
+      members:
+        - member: {{ printf "serviceAccount:%s" $n.sa_email | quote }}
+{{- end }}
+---
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageNotification
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-notification" .Release.Name) "id" "notification" "project" .Values.project_id) | nindent 2 }}
+spec:
+  bucketRef:
+    {{- include "gcs.bucketRef" . | nindent 4 }}
+  topicRef:
+    {{- if $create }}
+    name: {{ $topic }}
+    {{- else }}
+    external: {{ $n.topic_name | quote }}
+    {{- end }}
+  payloadFormat: {{ $n.payload_format }}
+  {{- with $n.event_types }}
+  eventTypes: {{ toJson . }}
+  {{- end }}
+  {{- with $n.custom_attributes }}
+  customAttributes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $n.object_name_prefix }}
+  objectNamePrefix: {{ . | quote }}
+  {{- end }}
+{{- end }}

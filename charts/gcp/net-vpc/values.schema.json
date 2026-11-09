@@ -1,0 +1,269 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-vpc values (fabric net-vpc v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name"],
+  "definitions": {
+    "stringOrNull": {"type": ["string", "null"]},
+    "boolOrNull": {"type": ["boolean", "null"]},
+    "stringList": {"type": ["array", "null"], "items": {"type": "string"}},
+    "condition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["expression", "title"],
+      "properties": {
+        "expression": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "iam": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "iamBindings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["members", "role"],
+        "properties": {
+          "members": {"type": "array", "items": {"type": "string"}},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "iamBindingsAdditive": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["member", "role"],
+        "properties": {
+          "member": {"type": "string"},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "flowLogs": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "aggregation_interval": {"$ref": "#/definitions/stringOrNull"},
+        "filter_expression": {"$ref": "#/definitions/stringOrNull"},
+        "flow_sampling": {"type": ["number", "null"]},
+        "metadata": {"$ref": "#/definitions/stringOrNull"},
+        "metadata_fields": {"$ref": "#/definitions/stringList"}
+      }
+    },
+    "subnet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "region"],
+      "properties": {
+        "name": {"type": "string"},
+        "ip_cidr_range": {"$ref": "#/definitions/stringOrNull"},
+        "region": {"type": "string"},
+        "description": {"$ref": "#/definitions/stringOrNull"},
+        "enable_private_access": {"$ref": "#/definitions/boolOrNull"},
+        "allow_subnet_cidr_routes_overlap": {"description": "Not supported.", "$ref": "#/definitions/boolOrNull"},
+        "reserved_internal_range": {"description": "Not supported: internal ranges are alpha.", "$ref": "#/definitions/stringOrNull"},
+        "flow_logs_config": {"$ref": "#/definitions/flowLogs"},
+        "ipv6": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "access_type": {"type": ["string", "null"], "enum": ["INTERNAL", "EXTERNAL", null]},
+            "ipv6_only": {"$ref": "#/definitions/boolOrNull"}
+          }
+        },
+        "ip_collection": {"description": "Not supported.", "$ref": "#/definitions/stringOrNull"},
+        "secondary_ip_ranges": {
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ip_cidr_range": {"$ref": "#/definitions/stringOrNull"},
+              "reserved_internal_range": {"description": "Not supported: internal ranges are alpha.", "$ref": "#/definitions/stringOrNull"}
+            }
+          }
+        },
+        "iam": {"$ref": "#/definitions/iam"},
+        "iam_bindings": {"$ref": "#/definitions/iamBindings"},
+        "iam_bindings_additive": {"$ref": "#/definitions/iamBindingsAdditive"}
+      }
+    },
+    "subnetSpecial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "region", "ip_cidr_range"],
+      "properties": {
+        "name": {"type": "string"},
+        "ip_cidr_range": {"type": "string"},
+        "region": {"type": "string"},
+        "description": {"$ref": "#/definitions/stringOrNull"},
+        "active": {"$ref": "#/definitions/boolOrNull"},
+        "global": {"$ref": "#/definitions/boolOrNull"},
+        "flow_logs_config": {"$ref": "#/definitions/flowLogs"},
+        "iam": {"$ref": "#/definitions/iam"},
+        "iam_bindings": {"$ref": "#/definitions/iamBindings"},
+        "iam_bindings_additive": {"$ref": "#/definitions/iamBindingsAdditive"}
+      }
+    }
+  },
+  "properties": {
+    "name": {"description": "The name of the network being created.", "type": "string", "pattern": "^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$"},
+    "project_id": {"description": "The project of the network; null takes the namespace's.", "$ref": "#/definitions/stringOrNull"},
+    "description": {"$ref": "#/definitions/stringOrNull"},
+    "auto_create_subnetworks": {"type": "boolean"},
+    "delete_default_routes_on_create": {"type": "boolean"},
+    "mtu": {"type": ["integer", "null"], "minimum": 1300, "maximum": 8896},
+    "routing_mode": {"type": "string", "enum": ["GLOBAL", "REGIONAL"]},
+    "firewall_policy_enforcement_order": {"type": "string", "enum": ["BEFORE_CLASSIC_FIREWALL", "AFTER_CLASSIC_FIREWALL"]},
+    "ipv6_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable_ula_internal": {"$ref": "#/definitions/boolOrNull"},
+        "internal_range": {"$ref": "#/definitions/stringOrNull"}
+      }
+    },
+    "vpc_reuse": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "use_data_source": {"$ref": "#/definitions/boolOrNull"},
+        "attributes": {"type": ["object", "null"], "properties": {"network_id": {"type": "number"}}}
+      }
+    },
+    "subnets": {"type": "array", "items": {"$ref": "#/definitions/subnet"}},
+    "subnets_proxy_only": {"type": "array", "items": {"$ref": "#/definitions/subnetSpecial"}},
+    "subnets_private_nat": {"type": "array", "items": {"$ref": "#/definitions/subnetSpecial"}},
+    "subnets_psc": {"type": "array", "items": {"$ref": "#/definitions/subnetSpecial"}},
+    "factories_config": {
+      "description": "Unused: a chart cannot read the caller's files; use factories_data.",
+      "type": "object",
+      "properties": {
+        "subnets_folder": {"$ref": "#/definitions/stringOrNull"},
+        "internal_ranges_folder": {"$ref": "#/definitions/stringOrNull"}
+      }
+    },
+    "factories_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subnets": {
+          "description": "{FILE NAME: CONTENT}, each CONTENT a fabric subnet factory file.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["region"],
+            "properties": {
+              "name": {"type": "string"},
+              "region": {"type": "string"},
+              "psc": {"type": "boolean"},
+              "proxy_only": {"type": "boolean"},
+              "private_nat": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "routes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dest_range", "next_hop_type", "next_hop"],
+        "properties": {
+          "name": {"$ref": "#/definitions/stringOrNull"},
+          "description": {"$ref": "#/definitions/stringOrNull"},
+          "dest_range": {"type": "string"},
+          "next_hop_type": {"type": "string", "enum": ["gateway", "instance", "ip", "vpn_tunnel", "ilb"]},
+          "next_hop": {"type": "string"},
+          "priority": {"type": ["integer", "null"]},
+          "tags": {"$ref": "#/definitions/stringList"}
+        }
+      }
+    },
+    "create_googleapis_routes": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "directpath": {"type": "boolean"},
+        "directpath-6": {"type": "boolean"},
+        "private": {"type": "boolean"},
+        "private-6": {"type": "boolean"},
+        "restricted": {"type": "boolean"},
+        "restricted-6": {"type": "boolean"}
+      }
+    },
+    "peering_config": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["peer_vpc_self_link"],
+      "properties": {
+        "peer_vpc_self_link": {"type": "string"},
+        "create_remote_peer": {"$ref": "#/definitions/boolOrNull"},
+        "export_routes": {"$ref": "#/definitions/boolOrNull"},
+        "import_routes": {"$ref": "#/definitions/boolOrNull"}
+      }
+    },
+    "shared_vpc_host": {"type": "boolean"},
+    "shared_vpc_service_projects": {"type": ["array", "null"], "items": {"type": "string"}},
+    "dns_policy": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "inbound": {"$ref": "#/definitions/boolOrNull"},
+        "logging": {"$ref": "#/definitions/boolOrNull"},
+        "outbound": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "private_ns": {"$ref": "#/definitions/stringList"},
+            "public_ns": {"$ref": "#/definitions/stringList"}
+          }
+        }
+      }
+    },
+    "psa_configs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ranges"],
+        "properties": {
+          "deletion_policy": {"type": ["string", "null"], "enum": ["ABANDON", null]},
+          "ranges": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9.]+/[0-9]+$"}},
+          "labels": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+          "export_routes": {"description": "Not supported when true.", "$ref": "#/definitions/boolOrNull"},
+          "import_routes": {"description": "Not supported when true.", "$ref": "#/definitions/boolOrNull"},
+          "peered_domains": {"description": "Not supported.", "$ref": "#/definitions/stringList"},
+          "range_prefix": {"$ref": "#/definitions/stringOrNull"},
+          "service_producer": {"$ref": "#/definitions/stringOrNull"}
+        }
+      }
+    },
+    "firewall_policy_associations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["policy_id"],
+        "properties": {
+          "name": {"$ref": "#/definitions/stringOrNull"},
+          "policy_id": {"type": "string"}
+        }
+      }
+    },
+    "deletion_policy": {"type": ["string", "null"], "enum": ["DELETE", "ABANDON", "PREVENT", null]},
+    "bgp_config": {"description": "Not supported: ComputeNetwork has no BGP fields.", "type": ["object", "null"]},
+    "internal_ranges": {"description": "Not supported: alpha.", "type": "array"},
+    "network_attachments": {"description": "Not supported: alpha.", "type": "object"},
+    "policy_based_routes": {"description": "Not supported: alpha.", "type": "object"},
+    "service_connection_policies": {"description": "Not supported: alpha.", "type": "object"},
+    "context": {"description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.", "type": "object"}
+  }
+}

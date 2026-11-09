@@ -1,0 +1,58 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Subnets are bound as resources["subnet:<region>/<name>"]; the subnet maps
+# are keyed "<region>/<name>", as fabric keys them. network_id (the numeric
+# ID) has no output: ComputeNetwork does not report it. With vpc_reuse the
+# chart makes no network object, so name, id and self_link have no value.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-vpc
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.network.spec.resourceID
+    self_link: resources.network.status.selfLink
+    id: >-
+      'projects/' + resources.network.metadata.annotations['cnrm.cloud.google.com/project-id']
+      + '/global/networks/' + resources.network.spec.resourceID
+    project_id: resources.network.metadata.annotations['cnrm.cloud.google.com/project-id']
+    subnet_ids: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
+        {k.substring(7): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/regions/' + v.spec.region + '/subnetworks/' + v.spec.resourceID})
+    subnet_self_links: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
+        {k.substring(7): v.status.selfLink})
+    subnet_ips: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose) && has(v.spec.ipCidrRange),
+        {k.substring(7): v.spec.ipCidrRange})
+    subnet_regions: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
+        {k.substring(7): v.spec.region})
+    subnet_secondary_ranges: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
+        {k.substring(7): has(v.spec.secondaryIpRange)
+          ? v.spec.secondaryIpRange.transformMapEntry(i, r, {r.rangeName: r.ipCidrRange})
+          : {}})
+    subnets_proxy_only: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && has(v.spec.purpose) && v.spec.purpose.endsWith('MANAGED_PROXY'),
+        {k.substring(7): v.status.selfLink})
+    subnets_psc: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && has(v.spec.purpose) && v.spec.purpose == 'PRIVATE_SERVICE_CONNECT',
+        {k.substring(7): v.status.selfLink})
+    subnets_private_nat: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && has(v.spec.purpose) && v.spec.purpose == 'PRIVATE_NAT',
+        {k.substring(7): v.status.selfLink})

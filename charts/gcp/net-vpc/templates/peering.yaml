@@ -1,0 +1,45 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0: the local and remote peerings.
+*/ -}}
+{{- with .Values.peering_config }}
+{{- $peer := splitList "/" .peer_vpc_self_link | last }}
+{{- $abandon := include "kcc.abandon" $ }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peering")) "id" "peering_local" "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ printf "%s-%s" $.Values.name $peer }}
+  networkRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+  peerNetworkRef:
+    external: {{ .peer_vpc_self_link | quote }}
+  {{- if not (kindIs "invalid" .export_routes) }}
+  exportCustomRoutes: {{ .export_routes }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .import_routes) }}
+  importCustomRoutes: {{ .import_routes }}
+  {{- end }}
+{{- if (kindIs "invalid" .create_remote_peer) | ternary true .create_remote_peer }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peering-remote")) "id" "peering_remote" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ printf "%s-%s" $peer $.Values.name }}
+  networkRef:
+    external: {{ .peer_vpc_self_link | quote }}
+  peerNetworkRef:
+    external: {{ include "netvpc.networkId" $ }}
+  {{- if not (kindIs "invalid" .import_routes) }}
+  exportCustomRoutes: {{ .import_routes }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .export_routes) }}
+  importCustomRoutes: {{ .export_routes }}
+  {{- end }}
+{{- end }}
+{{- end }}

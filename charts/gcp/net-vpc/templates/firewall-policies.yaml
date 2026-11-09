@@ -1,0 +1,24 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc/firewall-policies.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+*/ -}}
+{{- range $k, $a := .Values.firewall_policy_associations }}
+{{- if ne $k "global" }}
+{{- fail (printf "net-vpc: firewall_policy_associations %s is not supported: Config Connector v1.160.0 has no regional network firewall policy association (docs/gcp-inventory.md, \"Gaps\")" $k) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "fw-policy" $k)) "id" (printf "firewall_policy_association:%s" $k) "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ $a.name | default (printf "%s-%s" $.Values.name $k) }}
+  projectRef:
+    external: {{ required "net-vpc: project_id is needed for a firewall policy association" $.Values.project_id | quote }}
+  attachmentTargetRef:
+    {{- include "netvpc.networkRef" $ | nindent 4 }}
+  firewallPolicyRef:
+    external: {{ $a.policy_id | quote }}
+{{- end }}
