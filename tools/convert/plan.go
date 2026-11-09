@@ -45,6 +45,9 @@ func Plan(repo *Repo, res *Result, o Options, renderTo io.Writer) (string, error
 	fmt.Fprintf(&b, "  create  Stack      %s/%s  (Template %s)\n", o.Team, res.TemplateName, res.TemplateName)
 	fmt.Fprintf(&b, "  create  Instance   %s/%s/%s  (Stack %s, Template version %s)\n", o.Team, o.Env, instance, res.TemplateName, o.TemplateVersion)
 
+	if _, ok := hasNamePrefixExpr(res); ok {
+		fmt.Fprintf(&b, "\n  (context expressions such as ${instance.name} are shown evaluated in the rendered objects; Bundt evaluates them when it plans)\n")
+	}
 	var blocking []string
 	for _, c := range res.Components {
 		live := instance + "-" + c.Name
@@ -59,7 +62,7 @@ func Plan(repo *Repo, res *Result, o Options, renderTo io.Writer) (string, error
 		if after = uniq(after); len(after) > 0 {
 			fmt.Fprintf(&b, "            after %s\n", strings.Join(after, ", "))
 		}
-		objs, out, err := renderComponent(repo, c, live)
+		objs, out, err := renderComponent(repo, c, live, contextValues(res, o))
 		if err != nil {
 			blocking = append(blocking, fmt.Sprintf("%s: %s", live, err))
 			fmt.Fprintf(&b, "            no objects: the render is refused (blocking finding below)\n")
@@ -134,10 +137,10 @@ func expressionComponents(v any) []string {
 
 type object struct{ APIVersion, Kind, Name, ResourceID string }
 
-func renderComponent(repo *Repo, c *Component, live string) ([]object, string, error) {
+func renderComponent(repo *Repo, c *Component, live string, ctx map[string]string) ([]object, string, error) {
 	eff := map[string]any{}
 	for _, p := range append(append(Ordered{}, c.Inputs...), c.Values...) {
-		eff[p.Key] = p.Value
+		eff[p.Key] = substitute(p.Value, ctx)
 	}
 	data, err := yaml.Marshal(eff)
 	if err != nil {
@@ -191,4 +194,51 @@ func renderComponent(repo *Repo, c *Component, live string) ([]object, string, e
 		}
 	}
 	return objs, stdout.String(), nil
+}
+
+// contextValues are the runtime-context variables the preview can fill in
+// from what it was given (specs/catalog/templates.md, "The runtime
+// context"); Bundt evaluates them when it plans.
+func contextValues(res *Result, o Options) map[string]string {
+	return map[string]string{
+		"${instance.name}":    res.TemplateName + "-" + o.Env,
+		"${stack.name}":       res.TemplateName,
+		"${team.name}":        o.Team,
+		"${environment.name}": o.Env,
+	}
+}
+
+// substitute replaces context expressions in every string of a value.
+func substitute(v any, ctx map[string]string) any {
+	switch x := v.(type) {
+	case string:
+		for k, r := range ctx {
+			x = strings.ReplaceAll(x, k, r)
+		}
+		return x
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = substitute(e, ctx)
+		}
+		return out
+	case map[string]any:
+		out := map[string]any{}
+		for k, e := range x {
+			out[k] = substitute(e, ctx)
+		}
+		return out
+	}
+	return v
+}
+
+func hasNamePrefixExpr(res *Result) (string, bool) {
+	for _, c := range res.Components {
+		for _, p := range append(append(Ordered{}, c.Inputs...), c.Values...) {
+			if p.Key == "namePrefix" {
+				return fmt.Sprint(p.Value), true
+			}
+		}
+	}
+	return "", false
 }

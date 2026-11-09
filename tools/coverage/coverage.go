@@ -212,6 +212,24 @@ func Build(o Options) (*Result, error) {
 				refused[r.Variable] = r
 			}
 		}
+		// Values the chart adds to the module's variables (allow_alpha,
+		// deletion_policy, namePrefix, ...): additions, never missing variables.
+		var additions []string
+		if cu != nil {
+			if !valueKeys["namePrefix"] {
+				return nil, fmt.Errorf("%s: values.yaml has no namePrefix: every chart takes the Bundt-wide uniqueness prefix (docs/design.md, \"namePrefix\")", m.Chart)
+			}
+			have := map[string]bool{}
+			for _, v := range mod.Variables {
+				have[v.Name] = true
+			}
+			for k := range valueKeys {
+				if !have[k] {
+					additions = append(additions, k)
+				}
+			}
+			sort.Strings(additions)
+		}
 		for _, v := range mod.Variables {
 			vr := VarRow{Cloud: m.Cloud, Module: m.Module, Variable: v.Name, Type: v.Type}
 			switch {
@@ -260,7 +278,7 @@ func Build(o Options) (*Result, error) {
 		default:
 			row.Status = NotStarted
 		}
-		row.Notes = notes(&row, mod, missing, classSummary(res.Types, m.Module), refused, cu)
+		row.Notes = notes(&row, mod, missing, classSummary(res.Types, m.Module), refused, cu, additions)
 		res.Rows = append(res.Rows, row)
 	}
 	sort.SliceStable(res.Rows, func(i, j int) bool {
@@ -299,7 +317,7 @@ func Build(o Options) (*Result, error) {
 	return res, nil
 }
 
-func notes(r *Row, mod *tfmod.Module, missing []string, classCounts string, refused map[string]upstream.Refused, cu *upstream.ChartUpstream) string {
+func notes(r *Row, mod *tfmod.Module, missing []string, classCounts string, refused map[string]upstream.Refused, cu *upstream.ChartUpstream, additions []string) string {
 	var n []string
 	if cu != nil {
 		counts := map[string]int{}
@@ -319,6 +337,9 @@ func notes(r *Row, mod *tfmod.Module, missing []string, classCounts string, refu
 		}
 		if r.VarsPartial > 0 {
 			n = append(n, fmt.Sprintf("%d accepted in part", r.VarsPartial))
+		}
+		if len(additions) > 0 {
+			n = append(n, "adds "+strings.Join(additions, ", ")+" (not Terraform variables: not counted)")
 		}
 		if r.OutsTotal > r.OutsCovered {
 			n = append(n, fmt.Sprintf("%d of %d outputs not provided", r.OutsTotal-r.OutsCovered, r.OutsTotal))

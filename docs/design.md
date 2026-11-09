@@ -173,13 +173,86 @@ refused even with `allow_alpha`.
   characters a name cannot (`roles/logging.logWriter`), or the name would
   pass 63 characters, it ends with 8 hex characters of the key's sha256,
   so two keys never collide and a name never changes between renders.
-- **Cloud names** are fabric's (`<prefix>-<name>`), in `spec.resourceID`.
-  Bundt's fixed L2 check that cloud names carry the Instance's name
-  (drafts/agreed, "Policies") is met by the Template, which sets
-  `name: "${instance.name}-data"`; the chart does not force it, so a
-  standalone component can adopt an existing name.
+- **Cloud names** are fabric's (`<prefix>-<name>`), in `spec.resourceID`,
+  and with `namePrefix` set they start with the Instance's prefix
+  (below).
 - Kubernetes names are an interface: renaming an object deletes the old
   one and its cloud resource ("Versioning").
+
+### namePrefix
+
+Builder's rule, 2026-11-09: "always have a namePrefix to any cloud resource
+that could have a 409 naming conflict", so that a Template can pass a
+templated Instance name and keep Instances distinct in one project.
+
+**The value.** Every chart has an optional `namePrefix` (string, default
+empty; `values.schema.json` takes a DNS label, as an Instance name is one).
+It is an addition to the module's variables, not a Terraform variable, and
+the coverage does not count it as one (`docs/coverage`, "adds ..." in the
+notes). `kcc.namePrefix` (in `lib/_kcc.tpl`, like every helper) turns it
+into `"<namePrefix>-"` or `""`; `kcc.cloudName` puts it on a name and checks
+the length. **Empty, nothing changes**: the renders are the Terraform
+module's, byte for byte (`task test` renders every case again with an empty
+`namePrefix` and compares).
+
+**Where it applies.** To every name the chart gives a cloud resource: the
+`spec.resourceID` of Config Connector objects (ACK would be `spec.name`, ASO
+`azureName`; no chart for those yet). Global names above all (buckets, project
+IDs), and per-project or per-region ones (service account IDs, networks,
+subnets, routes, addresses, DNS policies, Pub/Sub topics), because two
+Instances in one project meet there. Kinds with no name of their own, or whose name the
+cloud fixes or keys by something else (IAM bindings, `Service`,
+`OrgPolicyPolicy`, notifications, liens), are listed with their reason in
+the chart's `tests/name-prefix.yaml`. The Kubernetes names are already
+distinct: they start with the release name, which is the live component's
+`<instance>-<component>` (the check proves it).
+
+A name that *refers to* something this chart does not name is not
+prefixed: `encryption_key`, `log_bucket`, a peer network's self link, a
+Shared VPC host project. A name this chart computes for something it does
+not create (`bucket_create: false`, `vpc_reuse`, `project_reuse`) is
+computed the same way, prefix included, so a component can add IAM to the
+bucket another component of the same Template made; for a resource that
+exists outside Bundt under its own name, leave `namePrefix` empty on that
+component.
+
+**With the module's own `prefix`.** `prefix` keeps fabric's exact meaning
+and `namePrefix` goes outermost: `<namePrefix>-<prefix>-<name>`. With
+`namePrefix: shop-dev`, `prefix: test`, `name: data` the bucket is
+`shop-dev-test-data`; with `namePrefix` empty it is `test-data`, fabric's.
+They never merge, so there is no double prefix and `prefix` never has to be
+reinterpreted. For AWS and Azure modules (`name_prefix`, `prefix`,
+`name`), the same rule: the module's variable is ported as it is and
+`namePrefix` stays the addition. The converter maps a Terraform `prefix` to
+`prefix` and never to `namePrefix`.
+
+**Limits.** With a prefix set, a name that passes the cloud's limit stops
+the render, naming the resource, the limit and the lengths (`gcs: bucket
+name "..." is 69 characters, more than the 63 the cloud allows; namePrefix
+"abcdefgh" is 9 of them (with its hyphen)`). Without a prefix nothing new is
+checked. Limits used: bucket 63, project ID 30, service account ID 30,
+network, subnet, route, address, policy, peering, attachment 63, Pub/Sub
+topic 255. Names that must start with a letter refuse a prefix that starts
+with a digit (an Instance name may). Instance names are at most 63
+characters, so a long one fails these checks and wants a shorter
+`namePrefix` than `${instance.name}`.
+
+**In a Template.** The context does expose it: `instance.name` is a string
+known when the plan is made (`specs/catalog/templates.md`, "The runtime
+context", R11's example is `instanceName: "${instance.name}-db"`). So a
+Template gives each infrastructure component
+
+```yaml
+inputs:
+  namePrefix: ${instance.name}
+```
+
+and two Instances of one Stack, `orders-dev` and `orders-prod` in one
+project, get `orders-dev-test-data` and `orders-prod-test-data`
+(`examples/names`, whose `convert.args` is `--name-prefix ${instance.name}`,
+and its two plans). Nothing needs adding to Bundt. What is not proven
+here: that Bundt accepts the expression in the chart's string value as the
+specs say (the plan preview evaluates it itself).
 
 ### Project, labels, scope
 
@@ -241,6 +314,29 @@ Differences from Terraform:
 - A few outputs have no source: `net-vpc.network_id` and
   `net-vpc.internal_ipv6_range` (ComputeNetwork does not report them; field
   gaps).
+
+## Chart authoring checklist
+
+Every new chart, in the order of `docs/design.md`'s sections:
+
+1. Values: every module variable with its name, type and default; the
+   additions (`namePrefix`, and `allow_alpha`, `deletion_policy` where they
+   apply) in `values.yaml` and `values.schema.json`.
+2. **namePrefix.** Every cloud name the chart gives a resource is built with
+   `kcc.cloudName` (or `kcc.fit` when derived from one that already is),
+   with the cloud's length limit and `"letter"` where it must start with
+   one; the Package's `name`/`id` outputs computed from inputs include it.
+   `tests/name-prefix.yaml` lists the kinds that have no name that can
+   collide, each with the reason; `tests/name-prefix-limit.fail.yaml` and
+   `name-prefix-pattern.fail.yaml` show the refusals. `task test` fails a
+   chart without them, and any rendered object whose cloud name lacks the
+   prefix (`catalogtool nameprefix`).
+3. Refusals: every variable the chart cannot carry stays in the values and
+   is refused with `kcc.unsupported`, and is listed under `refused` in
+   `upstream.yaml` (`task coverage-verify`).
+4. `upstream.yaml` and the `Chart.yaml` annotations name the module and the
+   release (`task upstream-check`).
+5. Render cases with golden files, refusal cases, a fake-cloud case.
 
 ## Submodules and factories
 

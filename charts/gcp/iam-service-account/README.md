@@ -31,6 +31,7 @@ The module's variables, with the same names, types and defaults
 
 | Variable | Renders |
 | --- | --- |
+| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the account ID) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
 | `name`, `prefix`, `project_id`, `display_name`, `description` | `IAMServiceAccount` named `<prefix>-<name>` (checked: 6 to 30 characters) in `project_id`, or the namespace's project when null |
 | `deletion_policy` | `DELETE` (default) or `ABANDON` (keeps the account); `PREVENT` is refused |
 | `iam`, `iam_by_principals`, `iam_bindings` | one `IAMPartialPolicy` on the account |

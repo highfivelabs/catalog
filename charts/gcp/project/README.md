@@ -30,6 +30,7 @@ org_policies:
 
 | Variable | Renders |
 | --- | --- |
+| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the project ID) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
 | `name`, `prefix`, `descriptive_name`, `parent`, `billing_account`, `labels`, `auto_create_network` | `Project` `<prefix>-<name>` (checked: 6 to 30 characters) under the folder or organization; `auto_create_network` as Config Connector's annotation |
 | `project_reuse` | no project: everything else goes on the existing project `<prefix>-<name>` |
 | `deletion_policy` | `DELETE` (default) or `ABANDON`; `PREVENT` is refused: use `lien_reason` |

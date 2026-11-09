@@ -54,6 +54,11 @@ type Options struct {
 	Name            string
 	Team, Env       string // the Stack's team and the Instance's environment; defaults my-team and dev
 	TemplateVersion string // default 1.0.0
+	// NamePrefix, when set (typically "${instance.name}"), is passed to every
+	// component whose chart takes a namePrefix, as the Template component's
+	// input: Bundt's uniqueness prefix, which is never a Terraform prefix
+	// (docs/design.md, "namePrefix"). A Terraform prefix stays prefix.
+	NamePrefix string
 }
 
 // Pair is one entry of an ordered map.
@@ -289,6 +294,15 @@ func Convert(file string, o Options) (*Result, error) {
 				c.Values = append(c.Values, Pair{name, goVal})
 			} else {
 				c.Inputs = append(c.Inputs, Pair{name, goVal})
+			}
+		}
+		if o.NamePrefix != "" {
+			if _, ok := mb.chart.Values["namePrefix"]; !ok {
+				msg(Note, where, "the %s chart has no namePrefix; the names it gives cloud resources are not made unique", mb.chart.Name)
+			} else if hasKey(c.Inputs, "namePrefix") || hasKey(c.Values, "namePrefix") {
+				msg(Note, where, "the module block sets namePrefix itself; --name-prefix is not applied to this component")
+			} else {
+				c.Inputs = append(Ordered{{"namePrefix", o.NamePrefix}}, c.Inputs...)
 			}
 		}
 		validate(c, msg, where)
@@ -671,6 +685,11 @@ func validate(c *Component, msg func(level, where, format string, a ...any), whe
 	for _, p := range append(append(Ordered{}, c.Inputs...), c.Values...) {
 		eff[p.Key] = jsonable(p.Value)
 	}
+	// A context expression (${instance.name}) is a name only once Bundt has
+	// evaluated it: check the rest of the schema with a stand-in for it.
+	if np, ok := eff["namePrefix"].(string); ok && strings.Contains(np, "${") {
+		eff["namePrefix"] = "instance"
+	}
 	data, err := json.Marshal(eff)
 	if err != nil {
 		msg(Invalid, where, "cannot encode the values: %v", err)
@@ -830,4 +849,13 @@ func tfvarsAllowAlpha(body *hclsyntax.Body) bool {
 	}
 	v, d := a.Expr.Value(nil)
 	return !d.HasErrors() && v.Type() == cty.Bool && v.True()
+}
+
+func hasKey(o Ordered, k string) bool {
+	for _, p := range o {
+		if p.Key == k {
+			return true
+		}
+	}
+	return false
 }

@@ -21,7 +21,7 @@ Copyright 2025 Google LLC, Apache-2.0: Private Service Access.
 {{- if not (kindIs "invalid" $c.range_prefix) }}{{ $prefix = (eq $c.range_prefix "") | ternary "" (printf "%s-" $c.range_prefix) }}{{ end }}
 {{- $ranges := list }}
 {{- range $rname, $cidr := $c.ranges }}
-{{- $addr := printf "%s%s" $prefix $rname }}
+{{- $addr := include "kcc.cloudName" (list $ "private service access range" (printf "%s%s" $prefix $rname) 63 "letter") }}
 {{- $ranges = append $ranges $addr }}
 ---
 apiVersion: compute.cnrm.cloud.google.com/v1beta1
@@ -78,7 +78,7 @@ kind: ServiceNetworkingPeeredDNSDomain
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psa-domain" $producer $d)) "id" (printf "psa_domain:%s:%s" $producer $d) "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
 spec:
-  resourceID: {{ printf "%s%s" $prefix (trimSuffix "-" (replace "." "-" $d)) }}
+  resourceID: {{ include "kcc.cloudName" (list $ "peered DNS domain" (printf "%s%s" $prefix (trimSuffix "-" (replace "." "-" $d))) 63 "letter") }}
   dnsSuffix: {{ $d | quote }}
   networkRef:
     {{- include "netvpc.networkRef" $ | nindent 4 }}

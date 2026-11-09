@@ -18,6 +18,8 @@ partial). `docs/coverage` says how much of every other module there is.
 | `count`, `for_each` | no loop in a Template: one component or one Instance per item (a Package's job, or a generator: `docs/design.md`, "Factories, worked") |
 | `providers = {...}` | none: the Environment's Target supplies the cloud account |
 | `$context:` lookups, `var.context` | `${...}` expressions and `valueFrom` |
+| the module's `prefix` (fabric), `name_prefix` (AWS) | the same variable, with the same meaning: `prefix` stays `prefix` and is never turned into `namePrefix` |
+| nothing: a second copy of the root module in the same project asks for the same names | `namePrefix: ${instance.name}` on each component (below) |
 
 The variable names, types and defaults are the module's (`values.yaml` and
 `values.schema.json` of each chart). A variable the chart cannot carry is
@@ -57,6 +59,10 @@ worth knowing. What a refused variable's `kind` means (gap, alpha,
 not-ported, by-design) is in `docs/coverage/README.md`; the refusals are in
 each chart's `upstream.yaml`.
 
+`--name-prefix '${instance.name}'` adds `namePrefix: ${instance.name}` to the
+inputs of every component whose chart takes one (all of them), so that two
+Instances of the Template in one project get distinct cloud names.
+
 What it does not do: evaluate Terraform. It evaluates the expressions it can
 (literals, `var`, `local`, `module.*` outputs and the common functions:
 `merge`, `format`, `join`, `lookup`, ...), and says so for the rest
@@ -79,6 +85,7 @@ converter's output for each is a Go test (`task tools-test`).
 | `examples/net-vpc` | subnets with secondary ranges, a route, Shared VPC host and service projects |
 | `examples/project` | a project with services, IAM and an organization policy (the chart is partial) |
 | `examples/wiring` | `module.reader.iam_email` becomes `${components.reader.outputs.iam_email}` |
+| `examples/names` | `namePrefix: ${instance.name}` on three components (a network, a service account, a bucket) and the plans of two Instances (`plan.txt`, `plan-prod.txt`) with distinct cloud names |
 | `examples/gaps` | arguments the charts refuse, a variable with no value, `count`, a module with no chart |
 
 In each: `main.tf` and `terraform.tfvars` (the Terraform), `bundt.yaml` (the
@@ -95,6 +102,20 @@ refuses a value. It is written by the converter from the real renders; it is
 not captured from a running Bundt, and it has no diffs. Expressions such as
 `${components.reader.outputs.iam_email}` are shown as written: Bundt
 resolves them when the component they name is ready.
+
+## Unique names: `namePrefix`
+
+Terraform names come from the module's `name` and `prefix`; two copies of a
+root module in one project meet at the cloud as a 409. Every chart has an
+optional `namePrefix` (not a Terraform variable): when set, the cloud names
+the chart gives start with `<namePrefix>-`, in front of the module's own
+`prefix`. A Template passes `namePrefix: ${instance.name}` to each component
+(Bundt's expression context has `instance.name`), and two Instances of one
+Stack in one project stay apart. Empty, which is the default and what a
+converted module call has, nothing changes: the names are the module's, which
+is what adopting an existing resource needs (below). Set it for new
+environments, not for resources Terraform already made.
+`docs/design.md`, "namePrefix", has the rules and the limits.
 
 ## Adopting resources that already exist
 
@@ -153,7 +174,8 @@ and what is not:
 1. **Plan in Terraform.** `terraform plan` should be empty: you are adopting
    the state Terraform believes in.
 2. **Convert** the module call (`task convert`), resolve every `gap`, and
-   keep the module's `name`, `prefix` and `project_id`.
+   keep the module's `name`, `prefix` and `project_id`, and leave `namePrefix`
+   empty: a prefix would name new resources.
 3. **Protect the resources first.** Set `deletion_policy: ABANDON` in the
    component's inputs (and `cloudResources: keep` on the Instance's component,
    `specs/record/instances.md` R36), so that backing out later cannot delete
