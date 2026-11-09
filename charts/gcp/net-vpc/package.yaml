@@ -2,10 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The Bundt Package for this chart (see ../iam-service-account/package.yaml).
-# Subnets are bound as resources["subnet:<region>/<name>"]; the subnet maps
-# are keyed "<region>/<name>", as fabric keys them. network_id (the numeric
-# ID) has no output: ComputeNetwork does not report it. With vpc_reuse the
-# chart makes no network object, so name, id and self_link have no value.
+# Outputs are fabric's declared outputs, selected from the live objects and
+# the component's values. Subnets are bound as
+# resources["subnet:<region>/<name>"]; the subnet maps are keyed
+# "<region>/<name>", as fabric keys them. Where fabric's output is a map of
+# whole subnet objects (subnets_proxy_only, subnets_psc,
+# subnets_private_nat) the output is the self link, the one field
+# consumers take. Not outputs: network_id and internal_ipv6_range
+# (ComputeNetwork does not report them: field gaps), and fabric's whole
+# objects (network, subnets). name and project_id come from inputs, as
+# fabric computes them; with vpc_reuse the chart makes no network object, so
+# id and self_link have no value.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
@@ -15,12 +22,15 @@ spec:
   engine: helm
   providers: [kcc]
   outputs:
-    name: resources.network.spec.resourceID
+    name: inputs.name
     self_link: resources.network.status.selfLink
     id: >-
       'projects/' + resources.network.metadata.annotations['cnrm.cloud.google.com/project-id']
       + '/global/networks/' + resources.network.spec.resourceID
-    project_id: resources.network.metadata.annotations['cnrm.cloud.google.com/project-id']
+    project_id: >-
+      inputs.project_id != null
+      ? inputs.project_id
+      : resources.network.metadata.annotations['cnrm.cloud.google.com/project-id']
     subnet_ids: >-
       resources.transformMapEntry(k, v,
         v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
@@ -38,6 +48,10 @@ spec:
       resources.transformMapEntry(k, v,
         v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
         {k.substring(7): v.spec.region})
+    subnet_ipv6_external_prefixes: >-
+      resources.transformMapEntry(k, v,
+        v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),
+        {k.substring(7): has(v.status.externalIpv6Prefix) ? dyn(v.status.externalIpv6Prefix) : null})
     subnet_secondary_ranges: >-
       resources.transformMapEntry(k, v,
         v.kind == 'ComputeSubnetwork' && !has(v.spec.purpose),

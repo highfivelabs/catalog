@@ -1,0 +1,73 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The catalog's entry points (https://taskfile.dev). `task --list` shows
+# them. The heavy ones run on an offload VM, never on a laptop.
+version: "3"
+
+vars:
+  OFFLOAD: ../offload/offload
+  # The only project live tests may touch, and the service account they
+  # run as (no keys; the VM acts as it).
+  LIVE_PROJECT: hfl-dev-514205
+  LIVE_SA: catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com
+  # config-connector-extensions at this commit supplies the pinned Config
+  # Connector and the fake cloud (docs/design.md, "Testing").
+  CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
+  CCE_TARBALL: gs://hfl-dev-514205-offload/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz
+
+tasks:
+  default:
+    cmds: [task --list]
+    silent: true
+
+  test:
+    desc: Render tests for every chart (CHART=gcs for one); offline, a few seconds
+    cmds:
+      - hack/test.sh {{.CHART}}
+    vars:
+      CHART: '{{.CHART | default ""}}'
+
+  test-update:
+    desc: Accept new renders as the golden files (CHART=gcs for one)
+    cmds:
+      - UPDATE=1 hack/test.sh {{.CHART}}
+    vars:
+      CHART: '{{.CHART | default ""}}'
+
+  sync-lib:
+    desc: Copy lib/_kcc.tpl into every chart
+    cmds:
+      - hack/sync-lib.sh
+
+  tools:
+    desc: Build tools/catalogtool into bin/
+    dir: tools
+    cmds:
+      - go build -o ../bin/catalogtool ./catalogtool
+    sources: ["**/*.go", go.mod, go.sum]
+    generates: [../bin/catalogtool]
+
+  cce-snapshot:
+    desc: Upload config-connector-extensions at CCE_COMMIT for the fake-cloud and live runs
+    status:
+      - gcloud storage ls {{.CCE_TARBALL}}
+    cmds:
+      - git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}
+
+  test-mock:
+    desc: Apply each chart's tests/mock.values.yaml to the fake cloud on an offload VM
+    deps: [test, cce-snapshot]
+    cmds:
+      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} hack/mock-apply.sh'
+
+  test-live:
+    desc: Apply three pilot charts to real Google Cloud (project {{.LIVE_PROJECT}}, tiny resources, deleted straight after) on an offload VM acting as {{.LIVE_SA}}
+    deps: [test, cce-snapshot]
+    cmds:
+      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-apply.sh'
+
+  inventory:
+    desc: Regenerate the tables of docs/gcp-inventory.md from fabric and Config Connector at the commits in UPSTREAM.md
+    cmds:
+      - hack/inventory/run.sh

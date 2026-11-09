@@ -100,7 +100,7 @@ for values in charts/*/*/tests/mock.values.yaml; do
     fi
   done
   kubectl get -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" -o json >"${OUT}/${chart}/live.json"
-  if bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}/live.json" >"${OUT}/${chart}/outputs.json" 2>"${OUT}/${chart}/outputs.err"; then
+  if bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}/live.json" "${dir}/values.yaml" "${values}" >"${OUT}/${chart}/outputs.json" 2>"${OUT}/${chart}/outputs.err"; then
     outputs_ok=yes
   else
     outputs_ok=no

@@ -14,11 +14,13 @@
 //	    helm, spec.version equal to the chart's version, and every output
 //	    a CEL expression that compiles.
 //
-//	catalogtool outputs PACKAGE_YAML OBJECTS_JSON
+//	catalogtool outputs PACKAGE_YAML OBJECTS_JSON [VALUES_YAML...]
 //	    Evaluate a Package's spec.outputs, CEL as Bundt evaluates them
 //	    (docs/design.md, "Outputs"), against live objects: OBJECTS_JSON is
 //	    `kubectl get -o json` of a list. Each object whose annotation
-//	    hfl.dev/id is set is bound as resources.<id>. Prints each output as
+//	    hfl.dev/id is set is bound as resources.<id>, and the component's
+//	    values (the VALUES_YAMLs merged in order: the chart's values.yaml,
+//	    then the component's) as inputs. Prints each output as
 //	    JSON; exits 1 when any output fails to evaluate.
 package main
 
@@ -38,8 +40,8 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "usage: catalogtool schemas CRD_DIR OUT_DIR | check PACKAGE_YAML CHART_YAML | outputs PACKAGE_YAML OBJECTS_JSON")
+	if len(os.Args) < 4 || (os.Args[1] != "outputs" && len(os.Args) != 4) {
+		fmt.Fprintln(os.Stderr, "usage: catalogtool schemas CRD_DIR OUT_DIR | check PACKAGE_YAML CHART_YAML | outputs PACKAGE_YAML OBJECTS_JSON [VALUES_YAML...]")
 		os.Exit(2)
 	}
 	var err error
@@ -47,7 +49,7 @@ func main() {
 	case "schemas":
 		err = schemas(os.Args[2], os.Args[3])
 	case "outputs":
-		err = outputs(os.Args[2], os.Args[3])
+		err = outputs(os.Args[2], os.Args[3], os.Args[4:])
 	case "check":
 		err = check(os.Args[2], os.Args[3])
 	default:
@@ -162,6 +164,7 @@ type pkg struct {
 func celEnv() (*cel.Env, error) {
 	return cel.NewEnv(
 		cel.Variable("resources", cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable("inputs", cel.MapType(cel.StringType, cel.DynType)),
 		ext.Strings(), ext.Lists(), ext.Encoders(), ext.TwoVarComprehensions(),
 	)
 }
@@ -214,7 +217,23 @@ func check(pkgPath, chartPath string) error {
 	return nil
 }
 
-func outputs(pkgPath, objectsPath string) error {
+// mergeValues lays override over base as Helm lays user values over a
+// chart's defaults: maps merge, anything else is replaced, and a null
+// override clears the value (kept as null here, so CEL can read it).
+func mergeValues(base, override map[string]any) map[string]any {
+	for k, v := range override {
+		bm, bok := base[k].(map[string]any)
+		om, ook := v.(map[string]any)
+		if bok && ook {
+			base[k] = mergeValues(bm, om)
+		} else {
+			base[k] = v
+		}
+	}
+	return base
+}
+
+func outputs(pkgPath, objectsPath string, valuesPaths []string) error {
 	b, err := os.ReadFile(pkgPath)
 	if err != nil {
 		return err
@@ -247,6 +266,20 @@ func outputs(pkgPath, objectsPath string) error {
 			resources[id] = o
 		}
 	}
+	// inputs: the component's values as the chart sees them, the chart's
+	// own defaults first (the first VALUES_YAML), then the component's.
+	inputs := map[string]any{}
+	for _, vp := range valuesPaths {
+		vb, err := os.ReadFile(vp)
+		if err != nil {
+			return err
+		}
+		var v map[string]any
+		if err := yaml.Unmarshal(vb, &v); err != nil {
+			return fmt.Errorf("%s: %w", vp, err)
+		}
+		inputs = mergeValues(inputs, v)
+	}
 	env, err := celEnv()
 	if err != nil {
 		return err
@@ -271,7 +304,7 @@ func outputs(pkgPath, objectsPath string) error {
 			failed++
 			continue
 		}
-		v, _, err := prg.Eval(map[string]any{"resources": resources})
+		v, _, err := prg.Eval(map[string]any{"resources": resources, "inputs": inputs})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "output %s: %v\n", n, err)
 			failed++

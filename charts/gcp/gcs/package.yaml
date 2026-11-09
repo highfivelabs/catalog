@@ -2,8 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The Bundt Package for this chart (see iam-service-account/package.yaml).
-# With bucket_create false the chart makes no bucket object, so name, id
-# and url have no value.
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.<id>) and the component's values (inputs): name, id and url
+# are computed from inputs as fabric computes them, so they have a value
+# with bucket_create false too. fabric's bucket and objects outputs (whole
+# Terraform objects) are not outputs.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
@@ -13,9 +16,14 @@ spec:
   engine: helm
   providers: [kcc]
   outputs:
-    name: resources.bucket.spec.resourceID
-    id: resources.bucket.spec.resourceID
-    url: resources.bucket.status.url
+    name: >-
+      (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii()
+    id: >-
+      (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii()
+    url: >-
+      inputs.bucket_create
+      ? resources.bucket.status.url
+      : 'gs://' + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii()
     notification: "'notification' in resources ? resources.notification.status.selfLink : null"
     topic: >-
       'topic' in resources

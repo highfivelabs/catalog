@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The Bundt Package for this chart (see ../iam-service-account/package.yaml).
-# With project_reuse the chart makes no project object, so these outputs
-# have no value.
+# Outputs are fabric's declared outputs for what the chart ports, selected
+# from the live objects and the component's values: project_id and id
+# come from inputs, as fabric computes them, so they have a value with
+# project_reuse too; name and number need the project object.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
@@ -13,9 +15,15 @@ spec:
   engine: helm
   providers: [kcc]
   outputs:
-    project_id: resources.project.spec.resourceID
-    id: resources.project.spec.resourceID
+    project_id: >-
+      (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name
+    id: >-
+      (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name
     name: resources.project.spec.name
     number: resources.project.status.number
     services: >-
       resources.filter(k, resources[k].kind == 'Service').map(k, resources[k].spec.resourceID).sort()
+    organization_policies_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'OrgPolicyPolicy',
+        {v.spec.resourceID: 'projects/' + ((inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name)
+          + '/policies/' + v.spec.resourceID})
