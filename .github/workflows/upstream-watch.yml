@@ -1,0 +1,74 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Daily: find the tracked Terraform modules (upstream/modules.yaml) that have
+# a release newer than their pin, and keep ONE tracking issue in this
+# repository with the report (docs/upstream-status.md describes it).
+#
+# Upstream is only read: `git ls-remote --tags` and GETs of public tarballs
+# (tools/upstream). Nothing is written to, commented on or opened in an
+# upstream repository. The only write is to this repository's issues, with
+# the default token and `issues: write`; no other secret is used.
+name: upstream-watch
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    if: github.repository == 'highfivelabs/catalog'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tools/go.mod
+          cache-dependency-path: tools/go.sum
+      - name: Build catalogtool
+        run: cd tools && go build -o ../bin/catalogtool ./catalogtool
+      - name: Find modules behind their pins
+        run: bin/catalogtool upstream watch --out upstream-status.md --json upstream-status.json --issue issue.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-status
+          path: |
+            upstream-status.md
+            upstream-status.json
+      - name: Update the tracking issue (this repository only)
+        run: |
+          set -euo pipefail
+          title="Upstream releases to take"
+          label="upstream-watch"
+          behind="$(jq '.behind | length' upstream-status.json)"
+          gh label create "${label}" --color 0e8a16 --description "Reports of newer upstream module releases" --force >/dev/null
+          number="$(gh issue list --state open --label "${label}" --json number --jq '.[0].number // empty')"
+          if [[ -n "${number}" ]]; then
+            if [[ "${behind}" -gt 0 ]]; then
+              gh issue edit "${number}" --title "${title}" --body-file issue.md
+              echo "updated issue #${number}: ${behind} modules behind"
+            else
+              gh issue edit "${number}" --body-file issue.md
+              gh issue close "${number}" --comment "Every tracked module is at its latest release."
+              echo "closed issue #${number}"
+            fi
+          elif [[ "${behind}" -gt 0 ]]; then
+            gh issue create --title "${title}" --label "${label}" --body-file issue.md
+          else
+            echo "nothing behind, no issue open"
+          fi

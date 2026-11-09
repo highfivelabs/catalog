@@ -55,13 +55,42 @@ other two must carry.
 
 ## Moving the pins
 
-A new fabric release is a new port, not a merge: diff the module between
-the two commits (`git diff <old>..<new> -- modules/<module>`), carry each
-change into the chart, bump the chart's version (docs/design.md,
-"Versioning"), and update the rows above, the chart's annotations, the
-chart's `upstream.yaml` and the module's entry in `upstream/modules.yaml`
-(`task upstream-check` fails until all of them agree). A
-new Config Connector release: update the rows above, run `task test`
-(it re-fetches the CRDs and re-validates every render), and re-read the
-gaps in `docs/gcp-inventory.md`: a gap that the release closes becomes a
-value the chart now supports.
+**Finding what moved.** `task upstream-watch` reads `upstream/modules.yaml`,
+finds each module's latest release (`git ls-remote --tags`), and for every
+module that moved fetches the module's Terraform at both tags and diffs it:
+variables, outputs and resource types added, removed or changed, and which
+`.tf` files differ at all. It writes `docs/upstream-status.md` and
+`docs/upstream-status.json`. It only reads; it never writes to, comments on
+or opens anything in an upstream repository. The scheduled workflow
+(`.github/workflows/upstream-watch.yml`, daily) runs it and keeps one issue,
+"Upstream releases to take", in this repository.
+
+**Taking a release** is a short, reviewed pull request, a port and not a
+merge:
+
+1. Read the issue's entry for the module (the diff, the compare link, the
+   release notes) and `git diff <old>..<new> -- <path>` in the upstream
+   repository.
+2. Carry each change into the chart: new variables into `values.yaml` and
+   `values.schema.json`, changed defaults, new resources into the templates.
+   A variable the chart cannot carry goes under `refused` in its
+   `upstream.yaml`, with its kind and reason. Bump the chart's version
+   (`Chart.yaml`, `package.yaml`; docs/design.md, "Versioning"), add render
+   cases, run `task test`.
+3. `task upstream-bump -- gcs v61.0.0` moves the pin: the module's entry in
+   `upstream/modules.yaml`, the chart's `upstream.yaml` (and its date
+   synced) and `Chart.yaml`'s `hfl.dev/source-*` annotations, `appVersion`
+   and source URL; it then regenerates `docs/coverage`. For a module with no
+   chart it only moves the pin and the coverage numbers. It does not port
+   anything.
+4. `task upstream-check` and `task test` agree with the new pin; commit
+   everything, open the pull request. The fabric rows at the top of this page
+   and `docs/gcp-inventory.md` describe the release the inventory was made
+   at (`task inventory` rereads the "Fabric release" row); move them when
+   the inventory is regenerated for a new release, not with a single
+   module.
+
+A new Config Connector release: update the rows at the top of this page, run
+`task test` (it re-fetches the CRDs and re-validates every render), and
+re-read the gaps in `docs/gcp-inventory.md`: a gap that the release closes
+becomes a value the chart now supports.

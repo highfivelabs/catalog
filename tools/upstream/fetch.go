@@ -34,6 +34,9 @@ var (
 )
 
 // polite spaces requests to one host Politeness apart.
+// Polite waits until a request may be made.
+func Polite() { polite() }
+
 func polite() {
 	mu.Lock()
 	defer mu.Unlock()
@@ -98,14 +101,23 @@ func (s Source) ModuleDir(modPath string) string {
 // cacheDir/<owner>/<name>/<tag>, unless that is already done. A path of
 // "." takes the whole tree except examples, tests and wrappers.
 func Fetch(cacheDir, slug, tag string, paths []string) (Source, error) {
+	paths = append([]string(nil), paths...)
 	sort.Strings(paths)
 	dir := filepath.Join(cacheDir, filepath.FromSlash(slug), tag)
 	src := Source{Slug: slug, Tag: tag, Dir: dir}
 	marker := filepath.Join(dir, ".fetched")
-	want := strings.Join(paths, "\n")
-	if b, err := os.ReadFile(marker); err == nil && string(b) == want {
-		return src, nil
+	if b, err := os.ReadFile(marker); err == nil {
+		have := strings.Split(string(b), "\n")
+		if covers(have, paths) {
+			return src, nil
+		}
+		// Extract what was there too, so two callers do not undo each other.
+		for _, h := range have {
+			paths = appendUnique(paths, h)
+		}
+		sort.Strings(paths)
 	}
+	want := strings.Join(paths, "\n")
 	if err := os.RemoveAll(dir); err != nil {
 		return src, err
 	}
@@ -122,6 +134,23 @@ func Fetch(cacheDir, slug, tag string, paths []string) (Source, error) {
 		return src, fmt.Errorf("%s@%s: %w", slug, tag, err)
 	}
 	return src, os.WriteFile(marker, []byte(want), 0o644)
+}
+
+// covers reports whether an earlier extraction of have includes want.
+func covers(have, want []string) bool {
+	set := map[string]bool{}
+	for _, h := range have {
+		if h == "." {
+			return true
+		}
+		set[h] = true
+	}
+	for _, w := range want {
+		if !set[w] {
+			return false
+		}
+	}
+	return true
 }
 
 func wanted(rel string, paths []string) bool {
@@ -192,4 +221,13 @@ func extract(r io.Reader, dir string, paths []string) error {
 			return err
 		}
 	}
+}
+
+func appendUnique(s []string, v string) []string {
+	for _, x := range s {
+		if x == v {
+			return s
+		}
+	}
+	return append(s, v)
 }

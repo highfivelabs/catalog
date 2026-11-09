@@ -105,3 +105,56 @@ func TestCheckCatchesDrift(t *testing.T) {
 		})
 	}
 }
+
+func TestBump(t *testing.T) {
+	root, p := fixture(t, nil)
+	if len(p) != 0 {
+		t.Fatal(p)
+	}
+	newSHA := strings.Repeat("a", 40)
+	if _, err := Bump(root, "gcp/gcs", "v59.0.0", newSHA, "2026-12-01", false); err == nil || !strings.Contains(err.Error(), "older") {
+		t.Fatalf("a downgrade should be refused, got %v", err)
+	}
+	if _, err := Bump(root, "gcp/gcs", "60.1.0", newSHA, "2026-12-01", false); err == nil || !strings.Contains(err.Error(), "tag pattern") {
+		t.Fatalf("a tag outside the pattern should be refused, got %v", err)
+	}
+	changed, err := Bump(root, "gcp/gcs", "v61.0.0", newSHA, "2026-12-01", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(changed, ",") != "upstream/modules.yaml,charts/gcp/gcs/upstream.yaml,charts/gcp/gcs/Chart.yaml" {
+		t.Fatalf("changed %v", changed)
+	}
+	data, _ := os.ReadFile(filepath.Join(root, "upstream/modules.yaml"))
+	for _, want := range []string{"version: v61.0.0", "commit: " + newSHA, "tree/v61.0.0/modules/gcs"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("modules.yaml lacks %q:\n%s", want, data)
+		}
+	}
+	cu, _ := os.ReadFile(filepath.Join(root, "charts/gcp/gcs/upstream.yaml"))
+	if !strings.Contains(string(cu), "synced: 2026-12-01") {
+		t.Errorf("upstream.yaml:\n%s", cu)
+	}
+	if p, _ := CheckAll(root, nil); len(p) != 0 {
+		t.Fatalf("after the bump: %v", p)
+	}
+	if _, err := Bump(root, "gcp/gcs", "v61.0.0", newSHA, "2026-12-01", false); err == nil || !strings.Contains(err.Error(), "already") {
+		t.Fatalf("bumping to the pinned tag should say so, got %v", err)
+	}
+}
+
+func TestResolveID(t *testing.T) {
+	f := &File{Modules: []Module{{ID: "gcp/kms", Module: "kms"}, {ID: "aws/kms", Module: "kms"}, {ID: "gcp/gcs", Module: "gcs"}}}
+	if id, err := f.ResolveID("gcs"); err != nil || id != "gcp/gcs" {
+		t.Fatal(id, err)
+	}
+	if _, err := f.ResolveID("kms"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatal(err)
+	}
+	if id, _ := f.ResolveID("aws/kms"); id != "aws/kms" {
+		t.Fatal(id)
+	}
+	if _, err := f.ResolveID("nope"); err == nil {
+		t.Fatal("want an error")
+	}
+}
