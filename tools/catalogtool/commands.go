@@ -13,6 +13,7 @@ import (
 
 	"github.com/highfivelabs/catalog/tools/convert"
 	"github.com/highfivelabs/catalog/tools/coverage"
+	"github.com/highfivelabs/catalog/tools/nameprefix"
 	"github.com/highfivelabs/catalog/tools/upstream"
 	"github.com/highfivelabs/catalog/tools/watch"
 )
@@ -76,6 +77,21 @@ var commands = map[string]func(args []string) error{
 	"upstream": upstreamCmd,
 	"coverage": coverageCmd,
 	"convert":  convertCmd,
+	"nameprefix": func(args []string) error {
+		var all []string
+		for _, dir := range args {
+			problems, err := nameprefix.Check(dir)
+			if err != nil {
+				return err
+			}
+			all = append(all, problems...)
+		}
+		if len(all) > 0 {
+			return fmt.Errorf("namePrefix check failed:\n  %s", strings.Join(all, "\n  "))
+		}
+		fmt.Println("namePrefix: ok")
+		return nil
+	},
 }
 
 // repoRoot finds the repository root from the working directory: the
@@ -138,7 +154,7 @@ func upstreamCmd(args []string) error {
 
 // convertCmd: catalogtool convert FILE.tf|FILE.tfvars [flags]
 func convertCmd(args []string) error {
-	usage := fmt.Errorf(`usage: catalogtool convert FILE.tf [--tfvars FILE]... [--name NAME] [--team TEAM] [--env ENV] [--plan [--render FILE]]
+	usage := fmt.Errorf(`usage: catalogtool convert FILE.tf [--tfvars FILE]... [--name NAME] [--team TEAM] [--env ENV] [--name-prefix EXPR] [--plan [--render FILE]]
        catalogtool convert FILE.tfvars --chart NAME
 
 FILE.tf holds module blocks (with any variable and locals blocks): the
@@ -177,6 +193,8 @@ converted to the values that chart takes.`)
 			o.Team, err = next()
 		case "--env":
 			o.Env, err = next()
+		case "--name-prefix":
+			o.NamePrefix, err = next()
 		case "--chart":
 			chart, err = next()
 		case "--plan":

@@ -33,6 +33,7 @@ func TestExamples(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(dir, "terraform.tfvars")); err == nil {
 				o.Tfvars = []string{filepath.Join(dir, "terraform.tfvars")}
 			}
+			applyArgs(t, dir, &o)
 			res, err := Convert(main, o)
 			if err != nil {
 				t.Fatal(err)
@@ -80,6 +81,7 @@ func TestExamplesHaveNoSurpriseGaps(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, "terraform.tfvars")); err == nil {
 			o.Tfvars = []string{filepath.Join(dir, "terraform.tfvars")}
 		}
+		applyArgs(t, dir, &o)
 		res, err := Convert(main, o)
 		if err != nil {
 			t.Fatal(err)
@@ -94,6 +96,35 @@ func TestExamplesHaveNoSurpriseGaps(t *testing.T) {
 			if m.Level != Note {
 				t.Errorf("%s: %s", filepath.Base(dir), m)
 			}
+		}
+	}
+}
+
+// applyArgs reads the example's convert.args (flags for catalogtool convert,
+// one line) into the options; only --name-prefix, --env, --team and --name
+// are understood.
+func applyArgs(t *testing.T, dir string, o *Options) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, "convert.args"))
+	if err != nil {
+		return
+	}
+	f := strings.Fields(string(data))
+	for i := 0; i < len(f); i += 2 {
+		if i+1 >= len(f) {
+			t.Fatalf("%s/convert.args: %s needs a value", dir, f[i])
+		}
+		switch f[i] {
+		case "--name-prefix":
+			o.NamePrefix = f[i+1]
+		case "--env":
+			o.Env = f[i+1]
+		case "--team":
+			o.Team = f[i+1]
+		case "--name":
+			o.Name = f[i+1]
+		default:
+			t.Fatalf("%s/convert.args: unknown flag %s", dir, f[i])
 		}
 	}
 }

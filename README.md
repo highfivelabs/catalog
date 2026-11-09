@@ -33,7 +33,7 @@ task test-update CHART=gcs   # accept a chart's new renders
 Charts: `iam-service-account`, `gcs`, `net-vpc`, `project` (partial). Every
 chart links to the open-source module it ports and records the release it
 was ported from (`upstream.yaml`), so changes upstream are easy to find and
-pull in.
+pull in. Every chart takes an optional `namePrefix` (a Template passes `${instance.name}`), so Instances in one project get distinct cloud names (`docs/design.md`, "namePrefix").
 
 <!-- coverage:start -->
 ## Coverage against the open-source modules

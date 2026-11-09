@@ -157,3 +157,45 @@ module "k" {
 		t.Fatalf("got:\n%s", m)
 	}
 }
+
+func TestTerraformPrefixStaysPrefixAndNamePrefixIsAdded(t *testing.T) {
+	f := write(t, "main.tf", `module "b" {
+  source   = `+src+`gcs?ref=v60.0.0"
+  prefix   = "test"
+  name     = "b"
+  location = "EU"
+}`)
+	res, err := Convert(f, Options{Repo: repo(t), NamePrefix: "${instance.name}"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := res.Components[0].Inputs
+	if in[0].Key != "namePrefix" || in[0].Value != "${instance.name}" {
+		t.Fatalf("namePrefix is added first: %+v", in)
+	}
+	var prefix any
+	for _, p := range in {
+		if p.Key == "prefix" {
+			prefix = p.Value
+		}
+	}
+	if prefix != "test" {
+		t.Fatalf("the Terraform prefix must stay prefix: %+v", in)
+	}
+	for _, m := range res.Messages {
+		if m.Level != Note {
+			t.Errorf("a context expression in namePrefix must pass the schema: %s", m)
+		}
+	}
+	// A module block that sets namePrefix itself keeps its own.
+	f = write(t, "main.tf", `module "b" {
+  source     = `+src+`gcs?ref=v60.0.0"
+  name       = "b"
+  location   = "EU"
+  namePrefix = "mine"
+}`)
+	res, _ = Convert(f, Options{Repo: repo(t), NamePrefix: "${instance.name}"})
+	if !strings.Contains(messages(res), "sets namePrefix itself") {
+		t.Fatalf("got:\n%s", messages(res))
+	}
+}

@@ -2,9 +2,12 @@
 Copyright 2026 High Five Labs
 SPDX-License-Identifier: Apache-2.0
 */ -}}
-{{/* gcs.bucketName: "<prefix>-<name>", lower-cased, as fabric names it. */}}
+{{/* gcs.bucketName: "<prefix>-<name>", lower-cased, as fabric names it, with
+the namePrefix in front (a bucket name is global, at most 63 characters). */}}
 {{- define "gcs.bucketName" -}}
-{{- if .Values.prefix -}}{{ printf "%s-%s" .Values.prefix (lower .Values.name) }}{{- else -}}{{ lower .Values.name }}{{- end -}}
+{{- $n := lower .Values.name -}}
+{{- if .Values.prefix -}}{{- $n = printf "%s-%s" .Values.prefix $n -}}{{- end -}}
+{{- include "kcc.cloudName" (list . "bucket" $n 63) -}}
 {{- end -}}
 
 {{/* gcs.iamRef: the bucket as an IAM resourceRef: the object this chart

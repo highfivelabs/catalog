@@ -12,7 +12,7 @@ kind: ComputeNetworkPeering
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peering")) "id" "peering_local" "project" $.Values.project_id "abandon" $abandon) | nindent 2 }}
 spec:
-  resourceID: {{ printf "%s-%s" $.Values.name $peer }}
+  resourceID: {{ include "kcc.fit" (list $ "network peering" (printf "%s-%s" (include "netvpc.networkName" $) $peer) 63) }}
   networkRef:
     {{- include "netvpc.networkRef" $ | nindent 4 }}
   peerNetworkRef:
@@ -30,7 +30,7 @@ kind: ComputeNetworkPeering
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peering-remote")) "id" "peering_remote" "abandon" $abandon) | nindent 2 }}
 spec:
-  resourceID: {{ printf "%s-%s" $peer $.Values.name }}
+  resourceID: {{ include "kcc.fit" (list $ "network peering" (printf "%s-%s" $peer (include "netvpc.networkName" $)) 63) }}
   networkRef:
     external: {{ .peer_vpc_self_link | quote }}
   peerNetworkRef:

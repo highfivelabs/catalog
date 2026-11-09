@@ -59,6 +59,13 @@ supported". A variable the chart does not list at all counts as not covered
 | `by-design` | Bundt replaces it (`$context` lookups, reusing a resource, `factories_config`) |
 | `no-chart` | the module has no chart yet |
 
+**Additions.** A chart's values can include more than the module's
+variables: `namePrefix` (every chart: Bundt's uniqueness prefix,
+`docs/design.md`, "namePrefix"), `allow_alpha`, `deletion_policy`. They are
+not Terraform variables, so they are never counted as missing or covered; the
+module's `notes` list them ("adds ..."), and the generator fails for a chart
+that lacks `namePrefix`.
+
 **Outputs.** A chart covers an output when its Package (`package.yaml`)
 declares an output of that name. The charts follow the builder's decision
 that outputs are selective, so they do not provide fabric's whole-object

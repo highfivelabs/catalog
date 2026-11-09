@@ -13,6 +13,8 @@
 #   4. each tests/<case>.values.yaml renders, matches
 #      tests/golden/<case>.yaml, and validates (kubeconform -strict)
 #      against Config Connector's CRD schemas at the release in UPSTREAM.md;
+#   4b. the namePrefix check (catalogtool nameprefix) and each case rendered with a
+#      namePrefix validates too;
 #   5. each tests/<case>.fail.yaml fails to render with the message on its
 #      first line ("# expect: ...").
 #
@@ -68,6 +70,19 @@ for name in "${charts[@]}"; do
       ok; echo "ok   ${name}/${case}: ${out#Summary: }"
     else
       bad "${name}/${case}: kubeconform"; echo "${out}"
+    fi
+  done
+  # the namePrefix convention: every collision-prone cloud name carries it, an
+  # empty one changes nothing (docs/design.md, "namePrefix").
+  if out="$(bin/catalogtool nameprefix "${dir}" 2>&1)"; then ok; else bad "${name}: namePrefix"; echo "${out}"; fi
+  for values in "${dir}"/tests/*.values.yaml; do
+    case="$(basename "${values}" .values.yaml)"
+    if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" --set namePrefix=zz9 2>&1)" \
+        && out="$(printf '%s\n' "${rendered}" | kubeconform -strict -summary \
+          -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
+      ok
+    else
+      bad "${name}/${case}: with namePrefix=zz9"; echo "${rendered}" | head -5; echo "${out:-}"
     fi
   done
   for values in "${dir}"/tests/*.fail.yaml; do

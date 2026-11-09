@@ -34,6 +34,7 @@ The module's variables, with the same names, types and defaults.
 
 | Variable | Renders |
 | --- | --- |
+| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the network, subnets, routes, addresses, DNS policy, peerings, attachments) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
 | `name`, `project_id`, `description`, `auto_create_subnetworks`, `delete_default_routes_on_create`, `mtu`, `routing_mode`, `firewall_policy_enforcement_order`, `ipv6_config` | `ComputeNetwork` |
 | `vpc_reuse` | no network: everything else goes on the existing network `name` in `project_id` |
 | `subnets`, `subnets_proxy_only`, `subnets_private_nat`, `subnets_psc` | one `ComputeSubnetwork` each, with fabric's purposes, roles and default descriptions; secondary ranges, flow logs and IPv6 |

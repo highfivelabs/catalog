@@ -14,12 +14,18 @@ name: {{ .Release.Name }}
 {{- end -}}
 {{- end -}}
 
+{{/* netvpc.networkName: the network's name in Google Cloud, with the
+namePrefix (at most 63 characters). */}}
+{{- define "netvpc.networkName" -}}
+{{- include "kcc.cloudName" (list . "network" .Values.name 63 "letter") -}}
+{{- end -}}
+
 {{/* netvpc.networkId: projects/<project>/global/networks/<name>. */}}
 {{- define "netvpc.networkId" -}}
 {{- if not .Values.project_id -}}
 {{- fail "net-vpc: project_id is needed to name the network outside this chart (vpc_reuse, a remote peering, Shared VPC service projects)" -}}
 {{- end -}}
-{{- printf "projects/%s/global/networks/%s" .Values.project_id .Values.name -}}
+{{- printf "projects/%s/global/networks/%s" .Values.project_id (include "netvpc.networkName" .) -}}
 {{- end -}}
 
 {{/*

@@ -1,0 +1,65 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: names
+spec:
+  version: "1.0.0"
+  components:
+    - name: vpc
+      package:
+        name: gcp-net-vpc
+        version: "0.2.0"
+      inputs:
+        namePrefix: ${instance.name}
+        name: app-network
+        subnets:
+          - ip_cidr_range: 10.0.0.0/24
+            name: app
+            region: europe-west1
+    - name: reader
+      package:
+        name: gcp-iam-service-account
+        version: "0.2.0"
+      inputs:
+        namePrefix: ${instance.name}
+        name: reader
+    - name: bucket
+      package:
+        name: gcp-gcs
+        version: "0.2.0"
+      inputs:
+        namePrefix: ${instance.name}
+        name: data
+        location: EU
+        iam_bindings_additive:
+          reader:
+            member: ${components.reader.outputs.iam_email}
+            role: roles/storage.objectViewer
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: names
+  scope: my-team
+spec:
+  template: names
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: names-dev
+  scope: my-team/dev
+spec:
+  stack: names
+  version: "1.0.0"
+  components:
+    vpc:
+      values:
+        project_id: myproject
+    reader:
+      values:
+        project_id: myproject
+    bucket:
+      values:
+        project_id: myproject
+        prefix: test

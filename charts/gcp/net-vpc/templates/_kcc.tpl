@@ -200,3 +200,60 @@ spec:
 {{- end }}
 {{- end }}
 {{- end -}}
+
+{{/*
+kcc.namePrefix: the Bundt-wide uniqueness prefix, "<namePrefix>-", or ""
+when the chart's namePrefix value is empty (the default: nothing changes
+and the names are the Terraform module's). A Template passes the same
+prefix to its infrastructure components, typically
+namePrefix: ${instance.name}, so two Instances of one Stack in one
+project never ask the cloud for the same name (docs/design.md, "namePrefix").
+It goes outermost, on top of a module's own prefix variable:
+<namePrefix>-<prefix>-<name>.
+*/}}
+{{- define "kcc.namePrefix" -}}
+{{- $p := .Values.namePrefix | default "" -}}
+{{- if $p -}}
+{{- if not (kindIs "string" $p) -}}
+{{- fail (printf "%s: namePrefix must be a string" .Chart.Name) -}}
+{{- end -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $p) -}}
+{{- fail (printf "%s: namePrefix %q must be a DNS label: lower-case letters, digits and hyphens, not starting or ending with a hyphen (an Instance's name is one)" .Chart.Name $p) -}}
+{{- end -}}
+{{- printf "%s-" $p -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+kcc.fit: stop the render when a name made with a namePrefix is longer than
+the cloud allows. Returns the name. Nothing is checked without a
+namePrefix, so a chart's behaviour with its Terraform-parity values is
+unchanged.
+  {{ include "kcc.fit" (list $ "subnet" $name 63) }}
+*/}}
+{{- define "kcc.fit" -}}
+{{- $root := index . 0 -}}{{- $what := index . 1 -}}{{- $name := index . 2 -}}{{- $max := index . 3 -}}
+{{- $pre := include "kcc.namePrefix" $root -}}
+{{- if and $pre (gt (len $name) (int $max)) -}}
+{{- fail (printf "%s: %s name %q is %d characters, more than the %d the cloud allows; namePrefix %q is %d of them (with its hyphen): shorten the namePrefix or the name" $root.Chart.Name $what $name (len $name) (int $max) $root.Values.namePrefix (len $pre)) -}}
+{{- end -}}
+{{- $name -}}
+{{- end -}}
+
+{{/*
+kcc.cloudName: a name this chart gives a cloud resource, with the
+namePrefix on it and its length checked. A fifth item, "letter", says the
+cloud wants the name to start with a letter (service account IDs, project
+IDs, networks ...); a namePrefix that starts with a digit, as an Instance
+name may, then stops the render naming the resource.
+  {{ include "kcc.cloudName" (list $ "bucket" $name 63) }}
+  {{ include "kcc.cloudName" (list $ "network" $name 63 "letter") }}
+*/}}
+{{- define "kcc.cloudName" -}}
+{{- $root := index . 0 -}}{{- $what := index . 1 -}}{{- $name := index . 2 -}}{{- $max := index . 3 -}}
+{{- $pre := include "kcc.namePrefix" $root -}}
+{{- if and $pre (gt (len .) 4) (eq (index . 4) "letter") (not (regexMatch "^[a-z]" $pre)) -}}
+{{- fail (printf "%s: %s name %q must start with a lower-case letter, and namePrefix %q starts with a digit" $root.Chart.Name $what (printf "%s%s" $pre $name) $root.Values.namePrefix) -}}
+{{- end -}}
+{{- include "kcc.fit" (list $root $what (printf "%s%s" $pre $name) $max) -}}
+{{- end -}}

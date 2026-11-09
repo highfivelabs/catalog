@@ -25,6 +25,7 @@ The module's variables, with the same names, types and defaults.
 
 | Variable | Renders |
 | --- | --- |
+| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the bucket, the notification topic) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
 | `name`, `prefix`, `project_id`, `location`, `storage_class`, `labels`, `uniform_bucket_level_access`, `default_event_based_hold`, `requester_pays`, `public_access_prevention`, `versioning`, `autoclass`, `cors`, `custom_placement_config`, `encryption_key`, `logging_config`, `lifecycle_rules`, `retention_policy`, `soft_delete_retention`, `website`, `ip_filter` | the `StorageBucket`'s fields of the same meaning; the name is `<prefix>-<name>` lower-cased; `cors.max_age_seconds` is at least 3600, as fabric sets it |
 | `force_destroy` | the `cnrm.cloud.google.com/force-destroy` annotation: the bucket's objects are deleted with it |
 | `bucket_create: false` | no bucket: IAM, the notification and tag bindings go on the existing bucket `<prefix>-<name>` |

@@ -33,7 +33,7 @@ kind: ComputeRoute
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "route" $key)) "id" (printf "route:%s" $key) "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
 spec:
-  resourceID: {{ $r.name | default (printf "%s-%s" $v.name $key) }}
+  resourceID: {{ if $r.name }}{{ include "kcc.cloudName" (list $ "route" $r.name 63 "letter") }}{{ else }}{{ include "kcc.fit" (list $ "route" (printf "%s-%s" (include "netvpc.networkName" $) $key) 63) }}{{ end }}
   networkRef:
     {{- include "netvpc.networkRef" $ | nindent 4 }}
   destRange: {{ $r.dest_range | quote }}

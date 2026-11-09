@@ -14,7 +14,7 @@ kind: ComputeNetworkFirewallPolicyAssociation
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "fw-policy" $k)) "id" (printf "firewall_policy_association:%s" $k) "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
 spec:
-  resourceID: {{ $a.name | default (printf "%s-%s" $.Values.name $k) }}
+  resourceID: {{ if $a.name }}{{ include "kcc.cloudName" (list $ "firewall policy association" $a.name 63 "letter") }}{{ else }}{{ include "kcc.fit" (list $ "firewall policy association" (printf "%s-%s" (include "netvpc.networkName" $) $k) 63) }}{{ end }}
   projectRef:
     external: {{ required "net-vpc: project_id is needed for a firewall policy association" $.Values.project_id | quote }}
   attachmentTargetRef:

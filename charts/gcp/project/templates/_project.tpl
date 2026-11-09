@@ -5,9 +5,12 @@ Ported from cloud-foundation-fabric modules/project (v60.0.0),
 Copyright 2025 Google LLC, Apache-2.0.
 */ -}}
 
-{{/* project.id: "<prefix>-<name>", as fabric names it. */}}
+{{/* project.id: "<prefix>-<name>", as fabric names it, with the namePrefix in
+front (a project ID is global and never reusable: 6 to 30 characters). */}}
 {{- define "project.id" -}}
-{{- if .Values.prefix -}}{{ printf "%s-%s" .Values.prefix .Values.name }}{{- else -}}{{ .Values.name }}{{- end -}}
+{{- $n := .Values.name -}}
+{{- if .Values.prefix -}}{{- $n = printf "%s-%s" .Values.prefix .Values.name -}}{{- end -}}
+{{- include "kcc.cloudName" (list . "project ID" $n 30 "letter") -}}
 {{- end -}}
 
 {{/* project.ref: the project as a typed reference (projectRef). */}}
