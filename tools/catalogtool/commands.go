@@ -13,6 +13,7 @@ import (
 
 	"github.com/highfivelabs/catalog/tools/convert"
 	"github.com/highfivelabs/catalog/tools/coverage"
+	"github.com/highfivelabs/catalog/tools/ids"
 	"github.com/highfivelabs/catalog/tools/nameprefix"
 	"github.com/highfivelabs/catalog/tools/upstream"
 	"github.com/highfivelabs/catalog/tools/watch"
@@ -90,6 +91,21 @@ var commands = map[string]func(args []string) error{
 			return fmt.Errorf("namePrefix check failed:\n  %s", strings.Join(all, "\n  "))
 		}
 		fmt.Println("namePrefix: ok")
+		return nil
+	},
+	"ids": func(args []string) error {
+		var all []string
+		for _, dir := range args {
+			problems, err := ids.Check(dir)
+			if err != nil {
+				return err
+			}
+			all = append(all, problems...)
+		}
+		if len(all) > 0 {
+			return fmt.Errorf("id check failed:\n  %s", strings.Join(all, "\n  "))
+		}
+		fmt.Println("ids: ok")
 		return nil
 	},
 }

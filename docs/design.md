@@ -64,6 +64,11 @@ The builder's answers of 2026-11-09, applied in the sections below.
     tags), which it applies to every resource. Bundt supplies names and
     identity labels from team naming conventions; charts accept them and
     compute none ("Names, labels and tags").
+11. **Ids and outputs** (2026-11-09 and 2026-11-10): every object carries
+    an `hfl.dev/id`, and two objects of one kind must have distinct ids or
+    Bundt's plan blocks; outputs are bare CEL, never `${...}` ("Outputs").
+12. **A Template version is only recorded rows** (2026-11-10, K7), not an
+    OCI parent artifact ("Versioning and the OCI layout").
 
 ## Summary
 
@@ -282,12 +287,28 @@ plan time too (a blocking finding), so the chart's check is the early copy.
 ### Outputs
 
 A Package's outputs are CEL over its rendered resources' live status
-(packages.md R8). The binding is not specified yet; the charts assume this
-one, and the pilot evaluates it (`tools/catalogtool outputs`):
+(packages.md R8). The charts assume this binding, which the builder
+confirmed on 2026-11-09 (Bundt's `drafts/cel`, answers 1 to 3), and the
+pilot evaluates it (`tools/catalogtool outputs`):
 
-- each rendered object whose annotation `hfl.dev/id` is set is bound as
-  `resources.<id>` (or `resources["subnet:europe-west1/apps"]`), **whatever
-  its kind**: CEL selects what an output needs from them;
+- each rendered object is bound by its id as `resources.<id>` (or
+  `resources["subnet:europe-west1/apps"]` when the id is not a CEL
+  identifier), **whatever its kind**: CEL selects what an output needs from
+  them. Its id is its `hfl.dev/id` annotation; Bundt gives an object without
+  one a default id from its kind (`SQLDatabase` → `sqlDatabase`), which only
+  works for the only object of its kind, and **blocks a plan with two
+  objects of one kind without distinct ids**. No output reads another by
+  name, since names follow team conventions;
+- **every object the catalog renders carries an explicit `hfl.dev/id`**,
+  distinct across the whole render (stricter than Bundt needs, so no chart
+  leans on the default). Objects made in a loop put the loop's key in the
+  id: `subnet:<region>/<name>`, `route:<key>`, `iam-additive-<key>`,
+  `grant-<kind>|<key>`. `task test` renders every case and fails on an
+  object without an id or two objects with one (`catalogtool ids`);
+- **outputs are bare CEL**, as every expression field is: `${...}` marks an
+  expression inside a text value (a component's inputs), never an output.
+  `catalogtool check` refuses an output wrapped in `${...}` ("outputs are
+  bare CEL; remove ${ }");
 - the component's values, the chart's defaults under the component's
   inputs, are bound as `inputs`;
 - the CEL environment is the standard library plus `strings`, `lists` and
@@ -791,7 +812,11 @@ concrete Package that meets the test.
   compatibility check (drafts/agreed) runs the render against the
   Target's CRD schemas, as `hack/test.sh` does against v1.160.0's.
 - Templates (a landing zone, a project baseline) pin Package versions, as
-  every Template does.
+  every Template does. **A Template version is only rows Bundt records**
+  (the builder, 2026-11-10, K7): the Template document at that version and
+  the Package versions it pins. It is not an OCI artifact: nothing is
+  pushed for a Template, and there is no parent artifact that refers to
+  its charts. Charts are the catalog's only OCI artifacts.
 
 ## From Terraform
 
@@ -819,8 +844,9 @@ tasks (`task --list`).
 
 1. **Render**, `task test`, every change, a few seconds: shared helper
    copies match; `helm lint`; the Package document matches the chart and
-   every output compiles as CEL; each test case renders to its golden
-   file; every render validates with `kubeconform -strict` against JSON
+   every output is bare CEL that compiles; each test case renders to its
+   golden file, and every object in it has an `hfl.dev/id` no other object
+   shares (`catalogtool ids`); every render validates with `kubeconform -strict` against JSON
    schemas made from Config Connector v1.160.0's CRDs, every object closed
    (`additionalProperties: false`), so a misspelt or missing field fails;
    each `*.fail.yaml` is refused with its expected message.
