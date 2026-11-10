@@ -4,26 +4,26 @@
 # The Bundt Package for this chart (see ../iam-service-account/package.yaml).
 # Outputs are fabric's declared outputs for what the chart ports, selected
 # from the live objects and the component's values: project_id and id
-# come from inputs, as fabric computes them, so they have a value with
+# come from inputs, as fabric computes them (names.project when it is set), so they have a value with
 # project_reuse too; name and number need the project object.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: gcp-project
 spec:
-  version: 0.2.0
+  version: 0.3.0
   engine: helm
   providers: [kcc]
   outputs:
     project_id: >-
-      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name
+      ('project' in inputs.names && inputs.names.project != '' ? inputs.names.project : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name)
     id: >-
-      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name
+      ('project' in inputs.names && inputs.names.project != '' ? inputs.names.project : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name)
     name: resources.project.spec.name
     number: resources.project.status.number
     services: >-
       resources.filter(k, resources[k].kind == 'Service').map(k, resources[k].spec.resourceID).sort()
     organization_policies_ids: >-
       resources.transformMapEntry(k, v, v.kind == 'OrgPolicyPolicy',
-        {v.spec.resourceID: 'projects/' + ((inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name)
+        {v.spec.resourceID: 'projects/' + ('project' in inputs.names && inputs.names.project != '' ? inputs.names.project : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name)
           + '/policies/' + v.spec.resourceID})

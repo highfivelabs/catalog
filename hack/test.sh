@@ -15,6 +15,8 @@
 #      against Config Connector's CRD schemas at the release in UPSTREAM.md;
 #   4b. the namePrefix check (catalogtool nameprefix) and each case rendered with a
 #      namePrefix validates too;
+#   4c. every object of every case has an hfl.dev/id, and no two share one
+#      (catalogtool ids);
 #   5. each tests/<case>.fail.yaml fails to render with the message on its
 #      first line ("# expect: ...").
 #
@@ -73,8 +75,10 @@ for name in "${charts[@]}"; do
     fi
   done
   # the namePrefix convention: every collision-prone cloud name carries it, an
-  # empty one changes nothing (docs/design.md, "namePrefix").
+  # empty one changes nothing (docs/design.md, "Names, labels and tags").
   if out="$(bin/catalogtool nameprefix "${dir}" 2>&1)"; then ok; else bad "${name}: namePrefix"; echo "${out}"; fi
+  # every object has an hfl.dev/id and no two share one (docs/design.md, "Outputs").
+  if out="$(bin/catalogtool ids "${dir}" 2>&1)"; then ok; else bad "${name}: ids"; echo "${out}"; fi
   for values in "${dir}"/tests/*.values.yaml; do
     case="$(basename "${values}" .values.yaml)"
     if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" --set namePrefix=zz9 2>&1)" \

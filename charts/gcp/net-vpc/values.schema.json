@@ -113,10 +113,30 @@
     }
   },
   "properties": {
+    "names": {
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set derives from name.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {"description": "The network name in full.", "type": "string", "minLength": 1, "maxLength": 63},
+        "dnsPolicy": {"description": "The DNS policy name in full.", "type": "string", "minLength": 1, "maxLength": 63}
+      }
+    },
     "namePrefix": {
-      "description": "Bundt-wide uniqueness prefix (not a Terraform variable): names of cloud resources that must be unique start with <namePrefix>-. A DNS label, as an Instance name is. Empty changes nothing.",
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived cloud name, never one set under names. A DNS label. Empty changes nothing.",
       "type": "string",
       "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
     },
     "name": {"description": "The name of the network being created.", "type": "string", "pattern": "^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$"},
     "project_id": {"description": "The project of the network; null takes the namespace's.", "$ref": "#/definitions/stringOrNull"},

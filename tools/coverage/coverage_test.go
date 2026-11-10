@@ -68,7 +68,7 @@ output "obj" { value = 2 }
 `)
 	write(t, src, "modules/b/variables.tf", `variable "x" {}`)
 	write(t, src, "modules/c/variables.tf", `variable "x" {}`)
-	write(t, root, "charts/gcp/a/values.yaml", "namePrefix: ''\nx: ''\ny: null\nz: 1\n")
+	write(t, root, "charts/gcp/a/values.yaml", "names: {}\nnamePrefix: ''\nlabels: {}\ntags: {}\nx: ''\ny: null\nz: 1\n")
 	write(t, root, "charts/gcp/a/package.yaml", "spec:\n  outputs:\n    id: inputs.x\n")
 	write(t, root, "charts/gcp/a/upstream.yaml", `module: gcp/a
 repo: https://github.com/example/fabric

@@ -60,11 +60,15 @@ supported". A variable the chart does not list at all counts as not covered
 | `no-chart` | the module has no chart yet |
 
 **Additions.** A chart's values can include more than the module's
-variables: `namePrefix` (every chart: Bundt's uniqueness prefix,
-`docs/design.md`, "namePrefix"), `allow_alpha`, `deletion_policy`. They are
-not Terraform variables, so they are never counted as missing or covered; the
-module's `notes` list them ("adds ..."), and the generator fails for a chart
-that lacks `namePrefix`.
+variables: `names`, `namePrefix`, `labels` and `tags` (every chart: whole
+cloud names, the optional prefix, Kubernetes labels and cloud labels;
+`docs/design.md`, "Names, labels and tags"), `allow_alpha`,
+`deletion_policy`. They are not Terraform variables, so they are never
+counted as missing or covered; the module's `notes` list them ("adds ..."),
+and the generator fails for a chart that lacks any of the first four. A
+module whose own variable has one of these names (fabric's `labels`, the
+project module's `tags`) keeps it, with the catalog's meaning, and is not
+listed as adding it.
 
 **Outputs.** A chart covers an output when its Package (`package.yaml`)
 declares an output of that name. The charts follow the builder's decision

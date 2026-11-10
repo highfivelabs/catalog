@@ -6,12 +6,26 @@
 # the module (README.md lists what is ported); every other variable is
 # kept so tfvars convert one to one, and refused when set.
 
-# Bundt-wide uniqueness prefix, not a Terraform variable: when set, every
-# name this chart gives a cloud resource that must be unique (buckets,
-# projects, service accounts, networks, ...) starts with "<namePrefix>-",
-# in front of the module's own prefix. A Template passes
-# namePrefix: ${instance.name}. Empty (the default) changes nothing.
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# Each collision-prone cloud name in full, {project}. A name set here
+# takes no prefix. A name not set derives from name, as fabric names it.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every derived cloud
+# name (never one set under names). Empty (the default) changes nothing.
 namePrefix: ""
+# Kubernetes labels on every object (fabric's labels, on the project, are
+# these: here every object carries them). A prefixed key (hfl.dev/team) stays in
+# Kubernetes; an unprefixed one also becomes a Google Cloud label, since
+# Config Connector copies it to the resource.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels (Config
+# Connector carries them as unprefixed metadata.labels).
+# A value that is a map is fabric's tags variable (tag keys to create),
+# which is not ported yet and is refused.
+tags: {}
 
 # Project name and ID suffix; the project ID is "<prefix>-<name>".
 name: ""
@@ -23,7 +37,6 @@ parent: null
 # Billing account ID.
 billing_account: null
 auto_create_network: false
-labels: {}
 # DELETE (the default) or ABANDON. PREVENT is refused: use lien_reason.
 deletion_policy: DELETE
 # If non-empty, creates a project lien with this description.
@@ -73,7 +86,6 @@ notification_channels: {}
 alerts: {}
 asset_feeds: {}
 bigquery_reservations: {}
-tags: {}
 tag_bindings: {}
 network_tags: {}
 tags_config: {}

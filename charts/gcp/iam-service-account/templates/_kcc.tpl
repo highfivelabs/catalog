@@ -36,8 +36,10 @@ kcc.metadata: the metadata of one Config Connector object.
               Package's outputs read as resources.<id> (docs/design.md, "Outputs")
   project     the Google Cloud project, or "" to take the namespace's
               (cnrm.cloud.google.com/project-id on the namespace)
-  labels      labels copied to the cloud resource (Config Connector copies
-              unprefixed metadata.labels to Google Cloud labels)
+  labels      further labels for this object only, copied to the cloud
+              resource (Config Connector copies unprefixed metadata.labels
+              to Google Cloud labels); the chart's labels and tags values
+              are added to every object (kcc.labels)
   annotations further annotations
   abandon     true to keep the cloud resource when the object is deleted
 */}}
@@ -48,7 +50,7 @@ labels:
   app.kubernetes.io/instance: {{ .root.Release.Name | quote }}
   app.kubernetes.io/name: {{ .root.Chart.Name }}
   app.kubernetes.io/version: {{ .root.Chart.Version | quote }}
-{{- range $k, $v := (.labels | default dict) }}
+{{- range $k, $v := (include "kcc.labels" (list .root (.labels | default dict)) | fromJson) }}
   {{ $k }}: {{ $v | quote }}
 {{- end }}
 annotations:
@@ -62,6 +64,61 @@ annotations:
 {{- range $k, $v := (.annotations | default dict) }}
   {{ $k }}: {{ $v | quote }}
 {{- end }}
+{{- end -}}
+
+{{/*
+kcc.labels: the labels every object of the chart carries besides the
+standard app.kubernetes.io ones, as JSON: the chart's tags and labels
+values and the object's own labels (docs/design.md, "Names, labels and
+tags").
+  tags    cloud labels, {KEY: VALUE}: on Google Cloud, Config Connector's
+          only way to label a resource is an unprefixed metadata.label, so
+          each must be a valid Google Cloud label (lower-case letters,
+          digits, "_" and "-"; a key starts with a letter) and a valid
+          Kubernetes label. A value that is a map or a list is left out
+          here: a chart whose module has a tags variable of another shape
+          refuses it itself.
+  labels  Kubernetes labels, {KEY: VALUE}. A prefixed key (hfl.dev/team)
+          stays in Kubernetes; an unprefixed one also reaches the cloud, so
+          it must be a valid Google Cloud label too.
+A key set twice with different values, or one of the standard
+app.kubernetes.io keys, stops the render.
+  {{ include "kcc.labels" (list $ $objectLabels) | fromJson }}
+*/}}
+{{- define "kcc.labels" -}}
+{{- $root := index . 0 -}}{{- $own := index . 1 -}}
+{{- $chart := $root.Chart.Name -}}
+{{- $out := dict -}}
+{{- $gcpKey := "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$" -}}
+{{- $gcpValue := "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$" -}}
+{{- $k8sKey := "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?[A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?$" -}}
+{{- $k8sValue := "^([A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?)?$" -}}
+{{- $standard := list "app.kubernetes.io/managed-by" "app.kubernetes.io/instance" "app.kubernetes.io/name" "app.kubernetes.io/version" -}}
+{{- $sources := list (list "tags" ($root.Values.tags | default dict)) (list "labels" ($root.Values.labels | default dict)) (list "labels of this object" $own) -}}
+{{- range $s := $sources -}}
+{{- $from := index $s 0 -}}
+{{- range $k, $raw := (index $s 1) -}}
+{{- if not (and (eq $from "tags") (or (kindIs "map" $raw) (kindIs "slice" $raw))) -}}
+{{- $v := toString $raw -}}
+{{- if kindIs "invalid" $raw }}{{ $v = "" }}{{ end -}}
+{{- if has $k $standard -}}
+{{- fail (printf "%s: %s %s: the chart sets this label itself" $chart $from $k) -}}
+{{- end -}}
+{{- if or (eq $from "tags") (not (contains "/" $k)) -}}
+{{- if not (and (regexMatch $gcpKey $k) (regexMatch $gcpValue $v)) -}}
+{{- fail (printf "%s: %s %s=%q is not a valid Google Cloud label: a key starts with a lower-case letter; keys and values are at most 63 lower-case letters, digits, \"_\" or \"-\", ending with a letter or digit%s" $chart $from $k $v (ternary "" " (an unprefixed Kubernetes label reaches the cloud through Config Connector: prefix the key, as in hfl.dev/team, to keep it in Kubernetes)" (eq $from "tags"))) -}}
+{{- end -}}
+{{- else if not (and (regexMatch $k8sKey $k) (regexMatch $k8sValue $v) (le (len (splitList "/" $k | first)) 253)) -}}
+{{- fail (printf "%s: %s %s=%q is not a valid Kubernetes label" $chart $from $k $v) -}}
+{{- end -}}
+{{- if and (hasKey $out $k) (ne (get $out $k) $v) -}}
+{{- fail (printf "%s: label %s is set twice, to %q and to %q (by %s)" $chart $k (get $out $k) $v $from) -}}
+{{- end -}}
+{{- $_ := set $out $k $v -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- toJson $out -}}
 {{- end -}}
 
 {{/*
@@ -202,12 +259,61 @@ spec:
 {{- end -}}
 
 {{/*
-kcc.namePrefix: the Bundt-wide uniqueness prefix, "<namePrefix>-", or ""
+kcc.names: stop the render when the chart's names value sets a key the
+chart does not have. Every chart lists its collision-prone cloud names
+once, in the template of its core resource.
+  {{ include "kcc.names" (list $ (list "bucket" "topic")) }}
+*/}}
+{{- define "kcc.names" -}}
+{{- $root := index . 0 -}}{{- $known := index . 1 -}}
+{{- range $k, $_ := ($root.Values.names | default dict) -}}
+{{- if not (has $k $known) -}}
+{{- fail (printf "%s: names.%s is not a name this chart gives; it takes names.%s" $root.Chart.Name $k (join ", names." $known)) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+kcc.resourceName: the cloud name of one collision-prone resource
+(docs/design.md, "Names, labels and tags").
+  - names.<key> set: that name, in full: no namePrefix and no module
+    prefix are added. Bundt supplies these from a team's naming
+    convention. Its length (and, with "letter", its first character) is
+    checked.
+  - otherwise the name derived from the base name (fabric's naming), with
+    the optional namePrefix in front (kcc.cloudName).
+  {{ include "kcc.resourceName" (list $ "bucket" "bucket" $derived 63) }}
+  {{ include "kcc.resourceName" (list $ "network" "network" .Values.name 63 "letter") }}
+*/}}
+{{- define "kcc.resourceName" -}}
+{{- $root := index . 0 -}}{{- $key := index . 1 -}}{{- $what := index . 2 -}}{{- $derived := index . 3 -}}{{- $max := index . 4 -}}
+{{- $letter := and (gt (len .) 5) (eq (index . 5) "letter") -}}
+{{- $set := index ($root.Values.names | default dict) $key -}}
+{{- if $set -}}
+{{- if not (kindIs "string" $set) -}}
+{{- fail (printf "%s: names.%s must be a string" $root.Chart.Name $key) -}}
+{{- end -}}
+{{- if gt (len $set) (int $max) -}}
+{{- fail (printf "%s: names.%s %q is %d characters, more than the %d the cloud allows for a %s name" $root.Chart.Name $key $set (len $set) (int $max) $what) -}}
+{{- end -}}
+{{- if and $letter (not (regexMatch "^[a-z]" $set)) -}}
+{{- fail (printf "%s: names.%s %q must start with a lower-case letter" $root.Chart.Name $key $set) -}}
+{{- end -}}
+{{- $set -}}
+{{- else if $letter -}}
+{{- include "kcc.cloudName" (list $root $what $derived $max "letter") -}}
+{{- else -}}
+{{- include "kcc.cloudName" (list $root $what $derived $max) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+kcc.namePrefix: the optional uniqueness prefix, "<namePrefix>-", or ""
 when the chart's namePrefix value is empty (the default: nothing changes
-and the names are the Terraform module's). A Template passes the same
-prefix to its infrastructure components, typically
-namePrefix: ${instance.name}, so two Instances of one Stack in one
-project never ask the cloud for the same name (docs/design.md, "namePrefix").
+and the names are the Terraform module's). A convenience: a name set in
+full under names.<key> takes no prefix (kcc.resourceName), and Bundt
+supplies whole names from a team's naming convention rather than a
+prefix (docs/design.md, "Names, labels and tags").
 It goes outermost, on top of a module's own prefix variable:
 <namePrefix>-<prefix>-<name>.
 */}}

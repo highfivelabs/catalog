@@ -31,7 +31,10 @@ The module's variables, with the same names, types and defaults
 
 | Variable | Renders |
 | --- | --- |
-| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the account ID) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
+| `names.serviceAccount` | not fabric variables: the cloud name in full, used as given (no `namePrefix`, no `prefix`) and checked against the cloud's limit; a name not set derives from `name` (`docs/design.md`, "Names, labels and tags") |
+| `namePrefix` | not a fabric variable: an optional convenience. When set, the derived cloud names this chart gives (the account ID) start with `<namePrefix>-`, in front of the module's own `prefix`; never a name set under `names`; empty changes nothing |
+| `labels` | Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it), so it must be a valid one |
+| `tags` | cloud labels on every object (Google Cloud labels) |
 | `name`, `prefix`, `project_id`, `display_name`, `description` | `IAMServiceAccount` named `<prefix>-<name>` (checked: 6 to 30 characters) in `project_id`, or the namespace's project when null |
 | `deletion_policy` | `DELETE` (default) or `ABANDON` (keeps the account); `PREVENT` is refused |
 | `iam`, `iam_by_principals`, `iam_bindings` | one `IAMPartialPolicy` on the account |
@@ -79,6 +82,14 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=iam-service-account`: three render cases, five refusals.
+`task test CHART=iam-service-account`: four render cases, ten refusals.
 `tests/mock.values.yaml` is applied to the fake cloud by
 `hack/mock-apply.sh`.
+
+## Changes
+
+- **0.3.0** (2026-11-10): `names` (`names.serviceAccount`) sets cloud names in full;
+  `labels` and `tags` go on every object; `namePrefix` is an optional
+  convenience that never touches a name set in full.
+- **0.2.0** (2026-11-09): `namePrefix`.
+- **0.1.0** (2026-11-09): the pilot port.

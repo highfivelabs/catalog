@@ -56,6 +56,19 @@ The builder's answers of 2026-11-09, applied in the sections below.
    folders, projects, policies or identities ("Testing", "The test
    provisioner"). The privileged principal it needs waits on a test
    folder, and the builder creates it.
+10. **Whole names, labels and tags** (2026-11-09 and 2026-11-10): a
+    required prefix is too prescriptive. Every chart takes
+    `names.<resource>` (a collision-prone cloud name in full), defaults a
+    name not set from one base `name`, keeps `namePrefix` as an optional
+    convenience, and takes `labels` (Kubernetes) and `tags` (cloud labels or
+    tags), which it applies to every resource. Bundt supplies names and
+    identity labels from team naming conventions; charts accept them and
+    compute none ("Names, labels and tags").
+11. **Ids and outputs** (2026-11-09 and 2026-11-10): every object carries
+    an `hfl.dev/id`, and two objects of one kind must have distinct ids or
+    Bundt's plan blocks; outputs are bare CEL, never `${...}` ("Outputs").
+12. **A Template version is only recorded rows** (2026-11-10, K7), not an
+    OCI parent artifact ("Versioning and the OCI layout").
 
 ## Summary
 
@@ -173,86 +186,88 @@ refused even with `allow_alpha`.
   characters a name cannot (`roles/logging.logWriter`), or the name would
   pass 63 characters, it ends with 8 hex characters of the key's sha256,
   so two keys never collide and a name never changes between renders.
-- **Cloud names** are fabric's (`<prefix>-<name>`), in `spec.resourceID`,
-  and with `namePrefix` set they start with the Instance's prefix
-  (below).
+- **Cloud names** are in `spec.resourceID`: the name set under
+  `names.<resource>` in full, else fabric's (`<prefix>-<name>`), with the
+  optional `namePrefix` in front (below).
 - Kubernetes names are an interface: renaming an object deletes the old
   one and its cloud resource ("Versioning").
 
-### namePrefix
+### Names, labels and tags
 
-Builder's rule, 2026-11-09: "always have a namePrefix to any cloud resource
-that could have a 409 naming conflict", so that a Template can pass a
-templated Instance name and keep Instances distinct in one project.
+Builder's rule, 2026-11-09 and 2026-11-10: a required prefix is too
+prescriptive. Teams name things their own way (an environment short name,
+a region code, a team acronym), so **every chart takes whole names, and
+Bundt supplies them** from the team's naming convention, one level up
+(Bundt's `drafts/naming`: named CEL expressions on a Team, overridable by
+an Environment, used by Templates as `${naming.<name>}`). The chart accepts
+names and identity labels; it computes none.
 
-**The value.** Every chart has an optional `namePrefix` (string, default
-empty; `values.schema.json` takes a DNS label, as an Instance name is one).
-It is an addition to the module's variables, not a Terraform variable, and
-the coverage does not count it as one (`docs/coverage`, "adds ..." in the
-notes). `kcc.namePrefix` (in `lib/_kcc.tpl`, like every helper) turns it
-into `"<namePrefix>-"` or `""`; `kcc.cloudName` puts it on a name and checks
-the length. **Empty, nothing changes**: the renders are the Terraform
-module's, byte for byte (`task test` renders every case again with an empty
-`namePrefix` and compares).
+Every chart takes these values. None is a Terraform variable, and the
+coverage counts none as one (`docs/coverage`, "adds ..." in the notes).
 
-**Where it applies.** To every name the chart gives a cloud resource: the
-`spec.resourceID` of Config Connector objects (ACK would be `spec.name`, ASO
-`azureName`; no chart for those yet). Global names above all (buckets, project
-IDs), and per-project or per-region ones (service account IDs, networks,
-subnets, routes, addresses, DNS policies, Pub/Sub topics), because two
-Instances in one project meet there. Kinds with no name of their own, or whose name the
-cloud fixes or keys by something else (IAM bindings, `Service`,
-`OrgPolicyPolicy`, notifications, liens), are listed with their reason in
-the chart's `tests/name-prefix.yaml`. The Kubernetes names are already
-distinct: they start with the release name, which is the live component's
-`<instance>-<component>` (the check proves it).
+| Value | What it does |
+| --- | --- |
+| `names.<resource>` | sets one collision-prone cloud name in full: `names.bucket` and `names.topic` (gcs), `names.serviceAccount` (iam-service-account), `names.network` and `names.dnsPolicy` (net-vpc), `names.project` (project). A name set here is used as given: no `namePrefix`, no module `prefix`. Its length (and, where the cloud wants it, a leading letter) is checked; another key is refused |
+| `name` | the base name. A name not set under `names` derives from it as fabric derives it (`<prefix>-<name>`) |
+| `namePrefix` | an optional convenience: `<namePrefix>-` in front of every derived name, never one set under `names`. Empty (the default) changes nothing |
+| `labels` | Kubernetes labels on every object. A prefixed key (`hfl.dev/team`) stays in Kubernetes; an unprefixed one also becomes a Google Cloud label, because Config Connector copies unprefixed `metadata.labels` to the resource, so it must also be a valid Google Cloud label |
+| `tags` | cloud labels or tags on every resource. On Google Cloud these are labels, which Config Connector carries only as unprefixed `metadata.labels`, so each must be a valid Google Cloud label. (ACK would render AWS tags, ASO Azure tags) |
 
-A name that *refers to* something this chart does not name is not
-prefixed: `encryption_key`, `log_bucket`, a peer network's self link, a
-Shared VPC host project. A name this chart computes for something it does
-not create (`bucket_create: false`, `vpc_reuse`, `project_reuse`) is
-computed the same way, prefix included, so a component can add IAM to the
-bucket another component of the same Template made; for a resource that
-exists outside Bundt under its own name, leave `namePrefix` empty on that
-component.
+`kcc.resourceName` (in `lib/_kcc.tpl`) picks `names.<key>` or the derived
+name; `kcc.names` refuses a key the chart does not have; `kcc.labels` merges
+`tags`, `labels` and an object's own labels, refusing an invalid label, one
+of the chart's `app.kubernetes.io/*` keys, or a key set twice with
+different values.
 
-**With the module's own `prefix`.** `prefix` keeps fabric's exact meaning
-and `namePrefix` goes outermost: `<namePrefix>-<prefix>-<name>`. With
-`namePrefix: shop-dev`, `prefix: test`, `name: data` the bucket is
-`shop-dev-test-data`; with `namePrefix` empty it is `test-data`, fabric's.
-They never merge, so there is no double prefix and `prefix` never has to be
-reinterpreted. For AWS and Azure modules (`name_prefix`, `prefix`,
-`name`), the same rule: the module's variable is ported as it is and
-`namePrefix` stays the addition. The converter maps a Terraform `prefix` to
-`prefix` and never to `namePrefix`.
-
-**Limits.** With a prefix set, a name that passes the cloud's limit stops
-the render, naming the resource, the limit and the lengths (`gcs: bucket
-name "..." is 69 characters, more than the 63 the cloud allows; namePrefix
-"abcdefgh" is 9 of them (with its hyphen)`). Without a prefix nothing new is
-checked. Limits used: bucket 63, project ID 30, service account ID 30,
-network, subnet, route, address, policy, peering, attachment 63, Pub/Sub
-topic 255. Names that must start with a letter refuse a prefix that starts
-with a digit (an Instance name may). Instance names are at most 63
-characters, so a long one fails these checks and wants a shorter
-`namePrefix` than `${instance.name}`.
-
-**In a Template.** The context does expose it: `instance.name` is a string
-known when the plan is made (`specs/catalog/templates.md`, "The runtime
-context", R11's example is `instanceName: "${instance.name}-db"`). So a
-Template gives each infrastructure component
+**Example.** A Template whose Team defines `naming.prefix` as
+`${team.shortName}-${environment.shortName}-${target.regionCode}`:
 
 ```yaml
 inputs:
-  namePrefix: ${instance.name}
+  name: assets
+  names:
+    bucket: ${naming.prefix}-assets       # shop-dev-euw1-assets
+  labels:
+    hfl.dev/team: ${team.name}             # stays in Kubernetes
+  tags:
+    team: ${team.name}                     # a label on the bucket
 ```
 
-and two Instances of one Stack, `orders-dev` and `orders-prod` in one
-project, get `orders-dev-test-data` and `orders-prod-test-data`
-(`examples/names`, whose `convert.args` is `--name-prefix ${instance.name}`,
-and its two plans). Nothing needs adding to Bundt. What is not proven
-here: that Bundt accepts the expression in the chart's string value as the
-specs say (the plan preview evaluates it itself).
+Bundt also stamps its identity labels and tags (team, environment, stack,
+instance, component, plan digest) on every resource, through these values
+or a post-render step (Bundt's `drafts/naming`, answer 2). Grouping, cost
+and search use the labels, never parsed names.
+
+**Which names.** Each name the chart gives a singular cloud resource has a
+`names` key. Repeated sub-resources (subnets, routes, network attachments,
+PSA ranges) are named in their own entries, as fabric's are; those names
+are whole names already, with `namePrefix` in front when it is set. A
+name derived from another (a route or peering without a name of its own,
+`<network>-<key>`) derives from the network's name as set. A name that
+*refers to* something this chart does not name is never changed:
+`encryption_key`, `log_bucket`, a peer network's self link, a Shared VPC
+host project. A name this chart computes for something it does not create
+(`bucket_create: false`, `vpc_reuse`, `project_reuse`) is computed the same
+way, so `names.bucket` names the existing bucket.
+
+**namePrefix, the convenience.** `prefix` keeps fabric's meaning and
+`namePrefix` goes outermost: `<namePrefix>-<prefix>-<name>`. With
+`namePrefix: shop-dev`, `prefix: test`, `name: data` the bucket is
+`shop-dev-test-data`; with `namePrefix` empty it is `test-data`, fabric's.
+The converter maps a Terraform `prefix` to `prefix`, never to `namePrefix`.
+Kinds with no name of their own, or whose name the cloud fixes (IAM
+bindings, `Service`, `OrgPolicyPolicy`, notifications, liens), are listed
+with their reason in the chart's `tests/name-prefix.yaml`, and `task test`
+checks every other object's cloud name carries the prefix (or a name the
+case sets under `names`), and that an empty prefix changes nothing
+(`catalogtool nameprefix`).
+
+**Limits.** A name set in full is always checked; a derived name is
+checked when a `namePrefix` is set (without one, the render is the
+Terraform module's). Limits used: bucket 63, project ID 30, service account
+ID 30, network, subnet, route, address, policy, peering, attachment 63,
+Pub/Sub topic 255. Bundt checks rendered names against the clouds' rules at
+plan time too (a blocking finding), so the chart's check is the early copy.
 
 ### Project, labels, scope
 
@@ -261,21 +276,39 @@ specs say (the plan preview evaluates it itself).
   namespace's annotation, which Bundt's kcc `namespaceSetup` Package sets
   from the Environment's `spec.cloud.gcp.project`. Templates should leave
   it unset or write `${environment.cloud.gcp.project}`.
-- fabric's `labels` become `metadata.labels`; Config Connector copies
-  unprefixed labels to the cloud resource and skips prefixed ones, so
-  Bundt's `hfl.dev/*` and ApplySet labels never reach the cloud.
+- The chart's `labels` and `tags` go on every object's `metadata.labels`
+  (fabric's `labels`, which fabric puts on the core resource, are the
+  chart's `labels`). Config Connector copies unprefixed labels to the cloud
+  resource and skips prefixed ones, so Bundt's `hfl.dev/*` and ApplySet
+  labels never reach the cloud.
 - Every object carries `hfl.dev/id` (below) and the standard
   `app.kubernetes.io/*` labels.
 
 ### Outputs
 
 A Package's outputs are CEL over its rendered resources' live status
-(packages.md R8). The binding is not specified yet; the charts assume this
-one, and the pilot evaluates it (`tools/catalogtool outputs`):
+(packages.md R8). The charts assume this binding, which the builder
+confirmed on 2026-11-09 (Bundt's `drafts/cel`, answers 1 to 3), and the
+pilot evaluates it (`tools/catalogtool outputs`):
 
-- each rendered object whose annotation `hfl.dev/id` is set is bound as
-  `resources.<id>` (or `resources["subnet:europe-west1/apps"]`), **whatever
-  its kind**: CEL selects what an output needs from them;
+- each rendered object is bound by its id as `resources.<id>` (or
+  `resources["subnet:europe-west1/apps"]` when the id is not a CEL
+  identifier), **whatever its kind**: CEL selects what an output needs from
+  them. Its id is its `hfl.dev/id` annotation; Bundt gives an object without
+  one a default id from its kind (`SQLDatabase` → `sqlDatabase`), which only
+  works for the only object of its kind, and **blocks a plan with two
+  objects of one kind without distinct ids**. No output reads another by
+  name, since names follow team conventions;
+- **every object the catalog renders carries an explicit `hfl.dev/id`**,
+  distinct across the whole render (stricter than Bundt needs, so no chart
+  leans on the default). Objects made in a loop put the loop's key in the
+  id: `subnet:<region>/<name>`, `route:<key>`, `iam-additive-<key>`,
+  `grant-<kind>|<key>`. `task test` renders every case and fails on an
+  object without an id or two objects with one (`catalogtool ids`);
+- **outputs are bare CEL**, as every expression field is: `${...}` marks an
+  expression inside a text value (a component's inputs), never an output.
+  `catalogtool check` refuses an output wrapped in `${...}` ("outputs are
+  bare CEL; remove ${ }");
 - the component's values, the chart's defaults under the component's
   inputs, are bound as `inputs`;
 - the CEL environment is the standard library plus `strings`, `lists` and
@@ -320,12 +353,17 @@ Differences from Terraform:
 Every new chart, in the order of `docs/design.md`'s sections:
 
 1. Values: every module variable with its name, type and default; the
-   additions (`namePrefix`, and `allow_alpha`, `deletion_policy` where they
-   apply) in `values.yaml` and `values.schema.json`.
-2. **namePrefix.** Every cloud name the chart gives a resource is built with
-   `kcc.cloudName` (or `kcc.fit` when derived from one that already is),
-   with the cloud's length limit and `"letter"` where it must start with
-   one; the Package's `name`/`id` outputs computed from inputs include it.
+   additions (`names`, `namePrefix`, `labels`, `tags`, and `allow_alpha`,
+   `deletion_policy` where they apply) in `values.yaml` and
+   `values.schema.json`.
+2. **Names.** Every cloud name the chart gives a singular resource is built
+   with `kcc.resourceName` under a `names` key (listed once with
+   `kcc.names`), an item's own name with `kcc.cloudName`, a name derived
+   from one that already is with `kcc.fit`; each with the cloud's length
+   limit and `"letter"` where it must start with one. The Package's
+   `name`/`id` outputs computed from inputs use `names.<key>` when it is
+   set, else the derived name with the `namePrefix`. `tests/names.values.yaml`
+   sets every `names` key, `labels` and `tags`.
    `tests/name-prefix.yaml` lists the kinds that have no name that can
    collide, each with the reason; `tests/name-prefix-limit.fail.yaml` and
    `name-prefix-pattern.fail.yaml` show the refusals. `task test` fails a
@@ -774,7 +812,11 @@ concrete Package that meets the test.
   compatibility check (drafts/agreed) runs the render against the
   Target's CRD schemas, as `hack/test.sh` does against v1.160.0's.
 - Templates (a landing zone, a project baseline) pin Package versions, as
-  every Template does.
+  every Template does. **A Template version is only rows Bundt records**
+  (the builder, 2026-11-10, K7): the Template document at that version and
+  the Package versions it pins. It is not an OCI artifact: nothing is
+  pushed for a Template, and there is no parent artifact that refers to
+  its charts. Charts are the catalog's only OCI artifacts.
 
 ## From Terraform
 
@@ -802,8 +844,9 @@ tasks (`task --list`).
 
 1. **Render**, `task test`, every change, a few seconds: shared helper
    copies match; `helm lint`; the Package document matches the chart and
-   every output compiles as CEL; each test case renders to its golden
-   file; every render validates with `kubeconform -strict` against JSON
+   every output is bare CEL that compiles; each test case renders to its
+   golden file, and every object in it has an `hfl.dev/id` no other object
+   shares (`catalogtool ids`); every render validates with `kubeconform -strict` against JSON
    schemas made from Config Connector v1.160.0's CRDs, every object closed
    (`additionalProperties: false`), so a misspelt or missing field fails;
    each `*.fail.yaml` is refused with its expected message.

@@ -4,26 +4,26 @@
 # The Bundt Package for this chart (see iam-service-account/package.yaml).
 # Outputs are fabric's declared outputs, selected from the live objects
 # (resources.<id>) and the component's values (inputs): name, id and url
-# are computed from inputs as fabric computes them, so they have a value
-# with bucket_create false too. fabric's bucket and objects outputs (whole
+# are computed from inputs as fabric computes them (names.bucket when it is
+# set), so they have a value with bucket_create false too. fabric's bucket and objects outputs (whole
 # Terraform objects) are not outputs.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: gcp-gcs
 spec:
-  version: 0.2.0
+  version: 0.3.0
   engine: helm
   providers: [kcc]
   outputs:
     name: >-
-      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii()
+      ('bucket' in inputs.names && inputs.names.bucket != '' ? inputs.names.bucket : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii())
     id: >-
-      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii()
+      ('bucket' in inputs.names && inputs.names.bucket != '' ? inputs.names.bucket : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii())
     url: >-
       inputs.bucket_create
       ? resources.bucket.status.url
-      : 'gs://' + (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii()
+      : 'gs://' + ('bucket' in inputs.names && inputs.names.bucket != '' ? inputs.names.bucket : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name.lowerAscii())
     notification: "'notification' in resources ? resources.notification.status.selfLink : null"
     topic: >-
       'topic' in resources
