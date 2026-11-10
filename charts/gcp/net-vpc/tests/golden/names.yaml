@@ -1,0 +1,97 @@
+---
+# Source: net-vpc/templates/network.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "network"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: shop-dev-vpc
+  description: "Terraform-managed."
+  autoCreateSubnetworks: false
+  deleteDefaultRoutesOnCreate: false
+  routingMode: GLOBAL
+  networkFirewallPolicyEnforcementOrder: AFTER_CLASSIC_FIREWALL
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: names-route-private-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "route:private-googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: shop-dev-vpc-private-googleapis
+  networkRef:
+    name: names
+  destRange: "199.36.153.8/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: names-subnet-europe-west1-shop-dev-euw1-apps
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/shop-dev-euw1-apps"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: shop-dev-euw1-apps
+  region: europe-west1
+  networkRef:
+    name: names
+  ipCidrRange: "10.0.0.0/24"
+  description: "Terraform-managed."
+  privateIpGoogleAccess: true
+---
+# Source: net-vpc/templates/dns-policy.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSPolicy
+metadata:
+  name: names-dns-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "dns_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: shop-dev-dns
+  enableInboundForwarding: true
+  networks:
+    - networkRef:
+        name: names

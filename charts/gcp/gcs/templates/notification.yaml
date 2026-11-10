@@ -17,7 +17,7 @@ kind: PubSubTopic
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" $topic "id" "topic" "project" .Values.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
 spec:
-  resourceID: {{ include "kcc.cloudName" (list $ "notification topic" $n.topic_name 255 "letter") | quote }}
+  resourceID: {{ include "kcc.resourceName" (list $ "topic" "notification topic" $n.topic_name 255 "letter") | quote }}
   {{- with ($n.create_topic | default dict).kms_key_id }}
   kmsKeyRef:
     external: {{ . | quote }}
@@ -50,7 +50,7 @@ spec:
     {{- if $create }}
     name: {{ $topic }}
     {{- else }}
-    external: {{ $n.topic_name | quote }}
+    external: {{ (index (.Values.names | default dict) "topic") | default $n.topic_name | quote }}
     {{- end }}
   payloadFormat: {{ $n.payload_format }}
   {{- with $n.event_types }}

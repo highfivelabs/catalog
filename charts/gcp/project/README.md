@@ -30,8 +30,11 @@ org_policies:
 
 | Variable | Renders |
 | --- | --- |
-| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the project ID) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
-| `name`, `prefix`, `descriptive_name`, `parent`, `billing_account`, `labels`, `auto_create_network` | `Project` `<prefix>-<name>` (checked: 6 to 30 characters) under the folder or organization; `auto_create_network` as Config Connector's annotation |
+| `names.project` | not fabric variables: the cloud name in full, used as given (no `namePrefix`, no `prefix`) and checked against the cloud's limit; a name not set derives from `name` (`docs/design.md`, "Names, labels and tags") |
+| `namePrefix` | not a fabric variable: an optional convenience. When set, the derived cloud names this chart gives (the project ID) start with `<namePrefix>-`, in front of the module's own `prefix`; never a name set under `names`; empty changes nothing |
+| `labels` | Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it), so it must be a valid one (fabric's `labels`, on the project, are these: here every object carries them) |
+| `tags` | cloud labels on every object (Google Cloud labels); a value that is a map is fabric's `tags` (tag keys), not ported yet and refused |
+| `name`, `prefix`, `descriptive_name`, `parent`, `billing_account`, `auto_create_network` | `Project` `<prefix>-<name>` (checked: 6 to 30 characters) under the folder or organization; `auto_create_network` as Config Connector's annotation |
 | `project_reuse` | no project: everything else goes on the existing project `<prefix>-<name>` |
 | `deletion_policy` | `DELETE` (default) or `ABANDON`; `PREVENT` is refused: use `lien_reason` |
 | `lien_reason` | `ResourceManagerLien` restricting `resourcemanager.projects.delete` |
@@ -102,6 +105,14 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=project`: three render cases, four refusals.
+`task test CHART=project`: four render cases, ten refusals.
 `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
 neither) is applied to the fake cloud.
+
+## Changes
+
+- **0.3.0** (2026-11-10): `names` (`names.project`) sets cloud names in full;
+  `labels` and `tags` go on every object; `namePrefix` is an optional
+  convenience that never touches a name set in full. fabric's `labels` now label every object, not only the core resource. A `tags` entry whose value is a string is a cloud label.
+- **0.2.0** (2026-11-09): `namePrefix`.
+- **0.1.0** (2026-11-09): the pilot port.

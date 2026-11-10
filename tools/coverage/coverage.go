@@ -213,11 +213,13 @@ func Build(o Options) (*Result, error) {
 			}
 		}
 		// Values the chart adds to the module's variables (allow_alpha,
-		// deletion_policy, namePrefix, ...): additions, never missing variables.
+		// deletion_policy, names, namePrefix, ...): additions, never missing variables.
 		var additions []string
 		if cu != nil {
-			if !valueKeys["namePrefix"] {
-				return nil, fmt.Errorf("%s: values.yaml has no namePrefix: every chart takes the Bundt-wide uniqueness prefix (docs/design.md, \"namePrefix\")", m.Chart)
+			for _, k := range []string{"names", "namePrefix", "labels", "tags"} {
+				if !valueKeys[k] {
+					return nil, fmt.Errorf("%s: values.yaml has no %s: every chart takes names, namePrefix, labels and tags (docs/design.md, \"Names, labels and tags\")", m.Chart, k)
+				}
 			}
 			have := map[string]bool{}
 			for _, v := range mod.Variables {

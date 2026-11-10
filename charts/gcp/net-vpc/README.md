@@ -34,7 +34,10 @@ The module's variables, with the same names, types and defaults.
 
 | Variable | Renders |
 | --- | --- |
-| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the network, subnets, routes, addresses, DNS policy, peerings, attachments) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
+| `names.network`, `names.dnsPolicy` | not fabric variables: the cloud name in full, used as given (no `namePrefix`, no `prefix`) and checked against the cloud's limit; a name not set derives from `name` (`docs/design.md`, "Names, labels and tags") |
+| `namePrefix` | not a fabric variable: an optional convenience. When set, the derived cloud names this chart gives (the network, subnets, routes, addresses, DNS policy, peerings, attachments) start with `<namePrefix>-`, in front of the module's own `prefix`; never a name set under `names`; empty changes nothing |
+| `labels` | Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it), so it must be a valid one |
+| `tags` | cloud labels on every object (Google Cloud labels) |
 | `name`, `project_id`, `description`, `auto_create_subnetworks`, `delete_default_routes_on_create`, `mtu`, `routing_mode`, `firewall_policy_enforcement_order`, `ipv6_config` | `ComputeNetwork` |
 | `vpc_reuse` | no network: everything else goes on the existing network `name` in `project_id` |
 | `subnets`, `subnets_proxy_only`, `subnets_private_nat`, `subnets_psc` | one `ComputeSubnetwork` each, with fabric's purposes, roles and default descriptions; secondary ranges, flow logs and IPv6 |
@@ -129,5 +132,13 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=net-vpc`: five render cases, seven refusals.
+`task test CHART=net-vpc`: six render cases, ten refusals.
 `tests/mock.values.yaml` is applied to the fake cloud.
+
+## Changes
+
+- **0.3.0** (2026-11-10): `names` (`names.network`, `names.dnsPolicy`) sets cloud names in full;
+  `labels` and `tags` go on every object; `namePrefix` is an optional
+  convenience that never touches a name set in full.
+- **0.2.0** (2026-11-09): `namePrefix`.
+- **0.1.0** (2026-11-09): the pilot port.

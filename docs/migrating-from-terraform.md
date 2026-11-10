@@ -19,7 +19,7 @@ partial). `docs/coverage` says how much of every other module there is.
 | `providers = {...}` | none: the Environment's Target supplies the cloud account |
 | `$context:` lookups, `var.context` | `${...}` expressions and `valueFrom` |
 | the module's `prefix` (fabric), `name_prefix` (AWS) | the same variable, with the same meaning: `prefix` stays `prefix` and is never turned into `namePrefix` |
-| nothing: a second copy of the root module in the same project asks for the same names | `namePrefix: ${instance.name}` on each component (below) |
+| nothing: a second copy of the root module in the same project asks for the same names | whole names from the team's convention under `names`, or `namePrefix: ${instance.name}` on each component (below) |
 
 The variable names, types and defaults are the module's (`values.yaml` and
 `values.schema.json` of each chart). A variable the chart cannot carry is
@@ -103,19 +103,24 @@ not captured from a running Bundt, and it has no diffs. Expressions such as
 `${components.reader.outputs.iam_email}` are shown as written: Bundt
 resolves them when the component they name is ready.
 
-## Unique names: `namePrefix`
+## Unique names: `names` and `namePrefix`
 
 Terraform names come from the module's `name` and `prefix`; two copies of a
-root module in one project meet at the cloud as a 409. Every chart has an
-optional `namePrefix` (not a Terraform variable): when set, the cloud names
-the chart gives start with `<namePrefix>-`, in front of the module's own
-`prefix`. A Template passes `namePrefix: ${instance.name}` to each component
-(Bundt's expression context has `instance.name`), and two Instances of one
-Stack in one project stay apart. Empty, which is the default and what a
-converted module call has, nothing changes: the names are the module's, which
-is what adopting an existing resource needs (below). Set it for new
-environments, not for resources Terraform already made.
-`docs/design.md`, "namePrefix", has the rules and the limits.
+root module in one project meet at the cloud as a 409. Every chart takes
+whole names (`names.bucket`, `names.network`, ...; not Terraform variables):
+a name set there is used as given, and a name not set derives from `name`
+as the module derives it. Bundt supplies whole names from the team's naming
+convention (a Template writes `names: {bucket: ${naming.prefix}-assets}`),
+so two Instances of one Stack get distinct names however the team spells
+them. `namePrefix` stays as an optional convenience: when set, the derived
+names start with `<namePrefix>-`, in front of the module's own `prefix`, and
+`--name-prefix '${instance.name}'` adds it to every component.
+
+A converted module call sets neither, so nothing changes: the names are the
+module's, which is what adopting an existing resource needs (below). Set
+them for new environments, not for resources Terraform already made, or set
+`names.<resource>` to the existing name. `docs/design.md`, "Names, labels
+and tags", has the rules and the limits.
 
 ## Adopting resources that already exist
 

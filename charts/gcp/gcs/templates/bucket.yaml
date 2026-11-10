@@ -11,6 +11,7 @@ Copyright 2025 Google LLC, Apache-2.0.
 {{- include "kcc.unsupported" (list $ "objects_to_upload" $v.objects_to_upload "Config Connector has no bucket object kind") }}
 {{- include "kcc.unsupported" (list $ "kms_autokeys" $v.kms_autokeys "a KMSKeyHandle's key is known only after apply and StorageBucket cannot reference a handle") }}
 {{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "bucket" "topic")) }}
 {{- if and $v.autoclass (ne $v.storage_class "STANDARD") }}
 {{- fail "gcs: autoclass needs storage_class STANDARD" }}
 {{- end }}
@@ -20,7 +21,7 @@ Copyright 2025 Google LLC, Apache-2.0.
 apiVersion: storage.cnrm.cloud.google.com/v1beta1
 kind: StorageBucket
 metadata:
-  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "bucket" "project" $v.project_id "labels" $v.labels "annotations" $annotations "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "bucket" "project" $v.project_id "annotations" $annotations "abandon" (include "kcc.abandon" .)) | nindent 2 }}
 spec:
   resourceID: {{ include "gcs.bucketName" . }}
   location: {{ $v.location | quote }}
