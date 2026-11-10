@@ -1,0 +1,70 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (bundt: specs/catalog/packages.md R6).
+# hack/publish.sh pushes the chart and writes spec.source (its OCI
+# repository and digest) into the copy it submits; spec.version is the
+# chart's version. Outputs mirror the module's outputs, as CEL over the
+# live objects, each object bound as resources.<its hfl.dev/id>, and the
+# values as inputs (docs/design.md, "Outputs"). The module computes some
+# from its inputs (name, location, the add-on flags); so do these. Not
+# outputs (README.md, "Outputs"): zones and peering_name (Config Connector
+# reports neither in status), master_authorized_networks_config and
+# mesh_certificates_config (whole Terraform objects), fleet_membership and
+# secret_manager_addon_enabled (their inputs are gaps).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-gke-cluster
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.cluster.spec.resourceID
+    cluster_id: >-
+      'projects/' + inputs.project_id + '/locations/' + resources.cluster.spec.location
+      + '/clusters/' + resources.cluster.spec.resourceID
+    location: resources.cluster.spec.location
+    region: "inputs.regional ? inputs.region : inputs.zones[0].substring(0, inputs.zones[0].lastIndexOf('-'))"
+    type: "inputs.regional ? 'regional' : 'zonal'"
+    endpoint: >-
+      inputs.enable_private_nodes && has(resources.cluster.status.observedState)
+        && has(resources.cluster.status.observedState.privateClusterConfig)
+      ? ((inputs.enable_private_endpoint || inputs.deploy_using_private_endpoint)
+        ? resources.cluster.status.observedState.privateClusterConfig.privateEndpoint
+        : resources.cluster.status.observedState.privateClusterConfig.publicEndpoint)
+      : resources.cluster.status.endpoint
+    endpoint_dns: resources.cluster.status.observedState.controlPlaneEndpointsConfig.dnsEndpointConfig.endpoint
+    ca_certificate: resources.cluster.status.observedState.masterAuth.clusterCaCertificate
+    master_version: resources.cluster.status.masterVersion
+    min_master_version: "has(resources.cluster.spec.minMasterVersion) ? resources.cluster.spec.minMasterVersion : null"
+    logging_service: "has(resources.cluster.spec.loggingService) ? resources.cluster.spec.loggingService : null"
+    monitoring_service: "has(resources.cluster.spec.monitoringService) ? resources.cluster.spec.monitoringService : null"
+    master_ipv4_cidr_block: "inputs.enable_private_nodes ? inputs.master_ipv4_cidr_block : null"
+    tpu_ipv4_cidr_block: "has(resources.cluster.status.tpuIpv4CidrBlock) ? resources.cluster.status.tpuIpv4CidrBlock : null"
+    release_channel: inputs.release_channel
+    gateway_api_channel: inputs.gateway_api_channel
+    identity_namespace: >-
+      inputs.identity_namespace == 'enabled' ? inputs.project_id + '.svc.id.goog' : inputs.identity_namespace
+    service_account: >-
+      'service_account' in resources && (inputs.service_account == '' || inputs.service_account == 'create')
+      ? resources.service_account.status.email
+      : inputs.service_account
+    node_pools_names: >-
+      inputs.mode == 'autopilot' ? [] : inputs.node_pools.map(p, p.name) + inputs.windows_node_pools.map(p, p.name)
+    node_pools_versions: >-
+      resources.transformMapEntry(k, v, v.kind == 'ContainerNodePool',
+        {v.spec.resourceID: has(v.status.observedState) && has(v.status.observedState.version) ? v.status.observedState.version : ''})
+    instance_group_urls: >-
+      resources.filter(k, resources[k].kind == 'ContainerNodePool' && has(resources[k].status.instanceGroupUrls))
+        .map(k, resources[k].status.instanceGroupUrls).flatten()
+    http_load_balancing_enabled: inputs.http_load_balancing
+    horizontal_pod_autoscaling_enabled: inputs.horizontal_pod_autoscaling
+    vertical_pod_autoscaling_enabled: resources.cluster.spec.verticalPodAutoscaling.enabled
+    network_policy_enabled: "inputs.mode != 'autopilot' && inputs.network_policy"
+    dns_cache_enabled: "inputs.dns_cache == null ? inputs.mode == 'autopilot' : inputs.dns_cache"
+    intranode_visibility_enabled: "inputs.mode != 'autopilot' && inputs.enable_intranode_visibility"
+    identity_service_enabled: "inputs.mode != 'autopilot' && inputs.enable_identity_service == true"
+    pod_security_policy_enabled: "inputs.mode != 'autopilot' && inputs.enable_pod_security_policy"
+    cloudrun_enabled: "inputs.mode != 'autopilot' && inputs.cloudrun"

@@ -1,0 +1,98 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+What the chart refuses, before it renders anything (docs/design.md, "What
+Config Connector cannot express is refused, by name"): the module's
+variables Config Connector v1.160.0 cannot carry, the ones Bundt replaces,
+the ones not ported yet, and values of one mode set in the other. Each is
+listed in upstream.yaml under refused. Renders no object.
+*/ -}}
+{{- $v := .Values }}
+{{- $auto := include "gke.autopilot" . }}
+
+{{- /* Gaps: no Config Connector v1.160.0 field. */}}
+{{- $gaps := list
+  (list "gke_auto_upgrade_config_patch_mode" $v.gke_auto_upgrade_config_patch_mode "ContainerCluster has no gkeAutoUpgradeConfig")
+  (list "anonymous_authentication_config_mode" $v.anonymous_authentication_config_mode "ContainerCluster has no anonymousAuthenticationConfig")
+  (list "total_egress_bandwidth_tier" $v.total_egress_bandwidth_tier "ContainerCluster has no networkPerformanceConfig")
+  (list "rbac_binding_config" (include "gke.setBeyond" (list $v.rbac_binding_config dict)) "ContainerCluster has no rbacBindingConfig")
+  (list "enable_secret_manager_addon" $v.enable_secret_manager_addon "ContainerCluster has no secretManagerConfig")
+  (list "enable_secret_sync" $v.enable_secret_sync "ContainerCluster has no secretSyncConfig")
+  (list "enable_managed_machine_learning_diagnostics" (not (kindIs "invalid" $v.enable_managed_machine_learning_diagnostics)) "ContainerCluster has no managedMachineLearningDiagnosticsConfig")
+  (list "hpa_profile" $v.hpa_profile "ContainerCluster has no podAutoscaling")
+  (list "enterprise_config" $v.enterprise_config "ContainerCluster has no enterpriseConfig")
+  (list "lustre_csi_driver" (not (kindIs "invalid" $v.lustre_csi_driver)) "ContainerCluster's addonsConfig has no lustreCsiDriverConfig")
+  (list "enable_legacy_lustre_port" $v.enable_legacy_lustre_port "ContainerCluster's addonsConfig has no lustreCsiDriverConfig")
+  (list "agent_sandbox_enabled" (not (kindIs "invalid" $v.agent_sandbox_enabled)) "ContainerCluster's addonsConfig has no agentSandboxConfig")
+  (list "stateful_ha" $v.stateful_ha "ContainerCluster's addonsConfig has no statefulHaConfig")
+  (list "ray_operator_config" (include "gke.setBeyond" (list $v.ray_operator_config (dict "enabled" false "logging_enabled" false "monitoring_enabled" false))) "ContainerCluster's addonsConfig has no rayOperatorConfig")
+  (list "user_managed_keys_config" $v.user_managed_keys_config "ContainerCluster has no userManagedKeysConfig")
+  (list "fleet_project" $v.fleet_project "ContainerCluster has no fleet; a GKEHubMembership is the Config Connector way to register a cluster, not ported")
+  (list "network_tier_config" $v.network_tier_config "ContainerCluster's ipAllocationPolicy has no networkTierConfig")
+  (list "insecure_kubelet_readonly_port_enabled" (not (kindIs "invalid" $v.insecure_kubelet_readonly_port_enabled)) "neither nodePoolDefaults, nodePoolAutoConfig nor a node pool's kubeletConfig has insecureKubeletReadonlyPortEnabled")
+  (list "additive_vpc_scope_dns_domain" $v.additive_vpc_scope_dns_domain "ContainerCluster's dnsConfig has no additiveVpcScopeDnsDomain")
+  (list "monitoring_enable_observability_relay" $v.monitoring_enable_observability_relay "ContainerCluster has only the deprecated relayMode, not enableRelay")
+}}
+{{- range $g := $gaps }}
+{{- include "kcc.unsupported" (list $ (index $g 0) (index $g 1) (index $g 2)) }}
+{{- end }}
+{{- if and $v.monitoring_enable_managed_prometheus (not (has (toString $v.monitoring_auto_monitoring_config_scope) (list "" "NONE" "<nil>"))) }}
+{{- include "kcc.unsupported" (list $ "monitoring_auto_monitoring_config_scope" $v.monitoring_auto_monitoring_config_scope "ContainerCluster's managedPrometheus has no autoMonitoringConfig: only NONE (the default) carries over") }}
+{{- end }}
+{{- $ca := $v.cluster_autoscaling | default dict }}
+{{- if and (or $ca.enabled $ca.enable_default_compute_class) (ne (toString (default "pd-standard" $ca.disk_type)) "pd-standard") }}
+{{- include "kcc.unsupported" (list $ "cluster_autoscaling.disk_type" $ca.disk_type "ContainerCluster's autoProvisioningDefaults has no diskType: only pd-standard (the default) carries over, and is not sent") }}
+{{- end }}
+
+{{- /* Not ported: Config Connector has the kinds; the rules need the subnetwork's ranges, which the module reads with a data source and a chart cannot. */}}
+{{- range $k := list "add_cluster_firewall_rules" "add_master_webhook_firewall_rules" "add_shadow_firewall_rules" }}
+{{- include "kcc.unsupported" (list $ $k (index $v $k) "not ported yet: the module's firewall rules (firewall.tf) take the subnetwork's and the pod ranges' CIDRs from data sources, which a chart cannot read; add ComputeFirewall rules beside the cluster (README.md, \"Not ported\")") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ "fleet_project_grant_service_agent" $v.fleet_project_grant_service_agent "not ported yet: it grants the fleet project's GKE Hub service agent roles for fleet_project, which is a gap") }}
+
+{{- /* By design: Bundt does these another way. */}}
+{{- include "kcc.unsupported" (list $ "timeouts" $v.timeouts "Config Connector has no per-resource timeouts; it retries until the cluster is ready") }}
+{{- range $k := list "stub_domains" "upstream_nameservers" "configure_ip_masq" "ip_masq_link_local" }}
+{{- include "kcc.unsupported" (list $ $k (index $v $k) "the module writes this into the cluster (kube-dns or ip-masq-agent ConfigMaps, through the kubernetes provider); with Bundt that is a component delivered to the cluster as a Target, not a cloud resource (README.md, \"Not ported\")") }}
+{{- end }}
+
+{{- /* Mode. The module you call picks it; the chart takes it as a value. */}}
+{{- /* The defaults of the Standard-only variables, as values.yaml has them (Helm keeps values.yaml out of .Files).
+     tests/autopilot.values.yaml renders only while the two agree. */}}
+{{- $defaults := `{"additive_vpc_scope_dns_domain": "", "cloudrun": false, "cloudrun_load_balancer_type": "", "cluster_autoscaling": {"auto_repair": true, "auto_upgrade": true, "autoscaling_profile": "BALANCED", "disk_size": 100, "disk_type": "pd-standard", "enable_default_compute_class": false, "enable_integrity_monitoring": true, "enable_secure_boot": false, "enabled": false, "gpu_resources": [], "image_type": "COS_CONTAINERD", "max_cpu_cores": 0, "max_memory_gb": 0, "min_cpu_cores": 0, "min_memory_gb": 0}, "cluster_dns_domain": "", "cluster_dns_provider": "PROVIDER_UNSPECIFIED", "cluster_dns_scope": "DNS_SCOPE_UNSPECIFIED", "cluster_telemetry_type": null, "config_connector": false, "configure_ip_masq": false, "datapath_provider": "DATAPATH_PROVIDER_UNSPECIFIED", "default_max_pods_per_node": 110, "disable_legacy_metadata_endpoints": true, "enable_default_node_pools_metadata": true, "enable_gcfs": false, "enable_identity_service": false, "enable_intranode_visibility": false, "enable_kubernetes_alpha": false, "enable_mesh_certificates": false, "enable_pod_security_policy": false, "enable_shielded_nodes": true, "gce_pd_csi_driver": true, "gcs_fuse_csi_driver": false, "initial_node_count": 0, "ip_masq_link_local": false, "ip_masq_resync_interval": "60s", "logging_service": "logging.googleapis.com/kubernetes", "logging_variant": null, "monitoring_auto_monitoring_config_scope": "NONE", "monitoring_enable_managed_prometheus": null, "monitoring_enable_observability_metrics": false, "monitoring_enable_observability_relay": false, "monitoring_service": "monitoring.googleapis.com/kubernetes", "network_policy": false, "network_policy_provider": "CALICO", "node_metadata": "GKE_METADATA", "node_pools": [{"name": "default-node-pool"}], "node_pools_hugepage_size_1g": {"all": "", "default-node-pool": ""}, "node_pools_hugepage_size_2m": {"all": "", "default-node-pool": ""}, "node_pools_labels": {"all": {}, "default-node-pool": {}}, "node_pools_linux_node_configs_sysctls": {"all": {}, "default-node-pool": {}}, "node_pools_metadata": {"all": {}, "default-node-pool": {}}, "node_pools_oauth_scopes": {"all": ["https://www.googleapis.com/auth/cloud-platform"], "default-node-pool": []}, "node_pools_resource_labels": {"all": {}, "default-node-pool": {}}, "node_pools_resource_manager_tags": {"all": {}, "default-node-pool": {}}, "node_pools_tags": {"all": [], "default-node-pool": []}, "node_pools_taints": {"all": [], "default-node-pool": []}, "node_pools_transparent_hugepage_defrag": {"all": "", "default-node-pool": ""}, "node_pools_transparent_hugepage_enabled": {"all": "", "default-node-pool": ""}, "non_masquerade_cidrs": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"], "parallelstore_csi_driver": null, "remove_default_node_pool": false, "sandbox_enabled": false, "stub_domains": {}, "upstream_nameservers": [], "windows_node_pools": []}` | fromJson }}
+{{- $standardOnly := list "additive_vpc_scope_dns_domain" "cloudrun" "cloudrun_load_balancer_type" "cluster_autoscaling" "cluster_dns_domain" "cluster_dns_provider" "cluster_dns_scope" "cluster_telemetry_type" "config_connector" "configure_ip_masq" "datapath_provider" "default_max_pods_per_node" "disable_legacy_metadata_endpoints" "enable_default_node_pools_metadata" "enable_gcfs" "enable_identity_service" "enable_intranode_visibility" "enable_kubernetes_alpha" "enable_mesh_certificates" "enable_pod_security_policy" "enable_shielded_nodes" "gce_pd_csi_driver" "gcs_fuse_csi_driver" "initial_node_count" "ip_masq_link_local" "ip_masq_resync_interval" "logging_service" "logging_variant" "monitoring_auto_monitoring_config_scope" "monitoring_enable_managed_prometheus" "monitoring_enable_observability_metrics" "monitoring_enable_observability_relay" "monitoring_service" "network_policy" "network_policy_provider" "node_metadata" "node_pools" "node_pools_hugepage_size_1g" "node_pools_hugepage_size_2m" "node_pools_labels" "node_pools_linux_node_configs_sysctls" "node_pools_metadata" "node_pools_oauth_scopes" "node_pools_resource_labels" "node_pools_resource_manager_tags" "node_pools_tags" "node_pools_taints" "node_pools_transparent_hugepage_defrag" "node_pools_transparent_hugepage_enabled" "non_masquerade_cidrs" "parallelstore_csi_driver" "remove_default_node_pool" "sandbox_enabled" "stub_domains" "upstream_nameservers" "windows_node_pools" }}
+{{- if $auto }}
+{{- range $k := $standardOnly }}
+{{- if ne (toJson (index $v $k)) (toJson (index $defaults $k)) }}
+{{- fail (printf "gke-cluster: %s is a Standard-mode variable (beta-private-cluster); with mode: autopilot GKE manages it, so it must keep its default (README.md, \"Mode\")" $k) }}
+{{- end }}
+{{- end }}
+{{- if and (kindIs "map" $v.node_pools_cgroup_mode) (ne (toJson $v.node_pools_cgroup_mode) `{"all":"","default-node-pool":""}`) }}
+{{- fail "gke-cluster: node_pools_cgroup_mode is a string with mode: autopilot (the Autopilot module's type), not a map by node pool" }}
+{{- end }}
+{{- else }}
+{{- range $k := list "allow_net_admin" "default_compute_class_enabled" }}
+{{- if not (kindIs "invalid" (index $v $k)) }}
+{{- fail (printf "gke-cluster: %s is an Autopilot-mode variable (beta-autopilot-private-cluster): set mode: autopilot, or use cluster_autoscaling.enable_default_compute_class in Standard mode (README.md, \"Mode\")" $k) }}
+{{- end }}
+{{- end }}
+{{- if kindIs "string" $v.node_pools_cgroup_mode }}
+{{- fail "gke-cluster: node_pools_cgroup_mode is a map by node pool with mode: standard ({all: ..., <pool>: ...}); a string is the Autopilot module's type" }}
+{{- end }}
+{{- end }}
+
+{{- /*
+A cluster's mode cannot change: GKE has no conversion, and Config
+Connector refuses a change to the immutable spec.enableAutopilot. When the
+render can see the cluster (helm install or upgrade against it), stop here
+with what to do instead; an offline render sees nothing, and Bundt's live
+check reports Config Connector's refusal at plan time (README.md, "Mode").
+*/}}
+{{- $live := lookup "container.cnrm.cloud.google.com/v1beta1" "ContainerCluster" .Release.Namespace .Release.Name }}
+{{- if $live }}
+{{- $was := ternary "autopilot" "standard" (eq (toString (dig "spec" "enableAutopilot" false $live)) "true") }}
+{{- if ne $was $v.mode }}
+{{- fail (printf "gke-cluster: mode is %s but cluster %s is %s: GKE cannot change a cluster's mode, so this would replace the cluster and everything running on it. Delete this component first and create it again with the new mode, or make a new component beside it (README.md, \"Mode\")" $v.mode .Release.Name $was) }}
+{{- end }}
+{{- end }}

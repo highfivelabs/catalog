@@ -1,7 +1,8 @@
 # Upstream
 
-The catalog ports Terraform modules from Cloud Foundation Fabric to Helm
-charts of Config Connector objects. Two upstreams are pinned here;
+The catalog ports Terraform modules from Cloud Foundation Fabric (and, for
+`gke-cluster`, terraform-google-modules' kubernetes-engine) to Helm charts
+of Config Connector objects. Two upstreams are pinned here;
 `hack/kcc.sh` reads the Config Connector rows, and every chart names the
 fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 `hfl.dev/source-*` annotations) and in its README.
@@ -38,11 +39,14 @@ or when a chart's `Chart.yaml` annotations name another release.
 | Source | Licence | Notice |
 | --- | --- | --- |
 | Cloud Foundation Fabric | Apache-2.0 | Copyright Google LLC |
+| terraform-google-modules (kubernetes-engine) | Apache-2.0 | Copyright Google LLC |
 | terraform-aws-modules | Apache-2.0 | no copyright line in the modules' `LICENSE` files, except `eventbridge` (Sven Lito); no `NOTICE` files |
 | Azure Verified Modules | MIT | Copyright (c) Microsoft Corporation |
 
-Only fabric is ported so far; `NOTICE` says what a chart ported from the
-other two must carry.
+Fabric is ported, and terraform-google-modules' kubernetes-engine module
+(`gke-cluster`, tracked as `gcp/kubernetes-engine-beta-private-cluster` at
+`v47.0.0`); `NOTICE` says what a chart ported from the AWS and Azure sources
+must carry.
 
 ## What is ported, from where
 
@@ -52,6 +56,7 @@ other two must carry.
 | `charts/gcp/gcs` | `modules/gcs` | the bucket and every field Config Connector has; IAM; the notification, its topic and the topic's publisher binding; tag bindings; IAM on an existing bucket (`bucket_create: false`) | `enable_object_retention`, `enable_hierarchical_namespace`, `rpo`, `objects_to_upload`, `managed_folders`, `kms_autokeys`, `context` |
 | `charts/gcp/net-vpc` | `modules/net-vpc` | see the chart's README | see the chart's README |
 | `charts/gcp/project` | `modules/project` | see the chart's README | see the chart's README |
+| `charts/gcp/gke-cluster` | terraform-google-kubernetes-engine `modules/beta-private-cluster` and `modules/beta-autopilot-private-cluster` (v47.0.0) | the cluster (Standard or Autopilot, `mode`), node pools, the node service account and its grants; see the chart's README for the full mapping | see the chart's README |
 
 ## Moving the pins
 
