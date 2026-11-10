@@ -39,7 +39,8 @@ ends with a kro verdict. Nothing was built.
   ASO covers the main resource of all ten, and of 24 of the top 25.
 - **Gaps.** The biggest by count is **management locks**
   (`Microsoft.Authorization/locks`). 31 of the 33 modules read for this
-  inventory accept a `lock`, and ASO has none (issue #3756, open). After that
+  inventory accept a `lock`, and ASO has none (issue #3756, open). The
+  builder ruled them out of the first catalog (2026-11-10). After that
   come:
   - Key Vault secrets, already built in aso-extensions as `VaultSecret`;
   - the child resources of Container Apps environments, App Service sites
@@ -539,7 +540,7 @@ in section 4 need it, then by downloads.
 
 | # | Gap | Modules needing it | Kind of gap | Upstream | Belongs |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Management locks (`Microsoft.Authorization/locks`) | 31 of 33 (optional `lock` input everywhere) | ARM | issue #3756 open; #4629 closed | upstream. Also see the question below |
+| 1 | Management locks (`Microsoft.Authorization/locks`) | 31 of 33 (optional `lock` input everywhere) | ARM | issue #3756 open; #4629 closed | not needed for the first catalog (the builder, 2026-11-10); `lock` is refused until then. See below |
 | 2 | Key Vault secrets written by a module | 4 (keyvault, virtual machine, storage account, sql-server) | data plane, declined by ASO (#1894) | n/a | **built**: `VaultSecret` |
 | 3 | Container Apps environment children (Dapr components, storages, certificates, managed certificates, ...) | 1 (managedenvironment, 40), but every container app that uses Dapr or Azure Files needs them | ARM | no issue found | upstream |
 | 4 | App Service site children (slots, hostname bindings, certificates, config sections, publishing policies) | 1 (web-site, 22); core to App Service | ARM | no issue found | upstream |
@@ -564,12 +565,13 @@ Already built in aso-extensions and needed by the top modules:
   sql-server;
 - the PostgreSQL `User` for the flexible server's database users.
 
-**A question for the builder, not decided here.** Locks are the single
-biggest gap by count, and each is a small extension resource. Under
-aso-extensions' open question 6, the recommendation is never to build an ARM
-kind in aso-extensions. Locks may be the case that tests that rule. They are
-optional in AVM (default off), so a first catalog can also ship without
-them.
+**Answered by the builder, 2026-11-10 (K10): resource locks are not needed
+for the first catalog.** Locks are the single biggest gap by count, and
+optional in AVM (default off), so the first Azure charts ship without them:
+a chart keeps AVM's `lock` input, so a module call converts one to one, and
+refuses it when set, naming the gap (as every chart refuses what it cannot
+carry). Building a lock kind, upstream in ASO or in aso-extensions (the ARM
+rule was reversed on 2026-11-09), waits until a later catalog asks for it.
 
 ## 6. kro verdict for Azure
 

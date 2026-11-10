@@ -12,7 +12,7 @@
 //	catalogtool check PACKAGE_YAML CHART_YAML
 //	    Check a Package document against its chart: kind Package, engine
 //	    helm, spec.version equal to the chart's version, and every output
-//	    a CEL expression that compiles.
+//	    a bare CEL expression (never wrapped in ${...}) that compiles.
 //
 //	catalogtool upstream check [CHART_DIR...]
 //	    Check upstream/modules.yaml and each chart's upstream.yaml
@@ -219,6 +219,12 @@ func check(pkgPath, chartPath string) error {
 		return err
 	}
 	for n, expr := range p.Spec.Outputs {
+		// Outputs are bare CEL (Bundt's drafts/cel, "Syntax rule"): ${...}
+		// marks an expression inside a text value, never an output.
+		if strings.Contains(expr, "${") {
+			problems = append(problems, fmt.Sprintf("output %s: outputs are bare CEL; remove ${ }", n))
+			continue
+		}
 		if _, iss := env.Compile(expr); iss.Err() != nil {
 			problems = append(problems, fmt.Sprintf("output %s: %v", n, iss.Err()))
 		}
