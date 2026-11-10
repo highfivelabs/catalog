@@ -34,6 +34,11 @@ CRDS="$(hack/kcc.sh)"
 VERSION="$(basename "$(dirname "$(dirname "$(dirname "${CRDS}")")")" | sed 's/^kcc-//')"
 SCHEMAS="${ROOT}/.cache/schemas-${VERSION}"
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
+# config-connector-extensions kinds (IAMBinding) validate against the CRDs
+# copied in crds/config-connector-extensions.
+CCE_SCHEMAS="${ROOT}/.cache/schemas-cce"
+rm -rf "${CCE_SCHEMAS}"
+bin/catalogtool schemas crds/config-connector-extensions "${CCE_SCHEMAS}" >/dev/null
 
 fail=0; passed=0
 bad() { echo "FAIL $*"; fail=$((fail + 1)); }
@@ -68,7 +73,8 @@ for name in "${charts[@]}"; do
       diff -u "${golden}" <(printf '%s\n' "${rendered}") | head -40 || true
     fi
     if out="$(printf '%s\n' "${rendered}" | kubeconform -strict -summary \
-        -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
+        -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+          -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
       ok; echo "ok   ${name}/${case}: ${out#Summary: }"
     else
       bad "${name}/${case}: kubeconform"; echo "${out}"
@@ -83,7 +89,8 @@ for name in "${charts[@]}"; do
     case="$(basename "${values}" .values.yaml)"
     if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" --set namePrefix=zz9 2>&1)" \
         && out="$(printf '%s\n' "${rendered}" | kubeconform -strict -summary \
-          -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
+          -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+          -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
       ok
     else
       bad "${name}/${case}: with namePrefix=zz9"; echo "${rendered}" | head -5; echo "${out:-}"
