@@ -114,11 +114,12 @@ tasks:
         if [ -n "$out" ]; then echo "$out"; echo "gofmt needed"; exit 1; fi
       - cd tools && go vet ./...
       - task: tools-test
+      - task: offramp-test
       - task: test
       - task: examples-test
       - task: coverage-check
       - |
-        if command -v shellcheck >/dev/null; then shellcheck -x -S warning hack/*.sh hack/*/*.sh; else echo "shellcheck not installed: scripts not linted"; fi
+        if command -v shellcheck >/dev/null; then shellcheck -x -S warning hack/*.sh hack/*/*.sh offramp/hack/*.sh; else echo "shellcheck not installed: scripts not linted"; fi
       - |
         if command -v actionlint >/dev/null; then actionlint; else echo "actionlint not installed: workflows not linted"; fi
 
@@ -134,6 +135,28 @@ tasks:
     deps: [test, cce-snapshot]
     cmds:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} hack/mock-apply.sh'
+
+  offramp-test:
+    desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/)
+    dir: offramp
+    cmds:
+      - |
+        out="$(gofmt -l .)"
+        if [ -n "$out" ]; then echo "$out"; echo "gofmt needed"; exit 1; fi
+      - go vet ./...
+      - go test ./...
+
+  offramp-validate:
+    desc: terraform fmt, init and validate of the offramp's four fixtures (no credentials), on an offload VM
+    cmds:
+      - '{{.OFFLOAD}} run --machine e2-standard-4 --hours 1 -- offramp/hack/validate.sh'
+
+  offramp-live:
+    desc: "The offramp's live proof of one fixture (SHAPE=shared-vpc) in {{.LIVE_PROJECT}}, on an offload VM acting as cce-live-tests@: apply, scan, convert, adopt with Config Connector, check nothing changed, destroy"
+    cmds:
+      - '{{.OFFLOAD}} run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --hours 3 -- env PROJECT={{.LIVE_PROJECT}} offramp/hack/live.sh {{.SHAPE}}'
+    vars:
+      SHAPE: '{{.SHAPE | default "shared-vpc"}}'
 
   test-live:
     desc: Apply three pilot charts to real Google Cloud (project {{.LIVE_PROJECT}}, tiny resources, deleted straight after) on an offload VM acting as {{.LIVE_SA}}
