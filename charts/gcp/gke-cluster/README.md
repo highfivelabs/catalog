@@ -374,8 +374,17 @@ both. To take a newer release, see [`UPSTREAM.md`](../../../UPSTREAM.md),
 `full`, `names`, `autopilot`, `autopilot-full`, `mock`), each validated
 against Config Connector v1.160.0's CRD schemas, and the refusals in
 `tests/*.fail.yaml`. `tests/mock.values.yaml` is applied to the fake cloud by
-`hack/mock-apply.sh`. A live run of each mode is described in `docs/design.md`,
-"Pilot results".
+`hack/mock-apply.sh` (`task test-mock`): on 2026-11-10 (offload VM
+`off-catalog-1110224047-6558`, catalog `5be787c`) the cluster, its node
+pool, the node service account and its three grants were all Ready and
+deleted, and all 30 outputs evaluated.
+
+`task test-live-gke` (`hack/live-gke.sh`) applies a zonal Standard cluster
+with one Spot `e2-small` node and an Autopilot cluster to `hfl-dev-514205`,
+waits for Ready, deletes them and checks `gcloud container clusters list`.
+It has not run yet: the runner, `cce-live-tests`, needs
+`roles/container.clusterAdmin` on the project, and the Kubernetes Engine API
+(`container.googleapis.com`) must be enabled there.
 
 ## Changes
 
