@@ -12,7 +12,8 @@
 #     --machine e2-standard-8 --hours 2 -- env PROJECT=hfl-dev-514205 \
 #     CCE_TARBALL=gs://.../cce-<commit>.tar.gz hack/live-apply.sh
 #
-# Rules: one project (hfl-dev-514205); every gcloud call passes --project;
+# Rules: one project (hfl-dev-514205, or a test estate generation
+# hfl-test-g<N>); every gcloud call passes --project;
 # every name starts with a run ID, cat-<UTC month day hour minute>-<4 hex>,
 # and every object that takes labels carries catalog-run=<run ID>; the test
 # deletes what it makes; a sweeper runs before and after (this run's
@@ -28,6 +29,9 @@ set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 ALLOWED_PROJECTS=(hfl-dev-514205)
+# And the test estate's generations, hfl-test-g1, hfl-test-g2, ...
+# (factory/estate/gcp), in the live-tests folder.
+ALLOWED_PROJECT_PATTERN='^hfl-test-g[0-9]+$'
 PROJECT="${PROJECT:-}"
 REGION=us-central1
 TIMEOUT="${LIVE_TIMEOUT:-600}"
@@ -36,7 +40,8 @@ mkdir -p "${OUT}"
 
 allowed=no
 for p in "${ALLOWED_PROJECTS[@]}"; do [[ "${PROJECT}" == "${p}" ]] && allowed=yes; done
-[[ "${allowed}" == yes ]] || { echo "live-apply: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]}" >&2; exit 2; }
+[[ "${PROJECT}" =~ ${ALLOWED_PROJECT_PATTERN} ]] && allowed=yes
+[[ "${allowed}" == yes ]] || { echo "live-apply: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]} and ${ALLOWED_PROJECT_PATTERN}" >&2; exit 2; }
 md() { curl -sf -H 'Metadata-Flavor: Google' "http://metadata.google.internal/computeMetadata/v1/$1"; }
 RUNNER="$(md instance/service-accounts/default/email || true)"
 [[ "${RUNNER}" == *.iam.gserviceaccount.com ]] || { echo "live-apply: not on a VM acting as a service account (got '${RUNNER}')" >&2; exit 2; }
