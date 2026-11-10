@@ -73,7 +73,7 @@ for name in "${charts[@]}"; do
     fi
   done
   # the namePrefix convention: every collision-prone cloud name carries it, an
-  # empty one changes nothing (docs/design.md, "namePrefix").
+  # empty one changes nothing (docs/design.md, "Names, labels and tags").
   if out="$(bin/catalogtool nameprefix "${dir}" 2>&1)"; then ok; else bad "${name}: namePrefix"; echo "${out}"; fi
   for values in "${dir}"/tests/*.values.yaml; do
     case="$(basename "${values}" .values.yaml)"

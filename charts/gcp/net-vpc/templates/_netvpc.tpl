@@ -14,10 +14,12 @@ name: {{ .Release.Name }}
 {{- end -}}
 {{- end -}}
 
-{{/* netvpc.networkName: the network's name in Google Cloud, with the
-namePrefix (at most 63 characters). */}}
+{{/* netvpc.networkName: the network's name in Google Cloud: names.network
+in full, else name with the namePrefix (at most 63 characters). Routes,
+peerings and firewall policy associations without a name of their own
+derive theirs from it. */}}
 {{- define "netvpc.networkName" -}}
-{{- include "kcc.cloudName" (list . "network" .Values.name 63 "letter") -}}
+{{- include "kcc.resourceName" (list . "network" "network" .Values.name 63 "letter") -}}
 {{- end -}}
 
 {{/* netvpc.networkId: projects/<project>/global/networks/<name>. */}}

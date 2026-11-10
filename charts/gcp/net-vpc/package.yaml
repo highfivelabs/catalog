@@ -11,19 +11,21 @@
 # consumers take. Not outputs: network_id and internal_ipv6_range
 # (ComputeNetwork does not report them: field gaps), and fabric's whole
 # objects (network, subnets). name and project_id come from inputs, as
-# fabric computes them; with vpc_reuse the chart makes no network object, so
+# fabric computes them (name is names.network when it is set); with vpc_reuse the chart makes no network object, so
 # id and self_link have no value.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: gcp-net-vpc
 spec:
-  version: 0.2.0
+  version: 0.3.0
   engine: helm
   providers: [kcc]
   outputs:
     name: >-
-      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name
+      'network' in inputs.names && inputs.names.network != ''
+      ? inputs.names.network
+      : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name
     self_link: resources.network.status.selfLink
     id: >-
       'projects/' + resources.network.metadata.annotations['cnrm.cloud.google.com/project-id']

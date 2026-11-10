@@ -6,9 +6,16 @@ Copyright 2025 Google LLC, Apache-2.0: the project, its lien and its
 essential contacts.
 */ -}}
 {{- $v := .Values }}
-{{- range $var := list "custom_roles" "logging_sinks" "logging_exclusions" "logging_metrics" "logging_data_access" "log_scopes" "metric_scopes" "notification_channels" "alerts" "asset_feeds" "bigquery_reservations" "tags" "tag_bindings" "network_tags" "tags_config" "kms_autokeys" "service_encryption_key_ids" "workload_identity_pools" "pam_entitlements" "iam_deny_policies" "scc_mute_configs" "scc_sha_custom_modules" "shared_vpc_host_config" "vpc_sc" "quotas" "factories_config" "service_agents_config" "service_agents_folder_bindings" "service_agents_project_bindings" "iam_by_principals_conditional" }}
+{{- range $var := list "custom_roles" "logging_sinks" "logging_exclusions" "logging_metrics" "logging_data_access" "log_scopes" "metric_scopes" "notification_channels" "alerts" "asset_feeds" "bigquery_reservations" "tag_bindings" "network_tags" "tags_config" "kms_autokeys" "service_encryption_key_ids" "workload_identity_pools" "pam_entitlements" "iam_deny_policies" "scc_mute_configs" "scc_sha_custom_modules" "shared_vpc_host_config" "vpc_sc" "quotas" "factories_config" "service_agents_config" "service_agents_folder_bindings" "service_agents_project_bindings" "iam_by_principals_conditional" }}
 {{- include "kcc.unsupported" (list $ $var (index $v $var) "not ported to this chart yet (charts/gcp/project/README.md, \"Not ported\")") }}
 {{- end }}
+{{- /* tags: string values are cloud labels on every object (the catalog's
+tags value, kcc.labels); fabric's tags variable, tag keys to create
+({KEY: {description, iam, values, ...}}), is not ported. */}}
+{{- $fabricTags := dict }}
+{{- range $k, $t := ($v.tags | default dict) }}{{ if or (kindIs "map" $t) (kindIs "slice" $t) }}{{ $_ := set $fabricTags $k $t }}{{ end }}{{ end }}
+{{- include "kcc.unsupported" (list $ "tags" $fabricTags "fabric's tag keys ({KEY: {description, iam, values}}) are not ported to this chart yet (charts/gcp/project/README.md, \"Not ported\"); a tags entry whose value is a string is a cloud label") }}
+{{- include "kcc.names" (list $ (list "project")) }}
 {{- include "kcc.unsupported" (list $ "compute_metadata" $v.compute_metadata "ComputeProjectMetadata owns all of a project's metadata, while fabric sets single items; no per-item kind") }}
 {{- include "kcc.unsupported" (list $ "default_network_tier" $v.default_network_tier "Config Connector has no project default network tier") }}
 {{- include "kcc.unsupported" (list $ "cloud_armor_policy" $v.cloud_armor_policy "ComputeOrganizationSecurityPolicyAssociation is alpha in v1.160.0") }}
@@ -34,7 +41,7 @@ essential contacts.
 apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
 kind: Project
 metadata:
-  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "project" "labels" $v.labels "annotations" $annotations "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "project" "annotations" $annotations "abandon" (include "kcc.abandon" .)) | nindent 2 }}
 spec:
   resourceID: {{ $id }}
   name: {{ $v.descriptive_name | default $id | quote }}

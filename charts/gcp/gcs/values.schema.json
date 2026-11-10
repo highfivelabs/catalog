@@ -54,10 +54,30 @@
     }
   },
   "properties": {
+    "names": {
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set derives from name.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bucket": {"description": "The bucket name in full (3 to 63 characters, global).", "type": "string", "minLength": 3, "maxLength": 63},
+        "topic": {"description": "The notification topic name in full.", "type": "string", "minLength": 3, "maxLength": 255}
+      }
+    },
     "namePrefix": {
-      "description": "Bundt-wide uniqueness prefix (not a Terraform variable): names of cloud resources that must be unique start with <namePrefix>-. A DNS label, as an Instance name is. Empty changes nothing.",
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived cloud name, never one set under names. A DNS label. Empty changes nothing.",
       "type": "string",
       "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
     },
     "name": {"description": "Bucket name suffix.", "type": "string", "minLength": 1},
     "prefix": {"description": "Optional prefix used to generate the bucket name. Cannot be empty: use null.", "type": ["string", "null"], "minLength": 1},
@@ -71,7 +91,6 @@
     },
     "force_destroy": {"description": "Delete the bucket's objects with it.", "type": ["boolean", "null"]},
     "uniform_bucket_level_access": {"type": ["boolean", "null"]},
-    "labels": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
     "default_event_based_hold": {"$ref": "#/definitions/boolOrNull"},
     "requester_pays": {"$ref": "#/definitions/boolOrNull"},
     "public_access_prevention": {"type": ["string", "null"], "enum": ["enforced", "inherited", null]},

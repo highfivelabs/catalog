@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package nameprefix checks the catalog's namePrefix convention
-// (docs/design.md, "namePrefix"): rendered with a namePrefix, every object
+// (docs/design.md, "Names, labels and tags"): rendered with a namePrefix, every object
 // whose cloud-side name can collide with another Instance's carries it, and
 // rendered without one, nothing changes.
 //
@@ -11,7 +11,10 @@
 // tests/name-prefix.yaml (with a reason: it has no name of its own, or the
 // cloud fixes the name) or when its spec.resourceID, the cloud-side name,
 // contains the prefix. So a resource added to a chart without the helper
-// fails here until its author either prefixes it or says why not.
+// fails here until its author either prefixes it or says why not. A name a
+// test case sets in full under names (docs/design.md, "Names, labels and
+// tags") takes no prefix, so an object whose cloud name contains one of the
+// case's names values passes too.
 package nameprefix
 
 import (
@@ -57,6 +60,28 @@ func render(chartDir, release, values string, set ...string) ([]byte, error) {
 		return nil, fmt.Errorf("%s", strings.TrimSpace(errb.String()))
 	}
 	return out.Bytes(), nil
+}
+
+// fullNames returns the values a test case sets under names: cloud names in
+// full, which take no namePrefix.
+func fullNames(values string) ([]string, error) {
+	data, err := os.ReadFile(values)
+	if err != nil {
+		return nil, err
+	}
+	var v struct {
+		Names map[string]string `yaml:"names"`
+	}
+	if err := yaml.Unmarshal(data, &v); err != nil {
+		return nil, fmt.Errorf("%s: %w", values, err)
+	}
+	var out []string
+	for _, n := range v.Names {
+		if n != "" {
+			out = append(out, n)
+		}
+	}
+	return out, nil
 }
 
 func objects(rendered []byte) ([]object, error) {
@@ -122,6 +147,18 @@ func Check(chartDir string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		full, err := fullNames(values)
+		if err != nil {
+			return nil, err
+		}
+		setInFull := func(id string) bool {
+			for _, n := range full {
+				if strings.Contains(id, n) {
+					return true
+				}
+			}
+			return false
+		}
 		for _, o := range objs {
 			if !strings.HasPrefix(o.Metadata.Name, name+"-") && o.Metadata.Name != name {
 				bad("%s: %s %q: the Kubernetes name does not start with the release name, so two Instances in one namespace could collide", name, o.Kind, o.Metadata.Name)
@@ -133,7 +170,7 @@ func Check(chartDir string) ([]string, error) {
 			switch {
 			case o.Spec.ResourceID == "":
 				bad("%s: %s %q has no spec.resourceID, so its cloud name cannot carry the namePrefix: give it one built with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, o.Kind)
-			case !strings.Contains(o.Spec.ResourceID, Prefix+"-"):
+			case !strings.Contains(o.Spec.ResourceID, Prefix+"-") && !setInFull(o.Spec.ResourceID):
 				bad("%s: %s %q has cloud name %q without the namePrefix: build it with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, o.Spec.ResourceID, o.Kind)
 			}
 		}

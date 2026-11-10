@@ -57,7 +57,7 @@ type Options struct {
 	// NamePrefix, when set (typically "${instance.name}"), is passed to every
 	// component whose chart takes a namePrefix, as the Template component's
 	// input: Bundt's uniqueness prefix, which is never a Terraform prefix
-	// (docs/design.md, "namePrefix"). A Terraform prefix stays prefix.
+	// (docs/design.md, "Names, labels and tags"). A Terraform prefix stays prefix.
 	NamePrefix string
 }
 

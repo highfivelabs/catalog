@@ -25,8 +25,11 @@ The module's variables, with the same names, types and defaults.
 
 | Variable | Renders |
 | --- | --- |
-| `namePrefix` | not a fabric variable: the Bundt-wide uniqueness prefix. When set, the cloud names this chart gives (the bucket, the notification topic) start with `<namePrefix>-`, in front of the module's own `prefix`; empty changes nothing (`docs/design.md`, "namePrefix") |
-| `name`, `prefix`, `project_id`, `location`, `storage_class`, `labels`, `uniform_bucket_level_access`, `default_event_based_hold`, `requester_pays`, `public_access_prevention`, `versioning`, `autoclass`, `cors`, `custom_placement_config`, `encryption_key`, `logging_config`, `lifecycle_rules`, `retention_policy`, `soft_delete_retention`, `website`, `ip_filter` | the `StorageBucket`'s fields of the same meaning; the name is `<prefix>-<name>` lower-cased; `cors.max_age_seconds` is at least 3600, as fabric sets it |
+| `names.bucket`, `names.topic` | not fabric variables: the cloud name in full, used as given (no `namePrefix`, no `prefix`) and checked against the cloud's limit; a name not set derives from `name` (`docs/design.md`, "Names, labels and tags") |
+| `namePrefix` | not a fabric variable: an optional convenience. When set, the derived cloud names this chart gives (the bucket, the notification topic) start with `<namePrefix>-`, in front of the module's own `prefix`; never a name set under `names`; empty changes nothing |
+| `labels` | Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it), so it must be a valid one (fabric's `labels`, on the bucket, are these: here every object carries them) |
+| `tags` | cloud labels on every object (Google Cloud labels) |
+| `name`, `prefix`, `project_id`, `location`, `storage_class`, `uniform_bucket_level_access`, `default_event_based_hold`, `requester_pays`, `public_access_prevention`, `versioning`, `autoclass`, `cors`, `custom_placement_config`, `encryption_key`, `logging_config`, `lifecycle_rules`, `retention_policy`, `soft_delete_retention`, `website`, `ip_filter` | the `StorageBucket`'s fields of the same meaning; the name is `<prefix>-<name>` lower-cased; `cors.max_age_seconds` is at least 3600, as fabric sets it |
 | `force_destroy` | the `cnrm.cloud.google.com/force-destroy` annotation: the bucket's objects are deleted with it |
 | `bucket_create: false` | no bucket: IAM, the notification and tag bindings go on the existing bucket `<prefix>-<name>` |
 | `iam`, `iam_by_principals`, `iam_bindings` | one `IAMPartialPolicy` on the bucket |
@@ -78,5 +81,13 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=gcs`: five render cases, seven refusals.
+`task test CHART=gcs`: six render cases, fourteen refusals.
 `tests/mock.values.yaml` is applied to the fake cloud.
+
+## Changes
+
+- **0.3.0** (2026-11-10): `names` (`names.bucket`, `names.topic`) sets cloud names in full;
+  `labels` and `tags` go on every object; `namePrefix` is an optional
+  convenience that never touches a name set in full. fabric's `labels` now label every object, not only the core resource.
+- **0.2.0** (2026-11-09): `namePrefix`.
+- **0.1.0** (2026-11-09): the pilot port.
