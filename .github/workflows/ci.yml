@@ -1,0 +1,72 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# `task check` on every pull request and on main: gofmt and vet of tools/,
+# the Go tests, the chart and example render tests (helm lint, golden
+# files, kubeconform against Config Connector's CRDs), coverage current,
+# shellcheck and actionlint. Nothing here reaches a cloud: the fake-cloud
+# and live applies (task test-mock, task test-live) run on offload VMs.
+#
+# helm and kubeconform are the versions the golden files were rendered
+# and validated with; the repository pins no others.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TASK_VERSION: 3.54.0
+  HELM_VERSION: v3.12.2
+  KUBECONFORM_VERSION: v0.8.0
+  ACTIONLINT_VERSION: v1.7.12
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tools/go.mod
+          cache-dependency-path: tools/go.sum
+      - uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: ${{ env.TASK_VERSION }}
+          repo-token: ${{ github.token }}
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+        with:
+          version: ${{ env.HELM_VERSION }}
+      # kubeconform and actionlint, built once per version.
+      - name: Cache tools
+        id: tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/hfl-tools
+          key: tools-${{ runner.os }}-kubeconform-${{ env.KUBECONFORM_VERSION }}-actionlint-${{ env.ACTIONLINT_VERSION }}
+      - name: Install kubeconform and actionlint
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: |
+          GOBIN="${HOME}/.local/hfl-tools" go install "github.com/yannh/kubeconform/cmd/kubeconform@${KUBECONFORM_VERSION}"
+          GOBIN="${HOME}/.local/hfl-tools" go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+      - run: echo "${HOME}/.local/hfl-tools" >> "${GITHUB_PATH}"
+      # Config Connector's CRDs and the schemas made from them (hack/kcc.sh),
+      # and the tracked modules' tarballs (hack/coverage), both at the pins.
+      - name: Cache pinned inputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: inputs-${{ hashFiles('UPSTREAM.md', 'upstream/modules.yaml') }}
+          restore-keys: inputs-
+      - run: task check

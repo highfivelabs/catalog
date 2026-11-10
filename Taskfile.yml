@@ -106,6 +106,22 @@ tasks:
     cmds:
       - UPDATE=1 hack/examples.sh
 
+  check:
+    desc: Everything that must hold before a commit - gofmt and vet of tools/, the Go tests, the chart and example tests (helm lint, golden renders, kubeconform), coverage current, shell lint (warnings and errors) and workflow lint
+    cmds:
+      - |
+        out="$(cd tools && gofmt -l .)"
+        if [ -n "$out" ]; then echo "$out"; echo "gofmt needed"; exit 1; fi
+      - cd tools && go vet ./...
+      - task: tools-test
+      - task: test
+      - task: examples-test
+      - task: coverage-check
+      - |
+        if command -v shellcheck >/dev/null; then shellcheck -x -S warning hack/*.sh hack/*/*.sh; else echo "shellcheck not installed: scripts not linted"; fi
+      - |
+        if command -v actionlint >/dev/null; then actionlint; else echo "actionlint not installed: workflows not linted"; fi
+
   cce-snapshot:
     desc: Upload config-connector-extensions at CCE_COMMIT for the fake-cloud and live runs
     status:

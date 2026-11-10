@@ -18,7 +18,7 @@ its outputs.
 | `charts/<cloud>/<chart>/upstream.yaml` | where one chart came from: the module, release, commit, licence and date synced |
 | `lib/_kcc.tpl` | helpers every chart carries a copy of (`hack/sync-lib.sh`) |
 | `tools/catalogtool` | Config Connector CRDs to kubeconform schemas; Package checks; outputs evaluated against live objects |
-| `Taskfile.yml` | the entry points: `task test`, `test-live`, `test-mock`, `inventory`, `upstream-check`, `coverage`, `coverage-check`, `coverage-verify`, `convert`, `examples-test`, `upstream-watch`, `upstream-bump`, `tools-test` (`task --list`) |
+| `Taskfile.yml` | the entry points: `task check`, `test`, `test-live`, `test-mock`, `inventory`, `upstream-check`, `coverage`, `coverage-check`, `coverage-verify`, `convert`, `examples-test`, `upstream-watch`, `upstream-bump`, `tools-test` (`task --list`) |
 | `hack/test.sh` | render tests (offline, seconds), behind `task test` |
 | `hack/mock-apply.sh`, `hack/live-apply.sh` | the fake-cloud and real-project applies (an offload VM, never a laptop), behind `task test-mock` and `task test-live` |
 | `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
@@ -28,6 +28,7 @@ its outputs.
 task test                    # all charts; needs task, helm, kubeconform, go, git
 task test CHART=gcs          # one chart
 task test-update CHART=gcs   # accept a chart's new renders
+task check                   # what CI runs: gofmt, vet, Go tests, task test, examples, coverage current, shellcheck, actionlint
 ```
 
 Charts: `iam-service-account`, `gcs`, `net-vpc`, `project` (partial). Every
