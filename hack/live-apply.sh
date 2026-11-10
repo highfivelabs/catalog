@@ -8,11 +8,11 @@
 # passes; only in a project listed below; only on an offload VM acting as
 # a service account, never with a key. `task test-live` runs it:
 #
-#   ../offload/offload run --sa catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com \
-#     --machine e2-standard-8 --hours 2 -- env PROJECT=hfl-dev-514205 \
+#   ../offload/offload run --sa catalog-live-tests@our-chassis-514316-r0.iam.gserviceaccount.com \
+#     --machine e2-standard-8 --hours 2 -- env PROJECT=our-chassis-514316-r0 \
 #     CCE_TARBALL=gs://.../cce-<commit>.tar.gz hack/live-apply.sh
 #
-# Rules: one project (hfl-dev-514205, or a test estate generation
+# Rules: one project (our-chassis-514316-r0, or a test estate generation
 # hfl-test-g<N>); every gcloud call passes --project;
 # every name starts with a run ID, cat-<UTC month day hour minute>-<4 hex>,
 # and every object that takes labels carries catalog-run=<run ID>; the test
@@ -28,7 +28,7 @@
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
-ALLOWED_PROJECTS=(hfl-dev-514205)
+ALLOWED_PROJECTS=(our-chassis-514316-r0)
 # And the test estate's generations, hfl-test-g1, hfl-test-g2, ...
 # (factory/estate/gcp), in the live-tests folder.
 ALLOWED_PROJECT_PATTERN='^hfl-test-g[0-9]+$'

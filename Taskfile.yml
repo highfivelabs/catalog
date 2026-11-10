@@ -9,14 +9,16 @@ vars:
   OFFLOAD: ../offload/offload
   # The project live tests touch: HFL_GCP_TEST_PROJECT from the test
   # estate's env file (factory/estate/gcp/<gen>.env) when it is loaded,
-  # else hfl-dev-514205; hack/live-apply.sh refuses any other. And the
-  # service account they run as (no keys; the VM acts as it).
-  LIVE_PROJECT: '{{.HFL_GCP_TEST_PROJECT | default "hfl-dev-514205"}}'
-  LIVE_SA: catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com
+  # else our-chassis-514316-r0 (hfl-dev-514205 until 2026-11-10);
+  # hack/live-apply.sh refuses any other. And the service account they run as (no keys; the VM acts as it).
+  LIVE_PROJECT: '{{.HFL_GCP_TEST_PROJECT | default "our-chassis-514316-r0"}}'
+  LIVE_SA: catalog-live-tests@our-chassis-514316-r0.iam.gserviceaccount.com
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
   CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
-  CCE_TARBALL: gs://hfl-dev-514205-offload/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz
+  # The offload bucket; OFFLOAD_BUCKET overrides it, as it does offload's.
+  INPUTS_BUCKET: '{{.OFFLOAD_BUCKET | default "gs://our-chassis-514316-r0-offload"}}'
+  CCE_TARBALL: '{{.INPUTS_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:

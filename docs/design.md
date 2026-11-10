@@ -43,8 +43,9 @@ The builder's answers of 2026-11-09, applied in the sections below.
    serves the authoritative variables as designed, and `IAMRoleBinding`
    is used only where fabric's `iam_bindings` need it (section "IAM").
 6. **Live runs**: the service account
-   `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` is approved
-   and made (no keys). Rules in "Testing".
+   `catalog-live-tests@our-chassis-514316-r0.iam.gserviceaccount.com` is approved
+   and made (no keys; recreated 2026-11-10 from `catalog-live-tests@hfl-dev-514205`,
+   factory `docs/gcp-org-migration.md`). Rules in "Testing".
 7. **Entry points are `task`** (Taskfile.yml), as in every repo: `task
    test`, `task test-live`, `task inventory`.
 8. **Factory findings accepted** (after the worked example): the generator
@@ -864,9 +865,9 @@ tasks (`task --list`).
    are not in the fake-cloud cases.
 3. **Live**, `task test-live` (`hack/live-apply.sh`), pilot only, after the
    fake cloud passes: an offload VM acting as
-   `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` (no keys;
+   `catalog-live-tests@our-chassis-514316-r0.iam.gserviceaccount.com` (no keys;
    the builder approved it, 2026-11-09). The rules, enforced by the
-   script: project `hfl-dev-514205` only, and every `gcloud` call passes
+   script: project `our-chassis-514316-r0` only, and every `gcloud` call passes
    `--project`; tiny resources (a service account, a bucket, a network with
    one /28 subnet and a route; no VMs, no databases, nothing billed while
    idle); every name starts with a run ID (`cat-<month day hour

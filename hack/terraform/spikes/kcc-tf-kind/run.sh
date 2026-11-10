@@ -6,18 +6,19 @@
 # config-connector-extensions (UPSTREAM.md), the way Config Connector does it:
 # a service mapping entry, the CRD generated from the Terraform provider's
 # schema, a line in the static controller table. Then build the manager,
-# run it against a kind cluster with the real project hfl-dev-514205, and
+# run it against a kind cluster with a real project (SPIKE_PROJECT; it ran
+# in hfl-dev-514205 on 2026-11-09), and
 # set the project's default network tier through the kind.
 #
 #   ../offload/offload run --machine n2-standard-16 --hours 2 \
-#     --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com -- \
+#     --sa cce-live-tests@our-chassis-514316-r0.iam.gserviceaccount.com -- \
 #     hack/terraform/spikes/kcc-tf-kind/run.sh
 #
-# Live GCP only in hfl-dev-514205; the tier is read first and put back.
+# Live GCP only in SPIKE_PROJECT; the tier is read first and put back.
 set -uo pipefail
 
 KCC_COMMIT=${KCC_COMMIT:-672414b8191fc2d2c12fff53f6faccf5ae291eef}
-PROJECT=hfl-dev-514205
+PROJECT="${SPIKE_PROJECT:-our-chassis-514316-r0}"
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../../../.." && pwd)
 out=$root/offload-artifacts/spike-kcc
