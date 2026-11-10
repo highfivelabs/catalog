@@ -38,8 +38,7 @@ The module's variables, with the same names, types and defaults
 | `name`, `prefix`, `project_id`, `display_name`, `description` | `IAMServiceAccount` named `<prefix>-<name>` (checked: 6 to 30 characters) in `project_id`, or the namespace's project when null |
 | `deletion_policy` | `DELETE` (default) or `ABANDON` (keeps the account); `PREVENT` is refused |
 | `iam`, `iam_by_principals` | one `IAMPartialPolicy` on the account |
-| `iam_bindings` | one `IAMBinding` each (exact per role; config-connector-extensions, alpha) with `allow_alpha: true`, else bindings of that `IAMPartialPolicy` |
-| `allow_alpha` | not a fabric variable: accept alpha kinds (here `IAMBinding`) |
+| `iam_bindings` | one `IAMBinding` each (exact per role; config-connector-extensions, `v1beta1`) |
 | `iam_bindings_additive`, `iam_by_principals_additive` | one `IAMPolicyMember` each |
 | `iam_{billing,folder,organization,project,sa,storage}_{roles,bindings}` | one `IAMPolicyMember` per role on that resource, `memberFrom.serviceAccountRef` naming this account |
 | `project_number` | ignored: Config Connector reads it |
@@ -66,7 +65,7 @@ fabric's `service_account` output (the Terraform object) is not ported.
 
 ## Differences from the module
 
-- `iam`, `iam_by_principals` and, without `allow_alpha`, `iam_bindings` keep the members listed
+- `iam` and `iam_by_principals` keep the members listed
   but no longer remove members added out of band (`IAMPartialPolicy`;
   `docs/design.md`, "IAM").
 - Outputs come from the live account, so a dependent waits until it is
@@ -90,7 +89,7 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Changes
 
-- **0.4.0** (2026-11-10): `iam_bindings` render one exact `IAMBinding` each (config-connector-extensions, `v1alpha1`) when `allow_alpha` is true; without it they stay `IAMPartialPolicy` bindings, so existing values render the same objects. Adds `allow_alpha`.
+- **0.4.0** (2026-11-10): `iam_bindings` render one exact `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`) by default (K5, K12), instead of bindings of the `IAMPartialPolicy`: members added to those roles out of band are now removed, as fabric removes them. Values that set `iam_bindings` render different objects (`docs/design.md`, "Versioning and the OCI layout").
 - **0.3.0** (2026-11-10): `names` (`names.serviceAccount`) sets cloud names in full;
   `labels` and `tags` go on every object; `namePrefix` is an optional
   convenience that never touches a name set in full.

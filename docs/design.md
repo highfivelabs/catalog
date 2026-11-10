@@ -42,7 +42,10 @@ The builder's answers of 2026-11-09, applied in the sections below.
    non-authoritative IAM, so the additive `IAMPolicyMember` stays the
    default, `IAMPartialPolicy` serves `iam` and `iam_by_principals`, and
    `IAMBinding` is used only for fabric's `iam_bindings`, which are per
-   role (K5, 2026-11-10: charts 0.4.0; section "IAM").
+   role (K5, 2026-11-10: charts 0.4.0; section "IAM"). It is
+   `iam.gcp.hfl.dev/v1beta1`, so the charts render it by default (K12,
+   2026-11-10: "Promote IAMBinding to v1beta1 first, then switch by
+   default in 0.4.0").
 6. **Live runs**: the service account
    `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` is approved
    and made (no keys). Rules in "Testing".
@@ -88,8 +91,8 @@ The builder's answers of 2026-11-09, applied in the sections below.
 4. **IAM**: additive variables become `IAMPolicyMember`, authoritative
    ones `IAMPartialPolicy`, never `IAMPolicy`. Role-authoritative IAM is
    the largest gap, 43 modules (gap 1 in the inventory); the kind that
-   closes it is config-connector-extensions' `IAMBinding`, which renders
-   `iam_bindings` from 0.4.0 (behind `allow_alpha`).
+   closes it is config-connector-extensions' `IAMBinding`
+   (`v1beta1`), which renders `iam_bindings` by default from 0.4.0.
 5. **References**: Config Connector references inside a chart, Bundt's
    `valueFrom` between charts.
 6. **Deletion**: Config Connector's default (delete), as Bundt decided;
@@ -174,11 +177,11 @@ may change (docs/design.md, "Alpha kinds")
 it per component, a Stack for a whole team's use, and a Policy (L3) can
 forbid it per Environment. A chart has the value once it ports an alpha
 kind: `net-vpc` (network attachments, PSA route exchange, peered DNS
-domains), `gcs` (managed folders, `IAMBinding`), `iam-service-account` and
-`project` (`IAMBinding`) have it. config-connector-extensions' own
-`v1alpha1` kinds count as alpha too: `IAMBinding` is
-`iam.gcp.hfl.dev/v1alpha1`, and its CRD is copied in
-`crds/config-connector-extensions` for the render tests. An alpha feature is render-tested against the kind's
+domains) and `gcs` (managed folders) have it. config-connector-extensions'
+own `v1alpha1` kinds count as alpha too, and its `v1beta1` kinds as beta:
+`IAMBinding` is `iam.gcp.hfl.dev/v1beta1`, so it needs no `allow_alpha`,
+and its CRD is copied in `crds/config-connector-extensions` for the
+render tests. An alpha feature is render-tested against the kind's
 schema and not applied to a cloud until a fake-cloud or live case covers
 it, which each chart's README says. An alpha kind not ported yet is
 refused even with `allow_alpha`.
@@ -633,7 +636,7 @@ What this shows and what it does not:
 | fabric variable | Config Connector | Semantics |
 | --- | --- | --- |
 | `iam` `{ROLE: [MEMBERS]}`, `iam_by_principals` `{PRINCIPAL: [ROLES]}` (merged, as fabric merges them) | one `IAMPartialPolicy` per resource, a binding per role | fabric: authoritative per role, members added out of band are removed. Here: the listed members are kept; others are left alone; deleting the component removes only the listed members |
-| `iam_bindings` `{KEY: {role, members, condition}}` | one `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1alpha1`) with `allow_alpha: true`; otherwise, and on a resource `IAMBinding` does not take (a subnet), bindings of the `IAMPartialPolicy` | with `IAMBinding`, exact, as fabric's: the role's (and condition's) members on the resource are the listed ones, others are removed |
+| `iam_bindings` `{KEY: {role, members, condition}}` | one `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`); on a resource `IAMBinding` does not take (a subnet), bindings of the `IAMPartialPolicy` | with `IAMBinding`, exact, as fabric's: the role's (and condition's) members on the resource are the listed ones, others are removed |
 | `iam_bindings_additive` `{KEY: {member, role, condition}}`, `iam_by_principals_additive` | one `IAMPolicyMember` each | the same: additive |
 | roles granted *to* a service account elsewhere (`iam_project_roles`, `iam_storage_bindings`, ...) | one `IAMPolicyMember` each, `memberFrom.serviceAccountRef` naming the chart's account | the same; the member is resolved by Config Connector, no email crosses the plan |
 | IAM on a resource IAMPolicyMember cannot reference (regional secrets, managed folders, log views, 32 types) | none | a gap (inventory, gap 2) |
@@ -652,13 +655,15 @@ What this shows and what it does not:
   `iam` and `iam_by_principals` stay `IAMPartialPolicy` (an `IAMMember` is
   additive, an `IAMBinding` is per role), and `IAMBinding` serves
   `iam_bindings` only, from charts 0.4.0 (K5, 2026-11-10).
-- **`IAMBinding` is alpha, so it waits for `allow_alpha`.** The kind is
-  `v1alpha1`, and the standing rule (decision 3) keeps alpha kinds behind
-  the chart's opt-in. Without `allow_alpha`, `iam_bindings` render as
-  before, so a values file that worked renders the same objects and the
-  switch is a minor version. With it, each entry is one `IAMBinding`; the
-  role leaves the `IAMPartialPolicy`, which Bundt updates in the same
-  apply. `IAMBinding` takes 12 resource kinds (Project, Folder,
+- **`IAMBinding` is the default for `iam_bindings`.** The kind is
+  `v1beta1` (config-connector-extensions' decision 24, the builder's K12),
+  so decision 3 puts it on by default, with no `allow_alpha`. Each entry is
+  one `IAMBinding`; the role leaves the `IAMPartialPolicy`, which Bundt
+  updates in the same apply. A values file that set `iam_bindings` now
+  renders different objects, and members added out of band to those roles
+  are removed; by the semver rule below that is a major version, and the
+  builder chose 0.4.0 for it (K12; the charts are before 1.0 and none has
+  been released). `IAMBinding` takes 12 resource kinds (Project, Folder,
   Organization, IAMServiceAccount, StorageBucket, SecretManagerSecret,
   ArtifactRegistryRepository, RunService, PubSubTopic, PubSubSubscription,
   KMSKeyRing, KMSCryptoKey); on any other (net-vpc's subnets) the bindings
@@ -1088,6 +1093,6 @@ the pilot:
      what vanished from the tree. Recommended yes.
 4. **`IAMBinding` in the charts.** Answered (K5, 2026-11-10): `iam_bindings`
    switch to it in each chart's next minor version (0.4.0), and `iam` and
-   `iam_by_principals` stay on `IAMPartialPolicy`. Open: whether
-   `IAMBinding` should render without `allow_alpha` while it is
-   `v1alpha1` (the charts gate it, per decision 3).
+   `iam_by_principals` stay on `IAMPartialPolicy`. Answered (K12,
+   2026-11-10): `IAMBinding` was promoted to `v1beta1` first, and 0.4.0
+   renders it by default, without `allow_alpha`.

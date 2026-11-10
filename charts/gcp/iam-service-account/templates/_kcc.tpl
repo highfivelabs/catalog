@@ -182,8 +182,7 @@ standard IAM variables (docs/design.md, "IAM"):
                                           name: one IAMPartialPolicy
   iam_bindings                            exact per role: one IAMBinding each
                                           (config-connector-extensions,
-                                          iam.gcp.hfl.dev/v1alpha1), when the
-                                          chart's allow_alpha is true and the
+                                          iam.gcp.hfl.dev/v1beta1) when the
                                           kind takes the resource; otherwise
                                           bindings of the IAMPartialPolicy
   iam_bindings_additive,
@@ -211,13 +210,13 @@ Arguments (a dict):
 {{- /* The resource kinds IAMBinding takes (config-connector-extensions
 pkg/iampolicy/registry.go) that a catalog chart puts IAM on. */ -}}
 {{- $exact := dict -}}
-{{- if and $bindings $root.Values.allow_alpha (has .resourceRef.kind (list "Project" "Folder" "Organization" "IAMServiceAccount" "StorageBucket" "SecretManagerSecret" "ArtifactRegistryRepository" "RunService" "PubSubTopic" "PubSubSubscription" "KMSKeyRing" "KMSCryptoKey")) -}}
+{{- if and $bindings (has .resourceRef.kind (list "Project" "Folder" "Organization" "IAMServiceAccount" "StorageBucket" "SecretManagerSecret" "ArtifactRegistryRepository" "RunService" "PubSubTopic" "PubSubSubscription" "KMSKeyRing" "KMSCryptoKey")) -}}
 {{- $exact = $bindings -}}
 {{- $bindings = dict -}}
 {{- end -}}
 {{- range $key, $b := $exact }}
 ---
-apiVersion: iam.gcp.hfl.dev/v1alpha1
+apiVersion: iam.gcp.hfl.dev/v1beta1
 kind: IAMBinding
 metadata:
 {{- include "kcc.metadata" (dict "root" $root "name" (include "kcc.name" (list $.base "iam-binding" $key)) "id" (printf "%siam-binding-%s" $.idPrefix $key)) | nindent 2 }}

@@ -1,5 +1,29 @@
 ---
 # Source: iam-service-account/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-iam-binding-conditional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: iam-service-account
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "iam-binding-conditional"
+spec:
+  resourceRef:
+    apiVersion: iam.cnrm.cloud.google.com/v1beta1
+    kind: IAMServiceAccount
+    name: iam
+  role: "roles/iam.serviceAccountAdmin"
+  members:
+    - "user:admin@example.com"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp(\"2027-01-01T00:00:00Z\")"
+---
+# Source: iam-service-account/templates/iam.yaml
 apiVersion: iam.cnrm.cloud.google.com/v1beta1
 kind: IAMPartialPolicy
 metadata:
@@ -24,12 +48,6 @@ spec:
       members:
         - member: "group:devs@example.com"
         - member: "user:lead@example.com"
-    - role: "roles/iam.serviceAccountAdmin"
-      members:
-        - member: "user:admin@example.com"
-      condition:
-        title: "expires"
-        expression: "request.time < timestamp(\"2027-01-01T00:00:00Z\")"
 ---
 # Source: iam-service-account/templates/iam.yaml
 apiVersion: iam.cnrm.cloud.google.com/v1beta1

@@ -40,8 +40,7 @@ org_policies:
 | `lien_reason` | `ResourceManagerLien` restricting `resourcemanager.projects.delete` |
 | `services`, `service_config` | one `Service` each; `disable_on_destroy` and `disable_dependent_services` as Config Connector's annotations (both false, as fabric) |
 | `iam`, `iam_by_principals` | one `IAMPartialPolicy` on the project |
-| `iam_bindings` | one `IAMBinding` each (exact per role; config-connector-extensions, alpha) with `allow_alpha: true`, else bindings of that `IAMPartialPolicy` |
-| `allow_alpha` | not a fabric variable: accept alpha kinds (here `IAMBinding`) |
+| `iam_bindings` | one `IAMBinding` each (exact per role; config-connector-extensions, `v1beta1`) |
 | `iam_bindings_additive`, `iam_by_principals_additive` | one `IAMPolicyMember` each |
 | `org_policies` | one `OrgPolicyPolicy` per policy; a `dry_run:<policy>` key is its `dryRunSpec`; boolean, list, condition and parameters rules as fabric |
 | `contacts` | one `EssentialContactsContact` per email |
@@ -113,7 +112,7 @@ neither) is applied to the fake cloud.
 
 ## Changes
 
-- **0.4.0** (2026-11-10): `iam_bindings` render one exact `IAMBinding` each (config-connector-extensions, `v1alpha1`) when `allow_alpha` is true; without it they stay `IAMPartialPolicy` bindings, so existing values render the same objects. Adds `allow_alpha`.
+- **0.4.0** (2026-11-10): `iam_bindings` render one exact `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`) by default (K5, K12), instead of bindings of the `IAMPartialPolicy`: members added to those roles out of band are now removed, as fabric removes them. Values that set `iam_bindings` render different objects (`docs/design.md`, "Versioning and the OCI layout").
 - **0.3.0** (2026-11-10): `names` (`names.project`) sets cloud names in full;
   `labels` and `tags` go on every object; `namePrefix` is an optional
   convenience that never touches a name set in full. fabric's `labels` now label every object, not only the core resource. A `tags` entry whose value is a string is a cloud label.

@@ -41,7 +41,7 @@ The module's variables, with the same names, types and defaults.
 | `name`, `project_id`, `description`, `auto_create_subnetworks`, `delete_default_routes_on_create`, `mtu`, `routing_mode`, `firewall_policy_enforcement_order`, `ipv6_config` | `ComputeNetwork` |
 | `vpc_reuse` | no network: everything else goes on the existing network `name` in `project_id` |
 | `subnets`, `subnets_proxy_only`, `subnets_private_nat`, `subnets_psc` | one `ComputeSubnetwork` each, with fabric's purposes, roles and default descriptions; secondary ranges, flow logs and IPv6 |
-| subnet `iam`, `iam_bindings`, `iam_bindings_additive` | an `IAMPartialPolicy` and `IAMPolicyMember`s on the subnet; `iam_bindings` stay in the `IAMPartialPolicy` even with `allow_alpha`, since `IAMBinding` does not take a subnet |
+| subnet `iam`, `iam_bindings`, `iam_bindings_additive` | an `IAMPartialPolicy` and `IAMPolicyMember`s on the subnet; `iam_bindings` stay in the `IAMPartialPolicy`, since `IAMBinding` does not take a subnet |
 | `factories_data.subnets` | the subnet factory (below) |
 | `routes`, `create_googleapis_routes` | one `ComputeRoute` each, named `<name>-<key>`; next hops `gateway`, `ip`, `instance`, `vpn_tunnel`, `ilb` |
 | `peering_config` | a `ComputeNetworkPeering`, and the remote one unless `create_remote_peer: false` |
