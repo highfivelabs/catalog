@@ -35,8 +35,13 @@ spec:
         ? resources.cluster.status.observedState.privateClusterConfig.privateEndpoint
         : resources.cluster.status.observedState.privateClusterConfig.publicEndpoint)
       : resources.cluster.status.endpoint
-    endpoint_dns: resources.cluster.status.observedState.controlPlaneEndpointsConfig.dnsEndpointConfig.endpoint
-    ca_certificate: resources.cluster.status.observedState.masterAuth.clusterCaCertificate
+    endpoint_dns: >-
+      has(resources.cluster.status.observedState) && has(resources.cluster.status.observedState.controlPlaneEndpointsConfig)
+        && has(resources.cluster.status.observedState.controlPlaneEndpointsConfig.dnsEndpointConfig)
+      ? resources.cluster.status.observedState.controlPlaneEndpointsConfig.dnsEndpointConfig.endpoint : null
+    ca_certificate: >-
+      has(resources.cluster.status.observedState) && has(resources.cluster.status.observedState.masterAuth)
+      ? resources.cluster.status.observedState.masterAuth.clusterCaCertificate : null
     master_version: resources.cluster.status.masterVersion
     min_master_version: "has(resources.cluster.spec.minMasterVersion) ? resources.cluster.spec.minMasterVersion : null"
     logging_service: "has(resources.cluster.spec.loggingService) ? resources.cluster.spec.loggingService : null"
