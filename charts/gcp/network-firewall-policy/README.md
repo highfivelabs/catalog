@@ -138,3 +138,7 @@ yet, and whether mockgcp serves network firewall policies is not known.
 ## Changes
 
 - **0.1.0** (2026-11-10): the port.
+
+### Fake cloud, 2026-11-11
+
+`task test-mock` on an offload VM (run `off-catalog-1111013211-26916`, config-connector-extensions `1de95478`): the policy Ready and deleted; the association did not become Ready on mockgcp, with no message on the object (mockgcp's network firewall policy associations appear not to be served). Rules are alpha, so they are not in the fake-cloud case. Live: the offramp's shared-vpc run `ofr-11110129-7049` adopted the policy, its association and both rules (`allow_alpha: true`) in hfl-dev-514205, all UpToDate, with zero mutating calls.

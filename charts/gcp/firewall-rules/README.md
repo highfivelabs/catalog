@@ -130,3 +130,7 @@ is for `hack/mock-apply.sh` (`task test-mock`); it has not run yet.
 ## Changes
 
 - **0.1.0** (2026-11-10): the port.
+
+### Fake cloud, 2026-11-11
+
+`task test-mock` on an offload VM (run `off-catalog-1111013211-26916`, config-connector-extensions `1de95478`): both rules Ready (UpToDate) and deleted. Live: the offramp's shared-vpc run `ofr-11110129-7049` adopted the three rules of `tests/offramp.values.yaml`'s call in hfl-dev-514205 with zero mutating calls (`offramp/results/` on branch `tf-offramp-charts`).

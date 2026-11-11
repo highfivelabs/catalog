@@ -160,3 +160,7 @@ their own) is for `hack/mock-apply.sh`
 ## Changes
 
 - **0.1.0** (2026-11-10): the port.
+
+### Fake cloud, 2026-11-11
+
+`task test-mock` on an offload VM (run `off-catalog-1111013211-26916`, config-connector-extensions `1de95478`): the policy Ready (UpToDate), outputs evaluated, deleted.

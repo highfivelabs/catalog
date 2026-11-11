@@ -165,3 +165,7 @@ not run yet.
 ## Changes
 
 - **0.1.0** (2026-11-10): the port.
+
+### Fake cloud, 2026-11-11
+
+`task test-mock` on an offload VM (run `off-catalog-1111013211-26916`, config-connector-extensions `1de95478`): the policy and its rule Ready (UpToDate); on deletion the rule was left behind because it refers to the policy object by name and the policy went first ("reference ComputeFirewallPolicy ... is not found"). Deleting every object at once, as Bundt prunes a component, needs the rule to be deleted before its policy; until Config Connector or Bundt orders that, delete the rules first or keep `deletion_policy: ABANDON`.
