@@ -128,3 +128,7 @@ test-mock`); it has not run yet, and needs the folder to exist in mockgcp.
 ## Changes
 
 - **0.1.0** (2026-11-10): the port.
+
+### Fake cloud, 2026-11-11
+
+`task test-mock` on an offload VM (run `off-catalog-1111013211-26916`, config-connector-extensions `1de95478`): the grant Ready (UpToDate), outputs evaluated, deleted.

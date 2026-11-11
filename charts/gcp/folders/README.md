@@ -167,3 +167,7 @@ depends on mockgcp's folder support and organization.
 ## Changes
 
 - **0.1.0** (2026-11-10): the port.
+
+### Fake cloud, 2026-11-11
+
+`task test-mock` on an offload VM (run `off-catalog-1111013211-26916`, config-connector-extensions `1de95478`): both folders and both IAMPartialPolicies Ready (UpToDate), outputs evaluated, everything deleted.
