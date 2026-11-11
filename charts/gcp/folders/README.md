@@ -26,7 +26,6 @@ per_folder_admins:
   staging: {members: ["group:gcp-qa@domain.com"]}
   production: {members: ["group:gcp-ops@domain.com"]}
 all_folder_admins: ["group:gcp-security@domain.com"]
-deletion_protection: false
 ```
 
 renders three `Folder`s (display names `dev`, `staging`, `production`) and
@@ -44,7 +43,7 @@ Every module input is a value of the same name (`values.yaml`,
 | `names` | one `Folder` per name (`resourcemanager.cnrm.cloud.google.com/v1beta1`), Kubernetes name `<component>-<name>`, `hfl.dev/id` `folder:<name>`. A name listed twice is one folder, as in the module's `toset` |
 | `prefix` | `displayName` is `<prefix>-<name>`, or `<name>` when `prefix` is empty, as the module builds it |
 | `parent` (required) | `folderRef.external` (the number of `folders/<n>`) or `organizationRef.external` (of `organizations/<n>`) |
-| `deletion_protection` | refused when `true`, the module's default; set `false` (below, "Deletion") |
+| `deletion_protection` | accepted and ignored, whatever its value (below, "Differences from the module") |
 | `set_roles`, `folder_admin_roles`, `per_folder_admins`, `all_folder_admins` | the module's `owners_combined` bindings, one `IAMPartialPolicy` (`iam.cnrm.cloud.google.com/v1beta1`) per folder that has any, `hfl.dev/id` `folder:<name>:iam`, with one binding per role (below, "Admin roles") |
 
 ### Not module inputs
@@ -122,22 +121,21 @@ folder's ID, which `id`, `ids` and `ids_list` give.
   stays (`docs/design.md`, "IAM"). Deleting the component removes only the
   listed members. This changes once `IAMRoleBinding` ships in
   config-connector-extensions (decision 5).
-- **Deletion.** `deletion_protection` is the provider's guard against
-  destroying the folder, and `Folder` v1beta1 has no field for it, so `true`
-  (the module's default) is refused and a module call converts with
-  `deletion_protection: false`. Deleting the component deletes the folders,
-  as Bundt decided (`docs/design.md`, "Deletion"); `deletion_policy:
-  ABANDON` keeps them, and a Bundt policy can block a plan that deletes
-  them. Google refuses to delete a folder that still holds projects or
-  folders.
+- **`deletion_protection`** (default `true`) is accepted and does
+  nothing, whatever its value. It is Terraform's own guard against
+  destroying or recreating the folder, and `Folder` v1beta1 has no field
+  for it. Deleting the component deletes the folders, as Bundt decided
+  (`docs/design.md`, "Deletion"); the analogues are `deletion_policy:
+  ABANDON`, which keeps them, and a Bundt (L3) Policy that blocks a plan
+  deleting them. Google refuses to delete a folder that still holds
+  projects or folders.
 - **Outputs** come from the live Folders, so a dependent waits until they
   are ready.
 
 ## From Terraform
 
 A `module "x" { source = "terraform-google-modules/folders/google" ... }`
-block's arguments become the values unchanged, with
-`deletion_protection = false`. To adopt the folders it made, set
+block's arguments become the values unchanged. To adopt the folders it made, set
 `resource_ids` from the state (above) and follow `docs/design.md`, "From
 Terraform". The IAM bindings carry over member for member.
 
