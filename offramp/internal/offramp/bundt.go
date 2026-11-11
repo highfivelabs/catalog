@@ -5,6 +5,8 @@ package offramp
 
 import (
 	"fmt"
+
+	"github.com/highfivelabs/catalog/tools/convert"
 	"sort"
 	"strings"
 )
@@ -28,6 +30,9 @@ type BundtOptions struct {
 	// Registry is where the Packages' manifests artifacts are pushed
 	// (`<Registry>/<package>`); their digests are known only after the push.
 	Registry string
+	// Graduation, when set, says which calls graduate to an Instance of a
+	// catalog chart (Graduate); the rest keep frozen Packages.
+	Graduation *Graduation
 }
 
 // Component is one Template component: the objects of one root module
@@ -37,6 +42,9 @@ type Component struct {
 	Package   string
 	Objects   []*Object
 	DependsOn []string
+	// Graduated is set when the call graduates to a catalog chart: the
+	// component is an Instance of that chart, not a frozen Package.
+	Graduated *Graduated
 }
 
 // Bundle is what the converter writes for Bundt.
@@ -51,6 +59,8 @@ type Bundle struct {
 	// that does not have them yet.
 	Prereqs []map[string]any
 	Notes   []string
+	// Graduation is the check of each call against its chart, when made.
+	Graduation *Graduation
 }
 
 // Group puts objects into components: one per root module call (its
@@ -103,6 +113,7 @@ func Group(objs []*Object, opt BundtOptions) *Bundle {
 			c.DependsOn = nil
 		}
 	}
+	b.Graduation = opt.Graduation
 	b.build(opt)
 	return b
 }
@@ -194,7 +205,43 @@ func cycle(cs []*Component) []string {
 func (b *Bundle) build(opt BundtOptions) {
 	kccVersion := opt.KCCVersion
 	var tcomps []any
+	instValues := map[string]any{}
 	for _, c := range b.Components {
+		if opt.Graduation != nil {
+			for _, g := range opt.Graduation.Calls {
+				if g.Component == c.Name && g.OK() {
+					c.Graduated = g
+				}
+			}
+		}
+		if g := c.Graduated; g != nil {
+			c.Package = g.Chart.Package
+			inputs := map[string]any{}
+			for _, p := range append(append(convertOrdered{}, g.Inputs...), g.Import...) {
+				inputs[p.Key] = p.Value
+			}
+			tc := map[string]any{
+				"name":    c.Name,
+				"package": map[string]any{"name": g.Chart.Package, "version": g.Chart.Version},
+				"inputs":  inputs,
+			}
+			if len(c.DependsOn) > 0 {
+				var d []any
+				for _, x := range c.DependsOn {
+					d = append(d, x)
+				}
+				tc["dependsOn"] = d
+			}
+			tcomps = append(tcomps, tc)
+			if len(g.Values) > 0 {
+				vals := map[string]any{}
+				for _, p := range g.Values {
+					vals[p.Key] = p.Value
+				}
+				instValues[c.Name] = map[string]any{"values": vals}
+			}
+			continue
+		}
 		pkg := map[string]any{
 			"apiVersion": "hfl.dev/v1",
 			"kind":       "Package",
@@ -248,6 +295,9 @@ func (b *Bundle) build(opt BundtOptions) {
 		{"apiVersion": "hfl.dev/v1", "kind": "Instance", "metadata": map[string]any{"name": opt.Name, "scope": opt.Team + "/" + opt.Env},
 			"spec": map[string]any{"stack": opt.Name, "version": opt.Version, "cloudResources": "keep"}},
 	}
+	if len(instValues) > 0 {
+		b.Record[2]["spec"].(map[string]any)["components"] = instValues
+	}
 	b.Prereqs = []map[string]any{
 		{"apiVersion": "hfl.dev/v1", "kind": "Team", "metadata": map[string]any{"name": opt.Team}, "spec": map[string]any{"displayName": opt.Team}},
 		{"apiVersion": "hfl.dev/v1", "kind": "Target", "metadata": map[string]any{"name": opt.Target}, "spec": map[string]any{"type": "cluster", "class": "infra"}},
@@ -292,3 +342,5 @@ func commonProject(cs []*Component) string {
 	}
 	return best
 }
+
+type convertOrdered = convert.Ordered

@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 output "network_id" {
-  value = module.vpc.network_id
+  value = module.vpc.id
 }
 
-output "subnets" {
-  value = { for k, s in module.vpc.subnets : k => s.id }
+output "subnet_ids" {
+  value = module.vpc.subnet_ids
 }
 
 output "firewall_policy_id" {

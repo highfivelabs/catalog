@@ -1,36 +1,41 @@
 # Copyright 2026 High Five Labs
 # SPDX-License-Identifier: Apache-2.0
 #
-# Shape 3: a shared VPC. A network with two subnets (one with secondary
-# ranges for GKE), classic firewall rules, a global network firewall policy
-# attached to the network, and subnet-level IAM: the grants that let
-# service projects (or their deployers) use one subnet each.
+# Shape 3: a shared VPC, built only from published open-source modules,
+# each pinned to an exact release. A network with two subnets (one with
+# secondary ranges for GKE, one with flow logs), subnet-level IAM (an
+# authoritative binding on the GKE subnet, additive members on the apps
+# subnet), classic firewall rules, and a global network firewall policy
+# attached to the network.
+#
+# Each module call has a catalog chart that ports the same module at the
+# same release, so the call's arguments are the chart's values unchanged:
+#
+#   module.vpc                      fabric net-vpc v60.0.0                  charts/gcp/net-vpc
+#   module.firewall_rules           terraform-google-modules network
+#                                   //modules/firewall-rules 18.3.1         charts/gcp/firewall-rules
+#   module.network_firewall_policy  terraform-google-modules network
+#                                   //modules/network-firewall-policy 18.3.1 charts/gcp/network-firewall-policy
+#
+# The network is Cloud Foundation Fabric's because the catalog's network
+# chart ports fabric's net-vpc; the firewall modules are
+# terraform-google-modules', the family the builder uses.
 #
 # Shared VPC host enablement (`shared_vpc_host = true`) needs
 # roles/compute.xpnAdmin on the folder or organization, which the live-test
-# account does not hold; it is a variable so the shape runs without it
-# (see the design, "Grants").
+# account does not hold; it is a variable so the shape runs without it.
 
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.12.2"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 8.0, < 9"
-    }
-    google-beta = {
-      source  = "hashicorp/google-beta"
-      version = ">= 8.0, < 9"
+      version = ">= 8.10.0, < 9"
     }
   }
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
-provider "google-beta" {
   project = var.project_id
   region  = var.region
 }
@@ -41,42 +46,56 @@ locals {
 }
 
 module "vpc" {
-  source  = "terraform-google-modules/network/google"
-  version = "~> 18.3"
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/net-vpc?ref=v60.0.0"
 
   project_id      = var.project_id
-  network_name    = "${var.prefix}-shared"
+  name            = "${var.prefix}-shared"
+  description     = "offramp fixture: shared VPC"
   routing_mode    = "GLOBAL"
   shared_vpc_host = var.shared_vpc_host
-  description     = "offramp fixture: shared VPC"
 
   subnets = [
     {
-      subnet_name           = local.gke_subnet
-      subnet_ip             = "10.10.0.0/24"
-      subnet_region         = var.region
-      subnet_private_access = "true"
-      description           = "GKE nodes"
+      name          = local.gke_subnet
+      region        = var.region
+      ip_cidr_range = "10.10.0.0/24"
+      description   = "GKE nodes"
+      secondary_ip_ranges = {
+        pods     = { ip_cidr_range = "10.20.0.0/20" }
+        services = { ip_cidr_range = "10.30.0.0/24" }
+      }
+      # Authoritative for the role: google_compute_subnetwork_iam_binding.
+      iam = {
+        "roles/compute.networkUser" = var.gke_subnet_users
+      }
     },
     {
-      subnet_name               = local.apps_subnet
-      subnet_ip                 = "10.10.1.0/24"
-      subnet_region             = var.region
-      subnet_private_access     = "true"
-      subnet_flow_logs          = "true"
-      subnet_flow_logs_interval = "INTERVAL_10_MIN"
-      subnet_flow_logs_sampling = "0.5"
-      subnet_flow_logs_metadata = "INCLUDE_ALL_METADATA"
-      description               = "application VMs and serverless connectors"
+      name          = local.apps_subnet
+      region        = var.region
+      ip_cidr_range = "10.10.1.0/24"
+      description   = "application VMs and serverless connectors"
+      flow_logs_config = {
+        aggregation_interval = "INTERVAL_10_MIN"
+        flow_sampling        = 0.5
+        metadata             = "INCLUDE_ALL_METADATA"
+      }
+      # Additive: one google_compute_subnetwork_iam_member each.
+      iam_bindings_additive = {
+        for i, m in var.apps_subnet_users : "network-user-${i}" => {
+          member = m
+          role   = "roles/compute.networkUser"
+        }
+      }
     },
   ]
+}
 
-  secondary_ranges = {
-    (local.gke_subnet) = [
-      { range_name = "pods", ip_cidr_range = "10.20.0.0/20" },
-      { range_name = "services", ip_cidr_range = "10.30.0.0/24" },
-    ]
-  }
+module "firewall_rules" {
+  source  = "terraform-google-modules/network/google//modules/firewall-rules"
+  version = "18.3.1"
+
+  project_id   = var.project_id
+  network_name = module.vpc.name
 
   ingress_rules = [
     {
@@ -109,14 +128,14 @@ module "vpc" {
 
 module "network_firewall_policy" {
   source  = "terraform-google-modules/network/google//modules/network-firewall-policy"
-  version = "~> 18.3"
+  version = "18.3.1"
 
   project_id  = var.project_id
   policy_name = "${var.prefix}-policy"
   description = "offramp fixture: global network firewall policy"
   # A map, not target_vpcs: the module keys target_vpcs by the network's
   # ID, unknown until the network exists, which for_each refuses.
-  target_vpcs_map = { shared = module.vpc.network_id }
+  target_vpcs_map = { shared = module.vpc.id }
 
   rules = [
     {
@@ -140,23 +159,4 @@ module "network_firewall_policy" {
       }
     },
   ]
-}
-
-# Subnet-level permissions: one additive grant per member on the apps
-# subnet, and one authoritative binding (per role) on the GKE subnet.
-resource "google_compute_subnetwork_iam_member" "apps_network_users" {
-  for_each   = toset(var.apps_subnet_users)
-  project    = var.project_id
-  region     = var.region
-  subnetwork = module.vpc.subnets["${var.region}/${local.apps_subnet}"].name
-  role       = "roles/compute.networkUser"
-  member     = each.value
-}
-
-resource "google_compute_subnetwork_iam_binding" "gke_network_users" {
-  project    = var.project_id
-  region     = var.region
-  subnetwork = module.vpc.subnets["${var.region}/${local.gke_subnet}"].name
-  role       = "roles/compute.networkUser"
-  members    = var.gke_subnet_users
 }

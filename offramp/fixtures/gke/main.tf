@@ -1,35 +1,38 @@
 # Copyright 2026 High Five Labs
 # SPDX-License-Identifier: Apache-2.0
 #
-# Shape 4: GKE. A small VPC for the cluster, then either a Standard private
-# cluster with two Spot node pools (terraform-google-modules'
-# kubernetes-engine `beta-private-cluster`, which the builder uses) or an
-# Autopilot private cluster (`beta-autopilot-private-cluster`), chosen by
-# var.autopilot. Zonal and Spot so a live run costs cents.
+# Shape 4: GKE, built only from published open-source modules, each pinned
+# to an exact release. A small VPC for the cluster, then either a Standard
+# private cluster with two Spot node pools or an Autopilot private
+# cluster, chosen by var.autopilot. Zonal and Spot so a live run costs
+# cents.
 #
-# Version: the builder linked kubernetes-engine 5.0.0 (2019, Terraform
-# 0.12, google provider 2.x). The current major is 47 (v47.0.0); the
-# catalog's gke-cluster chart ports v47.0.0, so the fixture pins ~> 47.0.
-# Between them: node_pools became list(map(any)) with many more keys,
-# release channels, Workload Identity by default, Dataplane V2, Gateway
-# API, deletion_protection (provider 5+), and google 7.39+ is required.
+#   module.network        fabric net-vpc v60.0.0                         charts/gcp/net-vpc
+#   module.gke_standard   kubernetes-engine//modules/beta-private-cluster 47.0.0
+#                                                                         charts/gcp/gke-cluster
+#   module.gke_autopilot  kubernetes-engine//modules/beta-autopilot-private-cluster 47.0.0
+#                                                                         charts/gcp/gke-cluster (mode: autopilot)
+#
+# The network is Cloud Foundation Fabric's because the catalog's network
+# chart ports fabric's net-vpc; the cluster is terraform-google-modules',
+# the family the builder uses.
 #
 # Needs roles/container.admin on the project and the Container API
 # enabled; with create_service_account (the module's default) also
-# roles/resourcemanager.projectIamAdmin, since the module grants the node
-# account project roles. The live-test account holds neither (see the
-# design, "Grants"); live runs pass create_service_account = false.
+# roles/resourcemanager.projectIamAdmin. The live-test account holds
+# neither (register items O33, O34): this shape is validated and converted
+# offline only.
 
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.12.2"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 7.39, < 9"
+      version = ">= 8.10.0, < 9"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = ">= 7.39, < 9"
+      version = ">= 8.10.0, < 9"
     }
   }
 }
@@ -49,29 +52,25 @@ locals {
 }
 
 module "network" {
-  source  = "terraform-google-modules/network/google"
-  version = "~> 18.3"
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/net-vpc?ref=v60.0.0"
 
   project_id   = var.project_id
-  network_name = "${var.prefix}-gke"
+  name         = "${var.prefix}-gke"
   routing_mode = "REGIONAL"
   subnets = [{
-    subnet_name           = local.subnet
-    subnet_ip             = "10.40.0.0/24"
-    subnet_region         = var.region
-    subnet_private_access = "true"
+    name          = local.subnet
+    region        = var.region
+    ip_cidr_range = "10.40.0.0/24"
+    secondary_ip_ranges = {
+      pods     = { ip_cidr_range = "10.41.0.0/20" }
+      services = { ip_cidr_range = "10.42.0.0/24" }
+    }
   }]
-  secondary_ranges = {
-    (local.subnet) = [
-      { range_name = "pods", ip_cidr_range = "10.41.0.0/20" },
-      { range_name = "services", ip_cidr_range = "10.42.0.0/24" },
-    ]
-  }
 }
 
 module "gke_standard" {
   source  = "terraform-google-modules/kubernetes-engine/google//modules/beta-private-cluster"
-  version = "~> 47.0"
+  version = "47.0.0"
   count   = var.autopilot ? 0 : 1
 
   project_id        = var.project_id
@@ -79,8 +78,8 @@ module "gke_standard" {
   regional          = false
   region            = var.region
   zones             = ["${var.region}-a"]
-  network           = module.network.network_name
-  subnetwork        = module.network.subnets_names[0]
+  network           = module.network.name
+  subnetwork        = local.subnet
   ip_range_pods     = "pods"
   ip_range_services = "services"
 
@@ -142,14 +141,14 @@ module "gke_standard" {
 
 module "gke_autopilot" {
   source  = "terraform-google-modules/kubernetes-engine/google//modules/beta-autopilot-private-cluster"
-  version = "~> 47.0"
+  version = "47.0.0"
   count   = var.autopilot ? 1 : 0
 
   project_id        = var.project_id
   name              = "${var.prefix}-ap"
   region            = var.region
-  network           = module.network.network_name
-  subnetwork        = module.network.subnets_names[0]
+  network           = module.network.name
+  subnetwork        = local.subnet
   ip_range_pods     = "pods"
   ip_range_services = "services"
 

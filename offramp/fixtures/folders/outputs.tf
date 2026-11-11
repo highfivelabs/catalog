@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 output "root" {
-  value = google_folder.root.name
+  value = module.root.id
 }
 
 output "environments" {

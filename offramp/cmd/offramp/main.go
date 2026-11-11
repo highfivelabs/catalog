@@ -50,7 +50,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  offramp state   --kcc DIR --state FILE --out DIR [--name N --team T --env E --target T --namespace NS --version V --kcc-version V]
+  offramp state   --kcc DIR --state FILE --out DIR [--root DIR --tfvars FILE --catalog DIR --modules-json FILE] [--name N --team T --env E --target T --namespace NS --version V --kcc-version V]
   offramp krm     --krm DIR|FILE --out DIR [same Bundt flags]
   offramp names   --assets FILE      (full resource names for config-connector export)
   offramp compare A.yaml B.yaml      (exit 1 when they differ)`)
@@ -98,9 +98,14 @@ func (b *bundtFlags) convOpt() offramp.Options {
 
 func cmdState(args []string) error {
 	fs := flag.NewFlagSet("state", flag.ExitOnError)
-	var kccDir, statePath string
+	var kccDir, statePath, root, catalog, modulesJSON string
+	var tfvars multiFlag
 	fs.StringVar(&kccDir, "kcc", "", "a Config Connector checkout (config/crds/resources and config/servicemappings)")
 	fs.StringVar(&statePath, "state", "", "a Terraform state, format 4 (terraform state pull)")
+	fs.StringVar(&root, "root", "", "the root module's directory: its module calls graduate to Instances of the catalog's charts where one ports the module and its render matches the state")
+	fs.Var(&tfvars, "tfvars", "a tfvars file with the root module's variables (repeatable)")
+	fs.StringVar(&catalog, "catalog", "", "the catalog repository's root (default: the directory above offramp/, found from the working directory)")
+	fs.StringVar(&modulesJSON, "modules-json", "", "terraform init's .terraform/modules/modules.json (default: under --root when there)")
 	var b bundtFlags
 	b.register(fs)
 	fs.Parse(args)
@@ -120,6 +125,16 @@ func cmdState(args []string) error {
 		return err
 	}
 	res := offramp.ConvertState(st, k, b.convOpt())
+	if root != "" {
+		if catalog == "" {
+			catalog = findCatalog()
+		}
+		g, err := offramp.Graduate(res, st, offramp.GraduateOptions{Catalog: catalog, Root: root, Tfvars: tfvars, ModulesJSON: modulesJSON, Namespace: b.opt.Namespace})
+		if err != nil {
+			return err
+		}
+		b.opt.Graduation = g
+	}
 	bundle := offramp.Group(res.Objects, b.opt)
 	hdr := fmt.Sprintf("From the Terraform state `%s` (Terraform %s), with Config Connector's kinds from `%s`.", statePath, st.TerraformVersion, kccDir)
 	if err := offramp.Write(b.out, res, bundle, hdr); err != nil {
@@ -153,12 +168,42 @@ func cmdKRM(args []string) error {
 	return summarize(res, bundle)
 }
 
+type multiFlag []string
+
+func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
+func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
+
+// findCatalog walks up from the working directory to the catalog's root
+// (the directory holding upstream/modules.yaml).
+func findCatalog() string {
+	d, _ := os.Getwd()
+	for {
+		if _, err := os.Stat(filepath.Join(d, "upstream", "modules.yaml")); err == nil {
+			return d
+		}
+		p := filepath.Dir(d)
+		if p == d {
+			return "."
+		}
+		d = p
+	}
+}
+
 func summarize(res *offramp.Result, b *offramp.Bundle) error {
 	counts := map[string]int{}
 	for _, f := range res.Findings {
 		counts[f.Class]++
 	}
 	fmt.Printf("%d objects, %d components", len(res.Objects), len(b.Components))
+	if b.Graduation != nil {
+		grad := 0
+		for _, c := range b.Components {
+			if c.Graduated != nil {
+				grad++
+			}
+		}
+		fmt.Printf(" (%d graduated to catalog charts)", grad)
+	}
 	for _, c := range []string{"refused", "gap", "in-cluster", "terraform-only", "note"} {
 		if counts[c] > 0 {
 			fmt.Printf(", %d %s", counts[c], c)

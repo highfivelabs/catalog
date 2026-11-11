@@ -1,28 +1,38 @@
 # Copyright 2026 High Five Labs
 # SPDX-License-Identifier: Apache-2.0
 #
-# Shape 1: a hierarchy of folders. A root folder under the parent, three
+# Shape 1: a hierarchy of folders, built only from terraform-google-modules,
+# each pinned to an exact release. A root folder under the parent, three
 # environment folders under it and two team folders under prod; folder
 # admins (authoritative per role, as the folders module grants them) and
 # one additive grant; organization policies (one boolean, one list, one
 # with a condition) on the root; a hierarchical firewall policy owned by
 # the root and attached to prod and nonprod.
 #
-# Needs, on the parent folder: roles/resourcemanager.folderCreator (or
-# folderAdmin), roles/orgpolicy.policyAdmin (granted on the organization;
-# it takes effect on folders below it), roles/compute.orgFirewallPolicyAdmin
-# and roles/resourcemanager.folderIamAdmin. The live-test account holds none
-# of them (see the design, "Grants").
+#   module.root, .environments, .teams  folders 5.2.0                          charts/gcp/folders
+#   module.auditor                      iam//modules/folders_iam 8.3.0          charts/gcp/folders-iam
+#   module.skip_default_network,
+#   .resource_locations,
+#   .require_os_login                   org-policy//modules/org_policy_v2 7.4.0 charts/gcp/org-policy-v2
+#   module.hierarchical_firewall        network//modules/hierarchical-firewall-policy 18.3.1
+#                                                                               charts/gcp/hierarchical-firewall-policy
+#
+# The firewall policy's associations are keyed by the folder IDs, unknown
+# until the folders exist, so a first apply needs
+# `-target=module.environments` (Terraform's own advice for a for_each
+# over unknown keys); later applies need nothing special.
+#
+# Needs, on the parent folder: roles/resourcemanager.folderAdmin,
+# roles/compute.orgFirewallPolicyAdmin and orgSecurityResourceAdmin;
+# roles/orgpolicy.policyAdmin on the organization. The live-test account
+# holds none of them (register items O33, O34): this shape is validated and
+# converted offline only.
 
 terraform {
   required_version = ">= 1.9"
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 8.0, < 9"
-    }
-    google-beta = {
-      source  = "hashicorp/google-beta"
       version = ">= 8.0, < 9"
     }
   }
@@ -36,22 +46,21 @@ provider "google" {
   user_project_override = true
 }
 
-provider "google-beta" {
-  billing_project       = var.billing_project
-  user_project_override = true
-}
+module "root" {
+  source  = "terraform-google-modules/folders/google"
+  version = "5.2.0"
 
-resource "google_folder" "root" {
-  display_name        = "${var.prefix}-root"
   parent              = var.parent
+  names               = ["root"]
+  prefix              = var.prefix
   deletion_protection = false
 }
 
 module "environments" {
   source  = "terraform-google-modules/folders/google"
-  version = "~> 5.2"
+  version = "5.2.0"
 
-  parent              = google_folder.root.name
+  parent              = module.root.id
   names               = ["shared", "prod", "nonprod"]
   prefix              = var.prefix
   deletion_protection = false
@@ -66,7 +75,7 @@ module "environments" {
 
 module "teams" {
   source  = "terraform-google-modules/folders/google"
-  version = "~> 5.2"
+  version = "5.2.0"
 
   parent              = module.environments.ids["prod"]
   names               = ["team-a", "team-b"]
@@ -74,19 +83,24 @@ module "teams" {
   deletion_protection = false
 }
 
-# An additive grant beside the module's authoritative ones.
-resource "google_folder_iam_member" "auditor" {
-  folder = google_folder.root.name
-  role   = "roles/iam.securityReviewer"
-  member = var.auditor
+# An additive grant beside the folders module's authoritative ones.
+module "auditor" {
+  source  = "terraform-google-modules/iam/google//modules/folders_iam"
+  version = "8.3.0"
+
+  folders = [module.root.id]
+  mode    = "additive"
+  bindings = {
+    "roles/iam.securityReviewer" = [var.auditor]
+  }
 }
 
 module "skip_default_network" {
   source  = "terraform-google-modules/org-policy/google//modules/org_policy_v2"
-  version = "~> 7.4"
+  version = "7.4.0"
 
   policy_root    = "folder"
-  policy_root_id = google_folder.root.folder_id
+  policy_root_id = trimprefix(module.root.id, "folders/")
   constraint     = "compute.skipDefaultNetworkCreation"
   policy_type    = "boolean"
   rules          = [{ enforcement = true }]
@@ -94,10 +108,10 @@ module "skip_default_network" {
 
 module "resource_locations" {
   source  = "terraform-google-modules/org-policy/google//modules/org_policy_v2"
-  version = "~> 7.4"
+  version = "7.4.0"
 
   policy_root    = "folder"
-  policy_root_id = google_folder.root.folder_id
+  policy_root_id = trimprefix(module.root.id, "folders/")
   constraint     = "gcp.resourceLocations"
   policy_type    = "list"
   rules          = [{ enforcement = true, allow = ["in:us-locations"] }]
@@ -105,10 +119,10 @@ module "resource_locations" {
 
 module "require_os_login" {
   source  = "terraform-google-modules/org-policy/google//modules/org_policy_v2"
-  version = "~> 7.4"
+  version = "7.4.0"
 
   policy_root    = "folder"
-  policy_root_id = google_folder.root.folder_id
+  policy_root_id = trimprefix(module.root.id, "folders/")
   constraint     = "compute.requireOsLogin"
   policy_type    = "boolean"
   rules = [
@@ -130,14 +144,16 @@ module "require_os_login" {
 
 module "hierarchical_firewall" {
   source  = "terraform-google-modules/network/google//modules/hierarchical-firewall-policy"
-  version = "~> 18.3"
+  version = "18.3.1"
 
-  parent_node = google_folder.root.name
+  parent_node = module.root.id
   policy_name = "${var.prefix}-baseline"
   description = "offramp fixture: baseline rules for every project below"
-  # Associations are plain resources below: the module keys its
-  # associations by the folder IDs, unknown until the folders exist.
-  target_folders = []
+  # Folder numbers: the module writes folders/<n> itself.
+  target_folders = [
+    trimprefix(module.environments.ids["prod"], "folders/"),
+    trimprefix(module.environments.ids["nonprod"], "folders/"),
+  ]
 
   rules = [
     {
@@ -171,11 +187,4 @@ module "hierarchical_firewall" {
       }
     },
   ]
-}
-
-resource "google_compute_firewall_policy_association" "environments" {
-  for_each          = toset(["prod", "nonprod"])
-  name              = "${var.prefix}-${each.value}"
-  attachment_target = module.environments.ids[each.value]
-  firewall_policy   = module.hierarchical_firewall.fw_policy.name
 }

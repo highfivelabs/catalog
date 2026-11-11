@@ -84,12 +84,22 @@ var (
 // Resolve finds the tracked module a `source` argument names, and its
 // chart (nil when none ports it). ref is the version the source pins, "".
 func (r *Repo) Resolve(source string) (m *upstream.Module, ref string, err error) {
+	m, ref, _, err = r.ResolveCall(source)
+	return m, ref, err
+}
+
+// ResolveCall is Resolve, and also gives the inputs a variant module adds
+// (a sibling module whose chart is its base's: sources.go, variants).
+func (r *Repo) ResolveCall(source string) (m *upstream.Module, ref string, extra Ordered, err error) {
 	src := strings.TrimPrefix(source, "git::")
 	if i := strings.Index(src, "?ref="); i >= 0 {
 		ref = src[i+5:]
 		if j := strings.IndexAny(ref, "&#"); j >= 0 {
 			ref = ref[:j]
 		}
+	}
+	if tm, ex, ok, terr := r.resolveTGM(strings.SplitN(src, "?", 2)[0]); ok {
+		return tm, ref, ex, terr
 	}
 	var id string
 	switch {
@@ -105,13 +115,13 @@ func (r *Repo) Resolve(source string) (m *upstream.Module, ref string, err error
 		// Fabric: a git URL, or a path to a local copy of its modules/ directory.
 		id = "gcp/" + fabricModule.FindStringSubmatch(src)[1]
 	default:
-		return nil, ref, fmt.Errorf("source %q is not a module the catalog tracks (fabric's modules/<name>, terraform-aws-modules, Azure Verified Modules)", source)
+		return nil, ref, nil, fmt.Errorf("source %q is not a module the catalog tracks (fabric's modules/<name>, terraform-google-modules, terraform-aws-modules, Azure Verified Modules)", source)
 	}
 	m = r.Modules.Find(id)
 	if m == nil {
-		return nil, ref, fmt.Errorf("source %q: %s is not in upstream/modules.yaml", source, id)
+		return nil, ref, nil, fmt.Errorf("source %q: %s is not in upstream/modules.yaml", source, id)
 	}
-	return m, ref, nil
+	return m, ref, nil, nil
 }
 
 func (r *Repo) loadChart(m *upstream.Module) (*Chart, error) {

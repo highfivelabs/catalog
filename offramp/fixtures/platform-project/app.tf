@@ -2,64 +2,67 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The application inside the platform project: "checkout". Its own runtime
-# account, a bucket and a secret it owns, its project-level roles, and the
-# Workload Identity binding that lets its Kubernetes service account act as
-# it. Nothing in the state marks these as the app's rather than the
+# account with its project roles and the Workload Identity binding that
+# lets its Kubernetes service account act as it, a bucket it owns, and a
+# secret. Nothing in the state marks these as the app's rather than the
 # platform's except the names, the labels and what they reference; that
 # is the boundary the design's heuristics and quiz draw.
 
-resource "google_service_account" "checkout" {
-  project      = module.project.project_id
-  account_id   = "checkout-runtime"
+locals {
+  checkout_bucket = "${local.project_id}-checkout-assets"
+}
+
+module "checkout" {
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/iam-service-account?ref=v60.0.0"
+
+  project_id   = module.project.project_id
+  name         = "checkout-runtime"
   display_name = "checkout runtime"
+  iam_project_roles = {
+    (local.project_id) = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter"]
+  }
+  iam_storage_roles = {
+    (local.checkout_bucket) = ["roles/storage.objectAdmin"]
+  }
+  iam_bindings_additive = {
+    workload-identity = {
+      role   = "roles/iam.workloadIdentityUser"
+      member = "serviceAccount:${module.project.project_id}.svc.id.goog[checkout/checkout]"
+    }
+  }
+  # The bucket grant needs the bucket.
+  depends_on = [module.checkout_assets]
 }
 
-resource "google_project_iam_member" "checkout" {
-  for_each = toset(["roles/cloudtrace.agent", "roles/monitoring.metricWriter"])
-  project  = module.project.project_id
-  role     = each.value
-  member   = "serviceAccount:${google_service_account.checkout.email}"
-}
+module "checkout_assets" {
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/gcs?ref=v60.0.0"
 
-resource "google_service_account_iam_member" "checkout_workload_identity" {
-  service_account_id = google_service_account.checkout.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${module.project.project_id}.svc.id.goog[checkout/checkout]"
-}
-
-resource "google_storage_bucket" "checkout_assets" {
-  project                     = module.project.project_id
-  name                        = "${module.project.project_id}-checkout-assets"
-  location                    = upper(var.region)
-  uniform_bucket_level_access = true
-  public_access_prevention    = "enforced"
-  force_destroy               = true
+  project_id               = module.project.project_id
+  name                     = local.checkout_bucket
+  location                 = upper(var.region)
+  public_access_prevention = "enforced"
+  force_destroy            = true
   labels = {
     app = "checkout"
   }
 }
 
-resource "google_storage_bucket_iam_member" "checkout_assets" {
-  bucket = google_storage_bucket.checkout_assets.name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.checkout.email}"
-}
+# No catalog chart ports fabric's secret-manager yet: the converter keeps
+# this call as a frozen Package of its Config Connector objects and lists
+# it as a gap.
+module "checkout_secrets" {
+  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/secret-manager?ref=v60.0.0"
 
-resource "google_secret_manager_secret" "checkout_db_password" {
-  project   = module.project.project_id
-  secret_id = "checkout-db-password"
-  labels = {
-    app = "checkout"
+  project_id = module.project.project_id
+  secrets = {
+    checkout-db-password = {
+      labels = { app = "checkout" }
+      iam_bindings_additive = {
+        runtime = {
+          role   = "roles/secretmanager.secretAccessor"
+          member = module.checkout.iam_email
+        }
+      }
+    }
   }
-  replication {
-    auto {}
-  }
-  depends_on = [module.project]
-}
-
-resource "google_secret_manager_secret_iam_member" "checkout_db_password" {
-  project   = module.project.project_id
-  secret_id = google_secret_manager_secret.checkout_db_password.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.checkout.email}"
 }
