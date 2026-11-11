@@ -1,0 +1,56 @@
+# Every ported input: a description, two target VPCs, rules with every
+# field the module sends (INGRESS-only and EGRESS-only match fields set on
+# both directions, as the module drops them), and deletion_policy ABANDON.
+project_id: my-project
+policy_name: fw-policy
+description: Full policy
+deletion_policy: ABANDON
+labels: {hfl.dev/team: net}
+allow_alpha: true
+target_vpcs_map:
+  prod: projects/host/global/networks/prod
+  dev: https://www.googleapis.com/compute/v1/projects/host/global/networks/dev
+rules:
+  - priority: 100
+    direction: INGRESS
+    action: allow
+    rule_name: allow-everything-listed
+    description: Every INGRESS match field
+    disabled: true
+    enable_logging: true
+    target_secure_tags: [tagValues/222, tagValues/111, tagValues/222]
+    match:
+      src_ip_ranges: [10.0.0.0/8]
+      src_fqdns: [example.com]
+      src_region_codes: [US]
+      src_secure_tags: [tagValues/333]
+      src_threat_intelligences: [iplist-known-malicious-ips]
+      src_address_groups: [projects/my-project/locations/global/addressGroups/ag]
+      dest_ip_ranges: [10.1.0.0/16]
+      dest_fqdns: [dropped.example.com]
+      dest_region_codes: [FR]
+      layer4_configs:
+        - {ip_protocol: tcp, ports: ["80", 443, "8000-8100"]}
+        - {ip_protocol: udp}
+    tls_inspect: true
+    src_networks: [projects/x/global/networks/ignored]
+    src_network_scope: INTERNET
+  - priority: 200
+    direction: EGRESS
+    action: deny
+    target_service_accounts: [vm@my-project.iam.gserviceaccount.com]
+    match:
+      src_fqdns: [dropped.example.com]
+      src_secure_tags: [tagValues/999]
+      dest_ip_ranges: [0.0.0.0/0]
+      dest_fqdns: [bad.example.com]
+      dest_region_codes: [KP]
+      dest_threat_intelligences: [iplist-tor-exit-nodes]
+      dest_address_groups: [projects/my-project/locations/global/addressGroups/bad]
+  - priority: 300
+    direction: INGRESS
+    action: goto_next
+    target_service_accounts: []
+    target_secure_tags: [tagValues/444]
+    match:
+      src_ip_ranges: [192.168.0.0/16]

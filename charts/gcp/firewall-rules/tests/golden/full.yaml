@@ -1,0 +1,135 @@
+---
+# Source: firewall-rules/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-allow-lb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: firewall-rules
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rules_ingress_egress:allow-lb"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: allow-lb
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/host-project/global/networks/shared"
+  direction: INGRESS
+  description: "Load balancer health checks"
+  disabled: true
+  priority: 100
+  sourceRanges:
+    - "35.191.0.0/16"
+    - "130.211.0.0/22"
+  destinationRanges:
+    - "10.1.0.0/24"
+  sourceTags:
+    - "lb"
+  targetTags:
+    - "web"
+    - "api"
+  allow:
+    - protocol: "tcp"
+      ports:
+        - "80"
+        - "443"
+        - "8080"
+        - "9000-9100"
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+---
+# Source: firewall-rules/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-allow-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: firewall-rules
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rules_ingress_egress:allow-sa"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: allow-sa
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/host-project/global/networks/shared"
+  direction: INGRESS
+  disabled: false
+  priority: 1000
+  sourceServiceAccounts:
+    - external: "frontend@my-project.iam.gserviceaccount.com"
+  targetServiceAccounts:
+    - external: "backend@my-project.iam.gserviceaccount.com"
+  allow:
+    - protocol: "all"
+---
+# Source: firewall-rules/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-deny-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: firewall-rules
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rules_ingress_egress:deny-all"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: deny-all
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/host-project/global/networks/shared"
+  direction: EGRESS
+  description: "Deny all egress"
+  disabled: false
+  priority: 65535
+  sourceRanges:
+    - "10.2.0.0/16"
+  destinationRanges:
+    - "0.0.0.0/0"
+  targetTags:
+    - "locked"
+  deny:
+    - protocol: "all"
+  logConfig:
+    metadata: "EXCLUDE_ALL_METADATA"
+---
+# Source: firewall-rules/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-same-name
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: firewall-rules
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rules_ingress_egress:same-name"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: same-name
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/host-project/global/networks/shared"
+  direction: EGRESS
+  disabled: false
+  priority: 0
+  destinationRanges:
+    - "192.168.0.0/16"
+  allow:
+    - protocol: "udp"
+      ports:
+        - "53"

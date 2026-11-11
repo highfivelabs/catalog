@@ -1,0 +1,36 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (bundt: specs/catalog/packages.md R6).
+# hack/publish.sh pushes the chart and writes spec.source (its OCI
+# repository and digest) into the copy it submits; spec.version is the
+# chart's version. Outputs mirror the module's three outputs, as CEL over
+# the live objects, each object bound as resources.<its hfl.dev/id>
+# (docs/design.md, "Outputs"). The module outputs whole resources (the
+# policy, and maps of associations and rules); these are each resource's
+# ID as Terraform gives it, the one field consumers take (README.md,
+# "Outputs"): the policy, associations bound as
+# resources["association:<key>"] (keyed as the module keys them) and rules
+# as resources["rule:<priority>"].
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-network-firewall-policy
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    fw_policy: >-
+      'projects/' + resources.policy.spec.projectRef.external
+      + '/global/firewallPolicies/' + resources.policy.spec.resourceID
+    vpc_associations: >-
+      resources.transformMapEntry(k, v, k.startsWith('association:'),
+        {k.substring(12): 'projects/' + v.spec.projectRef.external
+          + '/global/firewallPolicies/' + v.spec.firewallPolicyRef.external
+          + '/associations/' + v.spec.resourceID})
+    rules: >-
+      resources.transformMapEntry(k, v, k.startsWith('rule:'),
+        {k.substring(5): 'projects/' + v.spec.projectRef.external
+          + '/global/firewallPolicies/' + v.spec.firewallPolicyRef.external
+          + '/rules/' + v.spec.resourceID})

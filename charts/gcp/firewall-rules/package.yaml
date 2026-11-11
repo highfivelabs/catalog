@@ -1,0 +1,28 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (bundt: specs/catalog/packages.md R6).
+# hack/publish.sh pushes the chart and writes spec.source (its OCI
+# repository and digest) into the copy it submits; spec.version is the
+# chart's version. Outputs mirror the module's two outputs, as CEL over the
+# live objects, each object bound as resources.<its hfl.dev/id>
+# (docs/design.md, "Outputs"). The module outputs maps of whole
+# google_compute_firewall resources, keyed by rule name; these are the same
+# maps of each rule's self link, the one field consumers take
+# (README.md, "Outputs"). Rules are bound as resources["rules:<name>"]
+# (the deprecated rules list) and resources["rules_ingress_egress:<name>"].
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-firewall-rules
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    firewall_rules: >-
+      resources.transformMapEntry(k, v, k.startsWith('rules:'),
+        {k.substring(6): has(v.status.selfLink) ? v.status.selfLink : ''})
+    firewall_rules_ingress_egress: >-
+      resources.transformMapEntry(k, v, k.startsWith('rules_ingress_egress:'),
+        {k.substring(21): has(v.status.selfLink) ? v.status.selfLink : ''})

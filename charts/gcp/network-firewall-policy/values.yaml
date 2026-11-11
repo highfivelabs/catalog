@@ -1,0 +1,68 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-google-modules'
+# network module's network-firewall-policy submodule (v18.3.1): same names,
+# types and defaults, so a module block's arguments become this file one to
+# one (README.md, "From Terraform"). values.schema.json carries the types
+# and the module's validations.
+#
+# Descriptions quoted from terraform-google-network
+# (modules/network-firewall-policy/variables.tf, v18.3.1), Copyright Google
+# LLC, Apache-2.0.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables.
+#
+# The policy's cloud name in full, {policy}. A name set here takes no
+# prefix. Not set, it is policy_name. The associations' names derive from
+# the policy's name as set; rules are named by their priority.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the policy's derived
+# name (and so of the associations'). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. A prefixed key (hfl.dev/team) stays in
+# Kubernetes. Network firewall policies have no Google Cloud labels, so an
+# unprefixed key stays on the object only.
+labels: {}
+# Cloud labels on every resource. Network firewall policies take none;
+# accepted for the catalog's common interface, they stay on the objects.
+tags: {}
+# DELETE (the default) or ABANDON, which keeps the policy, its associations
+# and its rules when the component is deleted. PREVENT is refused. Not a
+# module variable.
+deletion_policy: null
+# Rules are ComputeNetworkFirewallPolicyRule, a v1alpha1 Config Connector
+# kind: set true to accept that its schema may change (docs/design.md,
+# "Alpha kinds"). Not a module variable.
+allow_alpha: false
+
+# Project ID of the Network firewall policy
+# Required.
+project_id: ""
+# User-provided name of the Network firewall policy
+# Required.
+policy_name: ""
+# An optional description of this resource. Provide this property when you create the resource
+description: null
+# [DEPRECATED] List of target VPC IDs that the firewall policy will be attached to. Use `target_vpcs_map` instead to avoid errors with dynamically created VPCs.
+target_vpcs: []
+# Map of target VPCs that the firewall policy will be attached to. Keys are static strings (e.g., 'prod-vpc'), values are the VPC IDs.
+target_vpcs_map: {}
+# Location of the firewall policy. Needed for regional firewall policies. Default is null (Global firewall policy)
+# Refused when set: Config Connector v1.160.0 has no regional network
+# firewall policy kinds.
+policy_region: null
+# Policy type is used to determine which resources (networks) the policy can be associated with. A policy can be associated with a network only if the network has the matching policyType in its network profile. Different policy types may support some of the Firewall Rules features. Possible values are: VPC_POLICY, RDMA_ROCE_POLICY.
+# Refused when set: ComputeNetworkFirewallPolicy has no policyType.
+policy_type: null
+# List of Ingress/Egress rules
+# Each: {priority, direction, action, rule_name, disabled, description,
+# enable_logging, target_secure_tags, target_service_accounts, match:
+# {src_ip_ranges, src_fqdns, src_region_codes, src_secure_tags,
+# src_threat_intelligences, src_address_groups, dest_ip_ranges, dest_fqdns,
+# dest_region_codes, dest_threat_intelligences, dest_address_groups,
+# layer4_configs: [{ip_protocol (all), ports}] ([{}])}, is_mirroring
+# (false), tls_inspect (false), security_profile_group_id, src_networks,
+# src_network_scope, dest_network_scope}. Needs allow_alpha: true.
+rules: []

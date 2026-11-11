@@ -1,0 +1,66 @@
+---
+# Source: firewall-rules/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: legacy-legacy-allow-ssh
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "legacy"
+    app.kubernetes.io/name: firewall-rules
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rules:legacy-allow-ssh"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: legacy-allow-ssh
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/my-project/global/networks/vpc"
+  direction: INGRESS
+  description: "SSH from the bastion range"
+  disabled: false
+  priority: 1000
+  sourceRanges:
+    - "10.10.0.0/24"
+  sourceTags:
+    - "bastion"
+  targetServiceAccounts:
+    - external: "vm@my-project.iam.gserviceaccount.com"
+  allow:
+    - protocol: "tcp"
+      ports:
+        - "22"
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+---
+# Source: firewall-rules/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: legacy-legacy-deny-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "legacy"
+    app.kubernetes.io/name: firewall-rules
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rules:legacy-deny-egress"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: legacy-deny-egress
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/my-project/global/networks/vpc"
+  direction: EGRESS
+  disabled: true
+  priority: 2000
+  destinationRanges:
+    - "0.0.0.0/0"
+  sourceServiceAccounts:
+    - external: "vm@my-project.iam.gserviceaccount.com"
+  targetTags:
+    - "locked"
+  deny:
+    - protocol: "tcp"
+    - protocol: "udp"
+      ports:
+        - "53"

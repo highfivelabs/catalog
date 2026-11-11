@@ -1,0 +1,27 @@
+# The offramp fixture's module call (catalog-offramp, fixtures/shared-vpc:
+# module.network_firewall_policy), its arguments unchanged, with a
+# placeholder project and prefix; target_vpcs_map's value is what
+# module.vpc.network_id gives. The converter puts a module block's
+# arguments here as they are and diffs this render against the objects it
+# converts from the Terraform state. allow_alpha is the chart's: the rules
+# are a v1alpha1 kind.
+project_id: my-project
+policy_name: ofr-test-policy
+description: "offramp fixture: global network firewall policy"
+target_vpcs_map: {shared: projects/my-project/global/networks/ofr-test-shared}
+rules:
+  - priority: 1000
+    direction: INGRESS
+    action: allow
+    rule_name: allow-health-checks
+    match:
+      src_ip_ranges: [35.191.0.0/16, 130.211.0.0/22]
+      layer4_configs: [{ip_protocol: tcp, ports: ["80", "443"]}]
+  - priority: 2000
+    direction: EGRESS
+    action: deny
+    rule_name: deny-telnet
+    match:
+      dest_ip_ranges: [0.0.0.0/0]
+      layer4_configs: [{ip_protocol: tcp, ports: ["23"]}]
+allow_alpha: true
