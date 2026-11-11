@@ -1,0 +1,71 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-iam modules/folders_iam/main.tf and
+modules/helper/main.tf (v8.3.0), Copyright 2019 Google LLC, Apache-2.0.
+
+The helper expands bindings and conditional_bindings over every folder:
+  - mode additive: google_folder_iam_member.folder_iam_additive, one per
+    folder, role (and condition) and member: here one IAMPolicyMember each;
+  - mode authoritative: google_folder_iam_binding.folder_iam_authoritative,
+    one per folder and role (and condition), authoritative for that role:
+    here one IAMPartialPolicy per folder with a binding per role (and
+    condition) (docs/design.md, "IAM"), which keeps the listed members and
+    leaves others alone (README.md, "Differences from the module").
+A folder is "folders/" + the folder with any "folders/" taken out, as the
+module writes it, so folders/<number> and <number> are the same folder.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ list) }}
+{{- $_ := include "kcc.abandon" . }}
+{{- $bindings := $v.bindings | default dict }}
+{{- $conditional := $v.conditional_bindings | default list }}
+{{- $seen := dict }}
+{{- range $b := $conditional }}
+{{- $k := printf "%s--%s" $b.role $b.title }}
+{{- if hasKey $seen $k }}
+{{- fail (printf "folders-iam: two conditional_bindings have role %q and title %q: the module keys its bindings by role and title, and fails on them too" $b.role $b.title) }}
+{{- end }}
+{{- $_ := set $seen $k true }}
+{{- end }}
+{{- $folders := list }}
+{{- range $f := ($v.folders | default list) }}
+{{- $n := replace "folders/" "" $f }}
+{{- if not (has $n $folders) }}{{ $folders = append $folders $n }}{{ end }}
+{{- end }}
+{{- range $n := $folders }}
+{{- $base := include "kcc.name" (list $.Release.Name $n) }}
+{{- $ref := dict "apiVersion" "resourcemanager.cnrm.cloud.google.com/v1beta1" "kind" "Folder" "external" (printf "folders/%s" $n) }}
+{{- $iam := dict }}
+{{- if eq $v.mode "authoritative" }}
+{{- $roles := dict }}
+{{- range $role := keys $bindings | sortAlpha }}
+{{- if not (index $bindings $role) }}
+{{- fail (printf "folders-iam: bindings[%q] is empty: in authoritative mode the module would remove every member of the role from the folder, and IAMPartialPolicy cannot say that (README.md, \"Differences from the module\")" $role) }}
+{{- end }}
+{{- $_ := set $roles $role (index $bindings $role) }}
+{{- end }}
+{{- $cb := dict }}
+{{- range $b := $conditional }}
+{{- if not $b.members }}
+{{- fail (printf "folders-iam: conditional_bindings role %q title %q has no members: in authoritative mode the module would remove every member of the conditional binding, and IAMPartialPolicy cannot say that" $b.role $b.title) }}
+{{- end }}
+{{- $_ := set $cb (printf "%s--%s" $b.role $b.title) (dict "role" $b.role "members" $b.members "condition" (dict "title" $b.title "description" $b.description "expression" $b.expression)) }}
+{{- end }}
+{{- $iam = dict "iam" $roles "iam_bindings" $cb }}
+{{- else }}
+{{- $add := dict }}
+{{- range $role := keys $bindings | sortAlpha }}
+{{- range $m := index $bindings $role }}
+{{- $_ := set $add (printf "%s--%s" $role $m) (dict "role" $role "member" $m) }}
+{{- end }}
+{{- end }}
+{{- range $b := $conditional }}
+{{- range $m := $b.members }}
+{{- $_ := set $add (printf "%s--%s--%s" $b.role $b.title $m) (dict "role" $b.role "member" $m "condition" (dict "title" $b.title "description" $b.description "expression" $b.expression)) }}
+{{- end }}
+{{- end }}
+{{- $iam = dict "iam_bindings_additive" $add }}
+{{- end }}
+{{- include "kcc.iam" (dict "root" $ "base" $base "idPrefix" (printf "folder:%s:" $n) "resourceRef" $ref "v" $iam) }}
+{{- end }}
