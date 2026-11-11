@@ -1,0 +1,191 @@
+---
+# Source: gke-cluster/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: node-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "node-sa"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "hfl-gke-dev"
+    cnrm.cloud.google.com/remove-default-node-pool: "true"
+spec:
+  resourceID: gke-dev
+  location: "us-central1-a"
+  networkRef:
+    external: "projects/hfl-gke-dev/global/networks/vpc-01"
+  subnetworkRef:
+    external: "projects/hfl-gke-dev/regions/us-central1/subnetworks/us-central1-01"
+  networkingMode: VPC_NATIVE
+  networkPolicy:
+    enabled: false
+  releaseChannel:
+    channel: "REGULAR"
+  defaultSnatStatus:
+    disabled: false
+  loggingService: "logging.googleapis.com/kubernetes"
+  monitoringService: "monitoring.googleapis.com/kubernetes"
+  clusterAutoscaling:
+    enabled: false
+    autoscalingProfile: "BALANCED"
+  verticalPodAutoscaling:
+    enabled: false
+  defaultMaxPodsPerNode: 110
+  enableShieldedNodes: true
+  identityServiceConfig:
+    enabled: false
+  enableKubernetesAlpha: false
+  enableTpu: false
+  enableIntranodeVisibility: false
+  enableL4IlbSubsetting: false
+  enableCiliumClusterwideNetworkPolicy: false
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    gcpFilestoreCsiDriverConfig:
+      enabled: false
+    gkeBackupAgentConfig:
+      enabled: false
+    networkPolicyConfig:
+      disabled: true
+    dnsCacheConfig:
+      enabled: false
+    gcePersistentDiskCsiDriverConfig:
+      enabled: true
+    configConnectorConfig:
+      enabled: false
+  datapathProvider: "DATAPATH_PROVIDER_UNSPECIFIED"
+  protectConfig:
+    workloadConfig:
+      auditMode: "DISABLED"
+  securityPostureConfig:
+    mode: "DISABLED"
+    vulnerabilityMode: "VULNERABILITY_DISABLED"
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+    stackType: "IPV4"
+  maintenancePolicy:
+    dailyMaintenanceWindow:
+      startTime: "05:00"
+  initialNodeCount: 1
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: false
+  databaseEncryption:
+    state: "DECRYPTED"
+  workloadIdentityConfig:
+    workloadPool: "hfl-gke-dev.svc.id.goog"
+  meshCertificates:
+    enableCertificates: false
+  notificationConfig:
+    pubsub:
+      enabled: false
+  nodePoolDefaults:
+    nodeConfigDefaults:
+      gcfsConfig:
+        enabled: false
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: node-sa-pool-pool-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "node-sa"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:pool-a"
+    cnrm.cloud.google.com/project-id: "hfl-gke-dev"
+spec:
+  resourceID: pool-a
+  location: "us-central1-a"
+  clusterRef:
+    name: node-sa
+  initialNodeCount: 1
+  autoscaling:
+    minNodeCount: 1
+    maxNodeCount: 2
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "e2-small"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    serviceAccountRef: {"external":"k8s-nodes@hfl-gke-dev.iam.gserviceaccount.com"}
+    tags: ["gke-gke-dev","gke-gke-dev-pool-a"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"cluster_name":"gke-dev","disable-legacy-endpoints":"true","node_pool":"pool-a"}
+    labels: {"cluster_name":"gke-dev","node_pool":"pool-a"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: false
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: node-sa-pool-pool-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "node-sa"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:pool-b"
+    cnrm.cloud.google.com/project-id: "hfl-gke-dev"
+spec:
+  resourceID: pool-b
+  location: "us-central1-a"
+  clusterRef:
+    name: node-sa
+  nodeCount: 1
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "e2-small"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    serviceAccountRef: {"external":"k8s-nodes@hfl-gke-dev.iam.gserviceaccount.com"}
+    tags: ["gke-gke-dev","gke-gke-dev-pool-b"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"cluster_name":"gke-dev","disable-legacy-endpoints":"true","node_pool":"pool-b"}
+    labels: {"cluster_name":"gke-dev","node_pool":"pool-b"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: false
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
