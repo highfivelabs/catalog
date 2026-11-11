@@ -15,6 +15,14 @@
 // test case sets in full under names (docs/design.md, "Names, labels and
 // tags") takes no prefix, so an object whose cloud name contains one of the
 // case's names values passes too.
+//
+// Two optional keys in tests/name-prefix.yaml cover charts whose cloud name
+// is not spec.resourceID. nameFields maps a kind to the spec field that holds
+// its cloud name, for resources the cloud names by number (a folder's
+// spec.resourceID is the number Google assigns; its collision-prone name is
+// spec.displayName). noCloudNames, with a reason, says the chart renders no
+// object with a cloud name of its own (an IAM-only chart), so a chart that
+// checks nothing is not reported.
 package nameprefix
 
 import (
@@ -88,15 +96,18 @@ func fullNames(values string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// names is a map of names in full; a chart whose module has a names
+	// variable of its own (a list) has none, and that is not one.
 	var v struct {
-		Names map[string]string `yaml:"names"`
+		Names any `yaml:"names"`
 	}
 	if err := yaml.Unmarshal(data, &v); err != nil {
 		return nil, fmt.Errorf("%s: %w", values, err)
 	}
+	m, _ := v.Names.(map[string]any)
 	var out []string
-	for _, n := range v.Names {
-		if n != "" {
+	for _, raw := range m {
+		if n, ok := raw.(string); ok && n != "" {
 			out = append(out, n)
 		}
 	}

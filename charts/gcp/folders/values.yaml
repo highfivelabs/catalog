@@ -1,0 +1,61 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-google-modules'
+# folders module (v5.2.0, the root module): same names, types and defaults,
+# so a module block's arguments become this file one to one (README.md,
+# "From Terraform"). The variables follow in alphabetical order, each with
+# the module's own description. values.schema.json carries the types.
+#
+# Descriptions quoted from terraform-google-folders (variables.tf, v5.2.0),
+# Copyright Google LLC, Apache-2.0.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables. The module's own names variable (below) already
+# gives each folder's name in full (with prefix: ""), so the chart has no
+# names map of whole names: names is the module's list.
+#
+# An optional convenience: "<namePrefix>-" in front of every folder's
+# display name, outside the module's prefix. Empty (the default) changes
+# nothing.
+namePrefix: ""
+# Kubernetes labels on every object. A prefixed key (hfl.dev/team) stays in
+# Kubernetes. Folders have no Google Cloud labels: an unprefixed key is
+# still checked as one (Config Connector copies it where it can).
+labels: {}
+# Cloud labels on every resource, as unprefixed metadata.labels.
+tags: {}
+# DELETE (the default) or ABANDON, which keeps the folders when the
+# component is deleted. Not a module variable (README.md, "Deletion").
+deletion_policy: null
+# Adopting existing folders (README.md, "Adopting existing resources"). Not
+# a Terraform variable. A folder's number is assigned by Google, so to take
+# over a folder that exists, give its number here, keyed by the Folder
+# object's hfl.dev/id ("folder:<name>", <name> an entry of names): it
+# becomes the object's spec.resourceID. "123456789012" or
+# "folders/123456789012". Empty (the default) creates new folders.
+resource_ids: {}
+
+# List of IAM-style members that will get the extended permissions across all the folders.
+all_folder_admins: []
+# Prevent Terraform from destroying or recreating the folder.
+# Accepted and ignored, whatever its value: it is Terraform's own guard, and
+# Folder v1beta1 has no such field (README.md, "Differences from the module").
+deletion_protection: true
+# List of roles that will be applied to a folder if roles are not explictly specified in per_folder_admins
+folder_admin_roles:
+  - roles/owner
+  - roles/resourcemanager.folderViewer
+  - roles/resourcemanager.projectCreator
+  - roles/compute.networkAdmin
+# Folder names.
+names: []
+# The resource name of the parent Folder or Organization. Must be of the form folders/folder_id or organizations/org_id
+parent: null
+# IAM-style roles per members per folder who will get extended permissions. If roles are not provided for a folder/member combination, the list provided as `folder_admin_roles` will be applied as default.
+# {FOLDER: {members: [MEMBER], roles: [ROLE] (optional)}}
+per_folder_admins: {}
+# Optional prefix to enforce uniqueness of folder names.
+prefix: ""
+# Enable setting roles via the folder admin variables.
+set_roles: false

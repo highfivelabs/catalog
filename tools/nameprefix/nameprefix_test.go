@@ -76,3 +76,28 @@ func TestCheck(t *testing.T) {
 		t.Fatalf("noCloudNames on a chart with a cloud name is reported: %v", p)
 	}
 }
+
+func TestNameFieldsAndNothingNamed(t *testing.T) {
+	lib, _ := os.ReadFile(filepath.Join("..", "..", "lib", "_kcc.tpl"))
+	// A kind whose cloud name is another spec field: resourceID is a number
+	// the cloud assigns, displayName is the name.
+	numbered := chart(t, "\"123\"\n  displayName: "+`{{ printf "%s%s" (include "kcc.namePrefix" .) .Values.name }}`, "  Other: because\n")
+	os.WriteFile(filepath.Join(numbered, "templates", "_kcc.tpl"), lib, 0o644)
+	if p, _ := Check(numbered); len(p) != 1 || !strings.Contains(p[0], `has cloud name "123"`) {
+		t.Fatalf("without nameFields, resourceID is checked: %v", p)
+	}
+	os.WriteFile(filepath.Join(numbered, "tests", "name-prefix.yaml"), []byte("exempt: {}\nnameFields:\n  Thing: displayName\n"), 0o644)
+	if p, err := Check(numbered); err != nil || len(p) != 0 {
+		t.Fatalf("with nameFields, displayName is checked: %v %v", p, err)
+	}
+	// A module whose names variable is a list is not a map of names in full.
+	os.WriteFile(filepath.Join(numbered, "tests", "basic.values.yaml"), []byte("name: x\nnames: [a, b]\n"), 0o644)
+	if p, err := Check(numbered); err != nil || len(p) != 0 {
+		t.Fatalf("a names list is not names in full: %v %v", p, err)
+	}
+	// A chart with nothing named says so.
+	none := chart(t, `{{ .Values.name }}`, "  Thing: binds a member\nnoCloudNames: only IAM\n")
+	if p, err := Check(none); err != nil || len(p) != 0 {
+		t.Fatalf("noCloudNames allows a chart that checks nothing: %v %v", p, err)
+	}
+}

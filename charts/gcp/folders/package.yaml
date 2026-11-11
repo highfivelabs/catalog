@@ -1,0 +1,38 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (bundt: specs/catalog/packages.md R6).
+# hack/publish.sh pushes the chart and writes spec.source (its OCI
+# repository and digest) into the copy it submits; spec.version is the
+# chart's version. Outputs mirror the module's outputs, as CEL over the
+# live objects, each object bound as resources.<its hfl.dev/id> (a Folder
+# is folder:<name>), and the values as inputs (docs/design.md, "Outputs").
+# A folder's ID (folders/<number>) is Google's, so the id outputs wait for
+# the Folder's status.name. Not outputs (README.md, "Outputs"): folder,
+# folders and folders_map, whole Terraform objects; what consumers take
+# from them is the folder's ID, which id, ids and ids_list give.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-folders
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      size(inputs.names) > 0 && has(resources['folder:' + inputs.names[0]].status.name)
+      ? resources['folder:' + inputs.names[0]].status.name : ''
+    name: >-
+      size(inputs.names) > 0 ? resources['folder:' + inputs.names[0]].spec.displayName : ''
+    ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'Folder',
+        {k.substring(7): has(v.status.name) ? v.status.name : ''})
+    names: >-
+      resources.transformMapEntry(k, v, v.kind == 'Folder', {k.substring(7): v.spec.displayName})
+    ids_list: >-
+      inputs.names.map(n, has(resources['folder:' + n].status.name) ? resources['folder:' + n].status.name : '')
+    names_list: >-
+      inputs.names.map(n, resources['folder:' + n].spec.displayName)
+    per_folder_admins: >-
+      inputs.per_folder_admins.transformMapEntry(k, v, {k: v.members.join(',')})
