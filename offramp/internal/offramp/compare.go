@@ -23,6 +23,10 @@ func Identity(o map[string]any) string {
 	case "IAMPartialPolicy":
 		return fmt.Sprintf("%s %s", kind, normRef(dig(spec, "resourceRef", "external")))
 	}
+	if kind == "ComputeFirewallPolicyRule" {
+		// Named by its policy and priority; the policy by its number.
+		return fmt.Sprintf("%s %s %v", kind, lastSegment(normRef(dig(spec, "firewallPolicyRef", "external"))), spec["priority"])
+	}
 	id := str(spec["resourceID"])
 	if id == "" {
 		id = str(dig(o, "metadata", "name"))
@@ -157,6 +161,13 @@ func diffValue(id, path string, a, b any, out *[]Difference) {
 			diffValue(id, fmt.Sprintf("%s[%d]", path, i), al[i], bl[i], out)
 		}
 		return
+	}
+	if as, ok := a.(string); ok {
+		if bs, ok := b.(string); ok && strings.Contains(as+bs, "/") && refEqual(as, bs) {
+			// A bare name and the self link Terraform records for it
+			// (a route's next hop gateway).
+			return
+		}
 	}
 	if !reflect.DeepEqual(normalizeScalar(a), normalizeScalar(b)) {
 		*out = append(*out, Difference{id, path, a, b})

@@ -64,7 +64,12 @@ type Graduated struct {
 	// object's status taken from the state.
 	Outputs     map[string]any
 	Differences []Difference
-	Err         string
+	// Unmanaged are fields the state holds and the render leaves out: with
+	// state-into-spec absent, Config Connector neither sets nor changes a
+	// field the object leaves out, so adopting leaves them as they are; the
+	// chart does not manage them from then on.
+	Unmanaged []Difference
+	Err       string
 }
 
 // OK says the call graduates: the render matches the state.
@@ -136,6 +141,18 @@ func Graduate(res *Result, st *State, opt GraduateOptions) (*Graduation, error) 
 		for _, p := range append(append(append(convert.Ordered{}, c.Inputs...), c.Values...), gr.Import...) {
 			vals[p.Key] = p.Value
 		}
+		// What the converter could not carry (a gap, a value the chart's
+		// schema refuses) keeps the call frozen: its values are incomplete.
+		var gaps []string
+		for _, m := range cres.Messages {
+			if m.Level != convert.Note && (m.Where == "module."+gr.Call || strings.HasPrefix(m.Where, "module."+gr.Call+".")) {
+				gaps = append(gaps, m.String())
+			}
+		}
+		if len(gaps) > 0 {
+			gr.Err = strings.Join(gaps, "; ")
+			continue
+		}
 		eff, err := resolveExpressions(vals, outputs)
 		if err != nil {
 			gr.Err = err.Error()
@@ -162,7 +179,13 @@ func Graduate(res *Result, st *State, opt GraduateOptions) (*Graduation, error) 
 		gr.Rendered = rendered
 		match := matchObjects(rendered, objs, attrs)
 		gr.Normalized = normalize(rendered, match, attrs)
-		gr.Differences = Compare(gr.Normalized, gr.State)
+		for _, d := range Compare(gr.Normalized, gr.State) {
+			if d.Path != "" && d.A == nil {
+				gr.Unmanaged = append(gr.Unmanaged, d)
+				continue
+			}
+			gr.Differences = append(gr.Differences, d)
+		}
 		gr.Outputs = evalOutputs(filepath.Join(opt.Catalog, c.Chart.Dir), c.Chart.Values, gr.Effective, rendered, match, attrs)
 		outputs[c.Name] = gr.Outputs
 	}
@@ -387,7 +410,7 @@ func matchObjects(rendered []map[string]any, objs []*Object, attrs map[string]ma
 	}
 	for _, r := range rendered {
 		k := str(r["kind"])
-		if strings.HasPrefix(k, "IAM") {
+		if k == "IAMPolicyMember" || k == "IAMPartialPolicy" || k == "IAMPolicy" || k == "IAMAuditConfig" {
 			continue
 		}
 		if o := byID[Identity(r)]; o != nil {

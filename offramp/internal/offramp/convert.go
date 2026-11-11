@@ -332,6 +332,13 @@ func specField(props map[string]*Schema, attr string) (string, *Schema) {
 			return strings.TrimSuffix(c, "s") + "Refs", s
 		}
 	}
+	// Initialisms: Config Connector writes src_ip_ranges as srcIPRanges in
+	// some kinds (ComputeFirewallPolicyRule).
+	for k, s := range props {
+		if strings.EqualFold(k, c) {
+			return k, s
+		}
+	}
 	return "", nil
 }
 

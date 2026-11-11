@@ -206,19 +206,23 @@ func (b *Bundle) build(opt BundtOptions) {
 	kccVersion := opt.KCCVersion
 	var tcomps []any
 	instValues := map[string]any{}
+	graduated := map[string]bool{}
 	for _, c := range b.Components {
 		if opt.Graduation != nil {
 			for _, g := range opt.Graduation.Calls {
 				if g.Component == c.Name && g.OK() {
 					c.Graduated = g
+					graduated[c.Name] = true
 				}
 			}
 		}
+	}
+	for _, c := range b.Components {
 		if g := c.Graduated; g != nil {
 			c.Package = g.Chart.Package
 			inputs := map[string]any{}
 			for _, p := range append(append(convertOrdered{}, g.Inputs...), g.Import...) {
-				inputs[p.Key] = p.Value
+				inputs[p.Key] = literalIfFrozen(p, g, graduated)
 			}
 			tc := map[string]any{
 				"name":    c.Name,
@@ -236,7 +240,7 @@ func (b *Bundle) build(opt BundtOptions) {
 			if len(g.Values) > 0 {
 				vals := map[string]any{}
 				for _, p := range g.Values {
-					vals[p.Key] = p.Value
+					vals[p.Key] = literalIfFrozen(p, g, graduated)
 				}
 				instValues[c.Name] = map[string]any{"values": vals}
 			}
@@ -344,3 +348,17 @@ func commonProject(cs []*Component) string {
 }
 
 type convertOrdered = convert.Ordered
+
+// literalIfFrozen writes a value that reads another component's output as
+// the value it resolved to, when that component stays a frozen Package
+// (which has no outputs).
+func literalIfFrozen(p convert.Pair, g *Graduated, graduated map[string]bool) any {
+	for _, r := range refsIn(p.Value) {
+		if !graduated[r] {
+			if v, ok := g.Effective[p.Key]; ok {
+				return v
+			}
+		}
+	}
+	return p.Value
+}

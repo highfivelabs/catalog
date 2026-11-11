@@ -95,11 +95,17 @@ func (r *Repo) resolveTGM(src string) (m *upstream.Module, extra Ordered, ok boo
 		return nil, nil, false, nil
 	}
 	repo := "terraform-google-" + name
-	sub = strings.Trim(strings.TrimPrefix(sub, "./"), "/")
+	clean := func(p string) string {
+		p = strings.Trim(strings.TrimPrefix(p, "./"), "/")
+		if p == "." {
+			return ""
+		}
+		return p
+	}
+	sub = clean(sub)
 	for i := range r.Modules.Modules {
 		x := &r.Modules.Modules[i]
-		if strings.TrimSuffix(x.Repo, ".git") == "https://github.com/terraform-google-modules/"+repo &&
-			strings.Trim(strings.TrimPrefix(x.Path, "./"), "/") == sub {
+		if strings.TrimSuffix(x.Repo, ".git") == "https://github.com/terraform-google-modules/"+repo && clean(x.Path) == sub {
 			return x, nil, true, nil
 		}
 	}

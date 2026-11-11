@@ -268,6 +268,7 @@ func cmdSynth(args []string) error {
 	fs.StringVar(&opt.Terraform, "terraform", "terraform", "the terraform binary (1.12 or later for fabric's modules)")
 	fs.StringVar(&opt.Project, "project", "", "the provider's default project, for resources whose project the plan leaves unknown")
 	fs.StringVar(&out, "out", "", "where to write the synthetic state")
+	fs.StringVar(&opt.Work, "work", "", "a scratch directory to plan in (default: a new temporary one)")
 	fs.Parse(args)
 	if opt.Root == "" || out == "" {
 		return fmt.Errorf("--root and --out are required")

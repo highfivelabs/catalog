@@ -142,6 +142,9 @@ func writeGraduation(dir string, b *Bundle) error {
 		for _, x := range g.Differences {
 			d.WriteString(x.String() + "\n")
 		}
+		for _, x := range g.Unmanaged {
+			d.WriteString("left to the cloud (the render leaves it out; state-into-spec absent keeps it): " + x.String() + "\n")
+		}
 		if err := os.WriteFile(filepath.Join(gd, "differences.txt"), []byte(d.String()), 0o644); err != nil {
 			return err
 		}

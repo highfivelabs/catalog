@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -94,7 +95,11 @@ func Synthesize(opt SynthOptions) (*State, []byte, error) {
 	providers := detectProviders(work)
 	var ov strings.Builder
 	for _, p := range providers {
-		fmt.Fprintf(&ov, "provider %q {\n  access_token = \"offramp-synthetic\"\n  container_custom_endpoint = %q\n}\n\n", p, url+"/container/")
+		fmt.Fprintf(&ov, "provider %q {\n  access_token = \"offramp-synthetic\"\n", p)
+		for _, svc := range []string{"container", "storage", "logging", "big_query"} {
+			fmt.Fprintf(&ov, "  %s_custom_endpoint = %q\n", svc, url+"/"+svc+"/")
+		}
+		ov.WriteString("}\n\n")
 	}
 	if err := os.WriteFile(filepath.Join(work, "offramp_synth_override.tf"), []byte(ov.String()), 0o644); err != nil {
 		return nil, nil, err
@@ -115,6 +120,7 @@ func Synthesize(opt SynthOptions) (*State, []byte, error) {
 		return nil, nil, fmt.Errorf("terraform providers schema: %s", tail(schemaOut))
 	}
 	versions := schemaVersions(schemaOut)
+	attrTypes := schemaAttrTypes(schemaOut)
 	verOut, _ := tf("version", "-json")
 	var ver struct {
 		TerraformVersion string `json:"terraform_version"`
@@ -179,7 +185,21 @@ func Synthesize(opt SynthOptions) (*State, []byte, error) {
 			if attrs == nil {
 				attrs = map[string]any{}
 			}
-			fillUnknown(rc.Type, rc.Address, attrs, rc.Change.AfterUnknown, opt.Project)
+			proj := ""
+			if _, ok := attrTypes[rc.ProviderName+"|"+rc.Type]["project"]; ok {
+				proj = opt.Project
+			}
+			fillUnknown(rc.Type, rc.Address, attrs, rc.Change.AfterUnknown, proj)
+			// What is still unknown gets its type's empty value, as a
+			// resource the cloud returns with nothing there: a null would
+			// make Terraform plan it again (and what reads it unknown).
+			for k, u := range rc.Change.AfterUnknown {
+				if b, _ := u.(bool); b && attrs[k] == nil {
+					if z, ok := zeroOf(attrTypes[rc.ProviderName+"|"+rc.Type][k]); ok {
+						attrs[k] = z
+					}
+				}
+			}
 			key := rc.ModuleAddress + "|" + rc.Type + "|" + rc.Name
 			res := byKey[key]
 			if res == nil {
@@ -214,13 +234,16 @@ func Synthesize(opt SynthOptions) (*State, []byte, error) {
 			pa := prev["attributes"].(map[string]any)
 			changed := false
 			for k, v := range attrs {
-				if v != nil && (pa[k] == nil || strings.HasPrefix(str(pa[k]), "synthetic/")) {
+				if !zero(v) && (zero(pa[k]) || strings.HasPrefix(str(pa[k]), "synthetic/")) && !reflect.DeepEqual(pa[k], v) {
 					pa[k] = v
 					changed = true
 				}
 			}
 			if changed {
 				created++
+				if os.Getenv("OFFRAMP_SYNTH_DEBUG") != "" {
+					opt.Log("  completed " + rc.Address)
+				}
 			}
 		}
 		opt.Log(fmt.Sprintf("round %d: %d resources planned or completed", round, created))
@@ -340,6 +363,28 @@ func fakeAPI() (*http.Server, string, error) {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("OFFRAMP_SYNTH_DEBUG") != "" {
+			fmt.Fprintln(os.Stderr, "synth: fake API:", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		project := ""
+		for i, p := range parts {
+			if p == "projects" && i+1 < len(parts) {
+				project = parts[i+1]
+			}
+		}
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/storage/") && strings.HasSuffix(r.URL.Path, "/serviceAccount"):
+			fmt.Fprintf(w, `{"kind":"storage#serviceAccount","email_address":"service-%s@gs-project-accounts.iam.gserviceaccount.com"}`, project)
+			return
+		case strings.HasPrefix(r.URL.Path, "/big_query/") && strings.HasSuffix(r.URL.Path, "/serviceAccount"):
+			fmt.Fprintf(w, `{"kind":"bigquery#getServiceAccountResponse","email":"bq-%s@bigquery-encryption.iam.gserviceaccount.com"}`, project)
+			return
+		case strings.HasSuffix(r.URL.Path, "/settings"):
+			fmt.Fprintf(w, `{"name":"projects/%s/settings","serviceAccountId":"service-%s@gcp-sa-logging.iam.gserviceaccount.com"}`, project, project)
+			return
+		}
 		if strings.HasSuffix(r.URL.Path, "/serverConfig") {
 			w.Header().Set("Content-Type", "application/json")
 			v := "1.33.5-gke.1000000"
@@ -444,10 +489,77 @@ func fillUnknown(typ, addr string, a map[string]any, unknown map[string]any, pro
 		set("id", id)
 		set("self_link", "https://container.googleapis.com/v1/"+id)
 		set("endpoint", "172.16.0.2")
+		set("master_version", "1.33.5-gke.1000000")
+		loc := s("location")
+		if strings.Count(loc, "-") == 2 {
+			set("node_locations", []any{loc})
+		} else {
+			set("node_locations", []any{loc + "-a", loc + "-b", loc + "-c"})
+		}
+		set("control_plane_endpoints_config", []any{map[string]any{
+			"dns_endpoint_config": []any{map[string]any{"endpoint": "gke-synthetic.offramp.gke.goog", "allow_external_traffic": false, "enable_k8s_tokens_via_dns": false, "enable_k8s_certs_via_dns": false}},
+			"ip_endpoints_config": []any{map[string]any{"enabled": true}},
+		}})
+		set("master_auth", []any{map[string]any{"cluster_ca_certificate": "c3ludGhldGlj", "client_certificate": "", "client_key": "",
+			"client_certificate_config": []any{map[string]any{"issue_client_certificate": false}}}})
 	case "google_container_node_pool":
 		set("id", "projects/"+s("project")+"/locations/"+s("location")+"/clusters/"+s("cluster")+"/nodePools/"+s("name"))
 	}
 	if a["id"] == nil {
 		a["id"] = "synthetic/" + addr
 	}
+}
+
+// schemaAttrTypes gives each resource type's attribute types (JSON cty types).
+func schemaAttrTypes(b []byte) map[string]map[string]any {
+	var s struct {
+		ProviderSchemas map[string]struct {
+			ResourceSchemas map[string]struct {
+				Block struct {
+					Attributes map[string]struct {
+						Type any `json:"type"`
+					} `json:"attributes"`
+				} `json:"block"`
+			} `json:"resource_schemas"`
+		} `json:"provider_schemas"`
+	}
+	out := map[string]map[string]any{}
+	if json.Unmarshal(b, &s) != nil {
+		return out
+	}
+	for p, ps := range s.ProviderSchemas {
+		for t, rs := range ps.ResourceSchemas {
+			m := map[string]any{}
+			for n, a := range rs.Block.Attributes {
+				m[n] = a.Type
+			}
+			out[p+"|"+t] = m
+		}
+	}
+	return out
+}
+
+// zeroOf is a cty type's empty value: "" , 0, false, [] or {}.
+func zeroOf(t any) (any, bool) {
+	switch x := t.(type) {
+	case string:
+		switch x {
+		case "string":
+			return "", true
+		case "number":
+			return 0, true
+		case "bool":
+			return false, true
+		}
+	case []any:
+		if len(x) > 0 {
+			switch x[0] {
+			case "list", "set", "tuple":
+				return []any{}, true
+			case "map", "object":
+				return map[string]any{}, true
+			}
+		}
+	}
+	return nil, false
 }

@@ -814,7 +814,12 @@ func validate(c *Component, msg func(level, where, format string, a ...any), whe
 					loc = "(values)"
 				}
 				line := fmt.Sprintf("%s: %s", strings.ReplaceAll(loc, "/", "."), u.Error.String())
-				if !seen[line] {
+				if v, ok := atPointer(eff, u.InstanceLocation).(string); ok && strings.Contains(v, "${") {
+					// Another component's output: Bundt evaluates it, and the
+					// chart checks the value it renders, at plan time.
+					line = ""
+				}
+				if line != "" && !seen[line] {
 					seen[line] = true
 					msg(Invalid, where+"."+strings.Split(loc, "/")[0], "does not match the chart's values.schema.json at %s", line)
 				}
@@ -950,4 +955,27 @@ func hasKey(o Ordered, k string) bool {
 		}
 	}
 	return false
+}
+
+// atPointer gives the value at a JSON pointer (/a/0/b) in v, or nil.
+func atPointer(v any, ptr string) any {
+	for _, p := range strings.Split(strings.TrimPrefix(ptr, "/"), "/") {
+		if p == "" {
+			continue
+		}
+		p = strings.ReplaceAll(strings.ReplaceAll(p, "~1", "/"), "~0", "~")
+		switch x := v.(type) {
+		case map[string]any:
+			v = x[p]
+		case []any:
+			i := 0
+			if _, err := fmt.Sscanf(p, "%d", &i); err != nil || i < 0 || i >= len(x) {
+				return nil
+			}
+			v = x[i]
+		default:
+			return nil
+		}
+	}
+	return v
 }
