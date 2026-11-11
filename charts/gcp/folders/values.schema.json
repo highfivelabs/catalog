@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "folders values (terraform-google-folders v5.2.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "parent"
+  ],
+  "definitions": {
+    "stringList": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "properties": {
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every folder's display name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key is also checked as a Google Cloud label.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "deletion_policy": {
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ],
+      "description": "Not a module variable. PREVENT is refused (no Config Connector equivalent)."
+    },
+    "resource_ids": {
+      "description": "Not a Terraform variable: existing folders to adopt, {hfl.dev/id of the Folder object (folder:<name>): folder number or folders/<number>}.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(folders/)?[0-9]+$"
+      }
+    },
+    "all_folder_admins": {
+      "$ref": "#/definitions/stringList",
+      "description": "List of IAM-style members that will get the extended permissions across all the folders."
+    },
+    "deletion_protection": {
+      "type": "boolean",
+      "description": "Prevent Terraform from destroying or recreating the folder. Refused when true: Folder has no such field."
+    },
+    "folder_admin_roles": {
+      "$ref": "#/definitions/stringList",
+      "description": "List of roles that will be applied to a folder if roles are not explictly specified in per_folder_admins"
+    },
+    "names": {
+      "$ref": "#/definitions/stringList",
+      "description": "Folder names."
+    },
+    "parent": {
+      "type": "string",
+      "pattern": "^(folders|organizations)/[0-9]+$",
+      "description": "The resource name of the parent Folder or Organization. Must be of the form folders/folder_id or organizations/org_id"
+    },
+    "per_folder_admins": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "IAM-style roles per members per folder who will get extended permissions. If roles are not provided for a folder/member combination, the list provided as `folder_admin_roles` will be applied as default.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "roles": {
+            "$ref": "#/definitions/stringList"
+          }
+        }
+      }
+    },
+    "prefix": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional prefix to enforce uniqueness of folder names."
+    },
+    "set_roles": {
+      "type": "boolean",
+      "description": "Enable setting roles via the folder admin variables."
+    }
+  }
+}

@@ -15,6 +15,14 @@
 // test case sets in full under names (docs/design.md, "Names, labels and
 // tags") takes no prefix, so an object whose cloud name contains one of the
 // case's names values passes too.
+//
+// Two optional keys in tests/name-prefix.yaml cover charts whose cloud name
+// is not spec.resourceID. nameFields maps a kind to the spec field that holds
+// its cloud name, for resources the cloud names by number (a folder's
+// spec.resourceID is the number Google assigns; its collision-prone name is
+// spec.displayName). nothingNamed, with a reason, says the chart renders no
+// object with a cloud name of its own (an IAM-only chart), so a chart that
+// checks nothing is not reported.
 package nameprefix
 
 import (
@@ -34,7 +42,9 @@ import (
 const Prefix = "zz9"
 
 type exemptFile struct {
-	Exempt map[string]string `yaml:"exempt"`
+	Exempt       map[string]string `yaml:"exempt"`
+	NameFields   map[string]string `yaml:"nameFields"`
+	NothingNamed string            `yaml:"nothingNamed"`
 }
 
 type object struct {
@@ -43,9 +53,18 @@ type object struct {
 	Metadata   struct {
 		Name string `yaml:"name"`
 	} `yaml:"metadata"`
-	Spec struct {
-		ResourceID string `yaml:"resourceID"`
-	} `yaml:"spec"`
+	Spec map[string]any `yaml:"spec"`
+}
+
+// cloudName returns the object's cloud-side name: spec.resourceID, or the
+// spec field name-prefix.yaml names for its kind.
+func (o object) cloudName(fields map[string]string) string {
+	f := "resourceID"
+	if n, ok := fields[o.Kind]; ok {
+		f = n
+	}
+	s, _ := o.Spec[f].(string)
+	return s
 }
 
 func render(chartDir, release, values string, set ...string) ([]byte, error) {
@@ -69,15 +88,18 @@ func fullNames(values string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// names is a map of names in full; a chart whose module has a names
+	// variable of its own (a list) has none, and that is not one.
 	var v struct {
-		Names map[string]string `yaml:"names"`
+		Names any `yaml:"names"`
 	}
 	if err := yaml.Unmarshal(data, &v); err != nil {
 		return nil, fmt.Errorf("%s: %w", values, err)
 	}
+	m, _ := v.Names.(map[string]any)
 	var out []string
-	for _, n := range v.Names {
-		if n != "" {
+	for _, raw := range m {
+		if n, ok := raw.(string); ok && n != "" {
 			out = append(out, n)
 		}
 	}
@@ -167,11 +189,16 @@ func Check(chartDir string) ([]string, error) {
 				continue
 			}
 			prefixed++
+			cn := o.cloudName(ex.NameFields)
+			field := "spec.resourceID"
+			if f, ok := ex.NameFields[o.Kind]; ok {
+				field = "spec." + f
+			}
 			switch {
-			case o.Spec.ResourceID == "":
-				bad("%s: %s %q has no spec.resourceID, so its cloud name cannot carry the namePrefix: give it one built with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, o.Kind)
-			case !strings.Contains(o.Spec.ResourceID, Prefix+"-") && !setInFull(o.Spec.ResourceID):
-				bad("%s: %s %q has cloud name %q without the namePrefix: build it with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, o.Spec.ResourceID, o.Kind)
+			case cn == "":
+				bad("%s: %s %q has no %s, so its cloud name cannot carry the namePrefix: give it one built with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, field, o.Kind)
+			case !strings.Contains(cn, Prefix+"-") && !setInFull(cn):
+				bad("%s: %s %q has cloud name %q without the namePrefix: build it with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, cn, o.Kind)
 			}
 		}
 		// The same render without the prefix has none of it.
@@ -179,7 +206,7 @@ func Check(chartDir string) ([]string, error) {
 			bad("%s: the render without a namePrefix contains %q", name, Prefix+"-")
 		}
 	}
-	if prefixed == 0 {
+	if prefixed == 0 && strings.TrimSpace(ex.NothingNamed) == "" {
 		bad("no object was checked: every kind is exempt, or the test cases render nothing")
 	}
 	return problems, nil
