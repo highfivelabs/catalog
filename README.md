@@ -40,6 +40,33 @@ and `tags` (cloud labels) that it puts on every object, so Bundt can supply
 names and identity labels from a team's naming convention
 (`docs/design.md`, "Names, labels and tags").
 
+## The merge gate
+
+GitHub Actions is off in the organization (the builder, 2026-11-11); the
+workflows in `.github/workflows/` stay, disabled. `ci.yml`'s pull-request
+job runs before the push instead:
+
+```sh
+task hooks          # once per clone: core.hooksPath=hack/hooks
+task ci             # by hand: HEAD (or SHA=...)
+```
+
+`task ci` (`hack/ci/gate.sh`) checks the commit out into a temporary
+worktree and runs `task check` there, on this machine: it takes under a
+minute (an offload VM takes longer than that to boot), and the offload
+image lacks the linters it runs. It fails unless task and the tools
+`ci.yml` pins (`*_VERSION`) are installed at those versions and
+shellcheck is installed, and it runs Go at `ci.yml`'s `go-version-file`
+(`GOTOOLCHAIN`), so nothing is skipped as "not installed". It uploads the
+log to the offload bucket and posts the commit status `offload/ci`
+(success or failure, with a link to the log) on the commit. The pre-push
+hook (`hack/hooks/pre-push`) runs it for every branch commit pushed and
+refuses the push on a failure; a commit that already has `offload/ci`
+success is not run again.
+
+**Merge only when the `offload/ci` status on the pull request's head is
+success.** A new commit on the branch needs its own run.
+
 <!-- coverage:start -->
 ## Coverage against the open-source modules
 
