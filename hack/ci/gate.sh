@@ -19,8 +19,9 @@
 # linters it runs (shellcheck, actionlint) are not on the offload image.
 # It runs with ci.yml's pins: Go from go-version-file (GOTOOLCHAIN), and
 # it fails unless task and every tool ci.yml pins by *_VERSION is
-# installed at that version, and shellcheck is installed (ci.yml's runner
-# has it), so that no check is skipped as "not installed".
+# installed at that version (task ci:tools installs them), and shellcheck
+# is installed (ci.yml's runner has it), so that no check is skipped as
+# "not installed".
 #
 # The commit is checked out into a temporary worktree first, so the run
 # is of exactly SHA, whatever the working tree holds. The log is uploaded
@@ -73,7 +74,10 @@ have() {
 command -v shellcheck >/dev/null || die "shellcheck is not installed (ci.yml's runner has it)"
 v="$(pin TASK_VERSION)";        [[ -z "$v" ]] || have task "$v" "$(task --version 2>/dev/null || true)"
 v="$(pin HELM_VERSION)";        [[ -z "$v" ]] || have helm "$v" "$(helm version --short 2>/dev/null || true)"
-v="$(pin KUBECONFORM_VERSION)"; [[ -z "$v" ]] || have kubeconform "$v" "$(kubeconform -v 2>/dev/null || true)"
+# A `go install`ed kubeconform (hack/ci/tools.sh) says "development" to
+# -v; its module version is in its build info.
+gomodver() { go version -m "$(command -v "$1")" 2>/dev/null | awk '$1 == "mod" {print $3}' || true; }
+v="$(pin KUBECONFORM_VERSION)"; [[ -z "$v" ]] || have kubeconform "$v" "$(kubeconform -v 2>/dev/null || true) $(gomodver kubeconform)"
 v="$(pin ACTIONLINT_VERSION)";  [[ -z "$v" ]] || have actionlint "$v" "$(actionlint -version 2>/dev/null || true)"
 gomod="$(sed -n -E 's/.*go-version-file: *([^ ]+).*/\1/p' "$CI" | head -n 1)"
 [[ -n "$gomod" ]] || die "ci.yml names no go-version-file"
