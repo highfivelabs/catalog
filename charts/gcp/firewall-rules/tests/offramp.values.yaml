@@ -1,0 +1,21 @@
+# The offramp fixture's module call (catalog-offramp, fixtures/shared-vpc:
+# module.vpc's firewall_rules), its arguments unchanged, with a placeholder
+# project and prefix. The converter puts a module block's arguments here as
+# they are and diffs this render against the objects it converts from the
+# Terraform state.
+project_id: my-project
+network_name: ofr-test-shared
+ingress_rules:
+  - name: ofr-test-allow-iap-ssh
+    description: SSH through Identity-Aware Proxy
+    source_ranges: [35.235.240.0/20]
+    target_tags: [ssh]
+    allow: [{protocol: tcp, ports: ["22"]}]
+  - name: ofr-test-allow-internal
+    source_ranges: [10.10.0.0/16, 10.20.0.0/20]
+    allow: [{protocol: tcp}, {protocol: udp}, {protocol: icmp}]
+egress_rules:
+  - name: ofr-test-deny-smtp
+    priority: 900
+    destination_ranges: [0.0.0.0/0]
+    deny: [{protocol: tcp, ports: ["25"]}]

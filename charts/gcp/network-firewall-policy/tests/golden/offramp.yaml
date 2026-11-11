@@ -1,0 +1,107 @@
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicy
+metadata:
+  name: offramp-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "offramp"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: ofr-test-policy
+  projectRef:
+    external: "my-project"
+  description: "offramp fixture: global network firewall policy"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  name: offramp-association-shared
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "offramp"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "association:shared"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: ofr-test-policy-ofr-test-shared
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "ofr-test-policy"
+  attachmentTargetRef:
+    external: "https://www.googleapis.com/compute/v1/projects/my-project/global/networks/ofr-test-shared"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: offramp-rule-1000
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "offramp"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:1000"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "1000"
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "ofr-test-policy"
+  action: "allow"
+  direction: INGRESS
+  ruleName: "allow-health-checks"
+  disabled: false
+  enableLogging: false
+  match:
+    srcIpRanges:
+      - "35.191.0.0/16"
+      - "130.211.0.0/22"
+    layer4Configs:
+    - ipProtocol: "tcp"
+      ports:
+        - "80"
+        - "443"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: offramp-rule-2000
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "offramp"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:2000"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "2000"
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "ofr-test-policy"
+  action: "deny"
+  direction: EGRESS
+  ruleName: "deny-telnet"
+  disabled: false
+  enableLogging: false
+  match:
+    destIpRanges:
+      - "0.0.0.0/0"
+    layer4Configs:
+    - ipProtocol: "tcp"
+      ports:
+        - "23"

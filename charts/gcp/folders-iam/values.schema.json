@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "folders-iam values (terraform-google-iam modules/folders_iam v8.3.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "names": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). This chart gives none.",
+      "properties": {}
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable). The chart gives no cloud names, so it changes nothing. A DNS label.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key is also checked as a Google Cloud label.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "deletion_policy": {
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ],
+      "description": "Not a module variable. PREVENT is refused (no Config Connector equivalent)."
+    },
+    "bindings": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Map of role (key) and list of members (value) to add the IAM policies/bindings",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "conditional_bindings": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "List of maps of role and respective conditions, and the members to add the IAM policies/bindings",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "title",
+          "description",
+          "expression",
+          "members"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expression": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "folders": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Folders list to add the IAM policies/bindings (folders/<number> or <number>)",
+      "items": {
+        "type": "string",
+        "pattern": "^(folders/)?[0-9]+$"
+      }
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "additive",
+        "authoritative"
+      ],
+      "description": "Mode for adding the IAM policies/bindings, additive and authoritative"
+    }
+  }
+}

@@ -1,0 +1,194 @@
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicy
+metadata:
+  name: full-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: fw-policy
+  projectRef:
+    external: "my-project"
+  description: "Full policy"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  name: full-association-dev
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "association:dev"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: fw-policy-dev
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "fw-policy"
+  attachmentTargetRef:
+    external: "https://www.googleapis.com/compute/v1/projects/host/global/networks/dev"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  name: full-association-prod
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "association:prod"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: fw-policy-prod
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "fw-policy"
+  attachmentTargetRef:
+    external: "https://www.googleapis.com/compute/v1/projects/host/global/networks/prod"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: full-rule-100
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rule:100"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "100"
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "fw-policy"
+  action: "allow"
+  direction: INGRESS
+  ruleName: "allow-everything-listed"
+  description: "Every INGRESS match field"
+  disabled: true
+  enableLogging: true
+  targetSecureTags:
+    - name: "tagValues/111"
+    - name: "tagValues/222"
+  match:
+    srcIpRanges:
+      - "10.0.0.0/8"
+    srcFqdns:
+      - "example.com"
+    srcRegionCodes:
+      - "US"
+    srcThreatIntelligences:
+      - "iplist-known-malicious-ips"
+    srcAddressGroups:
+      - "projects/my-project/locations/global/addressGroups/ag"
+    srcSecureTags:
+      - name: "tagValues/333"
+    destIpRanges:
+      - "10.1.0.0/16"
+    layer4Configs:
+    - ipProtocol: "tcp"
+      ports:
+        - "80"
+        - "443"
+        - "8000-8100"
+    - ipProtocol: "udp"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: full-rule-200
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rule:200"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "200"
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "fw-policy"
+  action: "deny"
+  direction: EGRESS
+  disabled: false
+  enableLogging: false
+  targetServiceAccountRefs:
+    - external: "vm@my-project.iam.gserviceaccount.com"
+  match:
+    destIpRanges:
+      - "0.0.0.0/0"
+    destFqdns:
+      - "bad.example.com"
+    destRegionCodes:
+      - "KP"
+    destThreatIntelligences:
+      - "iplist-tor-exit-nodes"
+    destAddressGroups:
+      - "projects/my-project/locations/global/addressGroups/bad"
+    layer4Configs:
+    - ipProtocol: "all"
+---
+# Source: network-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: full-rule-300
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: network-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "rule:300"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "300"
+  projectRef:
+    external: "my-project"
+  firewallPolicyRef:
+    external: "fw-policy"
+  action: "goto_next"
+  direction: INGRESS
+  disabled: false
+  enableLogging: false
+  match:
+    srcIpRanges:
+      - "192.168.0.0/16"
+    layer4Configs:
+    - ipProtocol: "all"

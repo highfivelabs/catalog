@@ -1,0 +1,58 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-folders main.tf (v5.2.0), Copyright 2018
+Google LLC, Apache-2.0.
+
+google_folder.folders: one Folder per entry of names, its display name
+"<prefix>-<name>" (the namePrefix outside it), under parent. Its number is
+Google's: resource_ids adopts an existing folder (README.md, "Adopting
+existing resources").
+
+google_folder_iam_binding.owners_combined: authoritative per role in the
+module; here one IAMPartialPolicy per folder with a binding per role
+(docs/design.md, "IAM"), which keeps the listed members and leaves others
+alone (README.md, "Differences from the module").
+*/ -}}
+{{- $v := .Values }}
+{{- /* deletion_protection is accepted and ignored: Terraform's own guard (README.md, "Differences from the module"). */}}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $prefix := ternary "" (printf "%s-" $v.prefix) (empty $v.prefix) }}
+{{- $names := $v.names | default list | uniq | sortAlpha }}
+{{- $ids := dict }}
+{{- range $name := $names }}{{ $_ := set $ids (include "folders.id" $name) true }}{{ end }}
+{{- range $k, $_ := ($v.resource_ids | default dict) }}
+{{- if not (hasKey $ids $k) }}
+{{- fail (printf "folders: resource_ids.%s names no Folder of this chart; its keys are the Folder objects' hfl.dev/id, folder:<name> for each entry of names (%s)" $k (keys $ids | sortAlpha | join ", ")) }}
+{{- end }}
+{{- end }}
+{{- range $name := $names }}
+{{- $id := include "folders.id" $name }}
+---
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Folder
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "folders.object" (list $ $name)) "id" $id "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- with index ($v.resource_ids | default dict) $id }}
+  resourceID: {{ trimPrefix "folders/" . | quote }}
+  {{- end }}
+  displayName: {{ include "kcc.cloudName" (list $ "folder display" (printf "%s%s" $prefix $name) 30) | quote }}
+  {{- if hasPrefix "folders/" $v.parent }}
+  folderRef:
+    external: {{ trimPrefix "folders/" $v.parent | quote }}
+  {{- else }}
+  organizationRef:
+    external: {{ trimPrefix "organizations/" $v.parent | quote }}
+  {{- end }}
+{{- end }}
+{{- $byFolder := dict }}
+{{- range $key, $b := (include "folders.bindings" . | fromJson) }}
+{{- $roles := get $byFolder $b.name | default dict }}
+{{- $_ := set $roles $b.role $b.members }}
+{{- $_ := set $byFolder $b.name $roles }}
+{{- end }}
+{{- range $name := keys $byFolder | sortAlpha }}
+{{- $obj := include "folders.object" (list $ $name) }}
+{{- include "kcc.iam" (dict "root" $ "base" $obj "idPrefix" (printf "%s:" (include "folders.id" $name)) "resourceRef" (dict "apiVersion" "resourcemanager.cnrm.cloud.google.com/v1beta1" "kind" "Folder" "name" $obj) "v" (dict "iam" (get $byFolder $name))) }}
+{{- end }}

@@ -1,0 +1,21 @@
+# The same in authoritative mode, on two folders given both ways the module
+# takes them: one IAMPartialPolicy per folder.
+folders: ["folders/1234567890", "2345678901"]
+mode: authoritative
+bindings:
+  roles/resourcemanager.folderEditor:
+    - serviceAccount:my-sa@my-project.iam.gserviceaccount.com
+    - group:my-group@my-org.com
+  roles/resourcemanager.folderViewer:
+    - user:my-user@my-org.com
+conditional_bindings:
+  - role: roles/editor
+    title: expires_after_2019_12_31
+    description: Expiring at midnight of 2019-12-31
+    expression: request.time < timestamp("2020-01-01T00:00:00Z")
+    members: [user:my-user@my-org.com]
+  - role: roles/resourcemanager.folderViewer
+    title: business_hours
+    description: ""
+    expression: request.time.getHours("Europe/Berlin") >= 9
+    members: [group:support@my-org.com]

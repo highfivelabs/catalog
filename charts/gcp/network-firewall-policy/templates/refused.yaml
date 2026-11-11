@@ -1,0 +1,29 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+What the chart refuses, before it renders anything (docs/design.md, "What
+Config Connector cannot express is refused, by name"). Each is listed in
+upstream.yaml under refused. Renders no object.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "policy_region" $v.policy_region "Config Connector v1.160.0 has no regional network firewall policy kinds (the module's google_compute_region_network_firewall_policy, its association and its rules): only global policies (policy_region: null) carry over") }}
+{{- include "kcc.unsupported" (list $ "policy_type" $v.policy_type "ComputeNetworkFirewallPolicy has no policyType; leave it null for the default, VPC_POLICY") }}
+{{- $rules := $v.rules | default list }}
+{{- include "kcc.alpha" (list $ "rules" $rules "ComputeNetworkFirewallPolicyRule") }}
+{{- range $i, $r := $rules }}
+{{- range $k := list "priority" "direction" "action" "match" }}
+{{- if kindIs "invalid" (index $r $k) }}
+{{- fail (printf "network-firewall-policy: rules[%d] has no %s; the module requires it" $i $k) }}
+{{- end }}
+{{- end }}
+{{- if $r.is_mirroring }}
+{{- include "kcc.unsupported" (list $ (printf "rules[%d].is_mirroring" $i) $r.is_mirroring "a packet mirroring rule (google_compute_network_firewall_policy_packet_mirroring_rule) has no Config Connector v1.160.0 kind") }}
+{{- end }}
+{{- if eq (toString $r.action) "apply_security_profile_group" }}
+{{- include "kcc.unsupported" (list $ (printf "rules[%d].action apply_security_profile_group" $i) $r.action "ComputeNetworkFirewallPolicyRule has no securityProfileGroup or tlsInspect, which the module sets for this action (security_profile_group_id, tls_inspect)") }}
+{{- end }}
+{{- if and $r.target_secure_tags $r.target_service_accounts }}
+{{- fail "network-firewall-policy: target_secure_tags may not be set at the same time as target_service_accounts" }}
+{{- end }}
+{{- end }}

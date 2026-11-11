@@ -1,0 +1,38 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/network-network-firewall-policy
+repo: https://github.com/terraform-google-modules/terraform-google-network
+path: modules/network-firewall-policy
+version: v18.3.1
+commit: 91352bed3014ddbfb323d979b6413a90e7253acf
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/network-firewall-policy
+registry_url: https://registry.terraform.io/modules/terraform-google-modules/network/google
+synced: 2026-11-10
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: policy_region
+    kind: gap
+    reason: "Config Connector v1.160.0 has no regional network firewall policy kinds (policy, association or rule): only global policies carry over"
+  - variable: policy_type
+    kind: gap
+    reason: "ComputeNetworkFirewallPolicy has no policyType"
+  - variable: rules
+    kind: alpha
+    reason: "ComputeNetworkFirewallPolicyRule is v1alpha1: needs allow_alpha: true; packet mirroring rules (is_mirroring: true) have no kind, and action apply_security_profile_group is refused (no securityProfileGroup or tlsInspect)"
+    partial: true
+    fields: [security_profile_group_id]
+    values: [apply_security_profile_group]
+    needs_allow_alpha: true
