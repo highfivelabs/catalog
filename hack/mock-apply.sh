@@ -86,8 +86,9 @@ for values in charts/*/*/tests/mock.values.yaml; do
   helm template "${rel}" "${dir}" --namespace "${ns}" -f "${values}" >"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
+  # One object comes back as itself, not a List: make it one.
   mapfile -t objects < <(kubectl get -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" -o json \
-    | jq -r '.items[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
+    | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
   short() { local k="${1%%.*}" n="${1#*/}"; jq -r --arg k "$k" --arg n "$n" '.items[] | select((.kind | ascii_downcase) == $k and .metadata.name == $n) | "\(.kind)/\(.metadata.name)"' "${OUT}/${chart}/live.json"; }
   deadline=$(( $(date +%s) + TIMEOUT ))
   declare -A ready=()
@@ -99,7 +100,8 @@ for values in charts/*/*/tests/mock.values.yaml; do
       ready["$o"]=no
     fi
   done
-  kubectl get -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" -o json >"${OUT}/${chart}/live.json"
+  kubectl get -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" -o json \
+    | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${chart}/live.json"
   if bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}/live.json" "${dir}/values.yaml" "${values}" >"${OUT}/${chart}/outputs.json" 2>"${OUT}/${chart}/outputs.err"; then
     outputs_ok=yes
   else
