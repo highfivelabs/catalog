@@ -56,3 +56,17 @@ func TestCheck(t *testing.T) {
 		t.Fatalf("an exempt kind passes, but a chart that checks nothing is reported: %v", p)
 	}
 }
+
+func TestSets(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: w\nversion: 0.1.0\ndependencies:\n  - name: project\n    version: 0.4.0\n  - name: project\n    alias: second\n"), 0o644)
+	got, err := Sets(dir, "zz9")
+	want := []string{"namePrefix=zz9", "project.namePrefix=zz9", "second.namePrefix=zz9"}
+	if err != nil || strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("a wrapper's dependencies get the namePrefix too: %v %v", got, err)
+	}
+	os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: c\nversion: 0.1.0\n"), 0o644)
+	if got, _ := Sets(dir, ""); strings.Join(got, " ") != "namePrefix=" {
+		t.Fatalf("a chart without dependencies: %v", got)
+	}
+}
