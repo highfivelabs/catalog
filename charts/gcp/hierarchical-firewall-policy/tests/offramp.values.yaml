@@ -1,0 +1,32 @@
+# The offramp fixture: the arguments exactly as the Terraform module call
+# has them (folder numbers placeholders). Note that target_folders here are
+# folders/<id>, and the module prefixes each with folders/ again
+# (formatlist("folders/%s", var.target_folders)), so its attachment targets
+# are folders/folders/<id>; the chart does the same (README.md,
+# "Differences from the module").
+parent_node: folders/111111111111
+policy_name: ofr-test-baseline
+description: "offramp fixture: baseline rules for every project below"
+target_folders: ["folders/333333333333", "folders/444444444444"]
+rules:
+  - priority: 1000
+    direction: INGRESS
+    action: allow
+    rule_name: allow-iap
+    match:
+      src_ip_ranges: ["35.235.240.0/20"]
+      layer4_configs: [{ip_protocol: tcp, ports: ["22", "3389"]}]
+  - priority: 2000
+    direction: INGRESS
+    action: goto_next
+    rule_name: delegate-internal
+    match:
+      src_ip_ranges: ["10.0.0.0/8"]
+      layer4_configs: [{ip_protocol: all}]
+  - priority: 65000
+    direction: INGRESS
+    action: deny
+    rule_name: deny-rest
+    match:
+      src_ip_ranges: ["0.0.0.0/0"]
+      layer4_configs: [{ip_protocol: all}]

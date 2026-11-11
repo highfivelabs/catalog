@@ -1,0 +1,253 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "hierarchical-firewall-policy values (terraform-google-network modules/hierarchical-firewall-policy v18.3.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "parent_node",
+    "policy_name"
+  ],
+  "definitions": {
+    "stringList": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "intish": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "names": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set is policy_name.",
+      "properties": {
+        "policy": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$",
+          "description": "The policy's shortName in full, under the module's own rule for policy_name."
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the policy's name, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource; firewall policies have none, so they stay Kubernetes labels.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "deletion_policy": {
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ],
+      "description": "Not a module variable. PREVENT is refused (no Config Connector equivalent)."
+    },
+    "resource_ids": {
+      "description": "Not a Terraform variable. {<hfl.dev/id>: <server-assigned ID>} of existing resources to adopt: only the policy (key policy) has one (README.md, \"Adopting existing resources\").",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "policy": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      }
+    },
+    "parent_node": {
+      "description": "Required. organizations/<org-id> or folders/<folder_id>.",
+      "type": "string",
+      "pattern": "^(organizations|folders)/[0-9]+$"
+    },
+    "policy_name": {
+      "description": "User-provided name of the Organization firewall policy. The name should be unique in the organization in which the firewall policy is created. The name must be 1-63 characters long and match the regular expression a-z? which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target_folders": {
+      "$ref": "#/definitions/stringList"
+    },
+    "target_org": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rules": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "priority",
+          "direction",
+          "action",
+          "match"
+        ],
+        "properties": {
+          "priority": {
+            "$ref": "#/definitions/intish"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "rule_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enable_logging": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "target_service_accounts": {
+            "$ref": "#/definitions/stringList"
+          },
+          "target_resources": {
+            "$ref": "#/definitions/stringList"
+          },
+          "match": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "src_ip_ranges": {
+                "$ref": "#/definitions/stringList"
+              },
+              "src_fqdns": {
+                "$ref": "#/definitions/stringList"
+              },
+              "src_region_codes": {
+                "$ref": "#/definitions/stringList"
+              },
+              "src_threat_intelligences": {
+                "$ref": "#/definitions/stringList"
+              },
+              "src_address_groups": {
+                "$ref": "#/definitions/stringList"
+              },
+              "dest_ip_ranges": {
+                "$ref": "#/definitions/stringList"
+              },
+              "dest_fqdns": {
+                "$ref": "#/definitions/stringList"
+              },
+              "dest_region_codes": {
+                "$ref": "#/definitions/stringList"
+              },
+              "dest_threat_intelligences": {
+                "$ref": "#/definitions/stringList"
+              },
+              "dest_address_groups": {
+                "$ref": "#/definitions/stringList"
+              },
+              "src_networks": {
+                "$ref": "#/definitions/stringList"
+              },
+              "layer4_configs": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "ip_protocol": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "ports": {
+                      "$ref": "#/definitions/stringList"
+                    }
+                  }
+                }
+              },
+              "src_network_scope": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dest_network_scope": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
