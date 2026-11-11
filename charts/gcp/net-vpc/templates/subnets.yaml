@@ -60,19 +60,14 @@ spec:
   {{- end }}
   {{- if and (has $s._type (list "regular" "psc")) $s.flow_logs_config }}
   {{- with $s.flow_logs_config }}
+  {{- /* fabric sends null for what flow_logs_config leaves out, and the
+  google provider then sends its defaults, which the subnet and the
+  Terraform state hold: render them, so an adopted subnet is unchanged. */}}
   logConfig:
-    {{- with .aggregation_interval }}
-    aggregationInterval: {{ . }}
-    {{- end }}
-    {{- with .filter_expression }}
-    filterExpr: {{ . | quote }}
-    {{- end }}
-    {{- if not (kindIs "invalid" .flow_sampling) }}
-    flowSampling: {{ .flow_sampling }}
-    {{- end }}
-    {{- with .metadata }}
-    metadata: {{ . }}
-    {{- end }}
+    aggregationInterval: {{ .aggregation_interval | default "INTERVAL_5_SEC" }}
+    filterExpr: {{ .filter_expression | default "true" | quote }}
+    flowSampling: {{ if kindIs "invalid" .flow_sampling }}0.5{{ else }}{{ .flow_sampling }}{{ end }}
+    metadata: {{ .metadata | default "INCLUDE_ALL_METADATA" }}
     {{- if and (eq (.metadata | default "") "CUSTOM_METADATA") .metadata_fields }}
     metadataFields: {{ toJson .metadata_fields }}
     {{- end }}
