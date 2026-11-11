@@ -1,0 +1,31 @@
+# Every input: a list constraint on an organization with allow, deny,
+# allow-all and conditional rules, dry-run rules, inherit_from_parent, and
+# exclusions on folders and projects (each reset there).
+policy_root: organization
+policy_root_id: "123456789012"
+constraint: compute.vmExternalIpAccess
+policy_type: list
+inherit_from_parent: true
+exclude_folders: ["333333333333", "222222222222"]
+exclude_projects: [sandbox-project]
+deletion_policy: ABANDON
+labels: {hfl.dev/team: platform}
+tags: {team: platform}
+rules:
+  - enforcement: true
+    deny: ["projects/p1/zones/us-central1-a/instances/vm-1"]
+  - enforcement: false
+    conditions:
+      - title: dev
+        description: Development projects may use external IPs
+        expression: "resource.matchTag('123456789012/env', 'dev')"
+        location: policies.tf
+  - enforcement: true
+    allow: ["projects/p2/zones/us-central1-a/instances/bastion"]
+    conditions:
+      - title: bastion
+        description: The bastion
+        expression: "resource.matchTag('123456789012/role', 'bastion')"
+        location: ""
+  - enforcement: true
+    dry_run: true

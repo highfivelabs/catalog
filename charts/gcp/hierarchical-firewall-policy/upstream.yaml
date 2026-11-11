@@ -1,0 +1,30 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/network-hierarchical-firewall-policy
+repo: https://github.com/terraform-google-modules/terraform-google-network
+path: modules/hierarchical-firewall-policy
+version: v18.3.1
+commit: 91352bed3014ddbfb323d979b6413a90e7253acf
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/hierarchical-firewall-policy
+registry_url: https://registry.terraform.io/modules/terraform-google-modules/network/google
+synced: 2026-11-10
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: rules
+    kind: gap
+    reason: "accepted; a rule's match.src_networks, match.src_network_scope and match.dest_network_scope are refused when set: ComputeFirewallPolicyRule's match has no srcNetworks, srcNetworkScope or destNetworkScope"
+    partial: true
+    fields: [src_networks, src_network_scope, dest_network_scope]

@@ -1,0 +1,42 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-org-policy
+modules/org_policy_v2/list_constraints.tf (v7.4.0), Copyright 2025 Google
+LLC, Apache-2.0.
+
+policy_type: list. The policy on the root (google_org_policy_policy
+organization_policy, folder_policy or project_policy: one of them, by
+policy_root), with inherit_from_parent on its spec and dry-run spec, and,
+unless the root is a project, one policy per excluded folder
+(folder_policy_list_exclude_folders) and per excluded project
+(project_policy_list_exclude_projects) that resets the constraint there.
+Each rule as the module writes it: allowAll when enforcement is false,
+denyAll when it is true, and the allow or the deny list as values (either
+one makes enforcement null).
+*/ -}}
+{{- if eq .Values.policy_type "list" }}
+{{- include "orgpolicy.check" . }}
+{{- $v := .Values }}
+{{- $spec := include "orgpolicy.rules" (dict "root" $ "dry" false) | fromJson }}
+{{- $dry := include "orgpolicy.rules" (dict "root" $ "dry" true) | fromJson }}
+{{- $inherit := and (kindIs "bool" $v.inherit_from_parent) $v.inherit_from_parent }}
+{{- $_ := set $spec "inheritFromParent" $inherit }}
+{{- $_ := set $dry "inheritFromParent" $inherit }}
+{{- include "orgpolicy.policy" (dict "root" $ "name" .Release.Name "id" "policy"
+      "parent" (printf "%ss/%s" $v.policy_root (toString $v.policy_root_id))
+      "spec" (ternary $spec dict (gt (len $spec.rules) 0))
+      "dryRun" (ternary $dry dict (gt (len $dry.rules) 0))) }}
+{{- if ne $v.policy_root "project" }}
+{{- range $f := ($v.exclude_folders | default list | uniq | sortAlpha) }}
+{{ include "orgpolicy.policy" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "exclude-folder" $f)) "id" (printf "exclude-folder:%s" $f)
+      "parent" (printf "folders/%s" $f)
+      "spec" (dict "reset" true)) }}
+{{- end }}
+{{- range $p := ($v.exclude_projects | default list | uniq | sortAlpha) }}
+{{ include "orgpolicy.policy" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "exclude-project" $p)) "id" (printf "exclude-project:%s" $p)
+      "parent" (printf "projects/%s" $p)
+      "spec" (dict "reset" true)) }}
+{{- end }}
+{{- end }}
+{{- end }}

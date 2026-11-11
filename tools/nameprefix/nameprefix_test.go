@@ -55,4 +55,24 @@ func TestCheck(t *testing.T) {
 	if p, _ := Check(ok); len(p) != 1 || !strings.Contains(p[0], "no object was checked") {
 		t.Fatalf("an exempt kind passes, but a chart that checks nothing is reported: %v", p)
 	}
+	none := chart(t, `{{ .Values.name }}`, "  Thing: fixed by the cloud\nnoCloudNames: every kind is named by the cloud\n")
+	if p, err := Check(none); err != nil || len(p) != 0 {
+		t.Fatalf("a chart that says it gives no cloud name passes: %v %v", p, err)
+	}
+	short := chart(t, `{{ .Values.name }}
+  shortName: {{ printf "%s%s" (include "kcc.namePrefix" .) .Values.name }}`, "  Other: because\nnameFields: {Thing: shortName}\n")
+	os.WriteFile(filepath.Join(short, "templates", "_kcc.tpl"), lib, 0o644)
+	if p, err := Check(short); err != nil || len(p) != 0 {
+		t.Fatalf("a prefixed name in the field nameFields names passes: %v %v", p, err)
+	}
+	unshort := chart(t, `{{ printf "%s%s" (include "kcc.namePrefix" .) .Values.name }}
+  shortName: {{ .Values.name }}`, "  Other: because\nnameFields: {Thing: shortName}\n")
+	os.WriteFile(filepath.Join(unshort, "templates", "_kcc.tpl"), lib, 0o644)
+	if p, _ := Check(unshort); len(p) != 1 || !strings.Contains(p[0], `has cloud name "x" without the namePrefix`) {
+		t.Fatalf("nameFields moves the check to that field: %v", p)
+	}
+	wrong := chart(t, `{{ .Values.name }}`, "  Other: because\nnoCloudNames: wrongly claimed\n")
+	if p, _ := Check(wrong); len(p) != 2 || !strings.Contains(p[1], "says noCloudNames, but 1 objects") {
+		t.Fatalf("noCloudNames on a chart with a cloud name is reported: %v", p)
+	}
 }

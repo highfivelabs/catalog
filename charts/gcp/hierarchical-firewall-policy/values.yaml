@@ -1,0 +1,64 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-google-modules'
+# network module, modules/hierarchical-firewall-policy (v18.3.1): same
+# names, types and defaults, so a module block's arguments become this file
+# one to one (README.md, "From Terraform"). values.schema.json carries the
+# types and the module's validation.
+#
+# Descriptions quoted from terraform-google-network
+# (modules/hierarchical-firewall-policy/variables.tf, v18.3.1), Copyright
+# Google LLC, Apache-2.0.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# The policy's name (shortName) in full, {policy}. A name set here takes no
+# prefix. A name not set is policy_name.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the policy's name
+# when names.policy is not set. Empty (the default) changes nothing. Rules
+# (named by priority) and associations (named by the module after their
+# target) take none.
+namePrefix: ""
+# Kubernetes labels on every object. A prefixed key (hfl.dev/team) stays in
+# Kubernetes. Firewall policies have no cloud labels.
+labels: {}
+# Cloud labels on every resource: firewall policies have none, so these are
+# Kubernetes labels only (they must still be valid Google Cloud labels).
+tags: {}
+# DELETE (the default) or ABANDON, which keeps the policy, its rules and its
+# associations when the component is deleted. Not a module variable.
+# PREVENT is refused.
+deletion_policy: null
+# Adopting existing resources (not a Terraform variable; README.md,
+# "Adopting existing resources"): {<hfl.dev/id>: <server-assigned ID>}. The
+# cloud names a hierarchical firewall policy with a number; to adopt an
+# existing policy rather than create a new one, give that number under the
+# policy object's id, policy: {policy: "123456789012"}. Rules are found by
+# priority and associations by name, so they need none. Empty creates a new
+# policy.
+resource_ids: {}
+
+# The parent of the firewall policy. Parent should be in format organizations/<org-id> or folders/<folder_id> (required)
+parent_node: ""
+# User-provided name of the hierarchical firewall policy (required)
+policy_name: ""
+# An optional description of this resource. Provide this property when you create the resource
+description: null
+# List of target folders IDs that the firewall policy will be attached to
+target_folders: []
+# Target org id that the firewall policy will be attached to
+target_org: null
+# List of Ingress/Egress rules. Each rule:
+#   priority, direction, action (required); rule_name, disabled,
+#   description, enable_logging (optional); target_service_accounts,
+#   target_resources (default []); match (required): src_ip_ranges,
+#   src_fqdns, src_region_codes, src_threat_intelligences,
+#   src_address_groups, dest_ip_ranges, dest_fqdns, dest_region_codes,
+#   dest_threat_intelligences, dest_address_groups (default []),
+#   layer4_configs (default [{ip_protocol: all, ports: []}]), src_networks
+#   (default []), src_network_scope, dest_network_scope.
+rules: []
