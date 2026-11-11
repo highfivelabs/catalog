@@ -54,6 +54,10 @@ type Options struct {
 	// `terraform init` resolved them (.terraform/modules/modules.json,
 	// ReadModulesJSON); they take precedence over the source arguments.
 	Sources map[string]ModuleSource
+	// AllowAlpha accepts what needs an alpha Config Connector kind, and
+	// adds allow_alpha: true to the components that need it (an import
+	// that must carry everything Terraform made says so in its report).
+	AllowAlpha bool
 	// Name is the Template's (and the Stack's) name; default: the name of the file's directory.
 	Name            string
 	Team, Env       string // the Stack's team and the Instance's environment; defaults my-team and dev
@@ -350,7 +354,15 @@ func Convert(file string, o Options) (*Result, error) {
 				continue
 			}
 			if r, refused := mb.chart.Refused[name]; refused {
-				if !checkRefused(r, goVal, w, allowAlpha(c, mb.chart, attrs, vars, locals, byLabel), msg) {
+				aa := allowAlpha(c, mb.chart, attrs, vars, locals, byLabel)
+				if o.AllowAlpha && !aa && !isEmpty(goVal) && (r.NeedsAllowAlpha || len(r.AlphaFields) > 0) {
+					aa = true
+					if !hasKey(c.Inputs, "allow_alpha") {
+						c.Inputs = append(c.Inputs, Pair{"allow_alpha", true})
+						msg(Note, where+".allow_alpha", "added allow_alpha: true: %s needs an alpha Config Connector kind (%s)", name, r.Reason)
+					}
+				}
+				if !checkRefused(r, goVal, w, aa, msg) {
 					continue
 				}
 			}

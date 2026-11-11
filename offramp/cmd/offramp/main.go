@@ -33,6 +33,8 @@ func main() {
 		err = cmdKRM(os.Args[2:])
 	case "names":
 		err = cmdNames(os.Args[2:])
+	case "synth":
+		err = cmdSynth(os.Args[2:])
 	case "compare":
 		var n int
 		n, err = cmdCompare(os.Args[2:])
@@ -52,6 +54,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   offramp state   --kcc DIR --state FILE --out DIR [--root DIR --tfvars FILE --catalog DIR --modules-json FILE] [--name N --team T --env E --target T --namespace NS --version V --kcc-version V]
   offramp krm     --krm DIR|FILE --out DIR [same Bundt flags]
+  offramp synth   --root DIR --tfvars FILE --out STATE [--terraform BIN --project P]
+                     (a synthetic state: Terraform plans the root module offline, repeatedly)
   offramp names   --assets FILE      (full resource names for config-connector export)
   offramp compare A.yaml B.yaml      (exit 1 when they differ)`)
 	os.Exit(2)
@@ -252,4 +256,35 @@ func cmdCompare(args []string) (int, error) {
 		fmt.Println("no differences")
 	}
 	return len(diffs), nil
+}
+
+func cmdSynth(args []string) error {
+	fs := flag.NewFlagSet("synth", flag.ExitOnError)
+	var opt offramp.SynthOptions
+	var tfvars multiFlag
+	var out string
+	fs.StringVar(&opt.Root, "root", "", "the root module's directory")
+	fs.Var(&tfvars, "tfvars", "a tfvars file (repeatable)")
+	fs.StringVar(&opt.Terraform, "terraform", "terraform", "the terraform binary (1.12 or later for fabric's modules)")
+	fs.StringVar(&opt.Project, "project", "", "the provider's default project, for resources whose project the plan leaves unknown")
+	fs.StringVar(&out, "out", "", "where to write the synthetic state")
+	fs.Parse(args)
+	if opt.Root == "" || out == "" {
+		return fmt.Errorf("--root and --out are required")
+	}
+	opt.Tfvars = tfvars
+	opt.Log = func(s string) { fmt.Fprintln(os.Stderr, "synth:", s) }
+	st, b, err := offramp.Synthesize(opt)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(out, b, 0o644); err != nil {
+		return err
+	}
+	n := 0
+	for _, r := range st.Resources {
+		n += len(r.Instances)
+	}
+	fmt.Printf("synthetic state: %d resource instances\n", n)
+	return nil
 }

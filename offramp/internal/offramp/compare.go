@@ -121,7 +121,7 @@ func diffValue(id, path string, a, b any, out *[]Difference) {
 	bm, bok := b.(map[string]any)
 	if aok && bok {
 		if ext, ok := am["external"]; ok {
-			if normRef(ext) != normRef(bm["external"]) {
+			if !refEqual(ext, bm["external"]) {
 				*out = append(*out, Difference{id, path, ext, bm["external"]})
 			}
 			return
@@ -204,4 +204,21 @@ func normalizeScalar(v any) any {
 		return normRef(t)
 	}
 	return v
+}
+
+// refEqual compares two references by relative name; a bare name (what a
+// configuration gives, and what a planned state holds) matches a path in
+// the same scope that ends with it.
+func refEqual(a, b any) bool {
+	x, y := normRef(a), normRef(b)
+	if x == y {
+		return true
+	}
+	if !strings.Contains(x, "/") && x != "" {
+		return lastSegment(y) == x
+	}
+	if !strings.Contains(y, "/") && y != "" {
+		return lastSegment(x) == y
+	}
+	return false
 }

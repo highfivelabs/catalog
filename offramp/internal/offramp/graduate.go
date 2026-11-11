@@ -85,7 +85,7 @@ func Graduate(res *Result, st *State, opt GraduateOptions) (*Graduation, error) 
 	if err != nil {
 		return nil, err
 	}
-	co := convert.Options{Repo: repo, Tfvars: opt.Tfvars}
+	co := convert.Options{Repo: repo, Tfvars: opt.Tfvars, AllowAlpha: true}
 	mj := opt.ModulesJSON
 	if mj == "" {
 		if p := filepath.Join(opt.Root, ".terraform", "modules", "modules.json"); fileExists(p) {
