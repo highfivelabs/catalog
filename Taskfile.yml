@@ -5,18 +5,22 @@
 # them. The heavy ones run on an offload VM, never on a laptop.
 version: "3"
 
+# Environment identifiers (projects, buckets, service accounts) come from
+# the environment or a git-ignored .env; .env.example lists them.
+dotenv: ['.env']
+
 vars:
   OFFLOAD: ../offload/offload
   # The project live tests touch: HFL_GCP_TEST_PROJECT from the test
   # estate's env file (factory/estate/gcp/<gen>.env) when it is loaded,
-  # else hfl-dev-514205; hack/live-apply.sh refuses any other. And the
-  # service account they run as (no keys; the VM acts as it).
-  LIVE_PROJECT: '{{.HFL_GCP_TEST_PROJECT | default "hfl-dev-514205"}}'
-  LIVE_SA: catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com
+  # else GCP_PROJECT; hack/live-apply.sh refuses any other. And the
+  # service account they run as (GCP_LIVE_SA; no keys, the VM acts as it).
+  LIVE_PROJECT: '{{.HFL_GCP_TEST_PROJECT | default .GCP_PROJECT}}'
+  LIVE_SA: '{{.GCP_LIVE_SA}}'
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
   CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
-  CCE_TARBALL: gs://hfl-dev-514205-offload/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz
+  CCE_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:
@@ -147,6 +151,9 @@ tasks:
 
   cce-snapshot:
     desc: Upload config-connector-extensions at CCE_COMMIT for the fake-cloud and live runs
+    preconditions:
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     status:
       - gcloud storage ls {{.CCE_TARBALL}}
     cmds:
@@ -161,8 +168,13 @@ tasks:
   test-live:
     desc: Apply three pilot charts to real Google Cloud (project {{.LIVE_PROJECT}}, tiny resources, deleted straight after) on an offload VM acting as {{.LIVE_SA}}
     deps: [test, cce-snapshot]
+    preconditions:
+      - sh: test -n "{{.LIVE_PROJECT}}"
+        msg: 'set GCP_PROJECT (or HFL_GCP_TEST_PROJECT, the test estate''s project; see .env.example)'
+      - sh: test -n "{{.LIVE_SA}}"
+        msg: 'set GCP_LIVE_SA (the service account live tests run as; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-apply.sh'
+      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-apply.sh'
 
   inventory:
     desc: Regenerate the tables of docs/gcp-inventory.md from fabric and Config Connector at the commits in UPSTREAM.md

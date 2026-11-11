@@ -58,7 +58,7 @@ this repository's tracking issue; run it by hand only to do that.
 
 ## The merge gate
 
-GitHub Actions is off in the organization (the builder, 2026-11-11); the
+GitHub Actions is off in the organization (2026-11-11); the
 workflows in `.github/workflows/` stay, disabled. `ci.yml`'s pull-request
 job runs before the push instead:
 
@@ -82,6 +82,17 @@ success is not run again.
 
 **Merge only when the `offload/ci` status on the pull request's head is
 success.** A new commit on the branch needs its own run.
+
+### Environment identifiers
+
+Project IDs, buckets and service accounts are not in the tree. Scripts read
+them from the environment and fail, naming the variable, when one is
+missing. Copy `.env.example` to `.env` (git-ignored; `Taskfile.yml` and
+`hack/ci/gate.sh` load it) and fill in: `OFFLOAD_PROJECT` and
+`OFFLOAD_BUCKET` for `task ci`; `GCP_PROJECT` (or the test estate's
+`HFL_GCP_TEST_PROJECT`), `GCP_LIVE_SA` and `OFFLOAD_BUCKET` for
+`task test-live`, which passes the project to the VM on the offload
+command line.
 
 <!-- coverage:start -->
 ## Coverage against the open-source modules
