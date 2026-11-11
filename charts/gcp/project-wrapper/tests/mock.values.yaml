@@ -1,9 +1,16 @@
-# Applied to the fake cloud by hack/mock-apply.sh.
+# Applied to the fake cloud by hack/mock-apply.sh. mockgcp's Service Usage
+# knows a fixed list of APIs (config-connector-extensions'
+# third_party/k8s-config-connector/mockgcp/mockserviceusage/knownservices.go
+# at its pin) without iam, logging, monitoring or artifactregistry, and
+# answers 403 for them; so here the baseline is the two it knows, and the
+# Artifact Registry grant comes from extra_roles (the render cases cover
+# the full baseline).
 required_labels: [env]
+baseline_services: [compute.googleapis.com, container.googleapis.com]
 project:
   name: catalog-mock-pw
   parent: organizations/123456789
   billing_account: 010101-ABCDEF-010101
   labels: {env: test}
 node_service_account:
-  grant_artifact_registry_reader: true
+  extra_roles: [roles/artifactregistry.reader]

@@ -92,6 +92,15 @@ both the wrapper and the project chart, and five refusals in
 `tests/mock.values.yaml` is applied to the fake cloud by
 `hack/mock-apply.sh` (`task test-mock`).
 
+On 2026-11-11 (offload VM `off-catalog-1111082342-32170`) the project, the
+two APIs, the node account and its five grants were all Ready in the fake
+cloud and deleted, and all five outputs evaluated
+(`k8s-nodes@catalog-mock-pw.iam.gserviceaccount.com`). The mock case
+enables only `compute` and `container`: mockgcp's Service Usage knows a
+fixed list of APIs without `iam`, `logging`, `monitoring` or
+`artifactregistry` and answers 403 for them (the first run, VM
+`off-catalog-1111080803-10999`, failed on exactly those four).
+
 Not run live. Creating a project needs `roles/resourcemanager.projectCreator`
 and billing rights on a folder; the `reuse` case on an existing project
 needs `roles/iam.serviceAccountAdmin`, `roles/resourcemanager.projectIamAdmin`
