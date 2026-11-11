@@ -1,0 +1,131 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-kubernetes-engine
+modules/beta-private-cluster/cluster.tf (google_container_node_pool.pools
+and .windows_pools, v47.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+One ContainerNodePool per entry of node_pools and of windows_node_pools,
+Standard mode only (Autopilot manages its nodes). A pool's name is its
+cloud name: node pool names are scoped to their cluster, so they cannot
+collide with another component's and take no namePrefix.
+*/ -}}
+{{- if not (include "gke.autopilot" .) }}
+{{- $v := .Values }}
+{{- $location := include "gke.location" . }}
+{{- $autoUpgradeDefault := include "gke.defaultAutoUpgrade" . }}
+{{- $seen := dict }}
+{{- range $list := list "node_pools" "windows_node_pools" }}
+{{- $windows := eq $list "windows_node_pools" }}
+{{- range $p := (index $v $list) }}
+{{- $name := toString $p.name }}
+{{- if hasKey $seen $name }}
+{{- fail (printf "gke-cluster: node pool %q is defined twice (node pool names are unique within a cluster)" $name) }}
+{{- end }}
+{{- $_ := set $seen $name true }}
+{{- if not (regexMatch "^[a-z]([-a-z0-9]{0,38}[a-z0-9])?$" $name) }}
+{{- fail (printf "gke-cluster: node pool name %q must be 1 to 40 lower-case letters, digits or hyphens, starting with a letter" $name) }}
+{{- end }}
+{{- include "gke.poolGaps" (dict "root" $ "pool" $p "list" $list) }}
+{{- $autoscaling := eq (include "gke.bool" (list $p.autoscaling true)) "true" }}
+{{- $autoUpgrade := include "gke.bool" (list $p.auto_upgrade (eq $autoUpgradeDefault "true")) }}
+{{- $strategy := $p.strategy | default "SURGE" }}
+---
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name (ternary "windows-pool" "pool" $windows) $name)) "id" (printf "%s:%s" (ternary "windows-pool" "pool" $windows) $name) "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ $name }}
+  location: {{ $location | quote }}
+  clusterRef:
+    name: {{ $.Release.Name }}
+  {{- with $p.node_locations }}
+  nodeLocations: {{ splitList "," . | toJson }}
+  {{- end }}
+  {{- if ne $autoUpgrade "true" }}
+  {{- with (default (ternary "" $v.kubernetes_version (eq $v.kubernetes_version "latest")) $p.version) }}
+  version: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if $autoscaling }}
+  initialNodeCount: {{ include "gke.int" (list $p.initial_node_count (include "gke.int" (list $p.min_count 1))) }}
+  autoscaling:
+    {{- if not (hasKey $p "total_min_count") }}
+    minNodeCount: {{ include "gke.int" (list $p.min_count 1) }}
+    {{- end }}
+    {{- if not (hasKey $p "total_max_count") }}
+    maxNodeCount: {{ include "gke.int" (list $p.max_count 100) }}
+    {{- end }}
+    {{- with $p.location_policy }}
+    locationPolicy: {{ . | quote }}
+    {{- end }}
+    {{- if hasKey $p "total_min_count" }}
+    totalMinNodeCount: {{ include "gke.int" (list $p.total_min_count 0) }}
+    {{- end }}
+    {{- if hasKey $p "total_max_count" }}
+    totalMaxNodeCount: {{ include "gke.int" (list $p.total_max_count 0) }}
+    {{- end }}
+  {{- else }}
+  nodeCount: {{ include "gke.int" (list $p.node_count 1) }}
+  {{- end }}
+  {{- with $p.max_pods_per_node }}
+  maxPodsPerNode: {{ . | int }}
+  {{- end }}
+  {{- with $p.placement_policy }}
+  placementPolicy:
+    type: {{ . | quote }}
+    {{- with $p.policy_name }}
+    policyNameRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $p.tpu_topology }}
+    tpuTopology: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if or $p.pod_range (hasKey $p "enable_private_nodes") (hasKey $p "pod_cidr_overprovision_disabled") }}
+  networkConfig:
+    {{- with $p.pod_range }}
+    podRange: {{ . | quote }}
+    {{- end }}
+    enablePrivateNodes: {{ include "gke.bool" (list $p.enable_private_nodes $v.enable_private_nodes) }}
+    {{- if hasKey $p "pod_cidr_overprovision_disabled" }}
+    podCidrOverprovisionConfig:
+      disabled: {{ include "gke.bool" (list $p.pod_cidr_overprovision_disabled false) }}
+    {{- end }}
+  {{- end }}
+  management:
+    autoRepair: {{ include "gke.bool" (list $p.auto_repair true) }}
+    autoUpgrade: {{ $autoUpgrade }}
+  {{- if has $strategy (list "SURGE" "BLUE_GREEN") }}
+  upgradeSettings:
+    strategy: {{ $strategy | quote }}
+    {{- if eq $strategy "SURGE" }}
+    maxSurge: {{ include "gke.int" (list $p.max_surge 1) }}
+    maxUnavailable: {{ include "gke.int" (list $p.max_unavailable 0) }}
+    {{- else }}
+    blueGreenSettings:
+      {{- with $p.node_pool_soak_duration }}
+      nodePoolSoakDuration: {{ . | quote }}
+      {{- end }}
+      standardRolloutPolicy:
+        {{- with $p.batch_soak_duration }}
+        batchSoakDuration: {{ . | quote }}
+        {{- end }}
+        {{- with $p.batch_percentage }}
+        batchPercentage: {{ . }}
+        {{- end }}
+        {{- with $p.batch_node_count }}
+        batchNodeCount: {{ . | int }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if eq (include "gke.bool" (list $p.queued_provisioning false)) "true" }}
+  queuedProvisioning:
+    enabled: true
+  {{- end }}
+  nodeConfig:
+    {{- include "gke.nodeConfig" (dict "root" $ "pool" $p "windows" $windows) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

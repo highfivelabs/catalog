@@ -1,0 +1,680 @@
+---
+# Source: gke-cluster/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+    cnrm.cloud.google.com/remove-default-node-pool: "true"
+spec:
+  resourceID: std-prod
+  location: "europe-west1"
+  description: "Production cluster"
+  nodeLocations: ["europe-west1-b","europe-west1-c","europe-west1-d"]
+  networkRef:
+    external: "projects/host-project/global/networks/shared-vpc"
+  subnetworkRef:
+    external: "projects/host-project/regions/europe-west1/subnetworks/gke-europe-west1"
+  networkingMode: VPC_NATIVE
+  enableK8sBetaApis:
+    enabledApis: ["resource.k8s.io/v1beta1/deviceclasses"]
+  networkPolicy:
+    enabled: false
+  releaseChannel:
+    channel: "REGULAR"
+  costManagementConfig:
+    enabled: true
+  defaultSnatStatus:
+    disabled: false
+  minMasterVersion: "1.33"
+  loggingConfig:
+    enableComponents: ["SYSTEM_COMPONENTS","WORKLOADS"]
+  monitoringConfig:
+    enableComponents: ["SYSTEM_COMPONENTS","APISERVER"]
+    managedPrometheus:
+      enabled: true
+    advancedDatapathObservabilityConfig:
+      - enableMetrics: true
+  clusterAutoscaling:
+    enabled: true
+    autoscalingProfile: "OPTIMIZE_UTILIZATION"
+    defaultComputeClassConfig:
+      enabled: true
+    autoProvisioningDefaults:
+      serviceAccountRef: {"name":"full-nodes"}
+      oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+      bootDiskKMSKeyRef:
+        external: "projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/disks"
+      management:
+        autoRepair: true
+        autoUpgrade: true
+      diskSize: 50
+      upgradeSettings:
+        strategy: "BLUE_GREEN"
+        blueGreenSettings:
+          nodePoolSoakDuration: "600s"
+          standardRolloutPolicy:
+            batchSoakDuration: "60s"
+            batchNodeCount: 1
+      shieldedInstanceConfig:
+        enableSecureBoot: true
+        enableIntegrityMonitoring: true
+      imageType: "COS_CONTAINERD"
+    resourceLimits:
+      - resourceType: cpu
+        minimum: 0
+        maximum: 64
+      - resourceType: memory
+        minimum: 0
+        maximum: 256
+      - resourceType: "nvidia-l4"
+        minimum: 0
+        maximum: 4
+  verticalPodAutoscaling:
+    enabled: true
+  defaultMaxPodsPerNode: 110
+  enableShieldedNodes: true
+  binaryAuthorization:
+    evaluationMode: PROJECT_SINGLETON_POLICY_ENFORCE
+  identityServiceConfig:
+    enabled: false
+  enableKubernetesAlpha: false
+  enableTpu: false
+  enableIntranodeVisibility: true
+  enableL4IlbSubsetting: true
+  disableL4LbFirewallReconciliation: false
+  enableMultiNetworking: false
+  enableCiliumClusterwideNetworkPolicy: true
+  inTransitEncryptionConfig: "IN_TRANSIT_ENCRYPTION_INTER_NODE_TRANSPARENT"
+  enableFqdnNetworkPolicy: true
+  masterAuthorizedNetworksConfig:
+    cidrBlocks:
+    - cidrBlock: 10.0.0.0/8
+      displayName: corp
+    - cidrBlock: 192.168.0.0/24
+  nodePoolAutoConfig:
+    networkTags:
+      tags: ["nap-nodes"]
+    resourceManagerTags: {"tagKeys/123":"tagValues/456"}
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  serviceExternalIpsConfig:
+    enabled: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    gcpFilestoreCsiDriverConfig:
+      enabled: true
+    gkeBackupAgentConfig:
+      enabled: true
+    networkPolicyConfig:
+      disabled: true
+    dnsCacheConfig:
+      enabled: true
+    gcePersistentDiskCsiDriverConfig:
+      enabled: true
+    configConnectorConfig:
+      enabled: true
+    gcsFuseCsiDriverConfig:
+      enabled: true
+    parallelstoreCsiDriverConfig:
+      enabled: false
+  datapathProvider: "ADVANCED_DATAPATH"
+  protectConfig:
+    workloadConfig:
+      auditMode: "DISABLED"
+  securityPostureConfig:
+    mode: "DISABLED"
+    vulnerabilityMode: "VULNERABILITY_DISABLED"
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+    additionalPodRangesConfig:
+      podRangeNames: ["pods-extra"]
+    additionalIpRangesConfigs:
+      - subnetworkRef:
+          external: "projects/host-project/regions/europe-west1/subnetworks/gke-extra"
+        podIpv4RangeNames: ["extra-pods"]
+    stackType: "IPV4"
+  maintenancePolicy:
+    recurringWindow:
+      startTime: "2026-01-01T02:00:00Z"
+      endTime: "2026-01-01T06:00:00Z"
+      recurrence: "FREQ=WEEKLY;BYDAY=SA,SU"
+    maintenanceExclusion:
+      - exclusionName: "freeze"
+        startTime: "2026-12-20T00:00:00Z"
+        endTime: "2027-01-03T00:00:00Z"
+        exclusionOptions:
+          scope: "NO_UPGRADES"
+  dnsConfig:
+    clusterDns: "CLOUD_DNS"
+    clusterDnsScope: "VPC_SCOPE"
+    clusterDnsDomain: "std-prod.internal"
+  initialNodeCount: 1
+  resourceUsageExportConfig:
+    enableNetworkEgressMetering: true
+    enableResourceConsumptionMetering: true
+    bigqueryDestination:
+      datasetId: "gke_usage"
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: false
+    masterIpv4CidrBlock: "172.16.0.0/28"
+  controlPlaneEndpointsConfig:
+    dnsEndpointConfig:
+      enableK8sTokensViaDns: true
+    ipEndpointsConfig:
+      enabled: true
+  databaseEncryption:
+    state: "ENCRYPTED"
+    keyName: "projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/etcd"
+  workloadIdentityConfig:
+    workloadPool: "my-project.svc.id.goog"
+  meshCertificates:
+    enableCertificates: true
+  authenticatorGroupsConfig:
+    securityGroup: "gke-security-groups@example.com"
+  notificationConfig:
+    pubsub:
+      enabled: false
+  nodePoolDefaults:
+    nodeConfigDefaults:
+      loggingVariant: "MAX_THROUGHPUT"
+      gcfsConfig:
+        enabled: true
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: full-pool-general
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:general"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: general
+  location: "europe-west1"
+  clusterRef:
+    name: full
+  initialNodeCount: 1
+  autoscaling:
+    minNodeCount: 1
+    maxNodeCount: 5
+    locationPolicy: "BALANCED"
+  maxPodsPerNode: 64
+  networkConfig:
+    podRange: "pods-extra"
+    enablePrivateNodes: true
+    podCidrOverprovisionConfig:
+      disabled: true
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "e2-standard-4"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    gvnic:
+      enabled: true
+    kubeletConfig:
+      cpuManagerPolicy: "static"
+      cpuCfsQuota: true
+      podPidsLimit: 4096
+    serviceAccountRef: {"name":"full-nodes"}
+    tags: ["gke-std-prod","gke-std-prod-general","gke-nodes"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"block-project-ssh-keys":"true","cluster_name":"std-prod","disable-legacy-endpoints":"true","node_pool":"general"}
+    labels: {"node_pool":"general","team":"platform","workload":"general"}
+    resourceLabels: {"cost-center":"platform"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: true
+    linuxNodeConfig:
+      sysctls: {"net.core.somaxconn":"4096"}
+      cgroupMode: "CGROUP_MODE_V2"
+    bootDiskKMSCryptoKeyRef:
+      external: "projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/disks"
+    shieldedInstanceConfig:
+      enableSecureBoot: true
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: full-pool-batch
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:batch"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: batch
+  location: "europe-west1"
+  clusterRef:
+    name: full
+  nodeCount: 3
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "BLUE_GREEN"
+    blueGreenSettings:
+      nodePoolSoakDuration: "300s"
+      standardRolloutPolicy:
+        batchPercentage: 0.5
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "n2-standard-8"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    serviceAccountRef: {"name":"full-nodes"}
+    tags: ["gke-std-prod","gke-std-prod-batch","gke-nodes","batch"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"block-project-ssh-keys":"true","cluster_name":"std-prod","disable-legacy-endpoints":"true","node_pool":"batch"}
+    labels: {"node_pool":"batch","team":"platform"}
+    resourceLabels: {"cost-center":"platform"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: false
+    advancedMachineFeatures:
+      threadsPerCore: 1
+      enableNestedVirtualization: false
+    linuxNodeConfig:
+      sysctls: {"net.core.somaxconn":"4096","net.ipv4.tcp_tw_reuse":"1"}
+    sandboxConfig:
+      sandboxType: gvisor
+    bootDiskKMSCryptoKeyRef:
+      external: "projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/disks"
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: full-pool-gpu
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:gpu"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: gpu
+  location: "europe-west1"
+  clusterRef:
+    name: full
+  initialNodeCount: 1
+  autoscaling:
+    totalMinNodeCount: 0
+    totalMaxNodeCount: 8
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "g2-standard-8"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    soleTenantConfig:
+      nodeAffinity:
+        - key: "compute.googleapis.com/node-group-name"
+          operator: "IN"
+          values: ["sole-tenant-group"]
+    serviceAccountRef: {"external":"gpu-nodes@my-project.iam.gserviceaccount.com"}
+    tags: ["gke-std-prod","gke-std-prod-gpu","gke-nodes"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"block-project-ssh-keys":"true","cluster_name":"std-prod","disable-legacy-endpoints":"true","node_pool":"gpu"}
+    labels: {"node_pool":"gpu","team":"platform"}
+    resourceLabels: {"cost-center":"platform"}
+    taint:
+      - key: "nvidia.com/gpu"
+        value: "present"
+        effect: "NO_SCHEDULE"
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform","https://www.googleapis.com/auth/devstorage.read_only"]
+    preemptible: false
+    spot: false
+    reservationAffinity:
+      consumeReservationType: "SPECIFIC_RESERVATION"
+      key: "compute.googleapis.com/reservation-name"
+      values: ["gpu-res-1","gpu-res-2"]
+    localNvmeSsdBlockConfig:
+      localSsdCount: 1
+    guestAccelerator:
+      - type: "nvidia-l4"
+        count: 1
+        gpuDriverInstallationConfig:
+          gpuDriverVersion: "DEFAULT"
+    linuxNodeConfig:
+      sysctls: {"net.core.somaxconn":"4096"}
+    bootDiskKMSCryptoKeyRef:
+      external: "projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/disks"
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: full-windows-pool-win
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "windows-pool:win"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: win
+  location: "europe-west1"
+  clusterRef:
+    name: full
+  initialNodeCount: 1
+  autoscaling:
+    minNodeCount: 1
+    maxNodeCount: 2
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "WINDOWS_LTSC_CONTAINERD"
+    machineType: "n2-standard-4"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    serviceAccountRef: {"name":"full-nodes"}
+    tags: ["gke-std-prod","gke-std-prod-win","gke-nodes"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"block-project-ssh-keys":"true","cluster_name":"std-prod","disable-legacy-endpoints":"true","node_pool":"win"}
+    labels: {"node_pool":"win","team":"platform"}
+    resourceLabels: {"cost-center":"platform"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: false
+    windowsNodeConfig:
+      osVersion: "OS_VERSION_LTSC2022"
+    bootDiskKMSCryptoKeyRef:
+      external: "projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/disks"
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-artifacts-project-roles-artifactregistry-re-78241fdb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-artifacts-project|roles/artifactregistry.reader"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/artifacts-project"
+  role: "roles/artifactregistry.reader"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-artifacts-project-roles-serviceusage-servic-1d6fc68b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-artifacts-project|roles/serviceusage.serviceUsageConsumer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/artifacts-project"
+  role: "roles/serviceusage.serviceUsageConsumer"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-artifacts-project-roles-storage-objectviewe-58706d86
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-artifacts-project|roles/storage.objectViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/artifacts-project"
+  role: "roles/storage.objectViewer"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-my-project-roles-artifactregistry-reader-6fa4a6df
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/artifactregistry.reader"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/artifactregistry.reader"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-my-project-roles-container-defaultnodeservi-7c78a307
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/container.defaultNodeServiceAccount"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/container.defaultNodeServiceAccount"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-my-project-roles-monitoring-metricwriter-8cbd0c52
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/monitoring.metricWriter"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-my-project-roles-serviceusage-serviceusagec-d243e74e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/serviceusage.serviceUsageConsumer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/serviceusage.serviceUsageConsumer"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-my-project-roles-stackdriver-resourcemetada-8077ed2d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/stackdriver.resourceMetadata.writer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/stackdriver.resourceMetadata.writer"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-grant-my-project-roles-storage-objectviewer-2a9f1f88
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/storage.objectViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/storage.objectViewer"
+  memberFrom:
+    serviceAccountRef:
+      name: full-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: full-nodes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: tf-gke-std-prod-57ba
+  displayName: "tf-gke-std-prod-57ba"
+  description: "Terraform-managed service account for cluster std-prod"

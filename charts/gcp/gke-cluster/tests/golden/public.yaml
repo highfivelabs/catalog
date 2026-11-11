@@ -1,0 +1,229 @@
+---
+# Source: gke-cluster/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: public
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/remove-default-node-pool: "true"
+spec:
+  resourceID: public-1
+  location: "europe-west1-b"
+  nodeLocations: ["europe-west1-c"]
+  networkRef:
+    external: "projects/my-project/global/networks/default"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/default"
+  networkingMode: VPC_NATIVE
+  networkPolicy:
+    enabled: false
+  releaseChannel:
+    channel: "UNSPECIFIED"
+  defaultSnatStatus:
+    disabled: false
+  minMasterVersion: "1.33.5-gke.1000000"
+  loggingService: "logging.googleapis.com/kubernetes"
+  monitoringService: "monitoring.googleapis.com/kubernetes"
+  clusterAutoscaling:
+    enabled: false
+    autoscalingProfile: "BALANCED"
+  verticalPodAutoscaling:
+    enabled: false
+  defaultMaxPodsPerNode: 110
+  enableShieldedNodes: true
+  identityServiceConfig:
+    enabled: false
+  enableKubernetesAlpha: false
+  enableTpu: false
+  enableIntranodeVisibility: false
+  enableL4IlbSubsetting: false
+  enableCiliumClusterwideNetworkPolicy: false
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    gcpFilestoreCsiDriverConfig:
+      enabled: false
+    gkeBackupAgentConfig:
+      enabled: false
+    networkPolicyConfig:
+      disabled: true
+    dnsCacheConfig:
+      enabled: false
+    gcePersistentDiskCsiDriverConfig:
+      enabled: true
+    configConnectorConfig:
+      enabled: false
+  datapathProvider: "DATAPATH_PROVIDER_UNSPECIFIED"
+  protectConfig:
+    workloadConfig:
+      auditMode: "DISABLED"
+  securityPostureConfig:
+    mode: "DISABLED"
+    vulnerabilityMode: "VULNERABILITY_DISABLED"
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+    stackType: "IPV4"
+  maintenancePolicy:
+    dailyMaintenanceWindow:
+      startTime: "05:00"
+  initialNodeCount: 1
+  databaseEncryption:
+    state: "DECRYPTED"
+  workloadIdentityConfig:
+    workloadPool: "my-project.svc.id.goog"
+  meshCertificates:
+    enableCertificates: false
+  notificationConfig:
+    pubsub:
+      enabled: false
+  nodePoolDefaults:
+    nodeConfigDefaults:
+      gcfsConfig:
+        enabled: false
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: public-pool-pool-01
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:pool-01"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: pool-01
+  location: "europe-west1-b"
+  clusterRef:
+    name: public
+  version: "1.33.5-gke.1000000"
+  nodeCount: 2
+  management:
+    autoRepair: true
+    autoUpgrade: false
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "e2-standard-2"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    serviceAccountRef: {"name":"public-nodes"}
+    tags: ["gke-public-1","gke-public-1-pool-01"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"cluster_name":"public-1","disable-legacy-endpoints":"true","node_pool":"pool-01"}
+    labels: {"cluster_name":"public-1","node_pool":"pool-01"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: false
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: public-grant-my-project-roles-container-defaultnodeser-205ca921
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/container.defaultNodeServiceAccount"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/container.defaultNodeServiceAccount"
+  memberFrom:
+    serviceAccountRef:
+      name: public-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: public-grant-my-project-roles-monitoring-metricwriter-b5aa4e56
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/monitoring.metricWriter"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: public-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: public-grant-my-project-roles-stackdriver-resourcemeta-0f5f0aa6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/stackdriver.resourceMetadata.writer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/stackdriver.resourceMetadata.writer"
+  memberFrom:
+    serviceAccountRef:
+      name: public-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: public-nodes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: tf-gke-public-1-ab12
+  displayName: "tf-gke-public-1-ab12"
+  description: "Terraform-managed service account for cluster public-1"
