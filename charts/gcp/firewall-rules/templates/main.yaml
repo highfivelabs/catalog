@@ -1,0 +1,55 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-network modules/firewall-rules/main.tf
+(v18.3.1), Copyright 2019 Google LLC, Apache-2.0.
+
+One ComputeFirewall per rule, as the module makes one
+google_compute_firewall per rule:
+  - google_compute_firewall.rules, from the deprecated rules list, when it
+    is not empty: ranges are the source ranges of an INGRESS rule and the
+    destination ranges of an EGRESS rule; hfl.dev/id rules:<name>;
+  - otherwise google_compute_firewall.rules_ingress_egress, from
+    ingress_rules and egress_rules (merged by name, an egress rule winning
+    a name both lists use, as the module's merge does); hfl.dev/id
+    rules_ingress_egress:<name>.
+Each rule's name is its cloud name (with the namePrefix in front when it
+is set).
+*/ -}}
+{{- $v := .Values }}
+{{- /* checked once, whether or not a rule is set */}}
+{{- $_ := include "kcc.abandon" . }}
+{{- $_ := include "fw.networkSelfLink" . }}
+{{- $legacy := $v.rules | default list }}
+{{- if $legacy }}
+{{- $seen := dict }}
+{{- range $r := $legacy }}
+{{- if hasKey $seen $r.name }}
+{{- fail (printf "firewall-rules: rules has two entries named %q; the module keys rules by name" $r.name) }}
+{{- end }}
+{{- $_ := set $seen $r.name true }}
+{{- end }}
+{{- range $name, $_ := $seen }}
+{{- $r := dict }}
+{{- range $x := $legacy }}{{ if eq $x.name $name }}{{ $r = deepCopy $x }}{{ end }}{{ end }}
+{{- $dir := $r.direction | default "INGRESS" }}
+{{- $_ := set $r "direction" $dir }}
+{{- $ranges := $r.ranges | default list }}
+{{ include "fw.rule" (dict "root" $ "id" (printf "rules:%s" $name) "rule" $r "sources" (ternary $ranges list (eq $dir "INGRESS")) "dests" (ternary $ranges list (eq $dir "EGRESS"))) }}
+{{- end }}
+{{- else }}
+{{- $all := dict }}
+{{- range $pair := list (list "ingress_rules" "INGRESS") (list "egress_rules" "EGRESS") }}
+{{- $seen := dict }}
+{{- range $r := (index $v (index $pair 0) | default list) }}
+{{- if hasKey $seen $r.name }}
+{{- fail (printf "firewall-rules: %s has two entries named %q; the module keys rules by name" (index $pair 0) $r.name) }}
+{{- end }}
+{{- $_ := set $seen $r.name true }}
+{{- $_ := set $all $r.name (merge (dict "direction" (index $pair 1)) (omit $r "direction")) }}
+{{- end }}
+{{- end }}
+{{- range $name, $r := $all }}
+{{ include "fw.rule" (dict "root" $ "id" (printf "rules_ingress_egress:%s" $name) "rule" $r "sources" $r.source_ranges "dests" $r.destination_ranges) }}
+{{- end }}
+{{- end }}

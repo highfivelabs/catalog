@@ -1,0 +1,25 @@
+# The deprecated rules list: ranges are the source ranges of an INGRESS
+# rule (the default direction) and the destination ranges of an EGRESS
+# rule. With rules set, ingress_rules and egress_rules are ignored, as in
+# the module.
+project_id: my-project
+network_name: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/vpc
+rules:
+  - name: legacy-allow-ssh
+    description: SSH from the bastion range
+    ranges: [10.10.0.0/24]
+    source_tags: [bastion]
+    target_service_accounts: [vm@my-project.iam.gserviceaccount.com]
+    allow: [{protocol: tcp, ports: ["22"]}]
+    log_config: {metadata: INCLUDE_ALL_METADATA}
+  - name: legacy-deny-egress
+    direction: EGRESS
+    disabled: true
+    priority: 2000
+    ranges: [0.0.0.0/0]
+    source_service_accounts: [vm@my-project.iam.gserviceaccount.com]
+    target_tags: [locked]
+    deny: [{protocol: tcp}, {protocol: udp, ports: ["53"]}]
+ingress_rules:
+  - name: ignored
+    allow: [{protocol: icmp}]
