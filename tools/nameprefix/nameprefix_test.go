@@ -55,4 +55,12 @@ func TestCheck(t *testing.T) {
 	if p, _ := Check(ok); len(p) != 1 || !strings.Contains(p[0], "no object was checked") {
 		t.Fatalf("an exempt kind passes, but a chart that checks nothing is reported: %v", p)
 	}
+	none := chart(t, `{{ .Values.name }}`, "  Thing: fixed by the cloud\nnoCloudNames: every kind is named by the cloud\n")
+	if p, err := Check(none); err != nil || len(p) != 0 {
+		t.Fatalf("a chart that says it gives no cloud name passes: %v %v", p, err)
+	}
+	wrong := chart(t, `{{ .Values.name }}`, "  Other: because\nnoCloudNames: wrongly claimed\n")
+	if p, _ := Check(wrong); len(p) != 2 || !strings.Contains(p[1], "says noCloudNames, but 1 objects") {
+		t.Fatalf("noCloudNames on a chart with a cloud name is reported: %v", p)
+	}
 }

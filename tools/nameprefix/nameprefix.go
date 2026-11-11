@@ -35,6 +35,11 @@ const Prefix = "zz9"
 
 type exemptFile struct {
 	Exempt map[string]string `yaml:"exempt"`
+	// NoCloudNames, with its reason, says the chart gives no cloud name at
+	// all (every kind it renders is exempt: an organization policy is named
+	// by its parent and its constraint), so a check that finds no object to
+	// check is expected rather than a mistake.
+	NoCloudNames string `yaml:"noCloudNames"`
 }
 
 type object struct {
@@ -179,8 +184,11 @@ func Check(chartDir string) ([]string, error) {
 			bad("%s: the render without a namePrefix contains %q", name, Prefix+"-")
 		}
 	}
-	if prefixed == 0 {
-		bad("no object was checked: every kind is exempt, or the test cases render nothing")
+	if prefixed == 0 && strings.TrimSpace(ex.NoCloudNames) == "" {
+		bad("no object was checked: every kind is exempt, or the test cases render nothing (a chart that gives no cloud name at all says why in name-prefix.yaml's noCloudNames)")
+	}
+	if prefixed > 0 && strings.TrimSpace(ex.NoCloudNames) != "" {
+		bad("name-prefix.yaml says noCloudNames, but %d objects have a cloud name to check", prefixed)
 	}
 	return problems, nil
 }

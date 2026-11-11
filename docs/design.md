@@ -365,7 +365,9 @@ Every new chart, in the order of `docs/design.md`'s sections:
    set, else the derived name with the `namePrefix`. `tests/names.values.yaml`
    sets every `names` key, `labels` and `tags`.
    `tests/name-prefix.yaml` lists the kinds that have no name that can
-   collide, each with the reason; `tests/name-prefix-limit.fail.yaml` and
+   collide, each with the reason (and, for a chart that gives no cloud
+   name at all, `noCloudNames` with the reason, as org-policy-v2's);
+   `tests/name-prefix-limit.fail.yaml` and
    `name-prefix-pattern.fail.yaml` show the refusals. `task test` fails a
    chart without them, and any rendered object whose cloud name lacks the
    prefix (`catalogtool nameprefix`).
