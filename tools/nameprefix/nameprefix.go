@@ -40,6 +40,11 @@ type exemptFile struct {
 	// by its parent and its constraint), so a check that finds no object to
 	// check is expected rather than a mistake.
 	NoCloudNames string `yaml:"noCloudNames"`
+	// NameFields names, per kind, the spec field that holds the cloud name
+	// a namePrefix goes on when it is not spec.resourceID: a kind whose
+	// resourceID the cloud assigns (a hierarchical firewall policy's number)
+	// and whose caller-given name is another field (shortName).
+	NameFields map[string]string `yaml:"nameFields"`
 }
 
 type object struct {
@@ -48,9 +53,18 @@ type object struct {
 	Metadata   struct {
 		Name string `yaml:"name"`
 	} `yaml:"metadata"`
-	Spec struct {
-		ResourceID string `yaml:"resourceID"`
-	} `yaml:"spec"`
+	Spec map[string]any `yaml:"spec"`
+}
+
+// cloudName is the object's cloud-side name: spec.resourceID, or the spec
+// field name-prefix.yaml names for its kind.
+func (o object) cloudName(fields map[string]string) (field, name string) {
+	field = "resourceID"
+	if f, ok := fields[o.Kind]; ok && f != "" {
+		field = f
+	}
+	name, _ = o.Spec[field].(string)
+	return field, name
 }
 
 func render(chartDir, release, values string, set ...string) ([]byte, error) {
@@ -172,11 +186,12 @@ func Check(chartDir string) ([]string, error) {
 				continue
 			}
 			prefixed++
+			field, cloud := o.cloudName(ex.NameFields)
 			switch {
-			case o.Spec.ResourceID == "":
-				bad("%s: %s %q has no spec.resourceID, so its cloud name cannot carry the namePrefix: give it one built with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, o.Kind)
-			case !strings.Contains(o.Spec.ResourceID, Prefix+"-") && !setInFull(o.Spec.ResourceID):
-				bad("%s: %s %q has cloud name %q without the namePrefix: build it with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, o.Spec.ResourceID, o.Kind)
+			case cloud == "":
+				bad("%s: %s %q has no spec.%s, so its cloud name cannot carry the namePrefix: give it one built with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, field, o.Kind)
+			case !strings.Contains(cloud, Prefix+"-") && !setInFull(cloud):
+				bad("%s: %s %q has cloud name %q without the namePrefix: build it with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, cloud, o.Kind)
 			}
 		}
 		// The same render without the prefix has none of it.

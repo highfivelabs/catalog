@@ -366,7 +366,10 @@ Every new chart, in the order of `docs/design.md`'s sections:
    sets every `names` key, `labels` and `tags`.
    `tests/name-prefix.yaml` lists the kinds that have no name that can
    collide, each with the reason (and, for a chart that gives no cloud
-   name at all, `noCloudNames` with the reason, as org-policy-v2's);
+   name at all, `noCloudNames` with the reason, as org-policy-v2's; and,
+   for a kind whose `resourceID` the cloud assigns, `nameFields` naming
+   the spec field that holds its given name, as
+   hierarchical-firewall-policy's `shortName`);
    `tests/name-prefix-limit.fail.yaml` and
    `name-prefix-pattern.fail.yaml` show the refusals. `task test` fails a
    chart without them, and any rendered object whose cloud name lacks the
