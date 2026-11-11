@@ -1,0 +1,109 @@
+---
+# Source: org-policy-v2/templates/list_constraints.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: org-policy-v2
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  organizationRef:
+    external: organizations/123456789012
+  resourceID: "compute.vmExternalIpAccess"
+  spec:
+    inheritFromParent: true
+    rules:
+    - values:
+        deniedValues:
+        - projects/p1/zones/us-central1-a/instances/vm-1
+    - allowAll: true
+      condition:
+        description: Development projects may use external IPs
+        expression: resource.matchTag('123456789012/env', 'dev')
+        location: policies.tf
+        title: dev
+    - condition:
+        description: The bastion
+        expression: resource.matchTag('123456789012/role', 'bastion')
+        title: bastion
+      values:
+        allowedValues:
+        - projects/p2/zones/us-central1-a/instances/bastion
+  dryRunSpec:
+    inheritFromParent: true
+    rules:
+    - denyAll: true
+---
+# Source: org-policy-v2/templates/list_constraints.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-exclude-folder-222222222222
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: org-policy-v2
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "exclude-folder:222222222222"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  folderRef:
+    external: folders/222222222222
+  resourceID: "compute.vmExternalIpAccess"
+  spec:
+    reset: true
+---
+# Source: org-policy-v2/templates/list_constraints.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-exclude-folder-333333333333
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: org-policy-v2
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "exclude-folder:333333333333"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  folderRef:
+    external: folders/333333333333
+  resourceID: "compute.vmExternalIpAccess"
+  spec:
+    reset: true
+---
+# Source: org-policy-v2/templates/list_constraints.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-exclude-project-sandbox-project
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: org-policy-v2
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "exclude-project:sandbox-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: projects/sandbox-project
+  resourceID: "compute.vmExternalIpAccess"
+  spec:
+    reset: true
