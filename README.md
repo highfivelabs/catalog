@@ -49,18 +49,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**169 modules tracked**: 0 ported, 5 partial, 62 blocked, 102 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**175 modules tracked**: 2 ported, 9 partial, 62 blocked, 102 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 92 | ![gcp](docs/coverage/gcp.svg) | 232 of 1439 (16.1%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 269 of 1478 (18.2%) |
 | AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 0 of 2310 (0.0%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 0 of 1170 (0.0%) |
-| **All** | **169** | | **232 of 4919 (4.7%)** |
+| **All** | **175** | | **269 of 4958 (5.4%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-0 ported, 5 partial, 62 blocked, 25 not started.
+2 ported, 9 partial, 62 blocked, 25 not started.
 
 **Ported and partial**
 
@@ -71,6 +71,12 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`gcs`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcs) ([chart](charts/gcp/gcs)) | ![gcs](docs/coverage/bars/gcp-gcs.svg) 30 of 36 | 5 of 7 | 8 of 12 | partial |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 133 of 162 | 30 of 36 | 0 of 0 | partial |
+| [`network-firewall-rules`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/firewall-rules) ([chart](charts/gcp/firewall-rules)) | ![network-firewall-rules](docs/coverage/bars/gcp-network-firewall-rules.svg) 5 of 5 | 2 of 2 | 0 of 0 | ported |
+| [`network-network-firewall-policy`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/network-firewall-policy) ([chart](charts/gcp/network-firewall-policy)) | ![network-network-firewall-policy](docs/coverage/bars/gcp-network-network-firewall-policy.svg) 6 of 8 | 3 of 3 | 0 of 0 | partial |
+| [`network-hierarchical-firewall-policy`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/hierarchical-firewall-policy) ([chart](charts/gcp/hierarchical-firewall-policy)) | ![network-hierarchical-firewall-policy](docs/coverage/bars/gcp-network-hierarchical-firewall-policy.svg) 6 of 6 | 3 of 3 | 0 of 0 | partial |
+| [`folders`](https://github.com/terraform-google-modules/terraform-google-folders/tree/v5.2.0) ([chart](charts/gcp/folders)) | ![folders](docs/coverage/bars/gcp-folders.svg) 8 of 8 | 7 of 10 | 0 of 0 | ported |
+| [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
+| [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
 **Blocked: a resource type has no stable kind (first 10 of 62, by rank)**
 
