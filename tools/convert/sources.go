@@ -65,9 +65,9 @@ type variant struct {
 
 // variants are the sibling modules a chart carries (its README, "Variants").
 var variants = map[string]variant{
-	"terraform-google-kubernetes-engine//":                                          {ID: "gcp/kubernetes-engine-beta-private-cluster"},
-	"terraform-google-kubernetes-engine//modules/private-cluster":                   {ID: "gcp/kubernetes-engine-beta-private-cluster"},
-	"terraform-google-kubernetes-engine//modules/private-cluster-update-variant":    {ID: "gcp/kubernetes-engine-beta-private-cluster"},
+	"terraform-google-kubernetes-engine//":                                            {ID: "gcp/kubernetes-engine-beta-private-cluster"},
+	"terraform-google-kubernetes-engine//modules/private-cluster":                     {ID: "gcp/kubernetes-engine-beta-private-cluster"},
+	"terraform-google-kubernetes-engine//modules/private-cluster-update-variant":      {ID: "gcp/kubernetes-engine-beta-private-cluster"},
 	"terraform-google-kubernetes-engine//modules/beta-private-cluster-update-variant": {ID: "gcp/kubernetes-engine-beta-private-cluster"},
 	"terraform-google-kubernetes-engine//modules/beta-public-cluster": {ID: "gcp/kubernetes-engine-beta-private-cluster",
 		Inputs: Ordered{{"enable_private_nodes", false}}},

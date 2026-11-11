@@ -42,6 +42,11 @@ type equivalenceCase struct {
 
 var equivalenceCases = []equivalenceCase{
 	{
+		// A real state: the live run ofr-11110114-2801 in hfl-dev-514205.
+		shape: "shared-vpc", state: "testdata/live/shared-vpc-modules/terraform.tfstate", tfvars: "testdata/live/shared-vpc-modules/terraform.tfvars",
+		graduate: []string{"firewall_rules", "network_firewall_policy", "vpc"},
+	},
+	{
 		shape: "shared-vpc", state: "testdata/synthetic/shared-vpc/terraform.tfstate", tfvars: "testdata/synthetic/shared-vpc/terraform.tfvars",
 		graduate: []string{"firewall_rules", "network_firewall_policy", "vpc"},
 	},
@@ -78,7 +83,7 @@ func TestEquivalence(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range equivalenceCases {
-		t.Run(tc.shape, func(t *testing.T) {
+		t.Run(tc.shape+"/"+filepath.Base(filepath.Dir(filepath.Dir(tc.state))), func(t *testing.T) {
 			st, err := ReadState(tc.state)
 			if err != nil {
 				t.Fatal(err)

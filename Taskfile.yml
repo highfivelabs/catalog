@@ -16,6 +16,10 @@ vars:
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
   CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
+  # The offramp's root modules, one per directory, relative to this
+  # repository (offramp/fixtures until they move to the
+  # terraform-offramp-demo repository's layout).
+  FIXTURES: '{{.FIXTURES | default "offramp/fixtures"}}'
   CCE_TARBALL: gs://hfl-dev-514205-offload/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz
 
 tasks:
@@ -137,24 +141,24 @@ tasks:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} hack/mock-apply.sh'
 
   offramp-test:
-    desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/)
+    desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/), the equivalence of each fixture's module calls with their charts included (FIXTURES=dir of root modules, default offramp/fixtures)
     dir: offramp
     cmds:
       - |
         out="$(gofmt -l .)"
         if [ -n "$out" ]; then echo "$out"; echo "gofmt needed"; exit 1; fi
       - go vet ./...
-      - go test ./...
+      - OFFRAMP_FIXTURES={{.ROOT_DIR}}/{{.FIXTURES}} go test ./...
 
   offramp-validate:
     desc: terraform fmt, init and validate of the offramp's four fixtures (no credentials), on an offload VM
     cmds:
-      - '{{.OFFLOAD}} run --machine e2-standard-4 --hours 1 -- offramp/hack/validate.sh'
+      - '{{.OFFLOAD}} run --machine e2-standard-4 --hours 1 -- env FIXTURES={{.FIXTURES}} offramp/hack/validate.sh'
 
   offramp-live:
     desc: "The offramp's live proof of one fixture (SHAPE=shared-vpc) in {{.LIVE_PROJECT}}, on an offload VM acting as cce-live-tests@: apply, scan, convert, adopt with Config Connector, check nothing changed, destroy"
     cmds:
-      - '{{.OFFLOAD}} run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --hours 3 -- env PROJECT={{.LIVE_PROJECT}} offramp/hack/live.sh {{.SHAPE}}'
+      - '{{.OFFLOAD}} run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --hours 3 -- env PROJECT={{.LIVE_PROJECT}} FIXTURES={{.FIXTURES}} offramp/hack/live.sh {{.SHAPE}}'
     vars:
       SHAPE: '{{.SHAPE | default "shared-vpc"}}'
 
