@@ -24,7 +24,8 @@ FIXTURES="${FIXTURES:-${ROOT}/offramp/fixtures}"
 OUT="${ROOT}/offload-artifacts/offramp/validate"
 mkdir -p "${OUT}"
 failed=0
-for d in "${FIXTURES}"/*/; do
+# The Terragrunt estate's wrapper modules are root modules too.
+for d in "${FIXTURES}"/*/ "${ROOT}"/offramp/fixtures-terragrunt/modules/*/; do
   name="$(basename "${d}")"
   work="$(mktemp -d)"
   cp "${d}"*.tf "${work}/"

@@ -1,0 +1,61 @@
+{
+  "inputs": {
+    "description": "offramp fixture: shared VPC",
+    "name": "ofr-11110114-2801-shared",
+    "project_id": "hfl-dev-514205",
+    "region": "us-central1",
+    "routing_mode": "GLOBAL",
+    "shared_vpc_host": false,
+    "subnets": [
+      {
+        "description": "GKE nodes",
+        "iam": {
+          "roles/compute.networkUser": [
+            "serviceAccount:cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com"
+          ]
+        },
+        "ip_cidr_range": "10.10.0.0/24",
+        "name": "ofr-11110114-2801-gke",
+        "region": "us-central1",
+        "secondary_ip_ranges": {
+          "pods": {
+            "ip_cidr_range": "10.20.0.0/20"
+          },
+          "services": {
+            "ip_cidr_range": "10.30.0.0/24"
+          }
+        }
+      },
+      {
+        "description": "application VMs and serverless connectors",
+        "flow_logs_config": {
+          "aggregation_interval": "INTERVAL_10_MIN",
+          "flow_sampling": 0.5,
+          "metadata": "INCLUDE_ALL_METADATA"
+        },
+        "iam_bindings_additive": {
+          "network-user-0": {
+            "member": "serviceAccount:cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com",
+            "role": "roles/compute.networkUser"
+          }
+        },
+        "ip_cidr_range": "10.10.1.0/24",
+        "name": "ofr-11110114-2801-apps",
+        "region": "us-central1"
+      }
+    ]
+  },
+  "remote_state": {
+    "backend": "gcs",
+    "config": {
+      "bucket": "hfl-dev-514205-tfstate",
+      "location": "US",
+      "prefix": "network/vpc",
+      "project": "hfl-dev-514205"
+    }
+  },
+  "terraform": {
+    "source": "git::https://github.com/GoogleCloudPlatform/cloud-foundation-fabric.git//modules/net-vpc?ref=v60.0.0"
+  },
+  "unit": "network/vpc"
+}

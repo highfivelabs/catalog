@@ -6,6 +6,7 @@
 // are, and into the Bundt documents that hold them. See offramp/README.md.
 //
 //	offramp state  --kcc DIR --state terraform.tfstate --out DIR [bundt flags]
+//	offramp terragrunt --kcc DIR --estate DIR --states DIR --out DIR [bundt flags]
 //	offramp krm    --krm DIR|FILE --out DIR [bundt flags]
 //	offramp names  --assets assets.json
 //	offramp compare A.yaml B.yaml
@@ -29,6 +30,8 @@ func main() {
 	switch os.Args[1] {
 	case "state":
 		err = cmdState(os.Args[2:])
+	case "terragrunt":
+		err = cmdTerragrunt(os.Args[2:])
 	case "krm":
 		err = cmdKRM(os.Args[2:])
 	case "names":
@@ -53,6 +56,8 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   offramp state   --kcc DIR --state FILE --out DIR [--root DIR --tfvars FILE --catalog DIR --modules-json FILE] [--name N --team T --env E --target T --namespace NS --version V --kcc-version V]
+  offramp terragrunt --kcc DIR --estate DIR [--states DIR] [--state UNIT=FILE] [--source-map URL=DIR] [--getenv NAME=VALUE] [--modules-json UNIT=FILE] --out DIR [same Bundt flags]
+                     (a Terragrunt estate, read statically: each unit's state, its module calls graduated to catalog charts)
   offramp krm     --krm DIR|FILE --out DIR [same Bundt flags]
   offramp synth   --root DIR --tfvars FILE --out STATE [--terraform BIN --project P]
                      (a synthetic state: Terraform plans the root module offline, repeatedly)
@@ -172,6 +177,67 @@ func cmdKRM(args []string) error {
 	return summarize(res, bundle)
 }
 
+func cmdTerragrunt(args []string) error {
+	fs := flag.NewFlagSet("terragrunt", flag.ExitOnError)
+	var kccDir, estate, catalog string
+	var states, sourceMap, env, modulesJSON multiFlag
+	opt := offramp.EstateOptions{States: map[string]string{}, ModulesJSON: map[string]string{}}
+	opt.TG.SourceMap, opt.TG.Env = map[string]string{}, map[string]string{}
+	fs.StringVar(&kccDir, "kcc", "", "a Config Connector checkout (config/crds/resources and config/servicemappings)")
+	fs.StringVar(&estate, "estate", "", "the Terragrunt estate: a directory whose units (terragrunt.hcl) are converted together")
+	fs.StringVar(&opt.StateDir, "states", "", "a directory holding each unit's state as <unit path>/terraform.tfstate (terragrunt state pull)")
+	fs.Var(&states, "state", "UNIT=FILE: one unit's state, by its path in the estate (repeatable)")
+	fs.Var(&sourceMap, "source-map", "URL=DIR: a remote module source (up to its double slash) checked out locally, for the team's own modules (repeatable)")
+	fs.Var(&env, "getenv", "NAME=VALUE: an environment variable get_env reads (repeatable); unset ones take their default")
+	fs.Var(&modulesJSON, "modules-json", "UNIT=FILE: terraform init's modules.json for a wrapper unit (repeatable)")
+	fs.StringVar(&catalog, "catalog", "", "the catalog repository's root (default: found from the working directory)")
+	var b bundtFlags
+	b.register(fs)
+	fs.Parse(args)
+	if kccDir == "" || estate == "" {
+		return fmt.Errorf("--kcc and --estate are required")
+	}
+	abs, _ := filepath.Abs(estate)
+	if err := b.finish(filepath.Base(abs)); err != nil {
+		return err
+	}
+	for _, kv := range []struct {
+		f multiFlag
+		m map[string]string
+	}{{states, opt.States}, {sourceMap, opt.TG.SourceMap}, {env, opt.TG.Env}, {modulesJSON, opt.ModulesJSON}} {
+		for _, s := range kv.f {
+			k, v, ok := strings.Cut(s, "=")
+			if !ok {
+				return fmt.Errorf("%q: want NAME=VALUE", s)
+			}
+			kv.m[k] = v
+		}
+	}
+	if catalog == "" {
+		catalog = findCatalog()
+	}
+	opt.Catalog, opt.Namespace, opt.Convert = catalog, b.opt.Namespace, b.convOpt()
+	k, err := offramp.LoadKCC(kccDir)
+	if err != nil {
+		return err
+	}
+	units, err := offramp.ReadEstate(estate, opt.TG)
+	if err != nil {
+		return err
+	}
+	e, err := offramp.ConvertEstate(units, k, opt)
+	if err != nil {
+		return err
+	}
+	b.opt.Graduation, b.opt.DependsOn = e.Graduation, e.DependsOn
+	bundle := offramp.Group(e.Result.Objects, b.opt)
+	hdr := fmt.Sprintf("From the Terragrunt estate `%s`, read statically (neither Terragrunt nor Terraform ran), with Config Connector's kinds from `%s`.\n\n%s", estate, kccDir, offramp.UnitsReport(e))
+	if err := offramp.Write(b.out, e.Result, bundle, hdr); err != nil {
+		return err
+	}
+	return summarize(e.Result, bundle)
+}
+
 type multiFlag []string
 
 func (m *multiFlag) String() string     { return strings.Join(*m, ",") }
@@ -208,7 +274,7 @@ func summarize(res *offramp.Result, b *offramp.Bundle) error {
 		}
 		fmt.Printf(" (%d graduated to catalog charts)", grad)
 	}
-	for _, c := range []string{"refused", "gap", "in-cluster", "terraform-only", "note"} {
+	for _, c := range []string{"refused", "gap", "in-cluster", "terraform-only", "unevaluated", "unmapped", "note"} {
 		if counts[c] > 0 {
 			fmt.Printf(", %d %s", counts[c], c)
 		}
