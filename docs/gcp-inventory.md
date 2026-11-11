@@ -27,7 +27,7 @@ alpha kind, 78 (18%) none; 2 of those 78 are covered by
 config-connector-extensions' gap kinds (regional secrets and their
 versions).
 
-Of the 19 modules the builder named first, 9 are **full**
+Of the 19 modules named first, 9 are **full**
 (iam-service-account, net-vpc-firewall, net-cloudnat, dns, kms,
 artifact-registry, cloudsql-instance, gke-nodepool, pubsub), 3 are
 **full with alpha** (gke-cluster-standard and gke-cluster-autopilot for
@@ -57,7 +57,7 @@ cloud-run-v2). None is uncovered.
   400 lines, M under 900, L under 2,000, XL above. For scale, the pilot
   ported iam-service-account (M) whole, gcs (L) and net-vpc (L) except
   their gaps and alpha features, and about a third of project (XL).
-- **Rank** is foundational value: the builder's list first (the order a
+- **Rank** is foundational value: the first-named list first (the order a
   landing zone needs them), then the rest of a landing zone (billing,
   logging, firewall policies, VPC-SC, the factories, peering, VPN,
   groups, load balancers, VMs), then managed services, then specialised
