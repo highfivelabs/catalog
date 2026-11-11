@@ -40,6 +40,22 @@ and `tags` (cloud labels) that it puts on every object, so Bundt can supply
 names and identity labels from a team's naming convention
 (`docs/design.md`, "Names, labels and tags").
 
+## Run CI locally
+
+Every job in `.github/workflows/` is a `task` call; the steps around it
+only check out the code and install tools. The same commands run here:
+
+```sh
+task ci:tools       # task, helm, kubeconform, actionlint at ci.yml's pins
+                    # into ~/.local/hfl-tools; put that first on PATH
+                    # (shellcheck: your package manager, as the runner's image)
+task ci             # ci.yml's pull-request job (task check) at those pins
+task upstream-watch # upstream-watch.yml's daily job, read-only
+```
+
+`upstream-watch.yml` then runs `task upstream-watch:issue`, which writes
+this repository's tracking issue; run it by hand only to do that.
+
 ## The merge gate
 
 GitHub Actions is off in the organization (the builder, 2026-11-11); the
