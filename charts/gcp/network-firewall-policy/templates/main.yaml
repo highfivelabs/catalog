@@ -1,0 +1,142 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-network modules/network-firewall-policy/main.tf
+(v18.3.1), Copyright Google LLC, Apache-2.0.
+
+The global policy (the "Global" half of main.tf; the regional half is
+refused, refused.yaml):
+  - google_compute_network_firewall_policy.fw_policy[0]: the
+    ComputeNetworkFirewallPolicy, hfl.dev/id policy;
+  - google_compute_network_firewall_policy_association.vpc_associations[<key>]:
+    one ComputeNetworkFirewallPolicyAssociation per target VPC, keyed by
+    target_vpcs_map's key or, when the map is empty, by the base64 of each
+    target_vpcs entry, as the module keys them; named
+    <policy name>-<the VPC ID's last segment>; hfl.dev/id association:<key>;
+  - google_compute_network_firewall_policy_rule.rules[<priority>]: one
+    ComputeNetworkFirewallPolicyRule (v1alpha1, allow_alpha) per rule,
+    named by its priority; hfl.dev/id rule:<priority>.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "policy")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $policy := include "nfp.policyName" . }}
+{{- $policyObject := include "nfp.policyObject" . }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $policyObject "id" "policy" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $policy }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- /* local.final_vpc_map */}}
+{{- $vpcs := dict }}
+{{- if $v.target_vpcs_map }}
+{{- $vpcs = $v.target_vpcs_map }}
+{{- else }}
+{{- range $x := ($v.target_vpcs | default list) }}
+{{- $_ := set $vpcs (b64enc $x) $x }}
+{{- end }}
+{{- end }}
+{{- range $key, $vpc := $vpcs }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "association" $key)) "id" (printf "association:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.fit" (list $ "firewall policy association" (printf "%s-%s" $policy (splitList "/" $vpc | last)) 63) }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  {{- /* the policy's name, as Terraform records firewall_policy: a reference by object name resolves to the policy's numeric ID (README.md, "Differences") */}}
+  firewallPolicyRef:
+    external: {{ $policy | quote }}
+  attachmentTargetRef:
+    external: {{ include "nfp.selfLink" $vpc | quote }}
+{{- end }}
+{{- $byPriority := dict }}
+{{- range $r := ($v.rules | default list) }}
+{{- $p := toString (int64 $r.priority) }}
+{{- if hasKey $byPriority $p }}
+{{- fail (printf "network-firewall-policy: two rules have priority %s; the module keys rules by priority" $p) }}
+{{- end }}
+{{- $_ := set $byPriority $p $r }}
+{{- end }}
+{{- range $p, $r := $byPriority }}
+{{- $m := $r.match }}
+{{- $in := eq $r.direction "INGRESS" }}
+{{- $out := eq $r.direction "EGRESS" }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $p)) "id" (printf "rule:%s" $p) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $p | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  {{- /* the policy's name, as Terraform records firewall_policy: a reference by object name resolves to the policy's numeric ID (README.md, "Differences") */}}
+  firewallPolicyRef:
+    external: {{ $policy | quote }}
+  action: {{ $r.action | quote }}
+  direction: {{ $r.direction }}
+{{- with $r.rule_name }}
+  ruleName: {{ . | quote }}
+{{- end }}
+{{- with $r.description }}
+  description: {{ . | quote }}
+{{- end }}
+  {{- /* disabled and enable_logging: what Terraform records when the module passes null */}}
+  disabled: {{ ternary false $r.disabled (kindIs "invalid" $r.disabled) }}
+  enableLogging: {{ ternary false $r.enable_logging (kindIs "invalid" $r.enable_logging) }}
+{{- if not (kindIs "invalid" $r.target_service_accounts) }}
+{{- with $r.target_service_accounts }}
+  targetServiceAccountRefs:
+{{- range . }}
+    - external: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- else if $r.target_secure_tags }}
+  targetSecureTags:
+{{- range (uniq $r.target_secure_tags | sortAlpha) }}
+    - name: {{ . | quote }}
+{{- end }}
+{{- end }}
+  match:
+{{- include "nfp.list" (list "srcIpRanges" $m.src_ip_ranges 4) }}
+{{- if $in }}
+{{- include "nfp.list" (list "srcFqdns" $m.src_fqdns 4) }}
+{{- include "nfp.list" (list "srcRegionCodes" $m.src_region_codes 4) }}
+{{- include "nfp.list" (list "srcThreatIntelligences" $m.src_threat_intelligences 4) }}
+{{- include "nfp.list" (list "srcAddressGroups" $m.src_address_groups 4) }}
+{{- with $m.src_secure_tags }}
+    srcSecureTags:
+{{- range (uniq . | sortAlpha) }}
+      - name: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- include "nfp.list" (list "destIpRanges" $m.dest_ip_ranges 4) }}
+{{- if $out }}
+{{- include "nfp.list" (list "destFqdns" $m.dest_fqdns 4) }}
+{{- include "nfp.list" (list "destRegionCodes" $m.dest_region_codes 4) }}
+{{- include "nfp.list" (list "destThreatIntelligences" $m.dest_threat_intelligences 4) }}
+{{- include "nfp.list" (list "destAddressGroups" $m.dest_address_groups 4) }}
+{{- end }}
+{{- $l4 := $m.layer4_configs }}
+{{- if kindIs "invalid" $l4 }}{{ $l4 = list dict }}{{ end }}
+    layer4Configs:{{ if not $l4 }} []{{ end }}
+{{- range $c := $l4 }}
+    - ipProtocol: {{ $c.ip_protocol | default "all" | quote }}
+{{- with $c.ports }}
+      ports:
+{{- range . }}
+        - {{ toString . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
