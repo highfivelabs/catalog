@@ -1,0 +1,90 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-network-natgateway (v0.3.2): same names, types and defaults, so a
+# module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-network-natgateway
+# (variables.tf, v0.3.2), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The NAT gateway's name in full, {natGateway}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front. The public
+# IPs take their entries' names, with the namePrefix in front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the gateway's and
+# the public IPs' names (never one set under names). Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# A map of diagnostic settings to create on the NAT Gateway. Each: {name
+# (required by Azure), logs: [{category, category_group, enabled (true),
+# retention_policy: {days (0), enabled (false)}}], metrics: [{category,
+# enabled (true), retention_policy}], log_analytics_destination_type
+# ("Dedicated"), workspace_resource_id, storage_account_resource_id,
+# event_hub_authorization_rule_resource_id, event_hub_name,
+# marketplace_partner_resource_id}.
+diagnostic_settings: {}
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# (Optional) The idle timeout which should be used in minutes. Defaults to
+# 4.
+idle_timeout_in_minutes: 4
+# (Required) Specifies the supported Azure location where the NAT Gateway
+# should exist.
+location: ""
+# Controls the Resource Lock configuration for this resource.
+# {kind (CanNotDelete or ReadOnly), name (default lock-<kind>)}
+lock: null
+# (Required) Specifies the name of the NAT Gateway.
+name: null
+# (Required) The resource ID of the Resource Group in which the NAT
+# Gateway should exist: /subscriptions/<id>/resourceGroups/<name>.
+parent_id: ""
+# The public IP configuration, keyed like public_ips. Each:
+# {allocation_method ("Static"), ddos_protection_mode
+# ("VirtualNetworkInherited"), ddos_protection_plan_id, domain_name_label,
+# idle_timeout_in_minutes (30), inherit_tags (false; as in the module, it
+# changes nothing), ip_version ("IPv4"), lock: {kind, name}, sku
+# ("StandardV2"), sku_tier ("Regional"), tags, zones (["1", "2", "3"])}.
+public_ip_configuration: {}
+# (Optional) Existing IPv4 public IP prefix resource IDs to associate.
+public_ip_prefix_resource_ids: []
+# (Optional) Existing IPv6 public IP prefix resource IDs to associate
+# (StandardV2 only).
+public_ip_prefix_v6_resource_ids: []
+# (Optional) Existing IPv4 public IP resource IDs to associate.
+public_ip_resource_ids: []
+# (Optional) Existing IPv6 public IP resource IDs to associate (StandardV2
+# only).
+public_ip_v6_resource_ids: []
+# Between 1 and 16 public IPs to create and assign to this NAT Gateway.
+# Each: {name}.
+public_ips: {}
+# A map of role assignments to create on the NAT gateway.
+# Each: {role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+role_assignments: {}
+# (Optional) The SKU which should be used: Standard or StandardV2.
+sku_name: StandardV2
+# (Optional) Tags of the resource.
+tags: null
+# The timeouts of the NAT gateway. Refused when set: ASO has none; Bundt
+# sets a component's time limit.
+timeouts: null
+# (Optional) Availability Zones of the NAT Gateway. With StandardV2 it is
+# ignored: ["1", "2", "3"].
+zones: null

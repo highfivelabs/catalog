@@ -1,0 +1,64 @@
+---
+# Source: avm-res-network-natgateway/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: NatGateway
+metadata:
+  name: mock-natgw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat_gateway"
+spec:
+  azureName: "catalog-natgw"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  idleTimeoutInMinutes: 4
+  publicIpAddresses:
+    - reference:
+        group: network.azure.com
+        kind: PublicIPAddress
+        name: mock-pip-a
+  sku:
+    name: StandardV2
+  zones:
+    - "1"
+    - "2"
+    - "3"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-natgateway/templates/public-ips.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: mock-pip-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:a"
+spec:
+  azureName: "catalog-natgw-pip"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 30
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: StandardV2
+    tier: Regional
+  zones:
+    - "1"
+    - "2"
+    - "3"
+  tags:
+    catalog: mock
