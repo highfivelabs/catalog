@@ -11,7 +11,7 @@ kind: Package
 metadata:
   name: gcp-project
 spec:
-  version: 0.5.0
+  version: 0.7.0
   engine: helm
   providers: [kcc]
   outputs:
@@ -27,3 +27,9 @@ spec:
       resources.transformMapEntry(k, v, v.kind == 'OrgPolicyPolicy',
         {v.spec.resourceID: 'projects/' + ('project' in inputs.names && inputs.names.project != '' ? inputs.names.project : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null ? inputs.prefix + '-' : '') + inputs.name)
           + '/policies/' + v.spec.resourceID})
+    sink_writer_identities: >-
+      resources.transformMapEntry(k, v, v.kind == 'LoggingLogSink', {k.substring(13): v.status.writerIdentity})
+    alert_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'MonitoringAlertPolicy', {k.substring(6): v.status.name})
+    notification_channel_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'MonitoringNotificationChannel', {k.substring(21): v.status.name})

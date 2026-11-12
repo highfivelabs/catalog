@@ -1,0 +1,128 @@
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-ilb"
+  location: "us-central1"
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL
+  protocol: "UNSPECIFIED"
+  networkRef:
+    external: "projects/mock-project/global/networks/catalog-mock-ilb-net"
+  healthChecks:
+    - healthCheckRef:
+        name: mock
+  backend:
+    - balancingMode: CONNECTION
+      description: "Terraform managed."
+      failover: false
+      group:
+        instanceGroupRef:
+          name: mock-group-a
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: mock-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-ilb"
+  location: "us-central1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: mock
+  loadBalancingScheme: INTERNAL
+  networkRef:
+    external: "projects/mock-project/global/networks/catalog-mock-ilb-net"
+  subnetworkRef:
+    external: "projects/mock-project/regions/us-central1/subnetworks/catalog-mock-ilb-sn"
+  ports:
+    - "80"
+  allowGlobalAccess: true
+---
+# Source: net-lb-int/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-ilb"
+  location: "global"
+  description: "Terraform managed."
+  tcpHealthCheck:
+    portSpecification: USE_SERVING_PORT
+---
+# Source: net-lb-int/templates/groups.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  name: mock-group-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group:a"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-ilb-a"
+  zone: "us-central1-a"
+  description: "Terraform managed."
+  namedPort:
+    - name: "http"
+      port: 80
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: mock-psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_attachment:"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-ilb"
+  location: "us-central1"
+  description: "Terraform managed."
+  projectRef:
+    external: "projects/mock-project"
+  targetServiceRef:
+    name: mock-fr
+  natSubnets:
+    - external: "projects/mock-project/regions/us-central1/subnetworks/catalog-mock-ilb-psc"
+  connectionPreference: ACCEPT_MANUAL
+  enableProxyProtocol: false

@@ -1,0 +1,145 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-kubernetes-engine
+modules/beta-private-cluster/firewall.tf and
+modules/beta-autopilot-private-cluster/firewall.tf (v47.0.0), Copyright
+2022 Google LLC, Apache-2.0.
+
+The module's firewall rules, as ComputeFirewall objects in the network's
+project: with add_cluster_firewall_rules, intra-cluster egress (and TPU
+egress with enable_tpu); with it or add_master_webhook_firewall_rules, the
+control plane to the webhook ports; with add_shadow_firewall_rules, the five
+shadow rules that mirror GKE's own, logged. Names, priorities, tags and
+protocols are the module's. The module reads the ranges from data sources
+(the subnetwork, its secondary ranges, the private endpoint subnetwork) and
+the TPU block from the cluster once it exists; a chart reads neither, so
+they are inputs under firewall_ranges, and the render stops naming any a
+rule needs (README.md, "Firewall rules").
+*/ -}}
+{{- $v := .Values }}
+{{- $cluster := or $v.add_cluster_firewall_rules $v.add_master_webhook_firewall_rules $v.add_shadow_firewall_rules }}
+{{- if $cluster }}
+{{- $fr := $v.firewall_ranges | default dict }}
+{{- $netProject := include "gke.networkProject" . }}
+{{- $network := printf "projects/%s/global/networks/%s" $netProject $v.network }}
+{{- $clusterName := include "gke.clusterName" . }}
+{{- $base := substr 0 (min 36 (len $clusterName) | int) $clusterName }}
+{{- $tag := include "gke.networkTag" . }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $need := "gke-cluster: %s needs firewall_ranges.%s, %s: the module reads it with a data source, which a chart cannot (README.md, \"Firewall rules\"); %s" }}
+{{- $subnetCmd := printf "gcloud compute networks subnets describe %s --region %s --project %s --format='value(ipCidrRange)'" $v.subnetwork (include "gke.region" .) $netProject }}
+
+{{- /* local.cluster_subnet_cidr */}}
+{{- $subnetCidr := "" }}
+{{- $needSubnet := or $v.add_cluster_firewall_rules $v.add_shadow_firewall_rules (not (and $v.enable_private_nodes (or $v.private_endpoint_subnetwork $v.master_ipv4_cidr_block))) }}
+{{- if $needSubnet }}
+{{- $subnetCidr = $fr.subnetwork }}
+{{- if not $subnetCidr }}
+{{- $why := "add_master_webhook_firewall_rules" }}
+{{- if $v.add_shadow_firewall_rules }}{{ $why = "add_shadow_firewall_rules" }}{{ end }}
+{{- if $v.add_cluster_firewall_rules }}{{ $why = "add_cluster_firewall_rules" }}{{ end }}
+{{- fail (printf $need $why "subnetwork" "the primary range of the cluster's subnetwork" $subnetCmd) }}
+{{- end }}
+{{- end }}
+
+{{- /* local.cluster_endpoint_for_nodes */}}
+{{- $endpoint := $subnetCidr }}
+{{- if $v.enable_private_nodes }}
+{{- if $v.private_endpoint_subnetwork }}
+{{- $endpoint = $fr.private_endpoint_subnetwork }}
+{{- if not $endpoint }}
+{{- fail (printf $need "a firewall rule with private_endpoint_subnetwork" "private_endpoint_subnetwork" "the primary range of the private endpoint subnetwork" (printf "gcloud compute networks subnets describe %s --region %s --project %s --format='value(ipCidrRange)'" $v.private_endpoint_subnetwork (include "gke.region" .) $netProject)) }}
+{{- end }}
+{{- else if $v.master_ipv4_cidr_block }}
+{{- $endpoint = $v.master_ipv4_cidr_block }}
+{{- end }}
+{{- end }}
+
+{{- /* local.pod_all_ip_ranges: ip_range_pods, additional_ip_range_pods and the node pools' pod_range, by name */}}
+{{- $pods := list }}
+{{- if or $v.add_cluster_firewall_rules $v.add_shadow_firewall_rules }}
+{{- $names := list $v.ip_range_pods }}
+{{- range $v.additional_ip_range_pods }}{{ if . }}{{ $names = append $names . }}{{ end }}{{ end }}
+{{- if not (include "gke.autopilot" .) }}
+{{- range (concat ($v.node_pools | default list) ($v.windows_node_pools | default list)) }}{{ with .pod_range }}{{ $names = append $names . }}{{ end }}{{ end }}
+{{- end }}
+{{- $known := $fr.pods | default dict }}
+{{- range $n := $names }}
+{{- if not (hasKey $known $n) }}
+{{- fail (printf $need "a firewall rule" (printf "pods.%s" $n) (printf "the CIDR of the secondary range %q" $n) (printf "gcloud compute networks subnets describe %s --region %s --project %s --format='value(secondaryIpRanges)'" $v.subnetwork (include "gke.region" $) $netProject)) }}
+{{- end }}
+{{- $c := index $known $n }}
+{{- if and $c (not (has $c $pods)) }}{{ $pods = append $pods $c }}{{ end }}
+{{- end }}
+{{- end }}
+
+{{- $all := list (dict "protocol" "tcp") (dict "protocol" "udp") (dict "protocol" "icmp") (dict "protocol" "sctp") (dict "protocol" "esp") (dict "protocol" "ah") }}
+{{- $log := dict }}
+{{- with $v.shadow_firewall_rules_log_config }}{{ $log = dict "metadata" .metadata }}{{ end }}
+{{- $rules := list }}
+{{- if $v.add_cluster_firewall_rules }}
+{{- $dest := list $endpoint }}
+{{- if not (has $subnetCidr $dest) }}{{ $dest = append $dest $subnetCidr }}{{ end }}
+{{- range $pods }}{{ if not (has . $dest) }}{{ $dest = append $dest . }}{{ end }}{{ end }}
+{{- $rules = append $rules (dict "key" "intra-egress" "id" "firewall:intra_egress" "name" (printf "gke-%s-intra-cluster-egress" $base) "description" "Managed by terraform gke module: Allow pods to communicate with each other and the master" "priority" $v.firewall_priority "direction" "EGRESS" "destinationRanges" $dest "targetTags" (list $tag) "allow" $all) }}
+{{- if $v.enable_tpu }}
+{{- if not $fr.tpu }}
+{{- fail "gke-cluster: add_cluster_firewall_rules with enable_tpu needs firewall_ranges.tpu, the cluster's TPU IPv4 block: the module reads it from the cluster once it exists (tpu_ipv4_cidr_block), which a render cannot; apply without enable_tpu's rule first, then read it with gcloud container clusters describe <cluster> --format='value(tpuIpv4CidrBlock)' (README.md, \"Firewall rules\")" }}
+{{- end }}
+{{- $rules = append $rules (dict "key" "tpu-egress" "id" "firewall:tpu_egress" "name" (printf "gke-%s-tpu-egress" $base) "description" "Managed by terraform gke module: Allow pods to communicate with TPUs" "priority" $v.firewall_priority "direction" "EGRESS" "destinationRanges" (list $fr.tpu) "targetTags" (list $tag) "allow" $all) }}
+{{- end }}
+{{- end }}
+{{- if or $v.add_cluster_firewall_rules $v.add_master_webhook_firewall_rules }}
+{{- $rules = append $rules (dict "key" "webhooks" "id" "firewall:master_webhooks" "name" (printf "gke-%s-webhooks" $base) "description" "Managed by terraform gke module: Allow master to hit pods for admission controllers/webhooks" "priority" $v.firewall_priority "direction" "INGRESS" "sourceRanges" (list $endpoint) "targetTags" (list $tag) "allow" (list (dict "protocol" "tcp" "ports" $v.firewall_inbound_ports))) }}
+{{- end }}
+{{- if $v.add_shadow_firewall_rules }}
+{{- $sp := $v.shadow_firewall_rules_priority }}
+{{- $rules = append $rules (dict "key" "shadow-all" "id" "firewall:shadow_allow_pods" "name" (printf "gke-shadow-%s-all" $base) "description" "Managed by terraform gke module: A shadow firewall rule to match the default rule allowing pod communication." "priority" $sp "direction" "INGRESS" "sourceRanges" $pods "targetTags" (list $tag) "allow" $all "log" true) }}
+{{- $rules = append $rules (dict "key" "shadow-master" "id" "firewall:shadow_allow_master" "name" (printf "gke-shadow-%s-master" $base) "description" "Managed by terraform GKE module: A shadow firewall rule to match the default rule allowing worker nodes communication." "priority" $sp "direction" "INGRESS" "sourceRanges" (list $endpoint) "targetTags" (list $tag) "allow" (list (dict "protocol" "tcp" "ports" (list "10250" "443"))) "log" true) }}
+{{- $rules = append $rules (dict "key" "shadow-vms" "id" "firewall:shadow_allow_nodes" "name" (printf "gke-shadow-%s-vms" $base) "description" "Managed by Terraform GKE module: A shadow firewall rule to match the default rule allowing worker nodes communication." "priority" $sp "direction" "INGRESS" "sourceRanges" (list $subnetCidr) "targetTags" (list $tag) "allow" (list (dict "protocol" "icmp") (dict "protocol" "udp" "ports" (list "1-65535")) (dict "protocol" "tcp" "ports" (list "1-65535"))) "log" true) }}
+{{- $rules = append $rules (dict "key" "shadow-inkubelet" "id" "firewall:shadow_allow_inkubelet" "name" (printf "gke-shadow-%s-inkubelet" $base) "description" "Managed by terraform GKE module: A shadow firewall rule to match the default rule allowing worker nodes & pods communication to kubelet." "priority" (sub (int $sp) 1) "direction" "INGRESS" "sourceRanges" $pods "sourceTags" (list $tag) "targetTags" (list $tag) "allow" (list (dict "protocol" "tcp" "ports" (list "10255"))) "log" true) }}
+{{- $rules = append $rules (dict "key" "shadow-exkubelet" "id" "firewall:shadow_deny_exkubelet" "name" (printf "gke-shadow-%s-exkubelet" $base) "description" "Managed by terraform GKE module: A shadow firewall rule to match the default deny rule to kubelet." "priority" $sp "direction" "INGRESS" "sourceRanges" (list "0.0.0.0/0") "targetTags" (list $tag) "deny" (list (dict "protocol" "tcp" "ports" (list "10255"))) "log" true) }}
+{{- end }}
+{{- range $r := $rules }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "fw" $r.key)) "id" $r.id "project" $netProject "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.fit" (list $ "firewall rule" $r.name 63) | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  description: {{ $r.description | quote }}
+  direction: {{ $r.direction }}
+  {{- if not (kindIs "invalid" $r.priority) }}
+  priority: {{ $r.priority }}
+  {{- end }}
+  {{- with $r.destinationRanges }}
+  destinationRanges: {{ toJson . }}
+  {{- end }}
+  {{- with $r.sourceRanges }}
+  sourceRanges: {{ toJson . }}
+  {{- end }}
+  {{- with $r.sourceTags }}
+  sourceTags: {{ toJson . }}
+  {{- end }}
+  targetTags: {{ toJson $r.targetTags }}
+  {{- if and $r.log $log }}
+  logConfig:
+    metadata: {{ $log.metadata | quote }}
+  {{- end }}
+  {{- range $action := list "allow" "deny" }}
+  {{- with index $r $action }}
+  {{ $action }}:
+    {{- range . }}
+    - protocol: {{ .protocol | quote }}
+      {{- with .ports }}
+      ports: {{ toJson . }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
