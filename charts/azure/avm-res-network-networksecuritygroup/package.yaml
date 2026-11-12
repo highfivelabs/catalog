@@ -1,0 +1,44 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is computed from inputs as the module
+# sets it; resource_id is the group's ARM ID from ASO's status;
+# security_rules is the module's map of rules, keyed like security_rules,
+# with the attribute names the module keeps (unset lists empty), each
+# rule's id from its object's status.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-networksecuritygroup
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('networkSecurityGroup' in inputs.names && inputs.names.networkSecurityGroup != '' ? inputs.names.networkSecurityGroup : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    resource_id: resources.network_security_group.status.id
+    security_rules: >-
+      inputs.security_rules == null ? {} : inputs.security_rules.transformMap(k, r, {
+        'access': r.access,
+        'description': ('description' in r ? r.description : null),
+        'destination_address_prefix': ('destination_address_prefix' in r ? r.destination_address_prefix : null),
+        'destination_address_prefixes': ('destination_address_prefixes' in r && r.destination_address_prefixes != null ? r.destination_address_prefixes : []),
+        'destination_application_security_group_ids': ('destination_application_security_group_ids' in r && r.destination_application_security_group_ids != null ? r.destination_application_security_group_ids : []),
+        'destination_port_range': ('destination_port_range' in r ? r.destination_port_range : null),
+        'destination_port_ranges': ('destination_port_ranges' in r && r.destination_port_ranges != null ? r.destination_port_ranges : []),
+        'direction': r.direction,
+        'id': resources['security_rule:' + k].status.id,
+        'name': r.name,
+        'network_security_group_name': ('networkSecurityGroup' in inputs.names && inputs.names.networkSecurityGroup != '' ? inputs.names.networkSecurityGroup : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name),
+        'priority': r.priority,
+        'protocol': r.protocol,
+        'resource_group_name': inputs.parent_id.split('/')[4],
+        'source_address_prefix': ('source_address_prefix' in r ? r.source_address_prefix : null),
+        'source_address_prefixes': ('source_address_prefixes' in r && r.source_address_prefixes != null ? r.source_address_prefixes : []),
+        'source_application_security_group_ids': ('source_application_security_group_ids' in r && r.source_application_security_group_ids != null ? r.source_application_security_group_ids : []),
+        'source_port_range': ('source_port_range' in r ? r.source_port_range : null),
+        'source_port_ranges': ('source_port_ranges' in r && r.source_port_ranges != null ? r.source_port_ranges : [])
+      })

@@ -259,10 +259,18 @@ Verified Module on one resource, as ASO DiagnosticSetting objects
 log entry per log group (categoryGroup) and per log category, one metric
 entry per metric category, the destinations by ARM ID. An entry's name,
 else the module's default (defaultName), is its azureName.
-Arguments (a dict): root, base, idPrefix, owner, v (the map), defaultName.
+Arguments (a dict): root, base, idPrefix, owner, v (the map), defaultName,
+and optionally:
+  noMetrics      true for a resource that emits no metrics (a network
+                 security group): metric_categories is accepted and not
+                 sent, as the module does
+  dedicatedNull  true when the module sends Dedicated as null, leaving
+                 the destination type to Azure
 */}}
 {{- define "aso.diagnosticSettings" -}}
 {{- $root := .root -}}
+{{- $noMetrics := eq .noMetrics true -}}
+{{- $dedicatedNull := eq .dedicatedNull true -}}
 {{- range $key, $d := (.v | default dict) }}
 {{- $dest := ($d.log_analytics_destination_type | default "Dedicated") }}
 {{- if not (has $dest (list "Dedicated" "AzureDiagnostics")) }}
@@ -273,6 +281,7 @@ Arguments (a dict): root, base, idPrefix, owner, v (the map), defaultName.
 {{- end }}
 {{- $groups := ternary (list "allLogs") $d.log_groups (kindIs "invalid" $d.log_groups) }}
 {{- $metrics := ternary (list "AllMetrics") $d.metric_categories (kindIs "invalid" $d.metric_categories) }}
+{{- if $noMetrics }}{{ $metrics = list }}{{ end }}
 ---
 apiVersion: insights.azure.com/v1api20210501preview
 kind: DiagnosticSetting
@@ -282,7 +291,9 @@ spec:
   azureName: {{ $d.name | default $.defaultName | quote }}
   owner:
 {{- toYaml $.owner | nindent 4 }}
+  {{- if not (and $dedicatedNull (eq $dest "Dedicated")) }}
   logAnalyticsDestinationType: {{ $dest | quote }}
+  {{- end }}
   {{- if or $groups $d.log_categories }}
   logs:
     {{- range $g := (uniq $groups | sortAlpha) }}

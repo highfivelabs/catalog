@@ -1,0 +1,64 @@
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-rt-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "keep"
+  owner:
+    group: network.azure.com
+    kind: RouteTable
+    name: names-rt
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  name: names-rt
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "route_table"
+spec:
+  azureName: "rt-shop-dev-eus2"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  disableBgpRoutePropagation: false
+  tags:
+    team: shop
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: names-route-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "route:a"
+spec:
+  azureName: "local"
+  owner:
+    name: names-rt
+  addressPrefix: "10.10.0.0/16"
+  nextHopType: VnetLocal
