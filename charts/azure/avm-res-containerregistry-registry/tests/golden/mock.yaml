@@ -1,0 +1,59 @@
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: Registry
+metadata:
+  name: mock-acr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "registry"
+spec:
+  azureName: "catalogacr001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  adminUserEnabled: false
+  anonymousPullEnabled: false
+  dataEndpointEnabled: false
+  networkRuleBypassAllowedForTasks: false
+  networkRuleBypassOptions: None
+  policies:
+    azureADAuthenticationAsArmPolicy:
+      status: enabled
+    exportPolicy:
+      status: enabled
+    quarantinePolicy:
+      status: disabled
+    trustPolicy:
+      status: disabled
+      type: Notary
+  publicNetworkAccess: Enabled
+  roleAssignmentMode: LegacyRegistryPermissions
+  sku:
+    name: Standard
+  zoneRedundancy: Disabled
+  tags:
+    catalog: mock
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryCacheRule
+metadata:
+  name: mock-cache-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache_rule:hub"
+spec:
+  azureName: "dockerhub-busybox"
+  owner:
+    name: mock-acr
+  sourceRepository: "docker.io/library/busybox"
+  targetRepository: "cache/busybox"

@@ -276,7 +276,7 @@ version than ASO has released:
 | VirtualMachine | 2022-03-01 | azurerm's current resource |
 | ApplicationGateway | 2022-07-01 | 2025-03-01 |
 | KeyVault Vault | 2023-07-01 | 2026-02-01 |
-| ContainerRegistry Registry | 2023-07-01 (2025-11-01 next) | 2025-11-01 |
+| ContainerRegistry Registry | 2025-11-01 (released in v2.22.0 as `v20251101`; found when the chart was built) | 2025-11-01 |
 | ManagedCluster | 2025-08-01 (2026-05-01 next) | 2026-03-01 and 2026-03-02-preview |
 | ContainerApp | 2025-01-01 | 2025-07-01 and 2025-02-02-preview |
 | ResourceGroup | 2020-06-01 | 2025-04-01 |
@@ -705,6 +705,8 @@ aso-extensions:
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
+| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `Microsoft.ContainerRegistry/registries/credentialSets` |
+| `avm-res-containerregistry-registry` | `scope_maps` | `Microsoft.ContainerRegistry/registries/scopeMaps`, `.../tokens` (a token's passwords are secrets returned once) |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `Microsoft.OperationalInsights/workspaces/linkedServices` (the module links a dedicated cluster with one) |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `Microsoft.OperationalInsights/workspaces/linkedStorageAccounts` |
