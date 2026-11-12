@@ -17,6 +17,11 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
+| Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
+| Azure Service Operator release | `v2.22.0` (2026-10-30) |
+| Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |
+| Azure Service Operator CRDs SHA-256 | `e8c766f2c20b6ba04335bee6287fe7f27aee54cef0b95f23fd14d81b7734d320` |
+| Azure gap kinds | `aso-extensions` (groups `*.azure.hfl.dev`); their CRDs are copied in `crds/aso-extensions` |
 | Read on | 2026-11-09 |
 
 ## Every module the catalog tracks
@@ -57,6 +62,7 @@ must carry.
 | `charts/gcp/net-vpc` | `modules/net-vpc` | see the chart's README | see the chart's README |
 | `charts/gcp/project` | `modules/project` | see the chart's README | see the chart's README |
 | `charts/gcp/gke-cluster` | terraform-google-kubernetes-engine `modules/beta-private-cluster` and `modules/beta-autopilot-private-cluster` (v47.0.0) | the cluster (Standard or Autopilot, `mode`), node pools, the node service account and its grants; see the chart's README for the full mapping | see the chart's README |
+| `charts/azure/avm-res-resources-resourcegroup` | Azure Verified Module `avm-res-resources-resourcegroup` (v0.5.0) | the group, its lock (aso-extensions `ManagementLock`) and role assignments | `ignore_tag_changes`, `retry`, `timeouts` |
 
 ## Moving the pins
 
