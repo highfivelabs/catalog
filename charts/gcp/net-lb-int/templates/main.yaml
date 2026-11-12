@@ -1,0 +1,202 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-lb-int/main.tf (v60.0.0),
+Copyright 2026 Google LLC, Apache-2.0.
+
+google_compute_region_backend_service.default: a regional
+ComputeBackendService (INTERNAL, CONNECTION balancing); one
+google_compute_forwarding_rule.default per forwarding_rules_config entry: a
+ComputeForwardingRule pointing at it; one
+google_compute_service_attachment.default per service_attachments entry
+whose key is a forwarding rule's: a ComputeServiceAttachment.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "backendService" "healthCheck")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $bs := $v.backend_service_config | default dict }}
+{{- include "kcc.unsupported" (list $ "backend_service_config.network_pass_through_lb_traffic_policy" $bs.network_pass_through_lb_traffic_policy "ComputeBackendService has no networkPassThroughLbTrafficPolicy field") }}
+{{- with $bs.log_config }}
+{{- include "kcc.unsupported" (list $ "backend_service_config.log_config.optional_mode" .optional_mode "ComputeBackendService's logConfig has no optionalMode field") }}
+{{- include "kcc.unsupported" (list $ "backend_service_config.log_config.optional_fields" .optional_fields "ComputeBackendService's logConfig has no optionalFields field") }}
+{{- end }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := $v.project_id }}
+{{- $network := include "netlbint.link" $v.vpc_config.network }}
+{{- $subnet := include "netlbint.link" $v.vpc_config.subnetwork }}
+{{- if and (kindIs "invalid" $v.health_check) (kindIs "invalid" $v.health_check_config) }}
+{{- fail "net-lb-int: set health_check (an existing health check) or health_check_config (the auto-created one)" }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "backend_service" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "backendService" "backend service" ($bs.name | default $v.name) 63 "letter") | quote }}
+  location: {{ $v.region | quote }}
+  description: {{ $bs.description | default "Terraform managed." | quote }}
+  loadBalancingScheme: INTERNAL
+  protocol: {{ $bs.protocol | default "UNSPECIFIED" | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  healthChecks:
+    - healthCheckRef:
+        {{- if $v.health_check }}
+        external: {{ include "netlbint.link" $v.health_check | quote }}
+        {{- else }}
+        name: {{ include "kcc.name" (list $.Release.Name) }}
+        {{- end }}
+  {{- with $bs.connection_draining_timeout_sec }}
+  connectionDrainingTimeoutSec: {{ . }}
+  {{- end }}
+  {{- with $bs.session_affinity }}
+  sessionAffinity: {{ . | quote }}
+  {{- end }}
+  {{- with $bs.timeout_sec }}
+  timeoutSec: {{ . }}
+  {{- end }}
+  {{- if $v.backends }}
+  backend:
+    {{- $seen := dict }}
+    {{- range $b := $v.backends }}
+    {{- if not (hasKey $seen $b.group) }}
+    {{- $_ := set $seen $b.group true }}
+    - balancingMode: CONNECTION
+      description: {{ $b.description | default "Terraform managed." | quote }}
+      failover: {{ $b.failover | default false }}
+      group:
+        instanceGroupRef:
+          {{- if hasKey ($v.group_configs | default dict) $b.group }}
+          name: {{ include "kcc.name" (list $.Release.Name "group" $b.group) }}
+          {{- else }}
+          external: {{ include "netlbint.link" $b.group | quote }}
+          {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.connection_tracking }}
+  connectionTrackingPolicy:
+    {{- if not (kindIs "invalid" .persist_conn_on_unhealthy) }}
+    connectionPersistenceOnUnhealthyBackends: {{ .persist_conn_on_unhealthy | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .idle_timeout_sec) }}
+    idleTimeoutSec: {{ .idle_timeout_sec }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .track_per_session) }}
+    trackingMode: {{ ternary "PER_SESSION" "PER_CONNECTION" .track_per_session }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.failover_config }}
+  failoverPolicy:
+    {{- if not (kindIs "invalid" .disable_conn_drain) }}
+    disableConnectionDrainOnFailover: {{ .disable_conn_drain }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .drop_traffic_if_unhealthy) }}
+    dropTrafficIfUnhealthy: {{ .drop_traffic_if_unhealthy }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .ratio) }}
+    failoverRatio: {{ .ratio }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.log_config }}
+  logConfig:
+    {{- if not (kindIs "invalid" .enable) }}
+    enable: {{ .enable }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .sample_rate) }}
+    sampleRate: {{ .sample_rate }}
+    {{- end }}
+  {{- end }}
+  {{- if eq (toString $bs.enable_subsetting) "true" }}
+  subsetting:
+    policy: CONSISTENT_HASH_SUBSETTING
+  {{- end }}
+{{- $frs := $v.forwarding_rules_config | default dict }}
+{{- range $k := keys $frs | sortAlpha }}
+{{- $fr := index $frs $k | default dict }}
+{{- $frName := ternary (include "kcc.cloudName" (list $ "forwarding rule" (toString $fr.name) 63 "letter")) (include "netlbint.frName" (list $ $k)) (not (empty $fr.name)) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "netlbint.k8sName" (list $ "fr" $k)) "id" (printf "forwarding_rule:%s" $k) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $frName | quote }}
+  location: {{ $v.region | quote }}
+  {{- with $fr.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $fr.address }}
+  ipAddress:
+    {{- if regexMatch "^[0-9a-fA-F.:]+$" . }}
+    ip: {{ . | quote }}
+    {{- else }}
+    addressRef:
+      external: {{ include "netlbint.link" . | quote }}
+    {{- end }}
+  {{- else }}
+  ipVersion: {{ ternary "IPV6" "IPV4" (eq (toString $fr.ipv6) "true") }}
+  {{- end }}
+  ipProtocol: {{ $fr.protocol | default "TCP" | quote }}
+  backendServiceRef:
+    name: {{ include "kcc.name" (list $.Release.Name) }}
+  loadBalancingScheme: INTERNAL
+  networkRef:
+    external: {{ $network | quote }}
+  subnetworkRef:
+    external: {{ $subnet | quote }}
+  {{- if kindIs "invalid" $fr.ports }}
+  allPorts: true
+  {{- else }}
+  ports:
+    {{- toYaml $fr.ports | nindent 4 }}
+  {{- end }}
+  allowGlobalAccess: {{ ternary true $fr.global_access (kindIs "invalid" $fr.global_access) }}
+  {{- with $v.service_label }}
+  serviceLabel: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- $sas := $v.service_attachments | default dict }}
+{{- range $k := keys $sas | sortAlpha }}
+{{- if hasKey $frs $k }}
+{{- $sa := index $sas $k }}
+{{- include "kcc.unsupported" (list $ (printf "service_attachments.%s.domain_name" $k) $sa.domain_name "ComputeServiceAttachment has no domainNames field") }}
+{{- include "kcc.unsupported" (list $ (printf "service_attachments.%s.reconcile_connections" $k) (kindIs "bool" $sa.reconcile_connections) "ComputeServiceAttachment has no reconcileConnections field") }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "netlbint.k8sName" (list $ "psc" $k)) "id" (printf "service_attachment:%s" $k) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "netlbint.frName" (list $ $k) | quote }}
+  location: {{ $v.region | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  projectRef:
+    external: {{ printf "projects/%s" $project | quote }}
+  targetServiceRef:
+    name: {{ include "netlbint.k8sName" (list $ "fr" $k) }}
+  natSubnets:
+    {{- range $sa.nat_subnets }}
+    - external: {{ include "netlbint.link" . | quote }}
+    {{- end }}
+  connectionPreference: {{ ternary "ACCEPT_AUTOMATIC" "ACCEPT_MANUAL" (eq (toString $sa.automatic_connection) "true") }}
+  {{- with $sa.consumer_accept_lists }}
+  consumerAcceptLists:
+    {{- range $p := keys . | sortAlpha }}
+    - projectRef:
+        external: {{ printf "projects/%s" $p | quote }}
+      connectionLimit: {{ index $sa.consumer_accept_lists $p | int }}
+    {{- end }}
+  {{- end }}
+  {{- with $sa.consumer_reject_lists }}
+  consumerRejectLists:
+    {{- range . }}
+    - external: {{ printf "projects/%s" . | quote }}
+    {{- end }}
+  {{- end }}
+  enableProxyProtocol: {{ eq (toString $sa.enable_proxy_protocol) "true" }}
+{{- end }}
+{{- end }}
