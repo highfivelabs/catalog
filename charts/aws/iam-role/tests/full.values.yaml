@@ -1,0 +1,43 @@
+# Everything at once: generic OIDC with two providers and Bitbucket (the
+# first of them), conditions on every trust statement, a source and an
+# override trust document (the override replaces the source's statement by
+# its Sid), an inline policy merged the same way, an instance profile, a
+# path, a boundary and a session limit.
+name: app
+use_name_prefix: false
+path: /apps/
+description: the app's role
+max_session_duration: 7200
+permissions_boundary: arn:aws:iam::111122223333:policy/boundary
+account_id: "111122223333"
+partition: aws
+enable_oidc: true
+oidc_account_id: "444455556666"
+oidc_provider_urls: ["https://oidc.eks.eu-west-1.amazonaws.com/id/ABC", "api.bitbucket.org/2.0/workspaces/acme/pipelines-config/identity/oidc"]
+oidc_subjects: ["system:serviceaccount:app:app"]
+oidc_audiences: ["sts.amazonaws.com"]
+enable_bitbucket_oidc: true
+trust_policy_conditions:
+  - {test: StringEquals, variable: "aws:PrincipalTag/team", values: [shop]}
+source_trust_policy_documents:
+  - '{"Version":"2012-10-17","Statement":[{"Sid":"Ec2","Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+override_trust_policy_documents:
+  - '{"Version":"2012-10-17","Statement":{"Sid":"Ec2","Effect":"Allow","Principal":{"Service":["ec2.amazonaws.com","ecs-tasks.amazonaws.com"]},"Action":"sts:AssumeRole"}}'
+policies:
+  b: arn:aws:iam::aws:policy/ReadOnlyAccess
+  a: arn:aws:iam::111122223333:policy/app
+create_inline_policy: true
+source_inline_policy_documents:
+  - '{"Version":"2012-10-17","Statement":[{"Sid":"Read","Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}'
+inline_policy_permissions:
+  Read:
+    actions: ["s3:GetObject", "s3:ListBucket"]
+    resources: ["arn:aws:s3:::app", "arn:aws:s3:::app/*"]
+  DenyDelete:
+    effect: Deny
+    not_actions: ["s3:Get*"]
+    not_resources: ["arn:aws:s3:::app/keep/*"]
+override_inline_policy_documents:
+  - '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"kms:Decrypt","Resource":"*"}]}'
+create_instance_profile: true
+tags: {team: shop}
