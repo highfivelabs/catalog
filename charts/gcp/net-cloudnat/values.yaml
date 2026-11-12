@@ -1,0 +1,90 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's net-cloudnat module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one. values.schema.json carries the types and the
+# module's validations.
+#
+# Descriptions quoted from cloud-foundation-fabric
+# (modules/net-cloudnat/variables.tf, v60.0.0), Copyright Google LLC,
+# Apache-2.0.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# Each collision-prone cloud name in full, {nat, router}. A name set here
+# takes no prefix. A name not set derives from name (and router_name), as
+# fabric names it. names.router applies only when the chart makes the
+# router (router_create).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every derived cloud
+# name (the NAT and the router it makes; never one set under names, nor an
+# existing router named by router_name). Empty (the default) changes
+# nothing.
+namePrefix: ""
+# Kubernetes labels on every object. A prefixed key (hfl.dev/team) stays in
+# Kubernetes. Routers and NAT gateways have no Google Cloud labels, so an
+# unprefixed key stays on the object only.
+labels: {}
+# Cloud labels on every resource. Routers and NAT gateways take none;
+# accepted for the catalog's common interface, they stay on the objects.
+tags: {}
+# DELETE (the default) or ABANDON, which keeps the NAT and the router when
+# the component is deleted. PREVENT is refused. Not a module variable.
+deletion_policy: null
+
+# Optional list of external address self links.
+addresses: []
+# Configuration for how to assign ports to virtual machines.
+# enable_endpoint_independent_mapping defaults to true for PUBLIC NAT and
+# false for PRIVATE NAT; enable_dynamic_port_allocation defaults to false
+# for PUBLIC NAT and true for PRIVATE NAT. min_ports_per_vm and
+# max_ports_per_vm have no effect unless enable_dynamic_port_allocation is
+# set to 'true'.
+# {enable_endpoint_independent_mapping, enable_dynamic_port_allocation,
+# min_ports_per_vm, max_ports_per_vm (65536)}
+config_port_allocation: {}
+# Subnetwork configuration.
+# {all (true), primary_ranges_only, subnetworks: [{self_link, all_ranges
+# (true), primary_range (false), secondary_ranges}]}
+config_source_subnetworks: {}
+# Timeout configurations.
+# {icmp, tcp_established, tcp_time_wait, tcp_transitory, udp}
+config_timeouts: {}
+# Context-specific interpolations. Refused: use Bundt's ${...} expressions
+# and valueFrom instead.
+context: {}
+# Specifies the endpoint Types supported by the NAT Gateway. Supported
+# values include: ENDPOINT_TYPE_VM, ENDPOINT_TYPE_SWG,
+# ENDPOINT_TYPE_MANAGED_PROXY_LB.
+endpoint_types: null
+# Enables logging if not null, value is one of 'ERRORS_ONLY',
+# 'TRANSLATIONS_ONLY', 'ALL'.
+logging_filter: null
+# Name of the Cloud NAT resource.
+# Required.
+name: ""
+# Project where resources will be created.
+# Required.
+project_id: ""
+# Region where resources will be created.
+# Required.
+region: ""
+# Router ASN used for auto-created router.
+router_asn: null
+# Create router.
+router_create: true
+# Router name, leave blank if router will be created to use auto generated
+# name.
+router_name: null
+# Name of the VPC used for auto-created router. A name (in project_id), a
+# projects/... path or a self link.
+router_network: null
+# List of rules associated with this NAT.
+# Each: {description, match, rule_number, source_ips, source_ranges}.
+rules: []
+# Whether this Cloud NAT is used for public or private IP translation. One
+# of 'PUBLIC' or 'PRIVATE'.
+type: PUBLIC
