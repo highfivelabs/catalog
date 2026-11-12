@@ -99,6 +99,12 @@ created service account on the cluster in `tests/mock.needs.yaml`: both
 objects Ready, the outputs evaluated, both deleted. Live, `task
 test-live-gke` adds a pool of one Spot `e2-small` node to its Standard
 cluster with this chart, waits for it, deletes it and checks it is gone.
+On 2026-11-12 (offload VM as `cce-live-tests`) the pool was Ready in 53s,
+the outputs evaluated, and after its delete Google Cloud no longer had it.
+Two earlier runs, with the cluster referenced by its full id, left the pool
+in Google Cloud after the object was deleted (Config Connector logged
+"underlying resource does not exist; no API call necessary"); the chart
+references the cluster by name since.
 
 ## Changes
 
