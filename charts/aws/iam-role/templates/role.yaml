@@ -1,0 +1,83 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the role (aws_iam_role, iam/Role) with its trust policy (the
+module's data.aws_iam_policy_document.this, built in _role.tpl), its policy
+attachments (aws_iam_role_policy_attachment, Role.policies) and inline
+policy (aws_iam_role_policy, Role.inlinePolicies), and its instance profile
+(aws_iam_instance_profile, iam/InstanceProfile). IAM is global: no object
+takes a region.
+*/ -}}
+{{- include "ack.names" (list $ (list "role")) -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $name := include "ack.resourceName" (list $ "role" "role" ($v.name | default "") 64) }}
+{{- if not $name }}
+{{- fail "iam-role: name is required: the role's name (or names.role); Terraform's generated name would change between renders" }}
+{{- end }}
+{{- $trust := include "iamrole.document" (list $ "trust" $v.source_trust_policy_documents (include "iamrole.trust" . | fromJson).s $v.override_trust_policy_documents) }}
+{{- if not $trust }}
+{{- fail "iam-role: the trust policy has no statement: set trust_policy_permissions, enable_oidc, enable_github_oidc, enable_bitbucket_oidc, enable_saml or source_trust_policy_documents" }}
+{{- end }}
+{{- $role := include "ack.name" (list .Release.Name "role") }}
+{{- $tags := include "ack.tags" (list $ $v.tags) | fromJson }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $role "id" "role") | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+{{- with $v.path }}
+  path: {{ . | quote }}
+{{- end }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+  assumeRolePolicyDocument: {{ $trust | quote }}
+{{- if not (kindIs "invalid" $v.max_session_duration) }}
+  maxSessionDuration: {{ int64 $v.max_session_duration }}
+{{- end }}
+{{- with $v.permissions_boundary }}
+  permissionsBoundary: {{ . | quote }}
+{{- end }}
+{{- with $v.policies }}
+  policies:
+{{- range $k := keys . | sortAlpha }}
+    - {{ index $v.policies $k | quote }}
+{{- end }}
+{{- end }}
+{{- if $v.create_inline_policy }}
+{{- $inline := include "iamrole.document" (list $ "inline" $v.source_inline_policy_documents (include "iamrole.permissions" $v.inline_policy_permissions | fromJson).s $v.override_inline_policy_documents) }}
+{{- if not $inline }}
+{{- fail "iam-role: create_inline_policy is true but the inline policy has no statement: set inline_policy_permissions or source_inline_policy_documents" }}
+{{- end }}
+  inlinePolicies:
+    {{ $name | quote }}: {{ $inline | quote }}
+{{- end }}
+{{- with $tags }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- if $v.create_instance_profile }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "instance-profile")) "id" "instance-profile") | nindent 2 }}
+spec:
+  {{- /* The module names the profile as the role. */}}
+  name: {{ $name | quote }}
+{{- with $v.path }}
+  path: {{ . | quote }}
+{{- end }}
+  roleRef:
+    from:
+      name: {{ $role }}
+{{- with $tags }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

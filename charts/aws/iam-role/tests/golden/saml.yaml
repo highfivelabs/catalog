@@ -1,0 +1,23 @@
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: saml-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "saml"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "example"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:TagSession\",\"sts:AssumeRoleWithSAML\",\"sts:SetSourceIdentity\"],\"Condition\":{\"StringEquals\":{\"SAML:aud\":[\"https://signin.aws.amazon.com/saml\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":[\"arn:aws:iam::235367859851:saml-provider/idp_saml\"]}}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Terraform"
+      value: "true"

@@ -41,6 +41,9 @@ charts use are copied in `crds/ack-extensions`.
 | `elasticache-controller` | `v1.12.0` | `c1c4c0897b82bd77bcc2370aa53b044c23bbfca7` | CacheSubnetGroup |
 | `s3-controller` | `v1.15.0` | `e679633287f9f95ec71f0ce5a26a415636fd5b25` | Bucket |
 | `kms-controller` | `v1.7.0` | `57250fba83d58aeb84a3ec2770cf3e9b45708895` | Key, Alias, Grant |
+| `iam-controller` | `v1.11.3` | `538aed660e54fc786fea8a386927ac74a12f9c30` | Role, Policy, InstanceProfile |
+| `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
+| `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in
