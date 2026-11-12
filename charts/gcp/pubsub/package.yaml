@@ -1,0 +1,28 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"): id computed from inputs as fabric computes it (its
+# topic_id_static; names.topic when it is set), schema_id and
+# subscription_id from the rendered schema and subscriptions. Not outputs:
+# topic, schema and subscriptions (whole Terraform objects).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-pubsub
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id + '/topics/' +
+      ('topic' in inputs.names && inputs.names.topic != '' ? inputs.names.topic : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    schema_id: >-
+      'schema' in resources
+      ? dyn('projects/' + inputs.project_id + '/schemas/' + resources.schema.spec.resourceID)
+      : null
+    subscription_id: >-
+      resources.transformMapEntry(k, v, v.kind == 'PubSubSubscription',
+        {k.substring(13): 'projects/' + inputs.project_id + '/subscriptions/' + v.spec.resourceID})
