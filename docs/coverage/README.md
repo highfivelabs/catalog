@@ -54,9 +54,9 @@ supported". A variable the chart does not list at all counts as not covered
 
 | `gap_kind` | Meaning |
 | --- | --- |
-| `gap` | Config Connector has no kind or field for it |
-| `alpha` | only a `v1alpha1` kind exists, or it needs `allow_alpha: true` |
-| `not-ported` | Config Connector has a stable kind; the chart does not map it yet |
+| `gap` | Config Connector (on AWS: ACK or ack-extensions; on Azure: Azure Service Operator or aso-extensions) has no kind or field for it, or none a chart can wire in one render (a field that takes another resource's ID with no reference field) |
+| `alpha` | only a `v1alpha1` kind exists, or it needs `allow_alpha: true` (on AWS: only an ack-extensions kind or a preview controller's) |
+| `not-ported` | Config Connector (on AWS: ACK; on Azure: ASO or aso-extensions) has a stable kind; the chart does not map it yet |
 | `by-design` | Bundt replaces it (`$context` lookups, reusing a resource, `factories_config`) |
 | `no-chart` | the module has no chart yet |
 
@@ -91,7 +91,14 @@ v1.160.0:
 | `alpha` | only a `v1alpha1` kind |
 | `extensions` | a gap kind that config-connector-extensions provides |
 | `none` | no kind |
-| `unclassified` | AWS and Azure types are not mapped to ACK and ASO kinds yet (`docs/aws.md` and `docs/azure.md` do it by hand for the top modules), so their `resource_types_with_stable_kind` and `resource_types_missing` are empty |
+| `unclassified` | an AWS or Azure module with a type not listed in `upstream/aws-kinds.yaml` (or `azure-kinds.yaml`): its types are not mapped to kinds yet, so its `resource_types_with_stable_kind` and `resource_types_missing` are empty |
+
+AWS types are classified by `upstream/aws-kinds.yaml`, kept by hand from
+`docs/aws.md`: `stable` is a kind of a GA (v1.x) ACK controller or a field
+of one (ACK puts many Terraform side resources inline), `extensions` an
+ack-extensions kind, `alpha` a preview (v0.x) controller's kind, `none` no
+kind. A module is classified only when the file lists every one of its
+types.
 
 `resource_types_missing` is the types without a stable kind (`alpha`,
 `extensions` and `none`).
@@ -103,7 +110,7 @@ v1.160.0:
 | `ported` | a chart exists and refuses nothing |
 | `partial` | a chart exists and refuses some variables, or accepts some only in part |
 | `blocked` | no chart, and at least one resource type has no stable kind |
-| `not started` | no chart, and every resource type has a stable kind (or the kinds are not classified yet: all AWS and Azure modules) |
+| `not started` | no chart, and every resource type has a stable kind (or the kinds are not classified yet: most AWS and Azure modules) |
 
 So `blocked` is strict: a module whose only gap is one alpha side resource is
 blocked, though the pilot charts show such a module can be ported with the

@@ -657,3 +657,56 @@ two Packages joined by the Template's `valueFrom` before reaching for kro.
   - `avm-utl-regions`;
   - `avm-utl-interfaces`;
   - `avm-utl-roledefinitions`.
+
+## 8. Charts
+
+Built from 2026-11-12. An Azure chart is a Google Cloud chart's twin
+(`docs/design.md`, "A Package per module"), rendering ASO objects instead
+of Config Connector's:
+
+| | Google Cloud | Azure |
+| --- | --- | --- |
+| Directory, Package | `charts/gcp/<module>`, `gcp-<module>` | `charts/azure/<module>` (the AVM module's name), `azure-<module>`; `providers: [aso]` |
+| Shared helpers | `lib/_kcc.tpl` (`kcc.*`) | `lib/_aso.tpl` (`aso.*`), copied into `templates/_aso.tpl` by `hack/sync-lib.sh` |
+| Schemas the renders validate against | Config Connector v1.160.0 (`hack/kcc.sh`), `crds/config-connector-extensions` | ASO v2.22.0, the release's CRD bundle checked by SHA-256 (`hack/aso.sh`, `UPSTREAM.md`), `crds/aso-extensions` |
+| Cloud name | `spec.resourceID` | `spec.azureName` (`nameFields` in `tests/name-prefix.yaml`) |
+| Cloud labels or tags | unprefixed `metadata.labels` | `spec.tags`; every AVM module has a `tags` variable with that meaning. `labels` stay in Kubernetes |
+| Parent | `cnrm.cloud.google.com/project-id` | `owner`: an object of the chart by `name`, or the module's `parent_id` (an ARM ID) as `armId` |
+| `deletion_policy: ABANDON` | `cnrm.cloud.google.com/deletion-policy: abandon` | `serviceoperator.azure.com/reconcile-policy: detach-on-delete` on every object |
+| Licence | Apache-2.0, `NOTICE` | MIT: `NOTICE` and `LICENSE.avm` in the chart |
+
+**The AVM interfaces**, implemented once in `lib/_aso.tpl`:
+
+| Interface | Object |
+| --- | --- |
+| `role_assignments` | `aso.roleAssignments`: ASO `RoleAssignment` (`authorization.azure.com/v20220401`), a role by ID (`armId`) or by name (`wellKnownName`) |
+| `lock` | `aso.lock`: aso-extensions `ManagementLock` (`authorization.azure.hfl.dev/v1`); ASO has none (#3756) |
+| `diagnostic_settings` | `aso.diagnosticSettings`: ASO `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`, Azure's only API version) |
+| `private_endpoints` | ASO `PrivateEndpoint` and `PrivateEndpointsPrivateDnsZoneGroup`: per chart, when a chart maps it |
+
+**What every AVM module has and the charts do not port.** Telemetry
+(`enable_telemetry` is accepted; nothing is sent), and the azapi
+provider's mechanics: `retry` and `timeouts` are refused when set (ASO
+retries itself; Bundt sets a component's time limit), as is
+`ignore_tag_changes` (ASO cannot leave a field to another writer).
+
+**Refusals and gaps.** As on Google Cloud, a variable ASO and
+aso-extensions cannot carry stays in the values and stops the render
+naming the gap (`aso.unsupported`), and the chart's `upstream.yaml` lists
+it with its kind (`gap`, `not-ported`, `by-design`), which `task coverage`
+counts. Where the gap is a resource type with no ASO or aso-extensions
+kind, the reason names the ARM type, so the list below is the queue for
+aso-extensions:
+
+| Chart | Variable | ARM type with no kind |
+| --- | --- | --- |
+| (none yet) | | |
+
+**Testing.** Layer 1 (render, `task test`) as on Google Cloud: golden
+files, `kubeconform -strict` against ASO v2.22.0's CRDs and aso-extensions'
+copied CRDs, refusals, `catalogtool ids` and `nameprefix`. Each chart has a
+`tests/mock.values.yaml` for layer 2, the fake cloud. Layers 2 and 3 do
+not run yet for Azure: aso-extensions' fake Resource Manager
+(`cmd/fakearm`) stands in for Azure, but ASO itself must run against it (or,
+live, against the sandbox subscription through the offload VMs' keyless
+federation), and the catalog has no harness that installs ASO yet.

@@ -1,0 +1,927 @@
+---
+# Source: vpc/templates/subnet-groups.yaml
+apiVersion: elasticache.services.k8s.aws/v1alpha1
+kind: CacheSubnetGroup
+metadata:
+  name: full-elasticache-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "elasticache-subnet-group"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  cacheSubnetGroupName: "full-cache"
+  cacheSubnetGroupDescription: "ElastiCache subnet group for full"
+  subnetRefs:
+    -
+      from:
+        name: full-elasticache-0
+    -
+      from:
+        name: full-elasticache-1
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-cache"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/customer-gateways.yaml
+apiVersion: ec2.aws.hfl.dev/v1alpha1
+kind: CustomerGateway
+metadata:
+  name: full-cgw-office
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "customer-gateway-office"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  type_: ipsec.1
+  ipAddress: "203.0.113.12"
+  bgpASN: 65112
+  deviceName: "office-router"
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-office"
+    - key: "Owner"
+      value: "platform"
+    - key: "Site"
+      value: "office"
+---
+# Source: vpc/templates/subnet-groups.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: full-database-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "database-subnet-group"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "full-db"
+  description: "Database subnet group for full"
+  subnetRefs:
+    -
+      from:
+        name: full-database-0
+    -
+      from:
+        name: full-database-1
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-db"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/vpc.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: DHCPOptions
+metadata:
+  name: full-dhcp-options
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "dhcp-options"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  dhcpConfigurations:
+    - key: domain-name
+      values: ["service.consul"]
+    - key: domain-name-servers
+      values:
+        - "127.0.0.1"
+        - "10.10.0.2"
+    - key: ntp-servers
+      values:
+        - "169.254.169.123"
+  vpcRefs:
+    -
+      from:
+        name: full-vpc
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/gateways.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: ElasticIPAddress
+metadata:
+  name: full-nat-eip-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "nat-eip-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/gateways.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: InternetGateway
+metadata:
+  name: full-igw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "igw"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/gateways.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NATGateway
+metadata:
+  name: full-nat-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "nat-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  allocationRef:
+    from:
+      name: full-nat-eip-0
+  subnetRef:
+    from:
+      name: full-public-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Kind"
+      value: "nat"
+    - key: "Name"
+      value: "full-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NetworkACL
+metadata:
+  name: full-public-acl
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "public-network-acl"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  associations:
+    - subnetRef:
+        from:
+          name: full-public-0
+    - subnetRef:
+        from:
+          name: full-public-1
+    - subnetRef:
+        from:
+          name: full-public-2
+  entries:
+    - cidrBlock: 0.0.0.0/0
+      egress: false
+      portRange:
+        from: 443
+        to: 443
+      protocol: tcp
+      ruleAction: allow
+      ruleNumber: 100
+    - cidrBlock: 10.0.0.0/8
+      egress: false
+      icmpTypeCode:
+        code: 0
+        type_: 8
+      protocol: icmp
+      ruleAction: allow
+      ruleNumber: 110
+    - cidrBlock: 0.0.0.0/0
+      egress: true
+      portRange:
+        from: 0
+        to: 0
+      protocol: "-1"
+      ruleAction: allow
+      ruleNumber: 100
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-public"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NetworkACL
+metadata:
+  name: full-private-acl
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "private-network-acl"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  associations:
+    - subnetRef:
+        from:
+          name: full-private-0
+    - subnetRef:
+        from:
+          name: full-private-1
+  entries:
+    - cidrBlock: 0.0.0.0/0
+      egress: false
+      portRange:
+        from: 0
+        to: 0
+      protocol: "-1"
+      ruleAction: allow
+      ruleNumber: 100
+    - cidrBlock: 0.0.0.0/0
+      egress: true
+      portRange:
+        from: 0
+        to: 0
+      protocol: "-1"
+      ruleAction: allow
+      ruleNumber: 100
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-private"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: full-public-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "public-route-table-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  routes:
+    - destinationCIDRBlock: 0.0.0.0/0
+      gatewayRef:
+        from:
+          name: full-igw
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-public"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: full-private-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "private-route-table-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  routes:
+    - destinationCIDRBlock: 0.0.0.0/0
+      natGatewayRef:
+        from:
+          name: full-nat-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-private"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: full-database-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "database-route-table-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  routes:
+    - destinationCIDRBlock: 0.0.0.0/0
+      natGatewayRef:
+        from:
+          name: full-nat-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-db"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: full-elasticache-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "elasticache-route-table-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-elasticache"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: full-intra-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "intra-route-table-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-intra-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: full-intra-rt-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "intra-route-table-1"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-intra-us-east-2b"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-public-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "public-subnet-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.0.0/24"
+  availabilityZone: "us-east-2a"
+  mapPublicIPOnLaunch: true
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-public-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "edge-a"
+    - key: "Owner"
+      value: "platform"
+    - key: "kubernetes.io/role/elb"
+      value: "1"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-public-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "public-subnet-1"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.1.0/24"
+  availabilityZone: "us-east-2b"
+  mapPublicIPOnLaunch: true
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-public-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-public-us-east-2b"
+    - key: "Owner"
+      value: "platform"
+    - key: "kubernetes.io/role/elb"
+      value: "1"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-public-2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "public-subnet-2"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.2.0/24"
+  availabilityZoneID: "use2-az3"
+  mapPublicIPOnLaunch: true
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-public-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-public-use2-az3"
+    - key: "Owner"
+      value: "platform"
+    - key: "kubernetes.io/role/elb"
+      value: "1"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-private-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "private-subnet-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.10.0/24"
+  availabilityZone: "us-east-2a"
+  enableResourceNameDNSARecord: true
+  hostnameType: "resource-name"
+  routeTableRefs:
+    -
+      from:
+        name: full-private-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-private-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+    - key: "Zone"
+      value: "a"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-private-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "private-subnet-1"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.11.0/24"
+  availabilityZone: "us-east-2b"
+  enableResourceNameDNSARecord: true
+  hostnameType: "resource-name"
+  routeTableRefs:
+    -
+      from:
+        name: full-private-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-private-us-east-2b"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-database-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "database-subnet-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.20.0/24"
+  availabilityZone: "us-east-2a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-database-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-db-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-database-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "database-subnet-1"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.21.0/24"
+  availabilityZone: "us-east-2b"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-database-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-db-us-east-2b"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-elasticache-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "elasticache-subnet-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.30.0/24"
+  availabilityZone: "us-east-2a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-elasticache-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-elasticache-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-elasticache-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "elasticache-subnet-1"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.10.31.0/24"
+  availabilityZone: "us-east-2b"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-elasticache-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-elasticache-us-east-2b"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-intra-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "intra-subnet-0"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.11.0.0/24"
+  availabilityZone: "us-east-2a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-intra-rt-0
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-intra-us-east-2a"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: full-intra-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "intra-subnet-1"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  vpcRef:
+    from:
+      name: full-vpc
+  cidrBlock: "10.11.1.0/24"
+  availabilityZone: "us-east-2b"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: full-intra-rt-1
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full-intra-us-east-2b"
+    - key: "Owner"
+      value: "platform"
+---
+# Source: vpc/templates/vpc.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: VPC
+metadata:
+  name: full-vpc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "vpc"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  cidrBlocks:
+    - "10.10.0.0/16"
+    - "10.11.0.0/16"
+  instanceTenancy: "default"
+  enableDNSHostnames: true
+  enableDNSSupport: true
+  enableNetworkAddressUsageMetrics: true
+  tags:
+    - key: "Environment"
+      value: "test"
+    - key: "Name"
+      value: "full"
+    - key: "Owner"
+      value: "platform"
+    - key: "Tier"
+      value: "core"

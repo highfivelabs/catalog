@@ -17,7 +17,34 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
+| Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
+| Azure Service Operator release | `v2.22.0` (2026-10-30) |
+| Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |
+| Azure Service Operator CRDs SHA-256 | `e8c766f2c20b6ba04335bee6287fe7f27aee54cef0b95f23fd14d81b7734d320` |
+| Azure gap kinds | `aso-extensions` (groups `*.azure.hfl.dev`); their CRDs are copied in `crds/aso-extensions` |
 | Read on | 2026-11-09 |
+
+## ACK controllers
+
+The AWS charts (`charts/aws/`) render AWS Controllers for Kubernetes
+(ACK) objects. `hack/ack.sh` reads these rows, fetches each controller's
+CRDs at its release, checks the tag is the commit named here, and
+`task test` validates every AWS render against them. The releases are
+the ones `docs/aws.md` maps the modules against (section 4); kinds ACK
+lacks come from `ack-extensions` (groups `*.aws.hfl.dev`), whose CRDs the
+charts use are copied in `crds/ack-extensions`.
+
+| ACK controller | Release | Commit | Kinds the charts use |
+| --- | --- | --- | --- |
+| `ec2-controller` | `v1.23.1` | `9303654c2cffad05147e4260105439149f7c81bf` | VPC, Subnet, RouteTable, InternetGateway, NATGateway, ElasticIPAddress, NetworkACL, DHCPOptions, SecurityGroup |
+| `rds-controller` | `v1.14.2` | `8ee2451cc31ed4c6a1c313d3697437aca7b660e2` | DBSubnetGroup |
+| `elasticache-controller` | `v1.12.0` | `c1c4c0897b82bd77bcc2370aa53b044c23bbfca7` | CacheSubnetGroup |
+| `s3-controller` | `v1.15.0` | `e679633287f9f95ec71f0ce5a26a415636fd5b25` | Bucket |
+| `kms-controller` | `v1.7.0` | `57250fba83d58aeb84a3ec2770cf3e9b45708895` | Key, Alias, Grant |
+
+To move a controller: change its row, run `task test` (it re-fetches the
+CRDs and re-validates every AWS render), and re-read the gaps in
+`docs/aws.md`.
 
 ## Every module the catalog tracks
 
@@ -57,6 +84,8 @@ must carry.
 | `charts/gcp/net-vpc` | `modules/net-vpc` | see the chart's README | see the chart's README |
 | `charts/gcp/project` | `modules/project` | see the chart's README | see the chart's README |
 | `charts/gcp/gke-cluster` | terraform-google-kubernetes-engine `modules/beta-private-cluster` and `modules/beta-autopilot-private-cluster` (v47.0.0) | the cluster (Standard or Autopilot, `mode`), node pools, the node service account and its grants; see the chart's README for the full mapping | see the chart's README |
+| `charts/azure/avm-res-resources-resourcegroup` | Azure Verified Module `avm-res-resources-resourcegroup` (v0.5.0) | the group, its lock (aso-extensions `ManagementLock`) and role assignments | `ignore_tag_changes`, `retry`, `timeouts` |
+| `charts/azure/avm-res-network-virtualnetwork` | Azure Verified Module `avm-res-network-virtualnetwork` (v0.23.0) | the network, subnets, peerings (and reverse peerings), lock, role assignments, diagnostic settings | `ignore_body_changes`, `retry`, `timeouts`, a peering's address space sync |
 
 ## Moving the pins
 
