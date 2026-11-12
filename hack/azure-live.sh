@@ -320,7 +320,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then
-      ns="$(cut -d/ -f7 <<<"${armid[$o]}")"; rtype="$(cut -d/ -f8 <<<"${armid[$o]}")"
+      # The provider and type after the last /providers/: an extension
+      # resource (a diagnostic setting) is its own type, not its parent's.
+      tail="${armid[$o]##*/providers/}"; ns="${tail%%/*}"; rest="${tail#*/}"; rtype="${rest%%/*}"
       v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
         | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
       code="$(api -o /dev/null -w '%{http_code}' "${ARM}${armid[$o]}?api-version=${v}")"
