@@ -16,6 +16,9 @@
 # mockgcp. config-connector-extensions is read from CCE_TARBALL (a
 # `git archive` of one commit, in Cloud Storage) or CCE_DIR (a checkout).
 #
+# MOCK_CHARTS="gcs net-vpc" applies only those charts (default: every
+# chart with a tests/mock.values.yaml).
+#
 # Writes offload-artifacts/mock/summary.md and, per chart, the render,
 # the live objects and the outputs.
 set -o errexit -o nounset -o pipefail
@@ -24,7 +27,7 @@ cd "${ROOT}"
 OUT="${ROOT}/offload-artifacts/mock"
 PROJECT=mock-project
 TIMEOUT="${MOCK_TIMEOUT:-300}"
-GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container"
+GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql"
 mkdir -p "${OUT}"
 
 for t in docker kind kubectl helm go git; do
@@ -77,6 +80,7 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for values in charts/*/*/tests/mock.values.yaml; do
   dir="$(dirname "$(dirname "${values}")")"; chart="$(basename "${dir}")"
+  if [[ -n "${MOCK_CHARTS:-}" && " ${MOCK_CHARTS} " != *" ${chart} "* ]]; then continue; fi
   ns="catalog-${chart}"; rel="mock"
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"

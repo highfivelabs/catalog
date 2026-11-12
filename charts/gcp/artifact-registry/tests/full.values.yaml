@@ -1,0 +1,33 @@
+# Every field the chart carries on a standard Maven repository.
+project_id: my-project
+location: europe-west1
+name: maven-registry
+description: Maven artifacts
+labels: {env: dev}
+encryption_key: projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/key
+cleanup_policy_dry_run: true
+cleanup_policies:
+  keep-5-versions:
+    action: KEEP
+    most_recent_versions: {keep_count: 5, package_name_prefixes: [com.example]}
+  delete-old:
+    action: DELETE
+    condition: {tag_state: ANY, older_than: 2592000s, version_name_prefixes: [v1], package_name_prefixes: [com.example]}
+  keep-tagged:
+    action: KEEP
+    condition: {tag_state: TAGGED, tag_prefixes: [release], newer_than: 86400s}
+format:
+  maven:
+    standard: {allow_snapshot_overwrites: true, version_policy: RELEASE}
+iam_by_principals:
+  "group:readers@example.org": [roles/artifactregistry.reader]
+iam_bindings:
+  writers:
+    role: roles/artifactregistry.writer
+    members: ["serviceAccount:ci@my-project.iam.gserviceaccount.com"]
+    condition: {title: expires, expression: 'request.time < timestamp("2030-01-01T00:00:00Z")'}
+iam_bindings_additive:
+  repo-admin: {member: "user:admin@example.org", role: roles/artifactregistry.repoAdmin}
+tag_bindings:
+  env: tagValues/1234567890
+deletion_policy: ABANDON
