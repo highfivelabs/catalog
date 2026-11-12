@@ -11,6 +11,7 @@ date. Nothing here is edited by hand except this page.
 | `variables.csv` | one row per variable of every tracked module: `cloud,module,variable,type,covered,refused_reason,gap_kind` |
 | `outputs.csv` | one row per output: `cloud,module,output,covered` |
 | `resource-types.csv` | one row per Terraform resource type each module creates, with its class: `cloud,module,resource_type,class,kind` |
+| `blocked-kinds.md` | the Config Connector kinds the blocked Google Cloud modules lack, ranked by how many modules each would unblock (for config-connector-extensions) |
 | `gcp-resource-kinds.csv` | the Google Cloud classification the inventory computes (`task inventory`); an input to this page |
 | `total.svg`, `gcp.svg`, `aws.svg`, `azure.svg`, `bars/*.svg` | the bars in the README |
 
