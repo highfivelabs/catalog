@@ -1,0 +1,113 @@
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: promote
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "promote"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+spec:
+  resourceID: db
+  projectRef:
+    external: "myproject"
+  location: "europe-west8"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  displayName: "db"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/my-network"
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: promote-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "promote"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "secondary_cluster"
+spec:
+  resourceID: db-west12
+  projectRef:
+    external: "myproject"
+  location: "europe-west12"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  deletionPolicy: FORCE
+  displayName: "db-west12"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/my-network"
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: promote
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "promote"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  resourceID: db
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/db"
+  instanceType: PRIMARY
+  availabilityType: "REGIONAL"
+  displayName: "db"
+  databaseFlags:
+    "max_connections": "200"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: promote-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "promote"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "secondary_instance"
+spec:
+  resourceID: db-west12
+  clusterRef:
+    external: "projects/myproject/locations/europe-west12/clusters/db-west12"
+  instanceType: PRIMARY
+  availabilityType: "REGIONAL"
+  displayName: "db-west12"
+  databaseFlags:
+    "max_connections": "200"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5
