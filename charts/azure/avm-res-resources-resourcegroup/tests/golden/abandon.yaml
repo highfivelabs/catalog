@@ -1,0 +1,60 @@
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: abandon-rg-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "abandon"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: abandon-rg
+  level: CanNotDelete
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: abandon-rg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "abandon"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource_group"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "rg-keep"
+  location: "eastus2"
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: abandon-rg-role-ops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "abandon"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-ops"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: abandon-rg
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  roleDefinitionReference:
+    wellKnownName: "Contributor"
