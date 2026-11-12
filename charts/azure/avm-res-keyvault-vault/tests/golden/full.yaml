@@ -1,0 +1,242 @@
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-kv-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-kv-platform-001"
+  owner:
+    group: keyvault.azure.com
+    kind: Vault
+    name: full-kv
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-kv-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-kv-platform-001"
+  owner:
+    group: keyvault.azure.com
+    kind: Vault
+    name: full-kv
+  level: CanNotDelete
+---
+# Source: avm-res-keyvault-vault/templates/keys.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-key-cmk-role-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:cmk/role-assignment-storage"
+spec:
+  owner:
+    group: keyvault.azure.com
+    kind: VaultKey
+    name: full-key-cmk
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  roleDefinitionReference:
+    wellKnownName: "Key Vault Crypto Service Encryption User"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-kv-role-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-admins"
+spec:
+  owner:
+    group: keyvault.azure.com
+    kind: Vault
+    name: full-kv
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Key Vault Administrator"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-kv-role-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-app"
+spec:
+  owner:
+    group: keyvault.azure.com
+    kind: Vault
+    name: full-kv
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: keyvault.azure.com/v1api20230701
+kind: Vault
+metadata:
+  name: full-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "vault"
+spec:
+  azureName: "kv-platform-001"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sec"
+  properties:
+    tenantId: "11111111-2222-3333-4444-555555555555"
+    sku:
+      family: A
+      name: standard
+    enabledForDeployment: true
+    enabledForDiskEncryption: true
+    enabledForTemplateDeployment: true
+    enablePurgeProtection: true
+    enableRbacAuthorization: true
+    networkAcls:
+      bypass: AzureServices
+      defaultAction: Deny
+      ipRules:
+        - value: "203.0.113.0/24"
+      virtualNetworkRules:
+        - reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-apps"
+    publicNetworkAccess: Disabled
+    softDeleteRetentionInDays: 30
+  tags:
+    environment: prod
+---
+# Source: avm-res-keyvault-vault/templates/keys.yaml
+apiVersion: keyvault.azure.com/v20230701
+kind: VaultKey
+metadata:
+  name: full-key-cmk
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:cmk"
+spec:
+  azureName: "cmk-storage"
+  owner:
+    name: full-kv
+  properties:
+    kty: "RSA"
+    keyOps:
+      - "wrapKey"
+      - "unwrapKey"
+    keySize: 4096
+    rotationPolicy:
+      attributes:
+        expiryTime: "P1Y"
+      lifetimeActions:
+        - action:
+            type: rotate
+          trigger:
+            timeBeforeExpiry: "P30D"
+        - action:
+            type: notify
+          trigger:
+            timeBeforeExpiry: "P29D"
+  tags:
+    use: cmk
+---
+# Source: avm-res-keyvault-vault/templates/keys.yaml
+apiVersion: keyvault.azure.com/v20230701
+kind: VaultKey
+metadata:
+  name: full-key-hsm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:hsm"
+spec:
+  azureName: "release-hsm"
+  owner:
+    name: full-kv
+  properties:
+    kty: "RSA-HSM"
+    keyOps:
+      - "encrypt"
+      - "decrypt"
+    keySize: 3072
+    release_policy:
+      contentType: "application/json; charset=utf-8"
+      data: "eyJ2ZXJzaW9uIjoiMS4wLjAiLCJhbnlPZiI6W3siYXV0aG9yaXR5IjoiaHR0cHM6Ly9zaGFyZWRldXMyLmV1czIuYXR0ZXN0LmF6dXJlLm5ldCIsImFsbE9mIjpbeyJjbGFpbSI6IngtbXMtaXNvbGF0aW9uLXRlZS54LW1zLWF0dGVzdGF0aW9uLXR5cGUiLCJlcXVhbHMiOiJzZXZzbnB2bSJ9XX1dfQ=="
+---
+# Source: avm-res-keyvault-vault/templates/keys.yaml
+apiVersion: keyvault.azure.com/v20230701
+kind: VaultKey
+metadata:
+  name: full-key-sign
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:sign"
+spec:
+  azureName: "sign-ec"
+  owner:
+    name: full-kv
+  properties:
+    kty: "EC"
+    keyOps:
+      - "sign"
+      - "verify"
+    curveName: "P-384"
+    attributes:
+      exp: 1825977600
+      nbf: 1794441600

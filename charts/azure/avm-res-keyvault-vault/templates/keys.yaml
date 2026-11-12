@@ -1,0 +1,89 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-keyvault-vault main.keys.tf and
+modules/key/main.tf (v0.13.0), Copyright (c) Microsoft Corporation, MIT.
+
+module.keys (azurerm_key_vault_key): one ASO VaultKey per entry
+(keyvault.azure.com/v20230701, Microsoft.KeyVault/vaults/keys), owned by
+the vault: key type, operations, size, curve, the not-before and expiry
+dates (as Unix times), tags, the release policy and the rotation policy as
+azurerm sends them. Each entry's role_assignments: one ASO RoleAssignment
+each, owned by the key (the module scopes them to the versionless key).
+time_sleep.wait_for_rbac_before_key_operations is not ported: ASO retries.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $vault := include "aso.name" (list .Release.Name "kv") }}
+{{- range $key, $k := $v.keys }}
+{{- if and $k.release_policy (eq $k.release_policy.immutable true) }}
+{{- include "aso.unsupported" (list $ (printf "keys.%s.release_policy.immutable" $key) true "ASO's VaultKey release_policy has contentType and data only") }}
+{{- end }}
+{{- $obj := include "aso.name" (list $.Release.Name "key" $key) }}
+---
+apiVersion: keyvault.azure.com/v20230701
+kind: VaultKey
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "key:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $k.name | quote }}
+  owner:
+    name: {{ $vault }}
+  properties:
+    kty: {{ $k.key_type | quote }}
+    keyOps:
+      {{- range (ternary (list "sign" "verify") $k.key_opts (kindIs "invalid" $k.key_opts)) }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- if not (kindIs "invalid" $k.key_size) }}
+    keySize: {{ $k.key_size | int }}
+    {{- end }}
+    {{- with $k.curve }}
+    curveName: {{ . | quote }}
+    {{- end }}
+    {{- if or $k.not_before_date $k.expiration_date }}
+    attributes:
+      {{- with $k.expiration_date }}
+      exp: {{ toDate "2006-01-02T15:04:05Z07:00" . | unixEpoch }}
+      {{- end }}
+      {{- with $k.not_before_date }}
+      nbf: {{ toDate "2006-01-02T15:04:05Z07:00" . | unixEpoch }}
+      {{- end }}
+    {{- end }}
+    {{- with $k.release_policy }}
+    release_policy:
+      contentType: "application/json; charset=utf-8"
+      data: {{ b64enc .json | replace "+" "-" | replace "/" "_" | quote }}
+    {{- end }}
+    {{- with $k.rotation_policy }}
+    {{- $auto := .automatic | default dict }}
+    rotationPolicy:
+      {{- with .expire_after }}
+      attributes:
+        expiryTime: {{ . | quote }}
+      {{- end }}
+      lifetimeActions:
+        {{- if or $auto.time_after_creation $auto.time_before_expiry }}
+        - action:
+            type: rotate
+          trigger:
+            {{- with $auto.time_after_creation }}
+            timeAfterCreate: {{ . | quote }}
+            {{- end }}
+            {{- with $auto.time_before_expiry }}
+            timeBeforeExpiry: {{ . | quote }}
+            {{- end }}
+        {{- end }}
+        {{- with .notify_before_expiry }}
+        - action:
+            type: notify
+          trigger:
+            timeBeforeExpiry: {{ . | quote }}
+        {{- end }}
+    {{- end }}
+  {{- with $k.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "key:%s/" $key) "owner" (dict "group" "keyvault.azure.com" "kind" "VaultKey" "name" $obj) "v" $k.role_assignments) }}
+{{- end }}

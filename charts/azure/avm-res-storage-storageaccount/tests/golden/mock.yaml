@@ -1,0 +1,77 @@
+---
+# Source: avm-res-storage-storageaccount/templates/main.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccount
+metadata:
+  name: mock-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "storage_account"
+spec:
+  azureName: "catalogst001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  kind: StorageV2
+  sku:
+    name: Standard_LRS
+  accessTier: Hot
+  allowBlobPublicAccess: false
+  allowCrossTenantReplication: false
+  allowSharedKeyAccess: false
+  encryption:
+    keySource: Microsoft.Storage
+  isLocalUserEnabled: false
+  isNfsV3Enabled: false
+  isSftpEnabled: false
+  minimumTlsVersion: TLS1_2
+  networkAcls:
+    bypass: "AzureServices"
+    defaultAction: Deny
+    ipRules: []
+    virtualNetworkRules: []
+  publicNetworkAccess: Disabled
+  supportsHttpsTrafficOnly: true
+  tags:
+    catalog: mock
+---
+# Source: avm-res-storage-storageaccount/templates/children.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobServicesContainer
+metadata:
+  name: mock-container-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "container:a"
+spec:
+  azureName: "assets"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Storage/storageAccounts/catalogst001/blobServices/default"
+  defaultEncryptionScope: "$account-encryption-key"
+  denyEncryptionScopeOverride: false
+  publicAccess: None
+---
+# Source: avm-res-storage-storageaccount/templates/children.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsQueueServicesQueue
+metadata:
+  name: mock-queue-q
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "queue:q"
+spec:
+  azureName: "jobs"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Storage/storageAccounts/catalogst001/queueServices/default"

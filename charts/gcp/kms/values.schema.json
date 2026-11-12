@@ -1,0 +1,377 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "kms values (fabric kms v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "keyring",
+    "project_id"
+  ],
+  "definitions": {
+    "condition": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "expression",
+        "title"
+      ],
+      "properties": {
+        "expression": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "destroy_scheduled_duration": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rotation_period": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "purpose": {
+          "description": "Invalid key purpose.",
+          "enum": [
+            "CRYPTO_KEY_PURPOSE_UNSPECIFIED",
+            "ENCRYPT_DECRYPT",
+            "ASYMMETRIC_SIGN",
+            "ASYMMETRIC_DECRYPT",
+            "RAW_ENCRYPT_DECRYPT",
+            "MAC",
+            null
+          ]
+        },
+        "skip_initial_version_creation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "version_template": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "algorithm"
+          ],
+          "properties": {
+            "algorithm": {
+              "type": "string"
+            },
+            "protection_level": {
+              "description": "Invalid version template protection level.",
+              "enum": [
+                "SOFTWARE",
+                "HSM",
+                "EXTERNAL",
+                "EXTERNAL_VPC",
+                null
+              ]
+            }
+          }
+        },
+        "iam": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "iam_bindings": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "members",
+              "role"
+            ],
+            "properties": {
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "role": {
+                "type": "string"
+              },
+              "condition": {
+                "$ref": "#/definitions/condition"
+              }
+            }
+          }
+        },
+        "iam_bindings_additive": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "member",
+              "role"
+            ],
+            "properties": {
+              "member": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "condition": {
+                "$ref": "#/definitions/condition"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "The keyring name in full (names.keyring; not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "keyring": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the derived keyring name, the key names and the import job ID, never a name set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "iam": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Keyring IAM bindings in {ROLE => [MEMBERS]} format."
+    },
+    "iam_bindings": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members",
+          "role"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        }
+      },
+      "description": "Authoritative IAM bindings in {KEY => {role, members, condition}}."
+    },
+    "iam_bindings_additive": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "member",
+          "role"
+        ],
+        "properties": {
+          "member": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        }
+      },
+      "description": "Keyring individual additive IAM bindings."
+    },
+    "import_job": {
+      "description": "Keyring import job attributes.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "import_method",
+        "protection_level"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "import_method": {
+          "type": "string"
+        },
+        "protection_level": {
+          "type": "string"
+        }
+      }
+    },
+    "keyring": {
+      "description": "Keyring attributes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "location",
+        "name"
+      ],
+      "properties": {
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "keyring_create": {
+      "description": "Set to false to manage keys and IAM bindings in an existing keyring.",
+      "type": "boolean"
+    },
+    "keys": {
+      "description": "Key names and base attributes.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-zA-Z0-9_-]{1,63}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/key"
+      }
+    },
+    "project_id": {
+      "description": "Project id where the keyring will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "tag_bindings": {
+      "description": "Tag bindings for this keyring, key => tag value id.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}
