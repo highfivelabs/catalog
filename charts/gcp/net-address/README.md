@@ -101,6 +101,12 @@ pin (`CCE_COMMIT`) predates config-connector-extensions'
 `ComputeNetworkAttachment`, and a PSC endpoint needs a producer's service
 attachment.
 
+Applied live on 2026-11-12 (`task test-live LIVE_CHARTS=net-address`,
+offload VM as `catalog-live-tests`, which has
+`roles/compute.networkAdmin`): a global address and a Standard-tier
+external address in `us-central1`, both Ready with their IPs as outputs,
+deleted, and gone from Google Cloud.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.
