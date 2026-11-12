@@ -758,7 +758,9 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP, private DNS zone, managed
+identity, Log Analytics workspace and container registry charts are
+applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -771,7 +773,13 @@ security group (two rules), route table (two routes, the group by name
 and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
-Azure answering 404, nothing left.
+Azure answering 404, nothing left. The private DNS zone (an A and a TXT
+record), the managed identity (a federated credential; no outbound role
+assignment, which the live identity may not make) and the Log Analytics
+workspace (a diagnostic setting to itself) passed the same way (run
+`cat1112191727ea`, 7 objects), and the container registry (Basic, a
+cache rule from MCR) in run `cat11121946e404`. The first registry run
+found that Azure refuses a Docker Hub cache rule without credentials.
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
