@@ -1,0 +1,48 @@
+---
+# Source: net-vpc-peering/templates/peering.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  name: full-local
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-peering
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "local_network_peering"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "name-prefix-local-peer"
+  networkRef:
+    external: "projects/my-project/global/networks/local"
+  peerNetworkRef:
+    external: "projects/peer-project/global/networks/peer"
+  exportCustomRoutes: true
+  importCustomRoutes: false
+  exportSubnetRoutesWithPublicIp: true
+  importSubnetRoutesWithPublicIp: false
+  stackType: "IPV4_IPV6"
+---
+# Source: net-vpc-peering/templates/peering.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  name: full-peer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-peering
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_network_peering"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-peer-name"
+  networkRef:
+    external: "projects/peer-project/global/networks/peer"
+  peerNetworkRef:
+    external: "projects/my-project/global/networks/local"
+  exportCustomRoutes: false
+  importCustomRoutes: true
+  stackType: "IPV4_IPV6"

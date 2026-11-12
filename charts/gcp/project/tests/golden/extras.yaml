@@ -1,0 +1,212 @@
+---
+# Source: project/templates/services.yaml
+apiVersion: serviceusage.cnrm.cloud.google.com/v1beta1
+kind: Service
+metadata:
+  name: extras-service-compute
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "service:compute.googleapis.com"
+    cnrm.cloud.google.com/disable-dependent-services: "false"
+    cnrm.cloud.google.com/disable-on-destroy: "false"
+spec:
+  resourceID: compute.googleapis.com
+  projectRef:
+    name: extras
+---
+# Source: project/templates/shared-vpc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCHostProject
+metadata:
+  name: extras-shared-vpc-host
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "shared_vpc_host"
+    cnrm.cloud.google.com/project-id: "host-project"
+---
+# Source: project/templates/shared-vpc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  name: extras-shared-vpc-service-service-project-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "shared_vpc_service_project:service-project-1"
+    cnrm.cloud.google.com/project-id: "host-project"
+spec:
+  projectRef:
+    external: "service-project-1"
+---
+# Source: project/templates/shared-vpc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  name: extras-shared-vpc-service-projects-service-project-2-7d2f505a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "shared_vpc_service_project:projects/service-project-2"
+    cnrm.cloud.google.com/project-id: "host-project"
+spec:
+  projectRef:
+    external: "service-project-2"
+---
+# Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: extras-audit-allservices-ff0cc05b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "data-access:allServices"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    name: extras
+  service: "allServices"
+  auditLogConfigs:
+    - logType: "ADMIN_READ"
+      exemptedMembers: ["group:auditors@example.org"]
+---
+# Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: extras-audit-storage-googleapis-com-21ddd306
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "data-access:storage.googleapis.com"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    name: extras
+  service: "storage.googleapis.com"
+  auditLogConfigs:
+    - logType: "DATA_READ"
+    - logType: "DATA_WRITE"
+---
+# Source: project/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: extras-role-myotherrole-6c82a9e5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "custom-role:myOtherRole"
+    cnrm.cloud.google.com/project-id: "host-project"
+spec:
+  resourceID: "myOtherRole"
+  title: "Other role"
+  description: "Reads networks."
+  stage: "BETA"
+  permissions:
+    - "compute.networks.get"
+---
+# Source: project/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: extras-role-myrole-acc56f78
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "custom-role:myRole"
+    cnrm.cloud.google.com/project-id: "host-project"
+spec:
+  resourceID: "myRole"
+  title: "Custom role myRole"
+  description: "Terraform-managed."
+  permissions:
+    - "compute.instances.get"
+    - "compute.instances.list"
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: extras-exclusion-no-gce-instances
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce-instances"
+spec:
+  resourceID: "no-gce-instances"
+  projectRef:
+    name: extras
+  description: "no-gce-instances (Terraform-managed)."
+  filter: "resource.type=gce_instance"
+---
+# Source: project/templates/project.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Project
+metadata:
+  name: extras
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "project"
+    cnrm.cloud.google.com/auto-create-network: "false"
+spec:
+  resourceID: host-project
+  name: "host-project"
+  folderRef:
+    external: "1234567890"
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+---
+# Source: project/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: extras-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "extras"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+  annotations:
+    hfl.dev/id: "tag-binding:env"
+spec:
+  parentRef:
+    kind: Project
+    name: extras
+  tagValueRef:
+    external: "tagValues/1234567890"

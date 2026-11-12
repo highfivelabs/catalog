@@ -1,0 +1,66 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/kms/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_kms_key_ring.default (keyring_create): one KMSKeyRing;
+google_kms_crypto_key.default: one KMSCryptoKey per entry of keys, on that
+keyring or the existing one; google_kms_key_ring_import_job.default: one
+KMSImportJob when import_job is set.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "keyring")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- if $v.keyring_create }}
+---
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyRing
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "keyring" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kms.keyringName" . | quote }}
+  location: {{ $v.keyring.location | quote }}
+{{- end }}
+{{- $keys := $v.keys | default dict }}
+{{- range $key := keys $keys | sortAlpha }}
+{{- $k := index $keys $key }}
+---
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kms.keyObject" (list $ $key)) "id" (printf "key:%s" $key) "project" $v.project_id "labels" ($k.labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "key" $key 63) | quote }}
+  keyRingRef:
+    {{- include "kms.keyringRef" $ | nindent 4 }}
+  purpose: {{ $k.purpose | default "ENCRYPT_DECRYPT" | quote }}
+  {{- with $k.destroy_scheduled_duration }}
+  destroyScheduledDuration: {{ . | quote }}
+  {{- end }}
+  {{- with $k.rotation_period }}
+  rotationPeriod: {{ . | quote }}
+  {{- end }}
+  {{- if $k.skip_initial_version_creation }}
+  skipInitialVersionCreation: true
+  {{- end }}
+  {{- with $k.version_template }}
+  versionTemplate:
+    algorithm: {{ .algorithm | quote }}
+    protectionLevel: {{ .protection_level | default "SOFTWARE" | quote }}
+  {{- end }}
+{{- end }}
+{{- with $v.import_job }}
+---
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSImportJob
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "import-job")) "id" "import-job" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "import job" .id 63) | quote }}
+  kmsKeyRingRef:
+    {{- include "kms.keyringRef" $ | nindent 4 }}
+  importMethod: {{ .import_method | quote }}
+  protectionLevel: {{ .protection_level | quote }}
+{{- end }}

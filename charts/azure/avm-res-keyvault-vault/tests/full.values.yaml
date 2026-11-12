@@ -1,0 +1,54 @@
+# Every vault input the chart carries, a lock, role assignments, diagnostic
+# settings, and keys: RSA with a rotation policy and a role assignment, EC
+# with dates, an HSM key with a release policy.
+name: kv-platform-001
+location: westeurope
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sec
+tenant_id: 11111111-2222-3333-4444-555555555555
+sku_name: standard
+enabled_for_deployment: true
+enabled_for_disk_encryption: true
+enabled_for_template_deployment: true
+public_network_access_enabled: false
+purge_protection_enabled: true
+soft_delete_retention_days: 30
+enable_telemetry: false
+network_acls:
+  bypass: AzureServices
+  default_action: Deny
+  ip_rules: [203.0.113.0/24]
+  virtual_network_subnet_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-apps]
+tags: {environment: prod}
+lock: {kind: CanNotDelete}
+role_assignments:
+  admins: {role_definition_id_or_name: Key Vault Administrator, principal_id: 4179302c-702e-4de7-a061-beacd0a1be09, principal_type: Group}
+  app: {role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6, principal_id: 7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f, skip_service_principal_aad_check: true}
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law
+keys:
+  cmk:
+    name: cmk-storage
+    key_type: RSA
+    key_size: 4096
+    key_opts: [wrapKey, unwrapKey]
+    tags: {use: cmk}
+    rotation_policy:
+      automatic: {time_before_expiry: P30D}
+      expire_after: P1Y
+      notify_before_expiry: P29D
+    role_assignments:
+      storage: {role_definition_id_or_name: Key Vault Crypto Service Encryption User, principal_id: 7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f}
+  sign:
+    name: sign-ec
+    key_type: EC
+    curve: P-384
+    not_before_date: "2026-11-12T00:00:00Z"
+    expiration_date: "2027-11-12T00:00:00Z"
+  hsm:
+    name: release-hsm
+    key_type: RSA-HSM
+    key_size: 3072
+    key_opts: [encrypt, decrypt]
+    release_policy:
+      json: '{"version":"1.0.0","anyOf":[{"authority":"https://sharedeus2.eus2.attest.azure.net","allOf":[{"claim":"x-ms-isolation-tee.x-ms-attestation-type","equals":"sevsnpvm"}]}]}'

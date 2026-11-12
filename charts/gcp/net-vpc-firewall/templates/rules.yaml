@@ -1,0 +1,93 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc-firewall/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_compute_firewall.custom_rules: one ComputeFirewall per rule of
+factories_data.rules (the rules_folder's files), egress_rules and
+ingress_rules, merged in that order by name, with fabric's defaults
+(egress denies, ingress and factory rules allow, all protocols, priority
+1000; 0.0.0.0/0 for a missing source range of an ingress rule without
+sources and a missing destination range of an egress rule).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "admins" "http" "https" "ssh")) }}
+{{- $rules := dict }}
+{{- range $file := keys ($v.factories_data.rules | default dict) | sortAlpha }}
+{{- $content := index $v.factories_data.rules $file | default dict }}
+{{- range $direction := keys $content | sortAlpha }}
+{{- if has (upper $direction) (list "INGRESS" "EGRESS") }}
+{{- range $name, $r := (index $content $direction | default dict) }}
+{{- $_ := set $rules $name (merge (dict "direction" (upper $direction)) (deepCopy ($r | default dict)) (dict "deny" false)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $name, $r := ($v.egress_rules | default dict) }}
+{{- $_ := set $rules $name (merge (dict "direction" "EGRESS") (deepCopy ($r | default dict)) (dict "deny" true)) }}
+{{- end }}
+{{- range $name, $r := ($v.ingress_rules | default dict) }}
+{{- $_ := set $rules $name (merge (dict "direction" "INGRESS") (deepCopy ($r | default dict)) (dict "deny" false)) }}
+{{- end }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $network := include "firewall.network" . }}
+{{- range $name := keys $rules | sortAlpha }}
+{{- $r := index $rules $name }}
+{{- $ingress := eq $r.direction "INGRESS" }}
+{{- $sa := $r.use_service_accounts | default false }}
+{{- $sources := list }}{{ if not (kindIs "invalid" $r.source_ranges) }}{{ $sources = include "firewall.ranges" (list $ $r.source_ranges) | fromJsonArray }}{{ else if and $ingress (kindIs "invalid" $r.sources) }}{{ $sources = list "0.0.0.0/0" }}{{ end }}
+{{- $dests := list }}{{ if not (kindIs "invalid" $r.destination_ranges) }}{{ $dests = include "firewall.ranges" (list $ $r.destination_ranges) | fromJsonArray }}{{ else if not $ingress }}{{ $dests = list "0.0.0.0/0" }}{{ end }}
+{{- $protocols := $r.rules | default (list (dict "protocol" "all")) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $name)) "id" (printf "rule:%s" $name) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "firewall rule" $name 63 "letter") | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  direction: {{ $r.direction | quote }}
+  priority: {{ $r.priority | default 1000 }}
+  disabled: {{ $r.disabled | default false }}
+  {{- with $sources }}
+  sourceRanges: {{ toJson . }}
+  {{- end }}
+  {{- with $dests }}
+  destinationRanges: {{ toJson . }}
+  {{- end }}
+  {{- if and (not $sa) $ingress $r.sources }}
+  sourceTags: {{ toJson $r.sources }}
+  {{- end }}
+  {{- if and $sa $ingress $r.sources }}
+  sourceServiceAccounts:
+    {{- range $r.sources }}
+    - external: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if and (not $sa) $r.targets }}
+  targetTags: {{ toJson $r.targets }}
+  {{- end }}
+  {{- if and $sa $r.targets }}
+  targetServiceAccounts:
+    {{- range $r.targets }}
+    - external: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $r.enable_logging) }}
+  logConfig:
+    metadata: {{ ternary "INCLUDE_ALL_METADATA" "EXCLUDE_ALL_METADATA" (eq (toString ($r.enable_logging | default dict).include_metadata) "true") }}
+  {{- end }}
+  {{ ternary "deny" "allow" (eq (toString $r.deny) "true") }}:
+    {{- range $p := $protocols }}
+    - protocol: {{ $p.protocol | quote }}
+      {{- with $p.ports }}
+      ports: {{ toJson . }}
+      {{- end }}
+    {{- end }}
+{{- end }}

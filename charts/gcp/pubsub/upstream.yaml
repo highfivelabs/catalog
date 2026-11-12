@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/pubsub
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/pubsub
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: subscriptions
+    kind: gap
+    reason: "PubSubSubscription's bigqueryConfig has no useTableSchema or serviceAccountEmail; a subscription's deletion_policy PREVENT has no Config Connector equivalent (ABANDON is the deletion-policy annotation)"
+    partial: true
+    fields: [bigquery.use_table_schema, bigquery.service_account_email, deletion_policy (PREVENT)]

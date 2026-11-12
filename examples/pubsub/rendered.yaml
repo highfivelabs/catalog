@@ -1,0 +1,81 @@
+# component pubsub-dev-pubsub
+---
+# Source: pubsub/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: pubsub-dev-pubsub-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pubsub-dev-pubsub"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    name: pubsub-dev-pubsub
+  bindings:
+    - role: "roles/pubsub.publisher"
+      members:
+        - member: "group:publishers@example.org"
+---
+# Source: pubsub/templates/subscriptions.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  name: pubsub-dev-pubsub-sub-test-pull
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pubsub-dev-pubsub"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscription:test-pull"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "test-pull"
+  topicRef:
+    name: pubsub-dev-pubsub
+  ackDeadlineSeconds: 20
+  retryPolicy:
+    maximumBackoff: "300s"
+    minimumBackoff: "10s"
+---
+# Source: pubsub/templates/subscriptions.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  name: pubsub-dev-pubsub-sub-test-push
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pubsub-dev-pubsub"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscription:test-push"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "test-push"
+  topicRef:
+    name: pubsub-dev-pubsub
+  pushConfig:
+    pushEndpoint: "https://example.com/foo"
+---
+# Source: pubsub/templates/topic.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubTopic
+metadata:
+  name: pubsub-dev-pubsub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pubsub-dev-pubsub"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "topic"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "my-topic"

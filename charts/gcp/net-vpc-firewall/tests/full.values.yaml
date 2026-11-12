@@ -1,0 +1,54 @@
+# Every field the chart carries: admin ranges, named ranges, service
+# accounts, logging, deny and allow rules, egress defaults, factory data.
+project_id: my-project
+network: projects/my-project/global/networks/my-network
+default_rules_config:
+  admin_ranges: [10.0.0.0/8]
+  ssh_tags: []
+named_ranges:
+  corp: [10.10.0.0/16, 10.20.0.0/16]
+ingress_rules:
+  allow-health-checks:
+    description: Health checks.
+    source_ranges: [health-checkers]
+    targets: [app@my-project.iam.gserviceaccount.com]
+    use_service_accounts: true
+    enable_logging: {include_metadata: true}
+    priority: 900
+    rules: [{protocol: tcp, ports: ["80", "443"]}]
+  allow-from-sa:
+    sources: [client@my-project.iam.gserviceaccount.com]
+    targets: [server@my-project.iam.gserviceaccount.com]
+    use_service_accounts: true
+  allow-from-tags:
+    sources: [frontend]
+    targets: [backend]
+    disabled: true
+  deny-corp:
+    deny: true
+    source_ranges: [corp, 192.168.0.0/24]
+    destination_ranges: [10.0.0.0/24]
+    enable_logging: {}
+egress_rules:
+  deny-all-egress:
+    priority: 65000
+  allow-googleapis:
+    deny: false
+    destination_ranges: [private-googleapis]
+    rules: [{protocol: tcp, ports: ["443"]}]
+factories_config:
+  rules_folder: data/firewall-rules
+  cidr_tpl_file: data/cidrs.yaml
+factories_data:
+  cidr_tpl:
+    onprem: [172.16.0.0/12]
+  rules:
+    data/firewall-rules/onprem.yaml:
+      ingress:
+        allow-onprem:
+          source_ranges: [onprem]
+          rules: [{protocol: all}]
+      egress:
+        allow-onprem-egress:
+          destination_ranges: [onprem]
+deletion_policy: ABANDON
