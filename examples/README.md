@@ -11,7 +11,7 @@ task examples-test                                                              
 
 | Directory | Files |
 | --- | --- |
-| `alloydb/`, `artifact-registry/`, `bigtable-instance/`, `cloud-identity-group/`, `cloudsql-instance/`, `datafusion/`, `dns/`, `gcs/`, `gke-hub/`, `gke-nodepool/`, `iam-service-account/`, `kms/`, `net-cloudnat/`, `net-lb-int/`, `net-vpc-firewall/`, `net-vpc-peering/`, `net-vpc/`, `project/`, `pubsub/`, `secret-manager/`, `service-directory/`, `source-repository/`, `vpc-sc/` | one module call each |
+| `alloydb/`, `artifact-registry/`, `bigtable-instance/`, `cloud-identity-group/`, `cloudsql-instance/`, `datafusion/`, `dns/`, `gcs/`, `gke-hub/`, `gke-nodepool/`, `iam-service-account/`, `kms/`, `net-cloudnat/`, `net-lb-ext/`, `net-lb-int/`, `net-vpc-firewall/`, `net-vpc-peering/`, `net-vpc/`, `project/`, `pubsub/`, `secret-manager/`, `service-directory/`, `source-repository/`, `vpc-sc/` | one module call each |
 | `wiring/` | two calls, one using the other's output |
 | `names/` | `namePrefix: ${instance.name}` on every component, and the plans of two Instances (`convert.args`, `convert-prod.args`) |
 | `gaps/` | what the converter says about what it cannot carry |
