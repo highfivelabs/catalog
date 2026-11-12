@@ -71,8 +71,8 @@ project module's `tags`) keeps it, with the catalog's meaning, and is not
 listed as adding it.
 
 **Outputs.** A chart covers an output when its Package (`package.yaml`)
-declares an output of that name. The charts follow the builder's decision
-that outputs are selective, so they do not provide fabric's whole-object
+declares an output of that name. The charts follow the decision that
+outputs are selective, so they do not provide fabric's whole-object
 outputs (`bucket`, `network`, ...).
 
 **Resource types.** The distinct resource types the module creates,

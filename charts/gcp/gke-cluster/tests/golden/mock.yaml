@@ -1,0 +1,232 @@
+---
+# Source: gke-cluster/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "mock-project"
+    cnrm.cloud.google.com/remove-default-node-pool: "true"
+spec:
+  resourceID: catalog-gke
+  location: "us-central1"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  subnetworkRef:
+    external: "projects/mock-project/regions/us-central1/subnetworks/default"
+  networkingMode: VPC_NATIVE
+  networkPolicy:
+    enabled: false
+  releaseChannel:
+    channel: "REGULAR"
+  defaultSnatStatus:
+    disabled: false
+  loggingService: "logging.googleapis.com/kubernetes"
+  monitoringService: "monitoring.googleapis.com/kubernetes"
+  clusterAutoscaling:
+    enabled: false
+    autoscalingProfile: "BALANCED"
+  verticalPodAutoscaling:
+    enabled: false
+  defaultMaxPodsPerNode: 110
+  enableShieldedNodes: true
+  identityServiceConfig:
+    enabled: false
+  enableKubernetesAlpha: false
+  enableTpu: false
+  enableIntranodeVisibility: false
+  enableL4IlbSubsetting: false
+  enableCiliumClusterwideNetworkPolicy: false
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    gcpFilestoreCsiDriverConfig:
+      enabled: false
+    gkeBackupAgentConfig:
+      enabled: false
+    networkPolicyConfig:
+      disabled: true
+    dnsCacheConfig:
+      enabled: false
+    gcePersistentDiskCsiDriverConfig:
+      enabled: true
+    configConnectorConfig:
+      enabled: false
+  datapathProvider: "DATAPATH_PROVIDER_UNSPECIFIED"
+  protectConfig:
+    workloadConfig:
+      auditMode: "DISABLED"
+  securityPostureConfig:
+    mode: "DISABLED"
+    vulnerabilityMode: "VULNERABILITY_DISABLED"
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+    stackType: "IPV4"
+  maintenancePolicy:
+    dailyMaintenanceWindow:
+      startTime: "05:00"
+  initialNodeCount: 1
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: false
+  databaseEncryption:
+    state: "DECRYPTED"
+  workloadIdentityConfig:
+    workloadPool: "mock-project.svc.id.goog"
+  meshCertificates:
+    enableCertificates: false
+  notificationConfig:
+    pubsub:
+      enabled: false
+  nodePoolDefaults:
+    nodeConfigDefaults:
+      gcfsConfig:
+        enabled: false
+---
+# Source: gke-cluster/templates/node-pools.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: mock-pool-pool-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pool:pool-1"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: pool-1
+  location: "us-central1"
+  clusterRef:
+    name: mock
+  initialNodeCount: 1
+  autoscaling:
+    minNodeCount: 1
+    maxNodeCount: 1
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  upgradeSettings:
+    strategy: "SURGE"
+    maxSurge: 1
+    maxUnavailable: 0
+  nodeConfig:
+    imageType: "COS_CONTAINERD"
+    machineType: "e2-small"
+    diskSizeGb: 100
+    diskType: "pd-standard"
+    localSsdCount: 0
+    serviceAccountRef: {"name":"mock-nodes"}
+    tags: ["gke-catalog-gke","gke-catalog-gke-pool-1"]
+    loggingVariant: "DEFAULT"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    metadata: {"cluster_name":"catalog-gke","disable-legacy-endpoints":"true","node_pool":"pool-1"}
+    labels: {"cluster_name":"catalog-gke","node_pool":"pool-1"}
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    preemptible: false
+    spot: true
+    shieldedInstanceConfig:
+      enableSecureBoot: false
+      enableIntegrityMonitoring: true
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-grant-mock-project-roles-container-defaultnodeser-dc166a72
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-mock-project|roles/container.defaultNodeServiceAccount"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/mock-project"
+  role: "roles/container.defaultNodeServiceAccount"
+  memberFrom:
+    serviceAccountRef:
+      name: mock-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-grant-mock-project-roles-monitoring-metricwriter-5493e371
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-mock-project|roles/monitoring.metricWriter"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/mock-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: mock-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-grant-mock-project-roles-stackdriver-resourcemeta-5a7fc7e8
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-mock-project|roles/stackdriver.resourceMetadata.writer"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/mock-project"
+  role: "roles/stackdriver.resourceMetadata.writer"
+  memberFrom:
+    serviceAccountRef:
+      name: mock-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: mock-nodes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: tf-gke-catalog-gke-3bb1
+  displayName: "tf-gke-catalog-gke-3bb1"
+  description: "Terraform-managed service account for cluster catalog-gke"
