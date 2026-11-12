@@ -421,7 +421,9 @@ The core works. The VM's ARM version is old.
 | root | `network/FirewallPolicy` |
 | `rule_collection_groups` | `FirewallPoliciesRuleCollectionGroup` |
 
-Covered.
+Covered. Chart `charts/azure/avm-res-network-firewallpolicy` (2026-11-12):
+21 of 22 variables (`firewall_policy_timeouts` refused by design), the
+submodule as the chart value `rule_collection_groups`.
 
 ### 16. avm-res-containerservice-managedcluster (v0.9.0; azapi)
 
@@ -746,7 +748,7 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP and firewall policy charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -759,7 +761,13 @@ security group (two rules), route table (two routes, the group by name
 and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
-Azure answering 404, nothing left.
+Azure answering 404, nothing left. The firewall policy (Basic, one rule
+collection group with a network and an application rule collection)
+passed in run `cat111223417a80`: 2 objects, outputs evaluated, nothing
+left. Its `tests/mock.values.yaml` passed against the fake cloud too
+(stock ASO against aso-extensions' fakearm at `e3b4177`, run
+`off-catalog-1112233431-23161`: 2 objects Ready and deleted, outputs
+evaluated).
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO

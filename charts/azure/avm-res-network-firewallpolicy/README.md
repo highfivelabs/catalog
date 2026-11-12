@@ -123,8 +123,9 @@ schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` (case `fwp`) applies a Basic
 policy with one rule collection group to the Azure sandbox with Azure
 Service Operator, evaluates the outputs, deletes it and checks Azure no
-longer has it. `task test-mock-azure` applies `tests/mock.values.yaml` to
-aso-extensions' fake cloud.
+longer has it: passed on 2026-11-12 (run `cat111223417a80`).
+`task test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions'
+fake cloud: passed on 2026-11-12, both objects Ready and deleted.
 
 ## Changes
 
