@@ -1,0 +1,27 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-network-routetable
+repo: https://github.com/Azure/terraform-azurerm-avm-res-network-routetable
+path: .
+version: v0.6.0
+commit: 7482f30b5f92ef88d5abfeb62a4296aa4a474342
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-network-routetable/tree/v0.6.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-network-routetable/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  - variable: subnet_resource_ids
+    kind: gap
+    reason: "an association is the routeTable property of an existing subnet (azurerm_subnet_route_table_association), and ASO sets a subnet's properties only by owning the whole subnet (VirtualNetworksSubnet), which would overwrite the rest; give the subnet's route_table in avm-res-network-virtualnetwork instead"

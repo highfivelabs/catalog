@@ -1,0 +1,223 @@
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-nsg-diag-archive
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-archive"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: network.azure.com
+    kind: NetworkSecurityGroup
+    name: full-nsg
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - category: "NetworkSecurityGroupEvent"
+      enabled: true
+    - category: "NetworkSecurityGroupRuleCounter"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag"
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-nsg-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-nsg-apps"
+  owner:
+    group: network.azure.com
+    kind: NetworkSecurityGroup
+    name: full-nsg
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-nsg-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: NetworkSecurityGroup
+    name: full-nsg
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  name: full-nsg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_security_group"
+spec:
+  azureName: "nsg-apps"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-networksecuritygroup/templates/rules.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: full-rule-db
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "security_rule:db"
+spec:
+  azureName: "allow-db"
+  owner:
+    name: full-nsg
+  access: Allow
+  direction: Inbound
+  priority: 210
+  protocol: "*"
+  sourceApplicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-web"
+  sourcePortRanges:
+    - "1024-65535"
+  destinationAddressPrefixes:
+    - "10.0.3.0/24"
+  destinationPortRange: "5432"
+---
+# Source: avm-res-network-networksecuritygroup/templates/rules.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: full-rule-deny-out
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "security_rule:deny-out"
+spec:
+  azureName: "deny-internet"
+  owner:
+    name: full-nsg
+  access: Deny
+  direction: Outbound
+  priority: 4096
+  protocol: "*"
+  sourceAddressPrefix: "VirtualNetwork"
+  sourcePortRange: "*"
+  destinationAddressPrefix: "Internet"
+  destinationPortRange: "*"
+---
+# Source: avm-res-network-networksecuritygroup/templates/rules.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: full-rule-web
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "security_rule:web"
+spec:
+  azureName: "allow-web"
+  owner:
+    name: full-nsg
+  access: Allow
+  description: "HTTP and HTTPS from the load balancer subnets"
+  direction: Inbound
+  priority: 200
+  protocol: "Tcp"
+  sourceAddressPrefixes:
+    - "10.0.1.0/24"
+    - "10.0.2.0/24"
+  sourcePortRange: "*"
+  destinationApplicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-web"
+  destinationPortRanges:
+    - "443"
+    - "80"
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-nsg-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: NetworkSecurityGroup
+    name: full-nsg
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+  description: "pipeline"
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-nsg-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: NetworkSecurityGroup
+    name: full-nsg
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
