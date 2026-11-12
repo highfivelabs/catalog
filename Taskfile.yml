@@ -165,10 +165,10 @@ tasks:
       - git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}
 
   test-mock:
-    desc: Apply each chart's tests/mock.values.yaml to the fake cloud on an offload VM
+    desc: Apply each chart's tests/mock.values.yaml to the fake cloud on an offload VM (MOCK_CHARTS="gcs net-vpc" for some)
     deps: [test, cce-snapshot]
     cmds:
-      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} hack/mock-apply.sh'
+      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply.sh'
 
   offramp-test:
     desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/), the equivalence of each fixture's module calls with their charts included (FIXTURES=dir of root modules, default offramp/fixtures)
@@ -200,7 +200,7 @@ tasks:
       SHAPE: '{{.SHAPE | default "shared-vpc"}}'
 
   test-live:
-    desc: Apply three pilot charts to real Google Cloud (project {{.LIVE_PROJECT}}, tiny resources, deleted straight after) on an offload VM acting as {{.LIVE_SA}}
+    desc: Apply charts to real Google Cloud (project {{.LIVE_PROJECT}}, tiny resources, deleted straight after) on an offload VM acting as {{.LIVE_SA}}; LIVE_CHARTS="artifact-registry" picks charts (default the pilot's three; hack/live-apply.sh names the roles each needs)
     deps: [test, cce-snapshot]
     preconditions:
       - sh: test -n "{{.LIVE_PROJECT}}"
@@ -208,7 +208,7 @@ tasks:
       - sh: test -n "{{.LIVE_SA}}"
         msg: 'set GCP_LIVE_SA (the service account live tests run as; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-apply.sh'
+      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} LIVE_CHARTS="{{.LIVE_CHARTS}}" hack/live-apply.sh'
 
   test-live-gke:
     desc: Apply gke-cluster to real Google Cloud once per mode (a zonal Standard cluster with one Spot node, an Autopilot cluster), wait for Ready, delete, check gcloud no longer lists them; on an offload VM acting as cce-live-tests (needs roles/container.clusterAdmin and the Kubernetes Engine API in {{.LIVE_PROJECT}})
