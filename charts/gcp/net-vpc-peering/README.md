@@ -61,8 +61,16 @@ with every other module the catalog tracks. To take a newer release, see
 ## Tests
 
 `task test CHART=net-vpc-peering`: render cases `basic`, `full`,
-`one-side`, `names` and `mock`, each validated against Config Connector
-v1.160.0's CRD schemas, and the refusals in `tests/*.fail.yaml`.
+`one-side` and `names`, each validated against Config Connector v1.160.0's
+CRD schemas, and the refusals in `tests/*.fail.yaml`.
+
+No fake-cloud case: the fake cloud's Compute Engine does not implement
+`AddPeering` (a run on 2026-11-12 failed with `501 method AddPeering not
+implemented`). Applied live instead on 2026-11-12 (`task test-live
+LIVE_CHARTS=net-vpc-peering`, offload VM as `cce-live-tests`): both sides
+between two networks made for the run, the local side not importing
+routes: both peerings Ready, deleted with the networks, and gone from
+Google Cloud.
 
 ## Changes
 
