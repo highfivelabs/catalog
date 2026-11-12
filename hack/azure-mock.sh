@@ -63,6 +63,9 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== the fake cloud: fakearm and fakeentra from ${ASOX_TARBALL:-${ASOX_DIR}}"
+# aso-extensions builds against its patched Azure Service Operator checkout
+# (third_party/, not committed; its hack/upstream.sh fetches the pin).
+[[ -d "${ASOX_DIR}/third_party/azure-service-operator/v2" ]] || (cd "${ASOX_DIR}" && hack/upstream.sh)
 (cd "${ASOX_DIR}" && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./cmd/fakearm ./cmd/fakeentra \
   && go run ./tests/operator/fixtures --out "${WORK}/fixtures" --tenant "${TENANT}" --client "${CLIENT}")
 for b in fakearm fakeentra; do
