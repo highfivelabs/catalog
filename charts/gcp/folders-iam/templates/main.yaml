@@ -9,9 +9,9 @@ The helper expands bindings and conditional_bindings over every folder:
     folder, role (and condition) and member: here one IAMPolicyMember each;
   - mode authoritative: google_folder_iam_binding.folder_iam_authoritative,
     one per folder and role (and condition), authoritative for that role:
-    here one IAMPartialPolicy per folder with a binding per role (and
-    condition) (docs/design.md, "IAM"), which keeps the listed members and
-    leaves others alone (README.md, "Differences from the module").
+    here one IAMBinding each (config-connector-extensions,
+    iam.gcp.hfl.dev/v1beta1), exact as the module's: members of that role
+    (and condition) it does not list are removed (docs/design.md, "IAM").
 A folder is "folders/" + the folder with any "folders/" taken out, as the
 module writes it, so folders/<number> and <number> are the same folder.
 */ -}}
@@ -38,21 +38,20 @@ module writes it, so folders/<number> and <number> are the same folder.
 {{- $ref := dict "apiVersion" "resourcemanager.cnrm.cloud.google.com/v1beta1" "kind" "Folder" "external" (printf "folders/%s" $n) }}
 {{- $iam := dict }}
 {{- if eq $v.mode "authoritative" }}
-{{- $roles := dict }}
+{{- $cb := dict }}
 {{- range $role := keys $bindings | sortAlpha }}
 {{- if not (index $bindings $role) }}
-{{- fail (printf "folders-iam: bindings[%q] is empty: in authoritative mode the module would remove every member of the role from the folder, and IAMPartialPolicy cannot say that (README.md, \"Differences from the module\")" $role) }}
+{{- fail (printf "folders-iam: bindings[%q] is empty: in authoritative mode the module would remove every member of the role from the folder, and an IAMBinding needs at least one member (README.md, \"Differences from the module\")" $role) }}
 {{- end }}
-{{- $_ := set $roles $role (index $bindings $role) }}
+{{- $_ := set $cb $role (dict "role" $role "members" (index $bindings $role)) }}
 {{- end }}
-{{- $cb := dict }}
 {{- range $b := $conditional }}
 {{- if not $b.members }}
-{{- fail (printf "folders-iam: conditional_bindings role %q title %q has no members: in authoritative mode the module would remove every member of the conditional binding, and IAMPartialPolicy cannot say that" $b.role $b.title) }}
+{{- fail (printf "folders-iam: conditional_bindings role %q title %q has no members: in authoritative mode the module would remove every member of the conditional binding, and an IAMBinding needs at least one member (README.md, \"Differences from the module\")" $b.role $b.title) }}
 {{- end }}
 {{- $_ := set $cb (printf "%s--%s" $b.role $b.title) (dict "role" $b.role "members" $b.members "condition" (dict "title" $b.title "description" $b.description "expression" $b.expression)) }}
 {{- end }}
-{{- $iam = dict "iam" $roles "iam_bindings" $cb }}
+{{- $iam = dict "iam_bindings" $cb }}
 {{- else }}
 {{- $add := dict }}
 {{- range $role := keys $bindings | sortAlpha }}

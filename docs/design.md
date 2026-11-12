@@ -1,8 +1,8 @@
 # The Google Cloud catalog: design
 
-Draft, 2026-11-09, for the builder. How Bundt's seed catalog of Packages
+Draft, 2026-11-09. How Bundt's seed catalog of Packages
 for Google Cloud is modelled, and the pilot that tests the model. The goal
-is the builder's: "make the transition from tf for teams much simpler",
+is to make the transition from Terraform much simpler for teams,
 starting from the foundational layers of Cloud Foundation Fabric.
 
 Read with: Bundt's `specs/catalog/packages.md` and `templates.md` (what a
@@ -13,37 +13,39 @@ graph), `drafts/capabilities/README.md`; `docs/gcp-inventory.md` here
 
 ## Decisions
 
-The builder's answers of 2026-11-09, applied in the sections below.
+The decisions of 2026-11-09, applied in the sections below.
 
 1. **Naming and shape.** `gcp-<module>` is the Package name. Follow
    fabric's own module naming closely, and its pattern: one core resource
    per module, with auxiliary and related resources (IAM, attachments)
-   around it. "That's the same pattern we should follow here, and one that
-   works well for composition." So a chart is named for its module, its
+   around it. The catalog follows the same pattern, which works well for
+   composition. So a chart is named for its module, its
    core object is the first thing it renders (`bucket`, `network`,
    `project`, `service_account`), and everything else hangs off it. A new
    catalog entry is a module-shaped thing, not a stack of unrelated
    resources; what spans modules is a Template.
-2. **Outputs are selective, as Terraform's are.** "We should strive to be
-   more selective about what we output, similar to how Terraform does it."
+2. **Outputs are selective, as Terraform's are.**
    A Package outputs fabric's declared outputs and nothing more, never a
    whole object. Binding every rendered object as `resources.<id>`,
    whatever its kind, is only the mechanism that lets CEL select them:
-   "By object of any type, and we can select them. That's even better."
+   objects of any type are bound, and CEL selects among them.
    The component's values are bound too, as `inputs`.
 3. **Alpha kinds only behind an opt-in value per chart** (`allow_alpha`).
    **Beta kinds are on by default.**
-4. **Factories**: the generator is accepted in principle, and the builder
-   wants to see it first: "I'd want to know what that looks like a little
-   bit better." The worked example is in "Factories, worked". It is not
+4. **Factories**: the generator is accepted in principle, after a closer
+   look at what it produces. The worked example is in "Factories, worked". It is not
    built.
-5. **Authoritative IAM**: the kind is `IAMRoleBinding`, being built in
-   config-connector-extensions. The builder prefers non-authoritative IAM,
-   so the additive `IAMPolicyMember` stays the default, `IAMPartialPolicy`
-   serves the authoritative variables as designed, and `IAMRoleBinding`
-   is used only where fabric's `iam_bindings` need it (section "IAM").
+5. **Authoritative IAM**: the kind is `IAMBinding` (first built as
+   `IAMRoleBinding`) in config-connector-extensions. Non-authoritative IAM
+   is preferred, so the additive `IAMPolicyMember` stays the
+   default, `IAMPartialPolicy` serves `iam` and `iam_by_principals`, and
+   `IAMBinding` is used only for fabric's `iam_bindings`, which are per
+   role (K5, 2026-11-10: charts 0.4.0; section "IAM"). It is
+   `iam.gcp.hfl.dev/v1beta1`, so the charts render it by default (K12,
+   2026-11-10: `IAMBinding` is promoted to `v1beta1` first, then becomes
+   the default in 0.4.0).
 6. **Live runs**: the service account
-   `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` is approved
+   `$GCP_LIVE_SA` is approved
    and made (no keys). Rules in "Testing".
 7. **Entry points are `task`** (Taskfile.yml), as in every repo: `task
    test`, `task test-live`, `task inventory`.
@@ -51,7 +53,7 @@ The builder's answers of 2026-11-09, applied in the sections below.
    moves a project's grant to its own service account to the account's
    side, rewrites entries keyed by principals that are expressions into
    additive bindings, and writes folder IDs as literals for now.
-   Cross-Instance references are a gap the builder has planned in Bundt.
+   Cross-Instance references are a gap planned in Bundt.
 9. **A test provisioner** is the pattern for live tests that need real
    folders, projects, policies or identities ("Testing", "The test
    provisioner"). The privileged principal it needs waits on a test
@@ -87,7 +89,8 @@ The builder's answers of 2026-11-09, applied in the sections below.
 4. **IAM**: additive variables become `IAMPolicyMember`, authoritative
    ones `IAMPartialPolicy`, never `IAMPolicy`. Role-authoritative IAM is
    the largest gap, 43 modules (gap 1 in the inventory); the kind that
-   closes it is `IAMRoleBinding`.
+   closes it is config-connector-extensions' `IAMBinding`
+   (`v1beta1`), which renders `iam_bindings` by default from 0.4.0.
 5. **References**: Config Connector references inside a chart, Bundt's
    `valueFrom` between charts.
 6. **Deletion**: Config Connector's default (delete), as Bundt decided;
@@ -172,8 +175,11 @@ may change (docs/design.md, "Alpha kinds")
 it per component, a Stack for a whole team's use, and a Policy (L3) can
 forbid it per Environment. A chart has the value once it ports an alpha
 kind: `net-vpc` (network attachments, PSA route exchange, peered DNS
-domains) and `gcs` (managed folders) have it; `iam-service-account` and
-`project` do not yet. An alpha feature is render-tested against the kind's
+domains) and `gcs` (managed folders) have it. config-connector-extensions'
+own `v1alpha1` kinds count as alpha too, and its `v1beta1` kinds as beta:
+`IAMBinding` is `iam.gcp.hfl.dev/v1beta1`, so it needs no `allow_alpha`,
+and its CRD is copied in `crds/config-connector-extensions` for the
+render tests. An alpha feature is render-tested against the kind's
 schema and not applied to a cloud until a fake-cloud or live case covers
 it, which each chart's README says. An alpha kind not ported yet is
 refused even with `allow_alpha`.
@@ -194,7 +200,7 @@ refused even with `allow_alpha`.
 
 ### Names, labels and tags
 
-Builder's rule, 2026-11-09 and 2026-11-10: a required prefix is too
+The rule, 2026-11-09 and 2026-11-10: a required prefix is too
 prescriptive. Teams name things their own way (an environment short name,
 a region code, a team acronym), so **every chart takes whole names, and
 Bundt supplies them** from the team's naming convention, one level up
@@ -287,8 +293,7 @@ plan time too (a blocking finding), so the chart's check is the early copy.
 ### Outputs
 
 A Package's outputs are CEL over its rendered resources' live status
-(packages.md R8). The charts assume this binding, which the builder
-confirmed on 2026-11-09 (Bundt's `drafts/cel`, answers 1 to 3), and the
+(packages.md R8). The charts assume this binding, confirmed on 2026-11-09 (Bundt's `drafts/cel`, answers 1 to 3), and the
 pilot evaluates it (`tools/catalogtool outputs`):
 
 - each rendered object is bound by its id as `resources.<id>` (or
@@ -411,9 +416,9 @@ whole hierarchies (folders, then projects, each with service accounts,
 buckets, budgets) from a tree of YAML files. They are not one chart. A
 Bundt Template has no loops (templates.md A11: generating structure is a
 Package's job), and one chart creating fifty projects is one component,
-one plan line and one blast radius. The builder accepted, in principle, a
-generator that reads the factory's YAML tree and writes Bundt documents,
-one Instance per project, and wants to see what that looks like first:
+one plan line and one blast radius. A generator that reads the factory's
+YAML tree and writes Bundt documents, one Instance per project, is
+accepted in principle, after a look at what it produces:
 "Factories, worked" below is a real factory file, the documents the
 generator would write from it, and how an edit becomes a plan. The
 generator is not built.
@@ -605,13 +610,13 @@ What this shows and what it does not:
   readable as `${components.<name>.outputs.<o>}` inside an Instance (the
   spec has them), `cloudResources: keep` per component (the spec has it),
   and a Team-scoped plan (the spec has it).
-- The builder accepted the three findings of the example: a project's
+- The three findings of the example are accepted: a project's
   grant to its own service account moves to the account's side (the cycle
   otherwise); a principal that is an expression cannot be a map key, so
   those entries become additive bindings; and folder IDs are literal
   values for now.
-- **Cross-Instance references are a known gap, and the builder has
-  planned the fix in Bundt**: contracts, exports and bindings (L3 or
+- **Cross-Instance references are a known gap, with the fix planned in
+  Bundt**: contracts, exports and bindings (L3 or
   sooner, `asks/parked.md` and `drafts/capabilities`, "Central services").
   When an Instance can export an output and another bind to it, the
   folders Instance exports `team-a/app-0`'s ID and the project reads it;
@@ -633,7 +638,7 @@ What this shows and what it does not:
 | fabric variable | Config Connector | Semantics |
 | --- | --- | --- |
 | `iam` `{ROLE: [MEMBERS]}`, `iam_by_principals` `{PRINCIPAL: [ROLES]}` (merged, as fabric merges them) | one `IAMPartialPolicy` per resource, a binding per role | fabric: authoritative per role, members added out of band are removed. Here: the listed members are kept; others are left alone; deleting the component removes only the listed members |
-| `iam_bindings` `{KEY: {role, members, condition}}` | `IAMPartialPolicy` today; one `IAMRoleBinding` each once config-connector-extensions ships it (decision 5) | with `IAMRoleBinding`, exact, as fabric's: the role's members on the resource are the listed ones |
+| `iam_bindings` `{KEY: {role, members, condition}}` | one `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`); on a resource `IAMBinding` does not take (a subnet), bindings of the `IAMPartialPolicy` | with `IAMBinding`, exact, as fabric's: the role's (and condition's) members on the resource are the listed ones, others are removed |
 | `iam_bindings_additive` `{KEY: {member, role, condition}}`, `iam_by_principals_additive` | one `IAMPolicyMember` each | the same: additive |
 | roles granted *to* a service account elsewhere (`iam_project_roles`, `iam_storage_bindings`, ...) | one `IAMPolicyMember` each, `memberFrom.serviceAccountRef` naming the chart's account | the same; the member is resolved by Config Connector, no email crosses the plan |
 | IAM on a resource IAMPolicyMember cannot reference (regional secrets, managed folders, log views, 32 types) | none | a gap (inventory, gap 2) |
@@ -644,14 +649,29 @@ What this shows and what it does not:
   must not be mixed with the other two kinds on one resource.
 - **The authoritative gap.** `IAMPartialPolicy` is the closest kind, and
   differs in one way that matters for security: a member someone adds by
-  hand to a role the chart manages stays. Gap 1 is `IAMRoleBinding` in
-  config-connector-extensions (the builder's name: one role, with its
-  condition, on one resource, its members exactly), which makes fabric's
-  `iam_bindings` exact. The builder prefers non-authoritative IAM, so the
-  default stays additive (`IAMPolicyMember`), `iam` and `iam_by_principals`
-  stay `IAMPartialPolicy`, and `IAMRoleBinding` serves `iam_bindings`
-  only, in each chart's next minor version after the kind ships; a chart
-  README says which it uses.
+  hand to a role the chart manages stays. Gap 1 is closed by `IAMBinding`
+  in config-connector-extensions (one role, with its condition, on one
+  resource, its members exactly; first built as `IAMRoleBinding`), which
+  makes fabric's `iam_bindings` exact. Non-authoritative IAM is
+  preferred, so the default stays additive (`IAMPolicyMember`),
+  `iam` and `iam_by_principals` stay `IAMPartialPolicy` (an `IAMMember` is
+  additive, an `IAMBinding` is per role), and `IAMBinding` serves
+  `iam_bindings` only, from charts 0.4.0 (K5, 2026-11-10).
+- **`IAMBinding` is the default for `iam_bindings`.** The kind is
+  `v1beta1` (config-connector-extensions' decision 24, K12),
+  so decision 3 puts it on by default, with no `allow_alpha`. Each entry is
+  one `IAMBinding`; the role leaves the `IAMPartialPolicy`, which Bundt
+  updates in the same apply. A values file that set `iam_bindings` now
+  renders different objects, and members added out of band to those roles
+  are removed; by the semver rule below that is a major version, and
+  0.4.0 carries it (K12; the charts are before 1.0 and none has
+  been released). `IAMBinding` takes 12 resource kinds (Project, Folder,
+  Organization, IAMServiceAccount, StorageBucket, SecretManagerSecret,
+  ArtifactRegistryRepository, RunService, PubSubTopic, PubSubSubscription,
+  KMSKeyRing, KMSCryptoKey); on any other (net-vpc's subnets) the bindings
+  stay in the `IAMPartialPolicy`. Not applied to a cloud yet: the fake-cloud
+  pin (`CCE_COMMIT`) predates the kind. A chart README says which kind it
+  uses.
 - **Principals from other components** come through Bundt:
   `members: ["serviceAccount:${components.runtime.outputs.email}"]`, or
   the `iam_email` output through `valueFrom`. fabric's `$iam_principals:`
@@ -734,7 +754,7 @@ else the namespace).
 
 ## kro or Helm
 
-The builder: "Unsure if we need or want kro but it's worth considering."
+Whether kro is needed or wanted is open, and worth considering.
 kro (kubernetes-sigs/kro, v0.9.4, pre-1.0, `v1alpha1` API) turns a
 ResourceGraphDefinition into a new CRD; its controller expands each
 instance of that CRD into resources at runtime, wiring them with CEL
@@ -818,7 +838,7 @@ concrete Package that meets the test.
   Target's CRD schemas, as `hack/test.sh` does against v1.160.0's.
 - Templates (a landing zone, a project baseline) pin Package versions, as
   every Template does. **A Template version is only rows Bundt records**
-  (the builder, 2026-11-10, K7): the Template document at that version and
+  (2026-11-10, K7): the Template document at that version and
   the Package versions it pins. It is not an OCI artifact: nothing is
   pushed for a Template, and there is no parent artifact that refers to
   its charts. Charts are the catalog's only OCI artifacts.
@@ -869,9 +889,9 @@ tasks (`task --list`).
    are not in the fake-cloud cases.
 3. **Live**, `task test-live` (`hack/live-apply.sh`), pilot only, after the
    fake cloud passes: an offload VM acting as
-   `catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com` (no keys;
-   the builder approved it, 2026-11-09). The rules, enforced by the
-   script: project `hfl-dev-514205` only, and every `gcloud` call passes
+   `$GCP_LIVE_SA` (no keys;
+   approved 2026-11-09). The rules, enforced by the
+   script: project `$GCP_PROJECT` only, and every `gcloud` call passes
    `--project`; tiny resources (a service account, a bucket, a network with
    one /28 subnet and a route; no VMs, no databases, nothing billed while
    idle); every name starts with a run ID (`cat-<month day hour
@@ -889,11 +909,9 @@ Some charts cannot be tested with tiny resources in one fixed project:
 `project`, `folder`, `organization`, `billing-account`, `vpc-sc`, Shared
 VPC attachment, anything with an organization policy or a service agent.
 They need a real folder, projects with billing, policies at folder scope,
-identities. The builder approved the pattern (2026-11-09): "if there needs
-to be some outer provisioner in all cases that creates everything it needs
-to and manages everything it needs to for some given test, that's a
-perfectly good pattern. And if there's a privilege principal needed for
-that, we can create that."
+identities. The pattern is approved (2026-11-09): an outer provisioner
+that creates and manages everything a given test needs is acceptable, and
+a privileged principal for it can be created.
 
 An **outer provisioner** creates everything one test needs, owns it for the
 test, and tears it down. The chart under test never creates its own
@@ -1004,7 +1022,7 @@ The alpha features are in it.
 | `project` | 7 of 7: project, two services, IAM (partial policy and member), an organization policy, an essential contact | `project_id`, `id`, `name`, `number`, `services`, `organization_policies_ids` |
 
 **Live** (`task test-live`, offload VM `off-catalog-1109174031-14417` as
-`catalog-live-tests`, run `cat-11091741-509b`, project `hfl-dev-514205`,
+`catalog-live-tests`, run `cat-11091741-509b`, project `$GCP_PROJECT`,
 catalog `132034d`, 2026-11-09): **10 of 10 objects Ready, deleted from the
 cluster and gone from Google Cloud, outputs evaluated against the real
 objects, 0 failures; the sweeper found nothing before, swept nothing
@@ -1047,11 +1065,11 @@ no offload VM of this work left).
 
 ## Questions
 
-Answered by the builder on 2026-11-09 (see "Decisions"): the Package
+Answered on 2026-11-09 (see "Decisions"): the Package
 names (`gcp-<module>`), selective outputs and the `resources` and `inputs`
 binding, alpha kinds opt-in per chart, the factory generator in principle,
-the name `IAMRoleBinding`, and the live account. Not answered (the
-builder did not rule on them, so they stay recommendations); none blocks
+the name `IAMRoleBinding` (since renamed `IAMBinding`), and the live account. Not answered (no
+ruling yet, so they stay recommendations); none blocks
 the pilot:
 
 1. **kro.** Recommended: Helm as the default engine, kro only by the test
@@ -1073,7 +1091,8 @@ the pilot:
      contracts, exports and bindings remove it.
    - a Team of its own for the factory, so a Team-scoped plan can delete
      what vanished from the tree. Recommended yes.
-4. **`IAMRoleBinding` in the charts.** Recommended: switch `iam_bindings`
-   to it in each chart's next minor version after the kind ships, and
-   keep `iam` and `iam_by_principals` on `IAMPartialPolicy` (the builder's
-   preference for non-authoritative IAM).
+4. **`IAMBinding` in the charts.** Answered (K5, 2026-11-10): `iam_bindings`
+   switch to it in each chart's next minor version (0.4.0), and `iam` and
+   `iam_by_principals` stay on `IAMPartialPolicy`. Answered (K12,
+   2026-11-10): `IAMBinding` was promoted to `v1beta1` first, and 0.4.0
+   renders it by default, without `allow_alpha`.

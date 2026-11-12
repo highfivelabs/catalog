@@ -5,14 +5,18 @@
 # them. The heavy ones run on an offload VM, never on a laptop.
 version: "3"
 
+# Environment identifiers (projects, buckets, service accounts) come from
+# the environment or a git-ignored .env; .env.example lists them.
+dotenv: ['.env']
+
 vars:
   OFFLOAD: ../offload/offload
   # The project live tests touch: HFL_GCP_TEST_PROJECT from the test
   # estate's env file (factory/estate/gcp/<gen>.env) when it is loaded,
-  # else hfl-dev-514205; hack/live-apply.sh refuses any other. And the
-  # service account they run as (no keys; the VM acts as it).
-  LIVE_PROJECT: '{{.HFL_GCP_TEST_PROJECT | default "hfl-dev-514205"}}'
-  LIVE_SA: catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com
+  # else GCP_PROJECT; hack/live-apply.sh refuses any other. And the
+  # service account they run as (GCP_LIVE_SA; no keys, the VM acts as it).
+  LIVE_PROJECT: '{{.HFL_GCP_TEST_PROJECT | default .GCP_PROJECT}}'
+  LIVE_SA: '{{.GCP_LIVE_SA}}'
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
   CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
@@ -20,7 +24,7 @@ vars:
   # repository (offramp/fixtures until they move to the
   # terraform-offramp-demo repository's layout).
   FIXTURES: '{{.FIXTURES | default "offramp/fixtures"}}'
-  CCE_TARBALL: gs://hfl-dev-514205-offload/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz
+  CCE_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:
@@ -72,6 +76,11 @@ tasks:
     cmds:
       - bin/catalogtool upstream watch {{.CLI_ARGS}}
 
+  "upstream-watch:issue":
+    desc: "Create, update or close this repository's upstream-watch tracking issue from upstream watch's --json and --issue files (upstream-watch.yml; writes issues): task upstream-watch:issue -- upstream-status.json issue.md"
+    cmds:
+      - hack/upstream-watch-issue.sh {{.CLI_ARGS}}
+
   upstream-bump:
     desc: "Record that a module's pin moved, then regenerate coverage: task upstream-bump -- gcs v61.0.0"
     deps: [tools]
@@ -110,6 +119,24 @@ tasks:
     cmds:
       - UPDATE=1 hack/examples.sh
 
+  # The merge gate while GitHub Actions is off (README.md, "The merge
+  # gate"): ci.yml's pull-request job (task check, at ci.yml's pins) for
+  # one commit, then the commit status offload/ci on it.
+  ci:
+    desc: 'ci.yml''s pull-request job (task check, at ci.yml''s tool pins) for one commit, then the offload/ci status on it: task ci [SHA=HEAD].'
+    cmds:
+      - hack/ci/gate.sh {{.SHA | default "HEAD"}}
+
+  "ci:tools":
+    desc: 'Install the tools ci.yml pins (task, helm, kubeconform, actionlint) at its versions into ~/.local/hfl-tools (HFL_TOOLS); put that first on PATH. task ci:tools -- helm for one.'
+    cmds:
+      - hack/ci/tools.sh {{.CLI_ARGS}}
+
+  hooks:
+    desc: Install the pre-push hook (hack/hooks/pre-push, which runs task ci) with core.hooksPath.
+    cmds:
+      - git config core.hooksPath hack/hooks
+
   check:
     desc: Everything that must hold before a commit - gofmt and vet of tools/, the Go tests, the chart and example tests (helm lint, golden renders, kubeconform), coverage current, shell lint (warnings and errors) and workflow lint
     cmds:
@@ -129,6 +156,9 @@ tasks:
 
   cce-snapshot:
     desc: Upload config-connector-extensions at CCE_COMMIT for the fake-cloud and live runs
+    preconditions:
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     status:
       - gcloud storage ls {{.CCE_TARBALL}}
     cmds:
@@ -157,22 +187,39 @@ tasks:
 
   offramp-live:
     desc: "The offramp's live proof of one fixture (SHAPE=shared-vpc) in {{.LIVE_PROJECT}}, on an offload VM acting as cce-live-tests@: apply, scan, convert, adopt with Config Connector, check nothing changed, destroy"
+    preconditions:
+      - sh: test -n "{{.LIVE_PROJECT}}"
+        msg: 'set GCP_PROJECT (or HFL_GCP_TEST_PROJECT, the test estate''s project; see .env.example)'
+      - sh: test -n "{{.GCP_CCE_LIVE_SA}}"
+        msg: 'set GCP_CCE_LIVE_SA (the service account the offramp''s live proof runs as; see .env.example)'
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --hours 3 -- env PROJECT={{.LIVE_PROJECT}} FIXTURES={{.FIXTURES}} offramp/hack/live.sh {{.SHAPE}}'
+      - '{{.OFFLOAD}} run --sa {{.GCP_CCE_LIVE_SA}} --hours 3 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} OFFLOAD_BUCKET={{.OFFLOAD_BUCKET}} FIXTURES={{.FIXTURES}} offramp/hack/live.sh {{.SHAPE}}'
     vars:
       SHAPE: '{{.SHAPE | default "shared-vpc"}}'
 
   test-live:
     desc: Apply three pilot charts to real Google Cloud (project {{.LIVE_PROJECT}}, tiny resources, deleted straight after) on an offload VM acting as {{.LIVE_SA}}
     deps: [test, cce-snapshot]
+    preconditions:
+      - sh: test -n "{{.LIVE_PROJECT}}"
+        msg: 'set GCP_PROJECT (or HFL_GCP_TEST_PROJECT, the test estate''s project; see .env.example)'
+      - sh: test -n "{{.LIVE_SA}}"
+        msg: 'set GCP_LIVE_SA (the service account live tests run as; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-apply.sh'
+      - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-apply.sh'
 
   test-live-gke:
     desc: Apply gke-cluster to real Google Cloud once per mode (a zonal Standard cluster with one Spot node, an Autopilot cluster), wait for Ready, delete, check gcloud no longer lists them; on an offload VM acting as cce-live-tests (needs roles/container.clusterAdmin and the Kubernetes Engine API in {{.LIVE_PROJECT}})
     deps: [test, cce-snapshot]
+    preconditions:
+      - sh: test -n "{{.LIVE_PROJECT}}"
+        msg: 'set GCP_PROJECT (or HFL_GCP_TEST_PROJECT, the test estate''s project; see .env.example)'
+      - sh: test -n "{{.GCP_CCE_LIVE_SA}}"
+        msg: 'set GCP_CCE_LIVE_SA (the service account live GKE tests run as; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-gke.sh'
+      - '{{.OFFLOAD}} run --sa {{.GCP_CCE_LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} hack/live-gke.sh'
 
   inventory:
     desc: Regenerate the tables of docs/gcp-inventory.md from fabric and Config Connector at the commits in UPSTREAM.md

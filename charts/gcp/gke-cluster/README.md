@@ -212,7 +212,7 @@ the ones only Autopilot mode takes.
 | --- | --- |
 | `create_service_account` | an `IAMServiceAccount` |
 | `service_account_name` | its ID; empty: `tf-gke-<name, 15 characters>-<4 characters>` (see "Differences") |
-| `service_account` | the account nodes run as (`serviceAccountRef` external) instead of the created one; `""` or `create` uses the created one, as the module does |
+| `service_account` | the account nodes run as (`serviceAccountRef` external) instead of the created one; `""` or `create` uses the created one, as the module does. With `create_service_account: false` the chart makes no account and no IAM: pass a project's dedicated node account here, such as the `project-wrapper` chart's `node_service_account_email` output (`tests/node-sa.values.yaml`) |
 | `monitoring_metric_writer_role` | with `roles/container.defaultNodeServiceAccount` and `roles/stackdriver.resourceMetadata.writer`, an `IAMPolicyMember` on the project for the created account |
 | `grant_registry_access`, `registry_project_ids` | `roles/storage.objectViewer` and `roles/artifactregistry.reader` (and `roles/serviceusage.serviceUsageConsumer` with `enable_gcfs`) on each registry project, else the cluster's |
 | `boot_disk_kms_key` | `bootDiskKMSCryptoKeyRef` on nodes (and `bootDiskKMSKeyRef` for auto-provisioned nodes), unless a pool sets its own |
@@ -341,7 +341,7 @@ and `secret_manager_addon_enabled` (their inputs are gaps).
 
 ## Since 5.0.0
 
-The builder's link names v5.0.0 (2019). Between v5.0.0 and v47.0.0 the
+The linked release is v5.0.0 (2019). Between v5.0.0 and v47.0.0 the
 `beta-private-cluster` inputs grew from 62 to 162. Seven of v5.0.0's inputs
 are gone: `basic_auth_username` and `basic_auth_password` (GKE removed basic
 authentication), `istio` (the Istio add-on, removed from GKE),
@@ -370,8 +370,8 @@ both. To take a newer release, see [`UPSTREAM.md`](../../../UPSTREAM.md),
 
 ## Tests
 
-`task test CHART=gke-cluster`: seven render cases (`basic`, `public`,
-`full`, `names`, `autopilot`, `autopilot-full`, `mock`), each validated
+`task test CHART=gke-cluster`: eight render cases (`basic`, `public`,
+`full`, `names`, `autopilot`, `autopilot-full`, `node-sa`, `mock`), each validated
 against Config Connector v1.160.0's CRD schemas, and the refusals in
 `tests/*.fail.yaml`. `tests/mock.values.yaml` is applied to the fake cloud by
 `hack/mock-apply.sh` (`task test-mock`): on 2026-11-10 (offload VM
@@ -380,11 +380,34 @@ pool, the node service account and its three grants were all Ready and
 deleted, and all 30 outputs evaluated.
 
 `task test-live-gke` (`hack/live-gke.sh`) applies a zonal Standard cluster
-with one Spot `e2-small` node and an Autopilot cluster to `hfl-dev-514205`,
-waits for Ready, deletes them and checks `gcloud container clusters list`.
-It has not run yet: the runner, `cce-live-tests`, needs
-`roles/container.clusterAdmin` on the project, and the Kubernetes Engine API
-(`container.googleapis.com`) must be enabled there.
+with two node pools of one Spot `e2-small` node each and a regional
+Autopilot cluster to the live-test project (`GCP_PROJECT`), waits for Ready, renders the
+Standard cluster as Autopilot to check the mode change is refused, deletes
+everything and checks `gcloud container clusters list`.
+
+First run, 2026-11-11 (run `cat-11110813-eb48`, offload VM
+`off-catalog-1111075907-28966`, as `cce-live-tests`, catalog `3cadb9f` plus
+this script):
+
+- Network and subnet (net-vpc): Ready in 22 to 67 s.
+- Standard: the cluster Ready in 651 s, both pools in 820 s, all 30 outputs
+  evaluated (GKE 1.36.4-gke.2377000, REGULAR channel).
+- Autopilot: `RUNNING` in `gcloud container clusters list` (autopilot
+  enabled), but the script did not see it: with an external node account the
+  render is one object, `kubectl get -f -o json` returns it bare rather than
+  as a List, and the script read `.items` (fixed since). Its Ready condition
+  and 12 of its outputs were not checked.
+- The mode change, refused both ways: `helm install --dry-run=server`
+  (lookup sees the cluster) stopped with "mode is autopilot but cluster std
+  is standard ..."; the offline render applied, and Config Connector set
+  `UpdateFailed`: "cannot make changes to immutable field(s): [Field Name:
+  enableAutopilot, Got: true, Wanted: false]"; the cluster's `createTime`
+  was unchanged and autopilot stayed off. A server-side dry run did not
+  refuse it, because this harness runs Config Connector without its webhooks.
+- Deletion: not confirmed. The delete wait printed nothing, so offload
+  deleted the VM after 45 silent minutes, before the cleanup trap's sweep
+  ran. The wait now prints a line a minute. The next run's `sweep_old`
+  deletes any `cat-` cluster or network older than two hours.
 
 ## Changes
 

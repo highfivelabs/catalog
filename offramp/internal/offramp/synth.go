@@ -400,10 +400,11 @@ func fakeAPI() (*http.Server, string, error) {
 	return srv, "http://" + ln.Addr().String(), nil
 }
 
-// number is a made-up, deterministic 12-digit number for an address.
+// number is a made-up, deterministic 12-digit number for an address,
+// 1000000NNNNN, so that it is plainly not a real folder or project number.
 func number(seed string) string {
 	h := sha256.Sum256([]byte(seed))
-	return fmt.Sprintf("%d", 100000000000+binary.BigEndian.Uint64(h[:8])%899999999999)
+	return fmt.Sprintf("%d", 100000000000+binary.BigEndian.Uint64(h[:8])%100000)
 }
 
 const computeBase = "https://www.googleapis.com/compute/v1/"
