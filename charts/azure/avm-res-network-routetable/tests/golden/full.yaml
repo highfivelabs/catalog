@@ -1,0 +1,182 @@
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-rt-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-ReadOnly"
+  owner:
+    group: network.azure.com
+    kind: RouteTable
+    name: full-rt
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-rt-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: RouteTable
+    name: full-rt
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-rt-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: RouteTable
+    name: full-rt
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  name: full-rt
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_table"
+spec:
+  azureName: "rt-hub"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  disableBgpRoutePropagation: true
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-route-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:default"
+spec:
+  azureName: "to-firewall"
+  owner:
+    name: full-rt
+  addressPrefix: "0.0.0.0/0"
+  nextHopType: VirtualAppliance
+  nextHopIpAddress: "10.0.0.4"
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-route-drop
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:drop"
+spec:
+  azureName: "blackhole"
+  owner:
+    name: full-rt
+  addressPrefix: "10.99.0.0/16"
+  nextHopType: None
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-route-gw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:gw"
+spec:
+  azureName: "onprem"
+  owner:
+    name: full-rt
+  addressPrefix: "192.168.0.0/16"
+  nextHopType: VirtualNetworkGateway
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-route-local
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:local"
+spec:
+  azureName: "local"
+  owner:
+    name: full-rt
+  addressPrefix: "10.1.0.0/16"
+  nextHopType: VnetLocal
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-route-monitor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:monitor"
+spec:
+  azureName: "monitor"
+  owner:
+    name: full-rt
+  addressPrefix: "AzureMonitor"
+  nextHopType: Internet
