@@ -120,7 +120,9 @@ licence, the date last synced and every refusal.
 `task test CHART=avm-res-keyvault-vault`: render cases `basic`, `full`,
 `legacy`, `names` and `mock`, each validated against ASO v2.22.0's CRD
 schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
-`tests/*.fail.yaml`. Not yet applied to the fake cloud or to Azure
+`tests/*.fail.yaml`. `task test-live-azure` applies a standard vault without purge protection (no keys) to the Azure sandbox with
+Azure Service Operator, evaluates the outputs, deletes it and checks Azure
+no longer has it: passed on 2026-11-12. Not yet applied to the fake cloud
 (`docs/azure.md`, "8. Charts").
 
 ## Changes
