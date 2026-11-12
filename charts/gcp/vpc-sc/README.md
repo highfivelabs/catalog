@@ -121,7 +121,12 @@ refusals in `tests/*.fail.yaml`.
 
 `tests/mock.values.yaml` (a created policy in a placeholder organization,
 one access level, one perimeter around a placeholder project number) is
-for `hack/mock-apply.sh` (`task test-mock`).
+for `hack/mock-apply.sh` (`task test-mock`), which now installs Access
+Context Manager's CRDs in the fake cloud. Run on 2026-11-12 on an offload
+VM (`off-catalog-1112191603-19867`, config-connector-extensions
+`1de95478`): the policy, the level and the perimeter Ready, the outputs
+evaluated (`id` the number mockgcp assigned, `access_level_names` the
+level's resource name), and all three deleted at once and gone.
 
 No live run: the chart acts on an organization, and the live-test
 service accounts have no Access Context Manager roles there.
