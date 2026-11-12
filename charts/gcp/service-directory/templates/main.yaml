@@ -1,0 +1,94 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/service-directory/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_service_directory_namespace.default: a ServiceDirectoryNamespace;
+google_service_directory_namespace_iam_binding.default (iam): its
+IAMPartialPolicy; google_service_directory_service.default: a
+ServiceDirectoryService per services key; its
+google_service_directory_service_iam_binding.default (service_iam): one
+IAMPartialPolicy per service; google_service_directory_endpoint.default: a
+ServiceDirectoryEndpoint per "<service>/<endpoint>", with endpoint_config's
+address, port and network. Config Connector carries a service's and an
+endpoint's metadata as its metadata.labels, so metadata must be valid
+Google Cloud labels (README.md, "Values").
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "namespace")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $nsID := include "kcc.resourceName" (list $ "namespace" "namespace" $v.name 63 "letter") }}
+{{- $label := "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$" }}
+{{- $labelValue := "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$" }}
+---
+apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+kind: ServiceDirectoryNamespace
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "namespace" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $nsID | quote }}
+  location: {{ $v.location | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (dict "apiVersion" "servicedirectory.cnrm.cloud.google.com/v1beta1" "kind" "ServiceDirectoryNamespace" "name" .Release.Name) "v" (dict "iam" $v.iam)) }}
+{{- range $svc := keys ($v.services | default dict) | sortAlpha }}
+{{- $s := index $v.services $svc }}
+{{- range $k, $val := ($s.metadata | default dict) }}
+{{- if not (and (regexMatch $label $k) (regexMatch $labelValue (toString $val))) }}
+{{- include "kcc.unsupported" (list $ (printf "services.%s.metadata.%s" $svc $k) "set" "ServiceDirectoryService carries its metadata as metadata.labels, so a key and its value must be valid Google Cloud labels (lower-case letters, digits, _ and -, at most 63 characters)") }}
+{{- end }}
+{{- end }}
+{{- $svcName := include "kcc.name" (list $.Release.Name "service" $svc) }}
+---
+apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+kind: ServiceDirectoryService
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $svcName "id" (printf "service:%s" $svc) "labels" $s.metadata "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $svc | quote }}
+  namespaceRef:
+    name: {{ $.Release.Name }}
+{{- include "kcc.iam" (dict "root" $ "base" $svcName "idPrefix" (printf "service:%s/" $svc) "resourceRef" (dict "apiVersion" "servicedirectory.cnrm.cloud.google.com/v1beta1" "kind" "ServiceDirectoryService" "name" $svcName) "v" (dict "iam" (index ($v.service_iam | default dict) $svc))) }}
+{{- range $ep := $s.endpoints }}
+{{- $key := printf "%s/%s" $svc $ep }}
+{{- $c := index ($v.endpoint_config | default dict) $key | default dict }}
+{{- range $k, $val := ($c.metadata | default dict) }}
+{{- if not (and (regexMatch $label $k) (regexMatch $labelValue (toString $val))) }}
+{{- include "kcc.unsupported" (list $ (printf "endpoint_config.%s.metadata.%s" $key $k) "set" "ServiceDirectoryEndpoint carries its metadata as metadata.labels, so a key and its value must be valid Google Cloud labels (lower-case letters, digits, _ and -, at most 63 characters)") }}
+{{- end }}
+{{- end }}
+---
+apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+kind: ServiceDirectoryEndpoint
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "endpoint" $key)) "id" (printf "endpoint:%s" $key) "labels" $c.metadata "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $ep | quote }}
+  serviceRef:
+    name: {{ $svcName }}
+  {{- with $c.address }}
+  addressRef:
+    external: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $c.port) }}
+  port: {{ $c.port }}
+  {{- end }}
+  {{- with $c.network }}
+  networkRef:
+    external: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- range $svc, $_ := ($v.service_iam | default dict) }}
+{{- if not (hasKey ($v.services | default dict) $svc) }}
+{{- fail (printf "service-directory: service_iam.%s: no such service in services" $svc) }}
+{{- end }}
+{{- end }}
+{{- range $key, $_ := ($v.endpoint_config | default dict) }}
+{{- $parts := splitList "/" $key }}
+{{- $s := index ($v.services | default dict) (first $parts) }}
+{{- if not (and $s (has (last $parts) $s.endpoints)) }}
+{{- fail (printf "service-directory: endpoint_config.%s: no such endpoint in services (keys are <service>/<endpoint>)" $key) }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric's resources compute them
+# (names.namespace when it is set): id and name are the namespace's full
+# name, service_id and service_names map each service to its full name.
+# fabric's endpoints, namespace and services outputs are whole Terraform
+# objects, which a Package does not output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-service-directory
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/namespaces/' +
+      ('namespace' in inputs.names && inputs.names.namespace != '' ? inputs.names.namespace : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    name: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/namespaces/' +
+      ('namespace' in inputs.names && inputs.names.namespace != '' ? inputs.names.namespace : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    service_id: >-
+      inputs.services.transformMap(k, v,
+        'projects/' + inputs.project_id + '/locations/' + inputs.location + '/namespaces/' +
+        ('namespace' in inputs.names && inputs.names.namespace != '' ? inputs.names.namespace : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
+        '/services/' + k)
+    service_names: >-
+      inputs.services.transformMap(k, v,
+        'projects/' + inputs.project_id + '/locations/' + inputs.location + '/namespaces/' +
+        ('namespace' in inputs.names && inputs.names.namespace != '' ? inputs.names.namespace : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
+        '/services/' + k)
