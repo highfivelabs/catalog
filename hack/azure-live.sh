@@ -132,12 +132,14 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
   --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*' \
   --timeout 10m >/dev/null
-# The token where ASO reads it (Azure Workload Identity's webhook would
-# project it in AKS; here the node has it).
-kubectl -n azureserviceoperator-system patch deployment azureserviceoperator-controller-manager --type json -p '[
-  {"op": "add", "path": "/spec/template/spec/volumes/-", "value": {"name": "azure-tokens", "hostPath": {"path": "/azure-tokens", "type": "Directory"}}},
-  {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/-", "value": {"name": "azure-tokens", "mountPath": "/var/run/secrets/tokens", "readOnly": true}}
-]' >/dev/null
+# The token where ASO reads it: the chart projects a Kubernetes service
+# account token into /var/run/secrets/tokens (Azure Workload Identity's
+# shape, for AKS); kind's issuer is not federated, so the volume becomes
+# the node's directory holding the Google ID token instead.
+kubectl -n azureserviceoperator-system patch deployment azureserviceoperator-controller-manager --type strategic -p '{
+  "spec": {"template": {"spec": {"volumes": [
+    {"name": "azure-identity", "projected": null, "hostPath": {"path": "/azure-tokens", "type": "Directory"}}
+  ]}}}}' >/dev/null
 kubectl -n azureserviceoperator-system rollout status deployment azureserviceoperator-controller-manager --timeout 10m
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com; do
