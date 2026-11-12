@@ -62,16 +62,17 @@ unset AZURE_CLIENT_SECRET AZURE_CLIENT_CERTIFICATE AZURE_CLIENT_CERTIFICATE_PATH
 RUN="cat$(date -u +%m%d%H%M)$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
 echo "== live run ${RUN} in resource group ${AZURE_LIVE_RESOURCE_GROUP} as ${RUNNER}"
 
-# The Google ID token Entra exchanges; ASO reads it from
-# /var/run/secrets/azure/tokens/azure-identity-token (its default).
+# The Google ID token Entra exchanges; ASO's global workload identity
+# credential reads it from /var/run/secrets/tokens/azure-identity (its
+# default, identity.FederatedTokenFilePath).
 TOKENS="${WORK}/tokens"
 mkdir -p "${TOKENS}"
 # ASO runs as a non-root user: it must reach the file through the mount.
 chmod 755 "${WORK}" "${TOKENS}"
 google_token() { md "instance/service-accounts/default/identity?audience=api://AzureADTokenExchange&format=full"; }
-google_token >"${TOKENS}/t.new" && mv "${TOKENS}/t.new" "${TOKENS}/azure-identity-token"
-chmod 644 "${TOKENS}/azure-identity-token"
-( while sleep 1200; do google_token >"${TOKENS}/t.new" && chmod 644 "${TOKENS}/t.new" && mv "${TOKENS}/t.new" "${TOKENS}/azure-identity-token"; done ) &
+google_token >"${TOKENS}/t.new" && mv "${TOKENS}/t.new" "${TOKENS}/azure-identity"
+chmod 644 "${TOKENS}/azure-identity"
+( while sleep 1200; do google_token >"${TOKENS}/t.new" && chmod 644 "${TOKENS}/t.new" && mv "${TOKENS}/t.new" "${TOKENS}/azure-identity"; done ) &
 refresher=$!
 
 arm_token() {
@@ -80,7 +81,7 @@ arm_token() {
     --data-urlencode 'grant_type=client_credentials' \
     --data-urlencode 'scope=https://management.azure.com/.default' \
     --data-urlencode 'client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer' \
-    --data-urlencode "client_assertion=$(cat "${TOKENS}/azure-identity-token")" | jq -er .access_token
+    --data-urlencode "client_assertion=$(cat "${TOKENS}/azure-identity")" | jq -er .access_token
 }
 api() { curl -sS -H "Authorization: Bearer $(arm_token)" "$@"; }
 # run_resources PREFIX...: id and type of each top-level resource in the
@@ -135,7 +136,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
 # project it in AKS; here the node has it).
 kubectl -n azureserviceoperator-system patch deployment azureserviceoperator-controller-manager --type json -p '[
   {"op": "add", "path": "/spec/template/spec/volumes/-", "value": {"name": "azure-tokens", "hostPath": {"path": "/azure-tokens", "type": "Directory"}}},
-  {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/-", "value": {"name": "azure-tokens", "mountPath": "/var/run/secrets/azure/tokens", "readOnly": true}}
+  {"op": "add", "path": "/spec/template/spec/containers/0/volumeMounts/-", "value": {"name": "azure-tokens", "mountPath": "/var/run/secrets/tokens", "readOnly": true}}
 ]' >/dev/null
 kubectl -n azureserviceoperator-system rollout status deployment azureserviceoperator-controller-manager --timeout 10m
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
