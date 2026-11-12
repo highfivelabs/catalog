@@ -1,0 +1,42 @@
+# Every input the chart carries: two created public IPs (IPv4 and IPv6,
+# one with a DDoS plan, a DNS label, its own tags and a lock), existing IPs
+# and prefixes of both versions, the idle timeout, tags, a lock, role
+# assignments and a diagnostic setting.
+name: natgw-hub
+location: westeurope
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net
+enable_telemetry: false
+idle_timeout_in_minutes: 10
+tags: {environment: prod}
+lock: {kind: CanNotDelete, name: natgw-lock}
+public_ips:
+  v4: {name: pip-natgw-v4}
+  v6: {name: pip-natgw-v6}
+public_ip_configuration:
+  v4:
+    ddos_protection_mode: Enabled
+    ddos_protection_plan_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ddosProtectionPlans/ddos
+    domain_name_label: natgw-hub
+    idle_timeout_in_minutes: 15
+    tags: {owner: network}
+    lock: {kind: ReadOnly}
+  v6:
+    ip_version: IPv6
+public_ip_resource_ids:
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip-existing
+public_ip_v6_resource_ids:
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip-existing-v6
+public_ip_prefix_resource_ids:
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPPrefixes/ippre-v4
+public_ip_prefix_v6_resource_ids:
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPPrefixes/ippre-v6
+role_assignments:
+  netops:
+    role_definition_id_or_name: Network Contributor
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+diagnostic_settings:
+  law:
+    name: to-law
+    metrics: [{category: AllMetrics}]
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law
