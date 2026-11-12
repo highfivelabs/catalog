@@ -615,6 +615,15 @@ Config Connector. What differs:
 | `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations, `revoke_rules_on_delete` and non-exclusive rules are refused |
 | `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
+| `charts/aws/iam-role` | `terraform-aws-iam` v6.8.2, `modules/iam-role` | partial: every variable carried; the trust policy and inline policy built as the submodule builds them (generic, GitHub and Bitbucket OIDC, SAML, statements, source and override documents merged by `Sid`, with `account_id`), policy attachments, instance profile; `use_name_prefix` names the role without Terraform's random suffix |
+| `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
+
+The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
+and `aws/iam-policy`, ranked after the 40), since its root declares no
+variables. Its user and account submodules, gaps in section 3, map to
+ack-extensions kinds at the commit `crds/ack-extensions` is copied from:
+`UserGroupMembership`, `AccessKey`, `LoginProfile`, `SSHPublicKey`,
+`AccountAlias` and `AccountPasswordPolicy` (`upstream/aws-kinds.yaml`).
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 

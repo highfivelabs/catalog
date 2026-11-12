@@ -1,0 +1,44 @@
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: names-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "shop-dev-euw1-app"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ec2.amazonaws.com\"]},\"Sid\":\"Ec2\"}],\"Version\":\"2012-10-17\"}"
+  inlinePolicies:
+    "shop-dev-euw1-app": "{\"Statement\":[{\"Action\":[\"s3:GetObject\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"],\"Sid\":\"Read\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "team"
+      value: "shop"
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+  name: names-instance-profile
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "instance-profile"
+spec:
+  name: "shop-dev-euw1-app"
+  roleRef:
+    from:
+      name: names-role
+  tags:
+    - key: "team"
+      value: "shop"
