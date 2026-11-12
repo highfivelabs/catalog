@@ -139,6 +139,19 @@ organization policy, `IAMCustomRole`, `IAMAuditConfig` and
 case cannot name (Google Cloud assigns its ID), so tag bindings are
 render-tested only and the case no longer sets one.
 
+On 2026-11-12 again (0.6.0, offload VM), with a log sink to the project's
+`_Default` log bucket (its writer identity's conditional
+`roles/logging.bucketWriter` grant) and a log-based metric added: all
+13 objects Ready, `sink_writer_identities` evaluated, all deleted. And for
+0.7.0 (the fake cloud now installs the monitoring and cloud quota CRDs): a
+notification channel, an alert policy that refers to it by its key, and
+a quota preference added, all 16 objects Ready, outputs evaluated, all
+deleted. Metric scopes need a second project and are render-tested
+only. Log
+scopes (alpha) are render-tested only. No live run: the project chart's
+live case waits for the test provisioner (`docs/design.md`, "The test
+provisioner").
+
 ## Changes
 
 - **0.9.0** (2026-11-12): `workload_identity_pools` (pools and AWS and

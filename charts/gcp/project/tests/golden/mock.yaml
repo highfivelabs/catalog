@@ -39,6 +39,53 @@ spec:
   projectRef:
     name: mock
 ---
+# Source: project/templates/quotas.yaml
+apiVersion: cloudquota.cnrm.cloud.google.com/v1beta1
+kind: APIQuotaPreference
+metadata:
+  name: mock-quota-catalog-mock-cpus
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "quota:catalog-mock-cpus"
+spec:
+  resourceID: "catalog-mock-cpus"
+  projectRef:
+    name: mock
+  service: "compute.googleapis.com"
+  quotaID: "CPUS-per-project-region"
+  quotaConfig:
+    preferredValue: 8
+  dimensions: {"region":"us-central1"}
+---
+# Source: project/templates/bigquery-reservation.yaml
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationReservation
+metadata:
+  name: mock-bq-reservation-catalog-mock-res
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "bigquery-reservation:catalog-mock-res"
+spec:
+  resourceID: "catalog-mock-res"
+  projectRef:
+    name: mock
+  location: "US"
+  slotCapacity: 0
+  ignoreIdleSlots: false
+  edition: "ENTERPRISE"
+  autoscale:
+    maxSlots: 50
+---
 # Source: project/templates/project.yaml
 apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
 kind: EssentialContactsContact
@@ -172,6 +219,26 @@ spec:
     title: "catalog-mock-sink bucket writer"
     description: "Grants bucketWriter to the writer identity used by log sink catalog-mock-sink on catalog-mock-prj"
     expression: "resource.name.endsWith('locations/global/buckets/_Default')"
+---
+# Source: project/templates/kms-autokeys.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyHandle
+metadata:
+  name: mock-key-handle-catalog-mock-disk
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "kms-autokey:catalog-mock-disk"
+spec:
+  resourceID: "catalog-mock-disk"
+  projectRef:
+    name: mock
+  location: "us-central1"
+  resourceTypeSelector: "compute.googleapis.com/Disk"
 ---
 # Source: project/templates/logging.yaml
 apiVersion: logging.cnrm.cloud.google.com/v1beta1
@@ -309,6 +376,34 @@ spec:
     rules:
     - enforce: true
 ---
+# Source: project/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: mock-pam-catalog-mock-pam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "pam-entitlement:catalog-mock-pam"
+spec:
+  resourceID: "catalog-mock-pam"
+  projectRef:
+    name: mock
+  location: global
+  maxRequestDuration: "3600s"
+  eligibleUsers:
+    - principals: ["user:dev@example.com"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/viewer"
+  requesterJustificationConfig:
+    unstructured: {}
+---
 # Source: project/templates/project.yaml
 apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
 kind: Project
@@ -330,3 +425,40 @@ spec:
     external: "123456789"
   billingAccountRef:
     external: "010101-ABCDEF-010101"
+---
+# Source: project/templates/tag-keys.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  name: mock-tag-catalog-mock-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "tag-key:catalog-mock-env"
+spec:
+  parent: "projects/catalog-mock-prj"
+  shortName: "catalog-mock-env"
+  description: "catalog mock tag key"
+---
+# Source: project/templates/tag-keys.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: mock-tag-catalog-mock-env-dev
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "tag-value:catalog-mock-env/dev"
+spec:
+  parentRef:
+    name: mock-tag-catalog-mock-env
+  shortName: "dev"
+  description: "Managed by the Terraform project module."
