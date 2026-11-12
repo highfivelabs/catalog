@@ -96,7 +96,13 @@ apex and absolute records), `forwarding`, `peering`, `routing` (geo and
 weighted records, reverse lookup, Service Directory), `existing`
 (`zone_config: null`), `names` and `mock`, each validated against Config
 Connector v1.160.0's CRD schemas, and the refusals in `tests/*.fail.yaml`.
-`tests/mock.values.yaml` is for the fake cloud (`task test-mock`).
+
+Applied to the fake cloud on 2026-11-12 on an offload VM (`task test-mock
+MOCK_CHARTS=dns`): `tests/mock.values.yaml`, a public zone, an `A` record,
+an apex `TXT` record and `iam` on the zone: all 4 objects Ready, the
+outputs evaluated (with the zone's name servers), all deleted. Not applied
+live yet: neither live-test account holds a Cloud DNS role in the test
+project.
 
 ## Changes
 
