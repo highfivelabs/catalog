@@ -1,0 +1,193 @@
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "cluster"
+spec:
+  resourceID: shop-dev-euw8-orders
+  projectRef:
+    external: "myproject"
+  location: "europe-west8"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  displayName: "shop-dev-euw8-orders"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/shop"
+  automatedBackupPolicy:
+    enabled: true
+    backupWindow: "1800s"
+    labels:
+      cost-center: "cc-1234"
+      environment: "dev"
+      team: "shop"
+    weeklySchedule:
+      daysOfWeek: ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"]
+      startTimes:
+        - hours: 23
+          minutes: 0
+          seconds: 0
+          nanos: 0
+    quantityBasedRetention:
+      count: 7
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: names-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "secondary_cluster"
+spec:
+  resourceID: shop-dev-euw12-orders
+  projectRef:
+    external: "myproject"
+  location: "europe-west12"
+  clusterType: SECONDARY
+  databaseVersion: "POSTGRES_15"
+  deletionPolicy: FORCE
+  displayName: "shop-dev-euw12-orders"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/shop"
+  automatedBackupPolicy:
+    enabled: true
+    location: "europe-west12"
+    backupWindow: "1800s"
+    labels:
+      cost-center: "cc-1234"
+      environment: "dev"
+      team: "shop"
+    weeklySchedule:
+      daysOfWeek: ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"]
+      startTimes:
+        - hours: 23
+          minutes: 0
+          seconds: 0
+          nanos: 0
+    quantityBasedRetention:
+      count: 7
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+  secondaryConfig:
+    primaryClusterNameRef:
+      external: "projects/myproject/locations/europe-west8/clusters/shop-dev-euw8-orders"
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  resourceID: shop-dev-euw8-orders-1
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/shop-dev-euw8-orders"
+  instanceType: PRIMARY
+  availabilityType: "REGIONAL"
+  displayName: "shop-dev-euw8-orders-1"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: names-read-pool-ro
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "read-pool:ro"
+spec:
+  resourceID: ro
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/shop-dev-euw8-orders"
+  instanceType: READ_POOL
+  displayName: "ro"
+  machineConfig:
+    cpuCount: 2
+  readPoolConfig:
+    nodeCount: 1
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: names-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "secondary_instance"
+spec:
+  resourceID: shop-dev-euw12-orders-1
+  clusterRef:
+    external: "projects/myproject/locations/europe-west12/clusters/shop-dev-euw12-orders"
+  instanceType: SECONDARY
+  availabilityType: "REGIONAL"
+  displayName: "shop-dev-euw12-orders-1"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5

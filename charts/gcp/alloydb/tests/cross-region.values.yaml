@@ -1,0 +1,24 @@
+# Cross-region replication: a secondary cluster in another region with its
+# instance and a read pool, a KMS key per region, fabric's FORCE deletion.
+project_id: myproject
+project_number: "123456789012"
+cluster_name: db
+instance_name: db
+location: europe-west8
+deletion_policy: FORCE
+flags: {max_connections: "200"}
+encryption_config:
+  primary_kms_key_name: projects/myproject/locations/europe-west8/keyRings/ring/cryptoKeys/alloydb
+  secondary_kms_key_name: projects/myproject/locations/europe-west12/keyRings/ring/cryptoKeys/alloydb
+network_config:
+  psa_config:
+    network: projects/myproject/global/networks/my-network
+automated_backup_configuration: {enabled: true}
+cross_region_replication:
+  enabled: true
+  region: europe-west12
+  secondary_machine_config: {cpu_count: 8}
+  read_pool:
+    ro-sec: {node_count: 1}
+tag_bindings:
+  env: tagValues/281484836404786
