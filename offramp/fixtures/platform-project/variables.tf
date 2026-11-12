@@ -3,7 +3,7 @@
 
 variable "folder_id" {
   type        = string
-  description = "The folder the project goes in (its number, or folders/<number>). Live runs: the live-tests folder."
+  description = "The folder the project goes in, folders/<number>. Live runs: the live-tests folder."
 }
 
 variable "billing_account" {

@@ -23,6 +23,10 @@ func Identity(o map[string]any) string {
 	case "IAMPartialPolicy":
 		return fmt.Sprintf("%s %s", kind, normRef(dig(spec, "resourceRef", "external")))
 	}
+	if kind == "ComputeFirewallPolicyRule" {
+		// Named by its policy and priority; the policy by its number.
+		return fmt.Sprintf("%s %s %v", kind, lastSegment(normRef(dig(spec, "firewallPolicyRef", "external"))), spec["priority"])
+	}
 	id := str(spec["resourceID"])
 	if id == "" {
 		id = str(dig(o, "metadata", "name"))
@@ -121,7 +125,7 @@ func diffValue(id, path string, a, b any, out *[]Difference) {
 	bm, bok := b.(map[string]any)
 	if aok && bok {
 		if ext, ok := am["external"]; ok {
-			if normRef(ext) != normRef(bm["external"]) {
+			if !refEqual(ext, bm["external"]) {
 				*out = append(*out, Difference{id, path, ext, bm["external"]})
 			}
 			return
@@ -157,6 +161,13 @@ func diffValue(id, path string, a, b any, out *[]Difference) {
 			diffValue(id, fmt.Sprintf("%s[%d]", path, i), al[i], bl[i], out)
 		}
 		return
+	}
+	if as, ok := a.(string); ok {
+		if bs, ok := b.(string); ok && strings.Contains(as+bs, "/") && refEqual(as, bs) {
+			// A bare name and the self link Terraform records for it
+			// (a route's next hop gateway).
+			return
+		}
 	}
 	if !reflect.DeepEqual(normalizeScalar(a), normalizeScalar(b)) {
 		*out = append(*out, Difference{id, path, a, b})
@@ -204,4 +215,21 @@ func normalizeScalar(v any) any {
 		return normRef(t)
 	}
 	return v
+}
+
+// refEqual compares two references by relative name; a bare name (what a
+// configuration gives, and what a planned state holds) matches a path in
+// the same scope that ends with it.
+func refEqual(a, b any) bool {
+	x, y := normRef(a), normRef(b)
+	if x == y {
+		return true
+	}
+	if !strings.Contains(x, "/") && x != "" {
+		return lastSegment(y) == x
+	}
+	if !strings.Contains(y, "/") && y != "" {
+		return lastSegment(x) == y
+	}
+	return false
 }

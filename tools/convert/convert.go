@@ -50,6 +50,14 @@ type Options struct {
 	Repo *Repo
 	// Tfvars are tfvars files whose values stand for var.<name>.
 	Tfvars []string
+	// Sources, when set, are the module calls' sources and versions as
+	// `terraform init` resolved them (.terraform/modules/modules.json,
+	// ReadModulesJSON); they take precedence over the source arguments.
+	Sources map[string]ModuleSource
+	// AllowAlpha accepts what needs an alpha Config Connector kind, and
+	// adds allow_alpha: true to the components that need it (an import
+	// that must carry everything Terraform made says so in its report).
+	AllowAlpha bool
 	// Name is the Template's (and the Stack's) name; default: the name of the file's directory.
 	Name            string
 	Team, Env       string // the Stack's team and the Instance's environment; defaults my-team and dev
@@ -123,6 +131,11 @@ type moduleBlock struct {
 	label string
 	block *hclsyntax.Block
 	chart *Chart
+	extra Ordered // inputs a variant adds (variants in sources.go)
+	// countOne: the call's count is 1 (a call made conditional), not a loop.
+	countOne bool
+	// indexed are the keys other calls read from this call's map outputs.
+	indexed map[string][]string
 }
 
 // Convert reads a Terraform file (module blocks, with any variable and
@@ -137,15 +150,10 @@ func Convert(file string, o Options) (*Result, error) {
 	if o.TemplateVersion == "" {
 		o.TemplateVersion = "1.0.0"
 	}
-	src, err := os.ReadFile(file)
+	body, err := readConfig(file)
 	if err != nil {
 		return nil, err
 	}
-	f, diags := hclsyntax.ParseConfig(src, file, hcl.InitialPos)
-	if diags.HasErrors() {
-		return nil, fmt.Errorf("%s", diags.Error())
-	}
-	body := f.Body.(*hclsyntax.Body)
 	res := &Result{}
 	msg := func(level, where, format string, a ...any) {
 		res.Messages = append(res.Messages, Message{level, where, fmt.Sprintf(format, a...)})
@@ -198,11 +206,23 @@ func Convert(file string, o Options) (*Result, error) {
 			msg(Gap, "module."+label, "source must be a literal string")
 			continue
 		}
-		m, ref, err := o.Repo.Resolve(sv.AsString())
+		source, version := sv.AsString(), ""
+		if s, ok := o.Sources[label]; ok {
+			source, version = s.Source, s.Version
+		} else if va, ok := b.Body.Attributes["version"]; ok {
+			if vv, d := va.Expr.Value(nil); !d.HasErrors() && vv.Type() == cty.String {
+				version = vv.AsString()
+			}
+		}
+		m, ref, extra, err := o.Repo.ResolveCall(source)
 		if err != nil {
 			msg(Gap, "module."+label, "%v", err)
 			continue
 		}
+		if ref == "" {
+			ref = version
+		}
+		mb.extra = extra
 		if m.Chart == "" {
 			msg(Gap, "module."+label, "%s (%s) has no chart yet: nothing in the catalog ports it (docs/coverage/modules.csv has its status)", m.ID, m.Version)
 			continue
@@ -211,7 +231,7 @@ func Convert(file string, o Options) (*Result, error) {
 		if err != nil {
 			return nil, err
 		}
-		if ref != "" && ref != m.Version {
+		if ref != "" && strings.TrimPrefix(ref, "v") != strings.TrimPrefix(m.Version, "v") {
 			msg(Note, "module."+label, "the source pins %s; the chart was ported from %s (upstream.yaml): changes between the two are not in the chart", ref, m.Version)
 		}
 		if !validName(label) {
@@ -220,6 +240,32 @@ func Convert(file string, o Options) (*Result, error) {
 		mods = append(mods, mb)
 		byLabel[label] = mb
 	}
+	// Module outputs read by a literal key (module.x.ids["prod"]).
+	for _, b := range body.Blocks {
+		if b.Type != "module" {
+			continue
+		}
+		for _, a := range b.Body.Attributes {
+			for _, t := range a.Expr.Variables() {
+				if t.RootName() != "module" || len(t) < 4 || !indexOnly(t[3:]) {
+					continue
+				}
+				l, ok1 := t[1].(hcl.TraverseAttr)
+				o, ok2 := t[2].(hcl.TraverseAttr)
+				mb := byLabel[l.Name]
+				if !ok1 || !ok2 || mb == nil {
+					continue
+				}
+				if mb.indexed == nil {
+					mb.indexed = map[string][]string{}
+				}
+				k := t[3].(hcl.TraverseIndex).Key
+				if !contains(mb.indexed[o.Name], k.AsString()) {
+					mb.indexed[o.Name] = append(mb.indexed[o.Name], k.AsString())
+				}
+			}
+		}
+	}
 	if len(mods) == 0 {
 		return res, fmt.Errorf("%s: no module block ports to a chart (messages above)", file)
 	}
@@ -227,7 +273,11 @@ func Convert(file string, o Options) (*Result, error) {
 	res.TemplateName = o.Name
 	if res.TemplateName == "" {
 		if abs, err := filepath.Abs(file); err == nil {
-			res.TemplateName = dns(filepath.Base(filepath.Dir(abs)))
+			if st, err := os.Stat(abs); err == nil && st.IsDir() {
+				res.TemplateName = dns(filepath.Base(abs))
+			} else {
+				res.TemplateName = dns(filepath.Base(filepath.Dir(abs)))
+			}
 		}
 		if !validName(res.TemplateName) {
 			res.TemplateName = dns(mods[0].label)
@@ -235,9 +285,24 @@ func Convert(file string, o Options) (*Result, error) {
 	}
 
 	for _, mb := range mods {
+		where := "module." + mb.label
+		if a, ok := mb.block.Body.Attributes["count"]; ok {
+			// count = cond ? 1 : 0 is a module call that exists or not: the
+			// component is there or not. Any other count is a loop.
+			v, d := a.Expr.Value(evalContext(vars, locals, byLabel))
+			if !d.HasErrors() && v.IsKnown() && !v.IsNull() && v.Type() == cty.Number {
+				if n, acc := v.AsBigFloat().Int64(); acc == big.Exact && (n == 0 || n == 1) {
+					if n == 0 {
+						msg(Note, where+".count", "count is 0 with these values: the module call makes nothing, so there is no component")
+						continue
+					}
+					msg(Note, where+".count", "count is 1 with these values: one component (Bundt components are not looped)")
+					mb.countOne = true
+				}
+			}
+		}
 		c := &Component{Name: dns(mb.label), Chart: mb.chart}
 		res.Components = append(res.Components, c)
-		where := "module." + mb.label
 		attrs := sortedAttrs(mb.block.Body.Attributes)
 		for _, a := range attrs {
 			name := a.Name
@@ -246,12 +311,15 @@ func Convert(file string, o Options) (*Result, error) {
 			case "source":
 				continue
 			case "version":
-				msg(Note, w, "the version argument selects a registry release: the chart is ported from %s", mb.chart.Module.Version)
+				// Compared with the chart's release above.
 				continue
 			case "providers":
 				msg(Note, w, "dropped: the cloud account comes from the Environment and Target a component lands in, not from a provider argument")
 				continue
 			case "count", "for_each":
+				if name == "count" && mb.countOne {
+					continue
+				}
 				msg(Gap, w, "Bundt components are not looped: make one component (or one Instance) for each item; the Template has no %s", name)
 				continue
 			case "depends_on":
@@ -286,7 +354,15 @@ func Convert(file string, o Options) (*Result, error) {
 				continue
 			}
 			if r, refused := mb.chart.Refused[name]; refused {
-				if !checkRefused(r, goVal, w, allowAlpha(c, mb.chart, attrs, vars, locals, byLabel), msg) {
+				aa := allowAlpha(c, mb.chart, attrs, vars, locals, byLabel)
+				if o.AllowAlpha && !aa && !isEmpty(goVal) && (r.NeedsAllowAlpha || len(r.AlphaFields) > 0) {
+					aa = true
+					if !hasKey(c.Inputs, "allow_alpha") {
+						c.Inputs = append(c.Inputs, Pair{"allow_alpha", true})
+						msg(Note, where+".allow_alpha", "added allow_alpha: true: %s needs an alpha Config Connector kind (%s)", name, r.Reason)
+					}
+				}
+				if !checkRefused(r, goVal, w, aa, msg) {
 					continue
 				}
 			}
@@ -294,6 +370,11 @@ func Convert(file string, o Options) (*Result, error) {
 				c.Values = append(c.Values, Pair{name, goVal})
 			} else {
 				c.Inputs = append(c.Inputs, Pair{name, goVal})
+			}
+		}
+		for _, p := range mb.extra {
+			if !hasKey(c.Inputs, p.Key) && !hasKey(c.Values, p.Key) {
+				c.Inputs = append(Ordered{p}, c.Inputs...)
 			}
 		}
 		if o.NamePrefix != "" {
@@ -359,8 +440,8 @@ func resolveRefs(a *hclsyntax.Attribute, vars, locals map[string]cty.Value, loca
 			case !isAttr || !contains(target.chart.Outputs, out.Name):
 				msg(Gap, where, "%s: the %s chart provides the outputs %s (fabric's whole-object outputs are not outputs)", traversalString(t), target.chart.Name, strings.Join(target.chart.Outputs, ", "))
 				ok = false
-			case len(t) > 3:
-				msg(Gap, where, "%s: indexing into a module output cannot be written as a component output expression", traversalString(t))
+			case len(t) > 3 && !indexOnly(t[3:]):
+				msg(Gap, where, "%s: only indexing a module output by a literal key can be written as a component output expression", traversalString(t))
 				ok = false
 			}
 		default:
@@ -430,13 +511,23 @@ func evalContext(vars, locals map[string]cty.Value, byLabel map[string]*moduleBl
 	for label, mb := range byLabel {
 		outs := map[string]cty.Value{}
 		for _, o := range mb.chart.Outputs {
+			if keys := mb.indexed[o]; len(keys) > 0 {
+				// An output read by key (module.x.ids["prod"]): a map of
+				// markers, one per key read.
+				m := map[string]cty.Value{}
+				for _, k := range keys {
+					m[k] = cty.StringVal("\x01module." + dns(label) + "." + o + "['" + k + "']\x01")
+				}
+				outs[o] = cty.ObjectVal(m)
+				continue
+			}
 			outs[o] = cty.StringVal("\x01module." + dns(label) + "." + o + "\x01")
 		}
 		mods[label] = cty.ObjectVal(outs)
 	}
 	return &hcl.EvalContext{
 		Variables: map[string]cty.Value{"var": objectOf(vars), "local": objectOf(locals), "module": objectOf(mods)},
-		Functions: funcs,
+		Functions: guardedFuncs,
 	}
 }
 
@@ -625,6 +716,7 @@ func toGo(v cty.Value) (any, error) {
 func expandMarkers(v any) any {
 	switch x := v.(type) {
 	case string:
+		x = celMarker.ReplaceAllString(x, "$${$1}")
 		return marker.ReplaceAllString(x, "${components.$1.outputs.$2}")
 	case []any:
 		for i := range x {
@@ -722,7 +814,12 @@ func validate(c *Component, msg func(level, where, format string, a ...any), whe
 					loc = "(values)"
 				}
 				line := fmt.Sprintf("%s: %s", strings.ReplaceAll(loc, "/", "."), u.Error.String())
-				if !seen[line] {
+				if v, ok := atPointer(eff, u.InstanceLocation).(string); ok && strings.Contains(v, "${") {
+					// Another component's output: Bundt evaluates it, and the
+					// chart checks the value it renders, at plan time.
+					line = ""
+				}
+				if line != "" && !seen[line] {
 					seen[line] = true
 					msg(Invalid, where+"."+strings.Split(loc, "/")[0], "does not match the chart's values.schema.json at %s", line)
 				}
@@ -858,4 +955,27 @@ func hasKey(o Ordered, k string) bool {
 		}
 	}
 	return false
+}
+
+// atPointer gives the value at a JSON pointer (/a/0/b) in v, or nil.
+func atPointer(v any, ptr string) any {
+	for _, p := range strings.Split(strings.TrimPrefix(ptr, "/"), "/") {
+		if p == "" {
+			continue
+		}
+		p = strings.ReplaceAll(strings.ReplaceAll(p, "~1", "/"), "~0", "~")
+		switch x := v.(type) {
+		case map[string]any:
+			v = x[p]
+		case []any:
+			i := 0
+			if _, err := fmt.Sscanf(p, "%d", &i); err != nil || i < 0 || i >= len(x) {
+				return nil
+			}
+			v = x[i]
+		default:
+			return nil
+		}
+	}
+	return v
 }

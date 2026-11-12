@@ -13,7 +13,16 @@
 #
 # Shapes: shared-vpc, folders, platform-project, gke. For folders and
 # platform-project set PARENT (folders/<n>, the live-tests folder) and
-# ORG_ID; for platform-project BILLING_ACCOUNT too.
+# ORG_ID; for platform-project BILLING_ACCOUNT too. FIXTURES is the
+# directory of root modules (default offramp/fixtures; they may move to the
+# terraform-offramp-demo repository).
+#
+# Every resource of a fixture comes from a published module call. Step 3
+# converts each call to an Instance of the catalog chart that ports its
+# module (the call's arguments as the chart's values), renders the chart,
+# and checks the render against the objects converted from the state;
+# steps 4 to 9 adopt what Bundt would deliver: each graduated call's chart
+# render (krm/adopt.yaml), and the frozen objects of any call left over.
 #
 # The proof, in order (each step's result goes to the run's summary.md):
 #  1. terraform apply, then `terraform plan -detailed-exitcode` is empty.
@@ -54,7 +63,8 @@ CACHE_BUCKET="${CACHE_BUCKET:-${OFFLOAD_BUCKET:?set OFFLOAD_BUCKET, the offload 
 allowed=no
 for p in "${ALLOWED_PROJECTS[@]}"; do [[ "${PROJECT}" == "${p}" ]] && allowed=yes; done
 [[ "${allowed}" == yes ]] || { echo "live.sh: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]}" >&2; exit 2; }
-[[ -d "${OFF}/fixtures/${SHAPE}" ]] || { echo "live.sh: no fixture ${SHAPE}" >&2; exit 2; }
+FIXTURES="${FIXTURES:-${OFF}/fixtures}"
+[[ -d "${FIXTURES}/${SHAPE}" ]] || { echo "live.sh: no fixture ${FIXTURES}/${SHAPE}" >&2; exit 2; }
 md() { curl -sf -H 'Metadata-Flavor: Google' "http://metadata.google.internal/computeMetadata/v1/$1"; }
 RUNNER="$(md instance/service-accounts/default/email || true)"
 [[ "${RUNNER}" == *.iam.gserviceaccount.com ]] || { echo "live.sh: not on a VM acting as a service account (got '${RUNNER}')" >&2; exit 2; }
@@ -135,6 +145,7 @@ leftovers() {
   "${G[@]}" compute networks list --filter="name~^${RUN}" --format='value(name)' 2>/dev/null
   "${G[@]}" compute networks subnets list --filter="name~^${RUN}" --format='value(name)' 2>/dev/null
   "${G[@]}" compute firewall-rules list --filter="name~^${RUN}" --format='value(name)' 2>/dev/null
+  "${G[@]}" compute routes list --filter="name~^${RUN}" --format='value(name)' 2>/dev/null
   "${G[@]}" compute network-firewall-policies list --global --filter="name~^${RUN}" --format='value(name)' 2>/dev/null
   "${G[@]}" container clusters list --filter="name~^${RUN}" --format='value(name)' 2>/dev/null
   "${G[@]}" iam service-accounts list --filter="email~^${RUN}" --format='value(email)' 2>/dev/null
@@ -148,7 +159,7 @@ trap cleanup EXIT
 # ---- 1. terraform apply --------------------------------------------------
 log "1. terraform apply (${SHAPE}, prefix ${RUN})"
 mkdir -p "${OUT}/tf"
-cp "${OFF}/fixtures/${SHAPE}"/*.tf "${OUT}/tf/"
+cp "${FIXTURES}/${SHAPE}"/*.tf "${OUT}/tf/"
 case "${SHAPE}" in
   shared-vpc)
     cat >"${OUT}/tf/terraform.tfvars" <<EOF
@@ -225,8 +236,11 @@ row "config-connector export" "${exported} exported, ${failed} refused" "$(cut -
 # ---- 3. convert --------------------------------------------------------------
 log "3. convert"
 COMMON=(--team platform --env live --target offramp-kind --namespace offramp --name "${SHAPE}" --kcc-version "${KCC_REF#v}")
-"${OFFRAMP}" state --kcc "${KT}" --state "${OUT}/state.json" --out "${OUT}/from-state" "${COMMON[@]}" >"${OUT}/convert-state.txt"
-row "offramp state" ok "$(cat "${OUT}/convert-state.txt")"
+"${OFFRAMP}" state --kcc "${KT}" --state "${OUT}/state.json" --out "${OUT}/from-state" "${COMMON[@]}" \
+  --root "${OUT}/tf" --tfvars "${OUT}/tf/terraform.tfvars" --catalog "${ROOT}" >"${OUT}/convert-state.txt"
+row "offramp state, module calls to catalog charts" ok "$(cat "${OUT}/convert-state.txt")"
+awk '/^## Module calls and catalog charts/{on=1} /^## Components/{on=0} on && (/^\| `module/ || /^- /)' "${OUT}/from-state/report.md" >"${OUT}/calls.txt"
+while read -r l; do row "call" "" "${l//|//}"; done <"${OUT}/calls.txt"
 if compgen -G "${OUT}/export/*.yaml" >/dev/null; then
   "${OFFRAMP}" krm --krm "${OUT}/export" --out "${OUT}/from-scan" "${COMMON[@]}" >"${OUT}/convert-scan.txt"
   set +o errexit
@@ -246,9 +260,11 @@ kind create cluster --name offramp --kubeconfig "${KCFG}" --wait 120s >"${OUT}/k
 kubectl wait --for=condition=Established crd --all --timeout=180s >/dev/null
 kubectl create namespace offramp
 kubectl annotate namespace offramp "cnrm.cloud.google.com/project-id=${PROJECT}"
-APPLY="${OUT}/from-state/krm/all.yaml"
+# What Bundt delivers: the graduated calls' chart renders, the frozen
+# objects of any other call.
+APPLY="${OUT}/from-state/krm/adopt.yaml"
 kubectl apply --server-side --field-manager=bundt -n offramp -f "${APPLY}" >"${OUT}/kubectl-apply.log" 2>&1
-row "objects applied (server-side, manager bundt)" "$(grep -c 'serverside-applied' "${OUT}/kubectl-apply.log")" "from-state/krm/all.yaml"
+row "objects applied (server-side, manager bundt)" "$(grep -c 'serverside-applied' "${OUT}/kubectl-apply.log")" "from-state/krm/adopt.yaml"
 
 # ---- 5. preview ------------------------------------------------------------------
 log "5. config-connector preview"

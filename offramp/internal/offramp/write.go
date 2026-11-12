@@ -64,12 +64,92 @@ func Write(dir string, res *Result, b *Bundle, header string) error {
 			}
 		}
 	}
+	if err := writeGraduation(dir, b); err != nil {
+		return err
+	}
 	for name, docs := range map[string][]map[string]any{"prereqs.yaml": b.Prereqs, "catalog.yaml": b.Catalog, "record.yaml": b.Record} {
 		if err := writeDocs(filepath.Join(dir, "bundt", name), docs); err != nil {
 			return err
 		}
 	}
 	return os.WriteFile(filepath.Join(dir, "report.md"), []byte(Report(res, b, header)), 0o644)
+}
+
+// Adopt gives what Bundt delivers on the import: for a graduated
+// component its chart's render, for any other its frozen objects. Every
+// object carries what the import adds after rendering (Instance
+// cloudResources: keep as deletion-policy abandon, and state-into-spec
+// absent, so Config Connector leaves unset fields alone).
+func Adopt(b *Bundle) []map[string]any {
+	var out []map[string]any
+	for _, c := range b.Components {
+		if c.Graduated == nil {
+			for _, o := range c.Objects {
+				out = append(out, o.Obj)
+			}
+			continue
+		}
+		for _, r := range c.Graduated.Rendered {
+			o := deepCopy(r).(map[string]any)
+			md := o["metadata"].(map[string]any)
+			ann, _ := md["annotations"].(map[string]any)
+			if ann == nil {
+				ann = map[string]any{}
+			}
+			ann[AnnDeletionPolicy] = "abandon"
+			ann[AnnStateIntoSpec] = "absent"
+			ann[AnnAddress] = "module." + c.Graduated.Call + " (" + c.Graduated.Chart.Package + " " + c.Graduated.Chart.Version + ")"
+			md["annotations"] = ann
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// writeGraduation writes krm/adopt.yaml and, per component checked against
+// its chart, graduation/<component>/: the values, the render, the state's
+// objects and their differences.
+func writeGraduation(dir string, b *Bundle) error {
+	if err := writeDocs(filepath.Join(dir, "krm", "adopt.yaml"), Adopt(b)); err != nil {
+		return err
+	}
+	if b.Graduation == nil {
+		return nil
+	}
+	for _, call := range b.Graduation.Order {
+		g := b.Graduation.Calls[call]
+		gd := filepath.Join(dir, "graduation", g.Component)
+		if err := os.MkdirAll(gd, 0o755); err != nil {
+			return err
+		}
+		vb, err := yaml.Marshal(g.Effective)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(gd, "values.yaml"), vb, 0o644); err != nil {
+			return err
+		}
+		if err := writeDocs(filepath.Join(gd, "render.yaml"), g.Rendered); err != nil {
+			return err
+		}
+		if err := writeDocs(filepath.Join(gd, "state.yaml"), g.State); err != nil {
+			return err
+		}
+		var d strings.Builder
+		if g.Err != "" {
+			d.WriteString("error: " + g.Err + "\n")
+		}
+		for _, x := range g.Differences {
+			d.WriteString(x.String() + "\n")
+		}
+		for _, x := range g.Unmanaged {
+			d.WriteString("left to the cloud (the render leaves it out; state-into-spec absent keeps it): " + x.String() + "\n")
+		}
+		if err := os.WriteFile(filepath.Join(gd, "differences.txt"), []byte(d.String()), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeDocs(path string, docs []map[string]any) error {
@@ -96,6 +176,31 @@ func Report(res *Result, b *Bundle, header string) string {
 				note = "labelled kind: Config Connector adds `managed-by-cnrm=true`, an update, unless the label is already there"
 			}
 			fmt.Fprintf(&s, "| %s | %s | `%s` | %s | %s | %s | %s |\n", c.Name, c.Package, o.Source, o.Kind, o.Name(), str(dig(o.Obj, "spec", "resourceID")), note)
+		}
+	}
+	if b.Graduation != nil {
+		s.WriteString("\n## Module calls and catalog charts\n\n")
+		s.WriteString("Each call whose module a catalog chart ports was converted to that chart's values (the call's arguments, unchanged), rendered, and compared object by object with what the state holds. A call graduates only when they match.\n\n")
+		s.WriteString("| Call | Chart | Result | Objects (render / state) | Import adds |\n| --- | --- | --- | --- | --- |\n")
+		for _, call := range b.Graduation.Order {
+			g := b.Graduation.Calls[call]
+			res := "**graduated**: the render matches the state"
+			switch {
+			case g.Err != "":
+				res = "frozen: " + strings.ReplaceAll(g.Err, "|", "/")
+			case len(g.Differences) > 0:
+				res = fmt.Sprintf("frozen: %d differences (graduation/%s/differences.txt)", len(g.Differences), g.Component)
+			}
+			var adds []string
+			for _, p := range g.Import {
+				adds = append(adds, fmt.Sprintf("`%s`", p.Key))
+			}
+			fmt.Fprintf(&s, "| `module.%s` | `%s` %s | %s | %d / %d | %s |\n", call, g.Chart.Package, g.Chart.Version, res, len(g.Rendered), len(g.State), strings.Join(adds, ", "))
+		}
+		if b.Graduation.Convert != nil {
+			for _, m := range b.Graduation.Convert.Messages {
+				fmt.Fprintf(&s, "- %s\n", strings.ReplaceAll(m.String(), "|", "/"))
+			}
 		}
 	}
 	s.WriteString("\n## Components\n\n")

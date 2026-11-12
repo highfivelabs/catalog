@@ -35,10 +35,12 @@ task convert -- examples/gcs/main.tf --tfvars examples/gcs/terraform.tfvars --pl
 task convert -- prod.tfvars --chart gcs                                              # a tfvars file as one chart's values
 ```
 
-It reads the module blocks of a Terraform file (with its `variable` and
-`locals` blocks, and tfvars files for `var.*`), finds the chart for each
-`source` (fabric's `modules/<name>`, from a git URL or a local copy), and
-writes a Template, a Stack and an Instance to stdout. The Template is named
+It reads the module blocks of a Terraform file, or of every `.tf` file of a
+root module's directory (with its `variable` and `locals` blocks, and tfvars
+files for `var.*`), finds the chart for each `source` (fabric's
+`modules/<name>`, from a git URL or a local copy; terraform-google-modules
+from the registry or GitHub, matched by repository and path in
+`upstream/modules.yaml`, and gke-cluster's sibling variants), and writes a Template, a Stack and an Instance to stdout. The Template is named
 for the file's directory (`--name`), the Stack's team and the Instance's
 environment are placeholders (`--team`, `--env`). It validates the effective
 values (the chart's defaults, the inputs, the Instance's values) against the

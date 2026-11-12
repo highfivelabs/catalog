@@ -24,7 +24,7 @@ variable "shared_vpc_host" {
 
 variable "apps_subnet_users" {
   type        = list(string)
-  description = "Members granted roles/compute.networkUser on the apps subnet, one google_compute_subnetwork_iam_member each."
+  description = "Members granted roles/compute.networkUser on the apps subnet, additively."
 }
 
 variable "gke_subnet_users" {
