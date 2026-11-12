@@ -1,0 +1,211 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-storage-storageaccount main.tf,
+locals.tf, locals.sku.tf, locals.encryption.tf, main.locks.tf,
+main.role_assignments.tf and main.diagnostics.tf (v0.11.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.Storage/storageAccounts): one ASO
+StorageAccount, owned by the resource group parent_id names, its body the
+module's property for property. azapi_resource.lock: an aso-extensions
+ManagementLock. module.role_assignments: one ASO RoleAssignment each.
+module.diagnostic_setting_*: one ASO DiagnosticSetting each, on the account
+or on its blob, file, queue or table service (default). The telemetry
+deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $c := .Chart.Name }}
+{{- include "aso.unsupported" (list $ "local_user" $v.local_user "Microsoft.Storage/storageAccounts/localUsers has no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "static_website" $v.static_website "a static website is set on the blob service's data plane, which ASO does not call") }}
+{{- range $n := list "blob_properties" "file_service_properties" "queue_properties" "table_properties" }}
+{{- include "aso.unsupported" (list $ $n (index $v $n) "ASO has the service kind (StorageAccounts*Service); this chart does not map its properties yet") }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "storage_management_policy_rule" $v.storage_management_policy_rule "ASO has StorageAccountsManagementPolicy; this chart does not map the lifecycle rules yet") }}
+{{- include "aso.unsupported" (list $ "storage_data_lake_gen2_filesystems" $v.storage_data_lake_gen2_filesystems "this chart does not map Data Lake Gen2 filesystems yet") }}
+{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
+{{- include "aso.unsupported" (list $ "customer_managed_key" $v.customer_managed_key "ASO's StorageAccount has encryption.keyvaultproperties; this chart does not map the customer-managed key yet") }}
+{{- include "aso.unsupported" (list $ "resource_types" (include "storage.anySet" $v.resource_types) "ASO's kinds fix the API versions (StorageAccount 2025-06-01)") }}
+{{- include "aso.unsupported" (list $ "storage_management_policy_timeouts" $v.storage_management_policy_timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- $nr := $v.network_rules | default dict }}
+{{- include "aso.unsupported" (list $ "network_rules.timeouts" $nr.timeouts "Azure Service Operator has no per-request timeouts") }}
+{{- if eq $v.access_tier "Smart" }}
+{{- include "aso.unsupported" (list $ "access_tier Smart" true "ASO's StorageAccount is at API version 2025-06-01, and the Smart tier needs 2025-08-01") }}
+{{- end }}
+{{- include "aso.names" (list $ (list "storageAccount")) }}
+{{- $sku := $v.account_sku_name | default (printf "%s%s_%s" $v.account_tier (ternary "V2" "" (eq $v.provisioned_billing_model_version "V2")) $v.account_replication_type) }}
+{{- $tier := replace "V2" "" (first (splitList "_" $sku)) }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "storage") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := $mi.user_assigned_resource_ids | default list }}
+{{- $idType := "" }}
+{{- if and $mi.system_assigned $uai }}{{ $idType = "SystemAssigned,UserAssigned" }}{{ else if $mi.system_assigned }}{{ $idType = "SystemAssigned" }}{{ else if $uai }}{{ $idType = "UserAssigned" }}{{ end }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccount
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "storage_account" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "storage.accountName" . | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  kind: {{ $v.account_kind }}
+  sku:
+    name: {{ $sku }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  {{- with $idType }}
+  identity:
+    type: {{ . }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if not (and (eq $v.account_kind "BlockBlobStorage") (eq $tier "Premium")) }}
+  accessTier: {{ $v.access_tier }}
+  {{- end }}
+  allowBlobPublicAccess: {{ $v.allow_nested_items_to_be_public }}
+  allowCrossTenantReplication: {{ $v.cross_tenant_replication_enabled }}
+  {{- with $v.allowed_copy_scope }}
+  allowedCopyScope: {{ . }}
+  {{- end }}
+  allowSharedKeyAccess: {{ $v.shared_access_key_enabled }}
+  {{- with $v.azure_files_authentication }}
+  azureFilesIdentityBasedAuthentication:
+    directoryServiceOptions: {{ .directory_type | default "AADKERB" }}
+    {{- with .default_share_level_permission }}
+    defaultSharePermission: {{ . }}
+    {{- end }}
+    {{- with .active_directory }}
+    activeDirectoryProperties:
+      domainGuid: {{ .domain_guid | quote }}
+      domainName: {{ .domain_name | quote }}
+      {{- with .domain_sid }}
+      domainSid: {{ . | quote }}
+      {{- end }}
+      {{- with .forest_name }}
+      forestName: {{ . | quote }}
+      {{- end }}
+      {{- with .netbios_domain_name }}
+      netBiosDomainName: {{ . | quote }}
+      {{- end }}
+      {{- with .storage_sid }}
+      azureStorageSid: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.custom_domain }}
+  customDomain:
+    name: {{ .name | quote }}
+    {{- if not (kindIs "invalid" .use_subdomain) }}
+    useSubDomainName: {{ .use_subdomain }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.default_to_oauth_authentication) }}
+  defaultToOAuthAuthentication: {{ $v.default_to_oauth_authentication }}
+  {{- end }}
+  encryption:
+    keySource: Microsoft.Storage
+    {{- if $v.infrastructure_encryption_enabled }}
+    requireInfrastructureEncryption: true
+    {{- end }}
+    {{- if or $v.queue_encryption_key_type $v.table_encryption_key_type }}
+    services:
+      {{- with $v.queue_encryption_key_type }}
+      queue:
+        enabled: true
+        keyType: {{ . }}
+      {{- end }}
+      {{- with $v.table_encryption_key_type }}
+      table:
+        enabled: true
+        keyType: {{ . }}
+      {{- end }}
+    {{- end }}
+  {{- with $v.immutability_policy }}
+  immutableStorageWithVersioning:
+    enabled: true
+    immutabilityPolicy:
+      allowProtectedAppendWrites: {{ .allow_protected_append_writes }}
+      immutabilityPeriodSinceCreationInDays: {{ .period_since_creation_in_days | int }}
+      state: {{ .state }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.is_hns_enabled) }}
+  isHnsEnabled: {{ $v.is_hns_enabled }}
+  {{- end }}
+  isLocalUserEnabled: {{ $v.local_user_enabled }}
+  isNfsV3Enabled: {{ $v.nfsv3_enabled }}
+  isSftpEnabled: {{ $v.sftp_enabled }}
+  {{- if not (kindIs "invalid" $v.large_file_share_enabled) }}
+  largeFileSharesState: {{ ternary "Enabled" "Disabled" $v.large_file_share_enabled }}
+  {{- end }}
+  minimumTlsVersion: {{ $v.min_tls_version }}
+  {{- if not (kindIs "invalid" $v.network_rules) }}
+  {{- $bypass := ternary (list "AzureServices") $nr.bypass (kindIs "invalid" $nr.bypass) }}
+  networkAcls:
+    bypass: {{ ternary "None" (join ", " (uniq $bypass | sortAlpha)) (eq (len $bypass) 0) | quote }}
+    defaultAction: {{ $nr.default_action | default "Deny" }}
+    ipRules:
+      {{- range (uniq ($nr.ip_rules | default list) | sortAlpha) }}
+      - action: Allow
+        value: {{ . | quote }}
+      {{- else }} []
+      {{- end }}
+    virtualNetworkRules:
+      {{- range (uniq ($nr.virtual_network_subnet_ids | default list) | sortAlpha) }}
+      - action: Allow
+        reference:
+          armId: {{ . | quote }}
+      {{- else }} []
+      {{- end }}
+    {{- with $nr.private_link_access }}
+    resourceAccessRules:
+      {{- range . }}
+      - resourceReference:
+          armId: {{ .endpoint_resource_id | quote }}
+        {{- with .endpoint_tenant_id }}
+        tenantId: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  publicNetworkAccess: {{ ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
+  {{- with $v.routing }}
+  routingPreference:
+    routingChoice: {{ .choice | default "MicrosoftRouting" }}
+    publishInternetEndpoints: {{ eq .publish_internet_endpoints true }}
+    publishMicrosoftEndpoints: {{ eq .publish_microsoft_endpoints true }}
+  {{- end }}
+  {{- with $v.sas_policy }}
+  sasPolicy:
+    expirationAction: {{ .expiration_action | default "Log" }}
+    sasExpirationPeriod: {{ .expiration_period | quote }}
+  {{- end }}
+  supportsHttpsTrafficOnly: {{ $v.https_traffic_only_enabled }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "storage.azure.com" "kind" "StorageAccount" "name" $obj }}
+{{- with $v.lock }}
+{{- $lock := dict "kind" .kind "name" (.name | default (printf "lock-%s" $v.name)) "notes" (ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq .kind "CanNotDelete")) }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $lock) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettingsV2" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings_storage_account "what" "diagnostic_settings_storage_account") }}
+{{- $id := include "storage.accountID" . }}
+{{- range $svc := list "blob" "file" "queue" "table" }}
+{{- include "aso.diagnosticSettingsV2" (dict "root" $ "base" (printf "%s-%s" $obj $svc) "idPrefix" (printf "%s-service/" $svc) "owner" (dict "armId" (printf "%s/%sServices/default" $id $svc)) "v" (index $v (printf "diagnostic_settings_%s" $svc)) "what" (printf "diagnostic_settings_%s" $svc)) }}
+{{- end }}
