@@ -1,0 +1,61 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/alloydb
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/alloydb
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/alloydb
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: client_connection_config
+    kind: gap
+    reason: "AlloyDBInstance has no clientConnectionConfig (require_connectors, ssl_mode)"
+  - variable: initial_user
+    kind: not-ported
+    reason: "a password given here would be in the rendered manifest; AlloyDBCluster takes the initial user's password from a Kubernetes Secret (initialUser.password.valueFrom), which the chart does not take yet (an open question, as cloudsql-instance's root_password)"
+  - variable: annotations
+    kind: gap
+    reason: "the annotations go on the instances only: AlloyDBCluster has no annotations field"
+    partial: true
+  - variable: network_config
+    kind: gap
+    reason: "psc_config is refused: AlloyDBCluster has no pscConfig and AlloyDBInstance no pscInstanceConfig"
+    partial: true
+    fields: [psc_config]
+  - variable: read_pool
+    kind: gap
+    reason: "client_connection_config is refused: AlloyDBInstance has no clientConnectionConfig"
+    partial: true
+    fields: [client_connection_config]
+  - variable: cross_region_replication
+    kind: gap
+    reason: "read_pool's client_connection_config is refused: AlloyDBInstance has no clientConnectionConfig"
+    partial: true
+    fields: [client_connection_config]
+  - variable: subscription_type
+    kind: gap
+    reason: "TRIAL is refused: AlloyDBCluster has no subscriptionType field (clusters are STANDARD, the default)"
+    partial: true
+    values: [TRIAL]
+  - variable: users
+    kind: not-ported
+    reason: "only ALLOYDB_IAM_USER and ALLOYDB_IAM_GROUP users are accepted: an ALLOYDB_BUILT_IN user's password would be in the rendered manifest or made by Terraform's random_password (the same open question as initial_user)"
+    partial: true
+    fields: [password]
+    values: [ALLOYDB_BUILT_IN]

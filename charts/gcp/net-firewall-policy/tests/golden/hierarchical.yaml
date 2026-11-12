@@ -1,0 +1,117 @@
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicy
+metadata:
+  name: hierarchical-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hierarchical"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+spec:
+  folderRef:
+    external: "folders/1234567890"
+  shortName: "test-1"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: hierarchical-association-test
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hierarchical"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "association:test"
+spec:
+  resourceID: "test-1-test"
+  firewallPolicyRef:
+    name: hierarchical-policy
+  attachmentTargetRef:
+    external: "folders/4567890123"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  name: hierarchical-rule-egress-smtp-46daae47
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hierarchical"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:egress/smtp"
+spec:
+  firewallPolicyRef:
+    name: hierarchical-policy
+  priority: 900
+  action: "deny"
+  direction: EGRESS
+  disabled: false
+  match:
+    destIPRanges:
+    - "0.0.0.0/0"
+    layer4Configs:
+    - ipProtocol: "tcp"
+      ports:
+        - "25"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  name: hierarchical-rule-ingress-icmp-f607e522
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hierarchical"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:ingress/icmp"
+spec:
+  firewallPolicyRef:
+    name: hierarchical-policy
+  priority: 1000
+  action: "allow"
+  direction: INGRESS
+  disabled: false
+  enableLogging: true
+  match:
+    srcIPRanges:
+    - "0.0.0.0/0"
+    layer4Configs:
+    - ipProtocol: "icmp"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  name: hierarchical-rule-ingress-mgmt-72477604
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hierarchical"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:ingress/mgmt"
+spec:
+  firewallPolicyRef:
+    name: hierarchical-policy
+  priority: 1001
+  action: "allow"
+  direction: INGRESS
+  disabled: false
+  targetResources:
+    - external: "https://www.googleapis.com/compute/v1/projects/my-project/global/networks/vpc"
+  match:
+    srcIPRanges:
+    - "10.1.1.0/24"
+    - "10.1.2.0/24"
+    layer4Configs:
+    - ipProtocol: "all"

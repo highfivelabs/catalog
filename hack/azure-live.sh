@@ -2,10 +2,14 @@
 # Copyright 2026 High Five Labs
 # SPDX-License-Identifier: Apache-2.0
 #
-# Apply three Azure charts (avm-res-network-virtualnetwork,
-# avm-res-storage-storageaccount, avm-res-keyvault-vault) to the Azure
+# Apply the Azure charts (avm-res-network-virtualnetwork,
+# avm-res-storage-storageaccount, avm-res-keyvault-vault,
+# avm-res-network-networksecuritygroup, avm-res-network-routetable,
+# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
-# Azure no longer has them (docs/azure.md, "8. Charts", Testing). Only on
+# Azure no longer has them (docs/azure.md, "8. Charts", Testing).
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
 # `task test-live-azure` runs it:
@@ -41,6 +45,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -142,7 +147,9 @@ kubectl -n azureserviceoperator-system patch deployment azureserviceoperator-con
   ]}}}}' >/dev/null
 kubectl -n azureserviceoperator-system rollout status deployment azureserviceoperator-controller-manager --timeout 10m
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
-    storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com; do
+    storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
+    networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -181,6 +188,45 @@ purge_protection_enabled: false
 soft_delete_retention_days: 7
 tags: {catalog-run: ${RUN}}
 EOF
+cat >"${WORK}/nsg.yaml" <<EOF
+name: ${RUN}-nsg
+location: ${LOCATION}
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+security_rules:
+  ssh: {name: allow-ssh, access: Allow, direction: Inbound, priority: 100, protocol: Tcp, source_address_prefix: 10.0.0.0/8, source_port_range: "*", destination_address_prefix: "*", destination_port_range: "22"}
+  out: {name: deny-internet, access: Deny, direction: Outbound, priority: 4000, protocol: "*", source_address_prefix: "*", source_port_range: "*", destination_address_prefix: Internet, destination_port_range: "*"}
+EOF
+cat >"${WORK}/rt.yaml" <<EOF
+name: ${RUN}-rt
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+bgp_route_propagation_enabled: false
+tags: {catalog-run: ${RUN}}
+routes:
+  local: {name: local, address_prefix: 10.250.0.0/24, next_hop_type: VnetLocal}
+  nva: {name: to-nva, address_prefix: 0.0.0.0/0, next_hop_type: VirtualAppliance, next_hop_in_ip_address: 10.250.0.4}
+EOF
+# A Standard (regional) gateway with a regional Standard address: the
+# smallest shape every region has.
+cat >"${WORK}/natgw.yaml" <<EOF
+name: ${RUN}-natgw
+location: ${LOCATION}
+parent_id: ${RG}
+sku_name: Standard
+tags: {catalog-run: ${RUN}}
+public_ips:
+  a: {name: ${RUN}-natgw-pip}
+public_ip_configuration:
+  a: {sku: Standard, zones: []}
+EOF
+cat >"${WORK}/pip.yaml" <<EOF
+name: ${RUN}-pip
+location: ${LOCATION}
+resource_group_name: ${RG}
+tags: {catalog-run: ${RUN}}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -192,8 +238,11 @@ summary="${OUT}/summary.md"
 } >"${summary}"
 
 total=0; failed=0
-for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault; do
+for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
+    nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
+    pip:avm-res-network-publicipaddress; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
+  [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >"${OUT}/${chart}/rendered.yaml"

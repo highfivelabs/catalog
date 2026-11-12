@@ -1,0 +1,61 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/source-repository/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_sourcerepo_repository.default: a SourceRepoRepository;
+google_cloudbuild_trigger.default: a global CloudBuildTrigger per triggers
+key, building the repository. Config Connector names a trigger by its
+Kubernetes name (CloudBuildTrigger has no resourceID), so the trigger is
+named <component>-trigger-<key> where fabric names it <key> (README.md,
+"Values"). CloudBuildTrigger's triggerTemplate has no projectId: a
+template.project_id other than project_id is refused.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "repository")) }}
+{{- $abandon := include "kcc.abandon" . }}
+---
+apiVersion: sourcerepo.cnrm.cloud.google.com/v1beta1
+kind: SourceRepoRepository
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "repository" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "repository" "repository" $v.name 128) | quote }}
+{{- range $key := keys ($v.triggers | default dict) | sortAlpha }}
+{{- $t := index $v.triggers $key }}
+{{- $tpl := $t.template | default dict }}
+{{- if and $tpl.project_id (ne $tpl.project_id $v.project_id) }}
+{{- include "kcc.unsupported" (list $ (printf "triggers.%s.template.project_id" $key) $tpl.project_id "CloudBuildTrigger's triggerTemplate has no projectId: a trigger builds a repository of its own project only") }}
+{{- end }}
+---
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "trigger" $key)) "id" (printf "trigger:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  location: global
+  filename: {{ $t.filename | quote }}
+  {{- with $t.included_files }}
+  includedFiles: {{ toJson . }}
+  {{- end }}
+  {{- with $t.service_account }}
+  serviceAccountRef:
+    external: {{ . | quote }}
+  {{- end }}
+  {{- with $t.substitutions }}
+  substitutions:
+    {{- range $k := keys . | sortAlpha }}
+    {{ $k | quote }}: {{ index $t.substitutions $k | quote }}
+    {{- end }}
+  {{- end }}
+  triggerTemplate:
+    repoRef:
+      name: {{ $.Release.Name }}
+    {{- with $tpl.branch_name }}
+    branchName: {{ . | quote }}
+    {{- end }}
+    {{- with $tpl.tag_name }}
+    tagName: {{ . | quote }}
+    {{- end }}
+{{- end }}

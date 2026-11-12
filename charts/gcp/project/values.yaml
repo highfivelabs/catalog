@@ -23,8 +23,9 @@ namePrefix: ""
 labels: {}
 # Cloud labels on every resource: on Google Cloud, labels (Config
 # Connector carries them as unprefixed metadata.labels).
-# A value that is a map is fabric's tags variable (tag keys to create),
-# which is not ported yet and is refused.
+# A value that is a map is fabric's tags variable: a tag key to create,
+# {description, allowed_values_regex (refused), id, iam, iam_bindings,
+# iam_bindings_additive, values: {VALUE: {description, id, iam, ...}}}.
 tags: {}
 
 # Project name and ID suffix; the project ID is "<prefix>-<name>".
@@ -59,6 +60,9 @@ iam_by_principals: {}
 iam_bindings: {}
 iam_bindings_additive: {}
 iam_by_principals_additive: {}
+# Authoritative conditional IAM, {PRINCIPAL: {roles, condition}}, merged
+# into iam_bindings as fabric merges it.
+iam_by_principals_conditional: {}
 
 # Organization policies, {POLICY: {inherit_from_parent, reset, rules}};
 # a "dry_run:<POLICY>" key sets the policy's dry-run spec.
@@ -91,38 +95,62 @@ logging_data_access: {}
 # Log scopes, {NAME: {resource_names, description}}: the alpha kind
 # LoggingLogScope, so they need allow_alpha.
 log_scopes: {}
+# Make this project a Shared VPC host, {enabled, service_projects}.
+shared_vpc_host_config: null
 # Tag bindings on the project, {KEY: TAG_VALUE_ID}.
 tag_bindings: {}
+# Projects whose metrics scope this project joins, [PROJECT_ID].
+metric_scopes: []
+# Notification channels, {KEY: {type, description, enabled, labels,
+# user_labels}}; display_name and sensitive_labels are refused.
+notification_channels: {}
+# Alert policies, {KEY: {display_name, combiner, conditions, ...}}; a
+# notification channel given by a key of notification_channels refers to
+# that channel.
+alerts: {}
+# Network tags (tag keys with purpose GCE_FIREWALL), {KEY: {network
+# ("<project>/<vpc>" or ALL), description, id, iam, iam_bindings,
+# iam_bindings_additive, values}}.
+network_tags: {}
+# {force_context_ids (refused), ignore_iam}: ignore_iam skips the IAM of
+# tag keys and values.
+tags_config: {}
+# Workload identity pools and their providers, {POOL: {display_name,
+# description, disabled, providers: {PROVIDER: {identity_provider: {aws |
+# oidc}, attribute_mapping, attribute_condition, ...}}}}; fabric's OIDC
+# templates github, gitlab, okta, terraform.
+workload_identity_pools: {}
+# Privileged Access Manager entitlements on the project, {ID:
+# {max_request_duration, eligible_users, privileged_access, ...}}.
+pam_entitlements: {}
+# BigQuery reservations and assignments, {NAME: {location, slot_capacity,
+# ..., assignments: {JOB_TYPE: [projects/ID]}}}.
+bigquery_reservations: {}
+# KMS Autokey key handles, {NAME: {location, resource_type_selector}}.
+kms_autokeys: {}
+# Quota preferences, {KEY: {service, quota_id, preferred_value,
+# dimensions, justification, contact_email, annotations}};
+# ignore_safety_checks is refused.
+quotas: {}
 
 # Not a fabric variable: accept features that need a v1alpha1 Config
 # Connector kind (log_scopes), whose schema may change between releases
 # (docs/design.md, "Alpha kinds").
 allow_alpha: false
 
-# Not ported yet: Config Connector has kinds for these, the chart does not
-# map them yet (README.md, "Not ported").
-metric_scopes: []
-notification_channels: {}
-alerts: {}
+# Refused (README.md, "Not ported"): alpha kinds not ported yet, grants to
+# service agents (their emails need the project number), and the caller's
+# files.
 asset_feeds: {}
-bigquery_reservations: {}
-network_tags: {}
-tags_config: {}
-kms_autokeys: {}
 service_encryption_key_ids: {}
-workload_identity_pools: {}
-pam_entitlements: {}
 iam_deny_policies: {}
 scc_mute_configs: {}
 scc_sha_custom_modules: {}
-shared_vpc_host_config: null
 vpc_sc: null
-quotas: {}
 factories_config: {}
 service_agents_config: {}
 service_agents_folder_bindings: {}
 service_agents_project_bindings: {}
-iam_by_principals_conditional: {}
 
 # Not supported (docs/gcp-inventory.md, "Gaps"); refused when set.
 compute_metadata: {}

@@ -1,0 +1,58 @@
+---
+# Source: datafusion/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: names-allow-ssh
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: datafusion
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "firewall"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: shop-dev-euw1-etl-ssh
+  networkRef:
+    external: "projects/my-project/global/networks/shop"
+  direction: INGRESS
+  sourceRanges: ["10.10.0.0/22"]
+  targetTags: ["etl-allow-ssh"]
+  allow:
+    - protocol: tcp
+      ports: ["22"]
+---
+# Source: datafusion/templates/main.yaml
+apiVersion: datafusion.cnrm.cloud.google.com/v1beta1
+kind: DataFusionInstance
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: datafusion
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: shop-dev-euw1-etl
+  location: "europe-west1"
+  type: ENTERPRISE
+  description: "Terraform managed."
+  privateInstance: true
+  enableStackdriverLogging: false
+  enableStackdriverMonitoring: false
+  networkConfig:
+    networkRef:
+      external: "projects/my-project/global/networks/shop"
+    ipAllocation: "10.10.0.0/22"
