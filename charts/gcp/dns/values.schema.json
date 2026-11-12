@@ -1,0 +1,414 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dns values (fabric dns v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id"
+  ],
+  "properties": {
+    "names": {
+      "description": "The zone name in full (names.zone; not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "zone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the derived zone name, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it). fabric's labels, on the zone.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "description": {
+      "description": "Domain description.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "force_destroy": {
+      "description": "Delete all records in the zone upon zone destruction.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "iam": {
+      "description": "IAM bindings in {ROLE => [MEMBERS]} format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "name": {
+      "description": "Zone name, must be unique within the project.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project id for the zone.",
+      "type": "string",
+      "minLength": 1
+    },
+    "recordsets": {
+      "description": "Map of DNS recordsets in \"type name\" => {ttl, records, geo_routing, wrr_routing} format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "description": "Recordsets must have keys in the format \"type name\".",
+        "pattern": "^[^ ]+ [^ ]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ttl": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "records": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "geo_routing": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "location"
+              ],
+              "properties": {
+                "location": {
+                  "type": "string"
+                },
+                "records": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "health_checked_targets": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "load_balancer_type",
+                      "ip_address",
+                      "port",
+                      "ip_protocol",
+                      "network_url",
+                      "project"
+                    ],
+                    "properties": {
+                      "load_balancer_type": {
+                        "description": "Invalid load balancer type for health checked target.",
+                        "enum": [
+                          "regionalL4ilb",
+                          "regionalL7ilb",
+                          "globalL7ilb"
+                        ]
+                      },
+                      "ip_address": {
+                        "type": "string"
+                      },
+                      "port": {
+                        "type": "string"
+                      },
+                      "ip_protocol": {
+                        "type": "string"
+                      },
+                      "network_url": {
+                        "type": "string"
+                      },
+                      "project": {
+                        "type": "string"
+                      },
+                      "region": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "wrr_routing": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "weight",
+                "records"
+              ],
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "zone_config": {
+      "description": "DNS zone configuration.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "domain"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "forwarding": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "client_networks"
+          ],
+          "properties": {
+            "forwarders": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "client_networks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "peering": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "client_networks",
+            "peer_network"
+          ],
+          "properties": {
+            "client_networks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "peer_network": {
+              "type": "string"
+            }
+          }
+        },
+        "public": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "dnssec_config": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "required": [
+                "state"
+              ],
+              "properties": {
+                "non_existence": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "type": "string"
+                },
+                "key_signing_key": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "algorithm",
+                    "key_length"
+                  ],
+                  "properties": {
+                    "algorithm": {
+                      "type": "string"
+                    },
+                    "key_length": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "zone_signing_key": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "algorithm",
+                    "key_length"
+                  ],
+                  "properties": {
+                    "algorithm": {
+                      "type": "string"
+                    },
+                    "key_length": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            },
+            "enable_logging": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "private": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "client_networks"
+          ],
+          "properties": {
+            "client_networks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "service_directory_namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reverse_managed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

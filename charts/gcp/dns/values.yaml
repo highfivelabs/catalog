@@ -1,0 +1,52 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's dns module (v60.0.0):
+# same names, types and defaults, so a module block's arguments become this
+# file one to one (README.md, "From Terraform"). values.schema.json carries
+# the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.zone: the zone name in full. A name set here takes no prefix;
+# unset, the zone is named name, as fabric names it. Record sets are named
+# by their DNS names.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the derived zone
+# name (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object; fabric's "Labels to be assigned to the
+# zone". A prefixed key (hfl.dev/team) stays in Kubernetes; an unprefixed
+# one also becomes a Google Cloud label, since Config Connector copies it.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels (Config
+# Connector carries them as unprefixed metadata.labels).
+tags: {}
+
+# Context-specific interpolations. Refused when set: Bundt's ${...}
+# expressions and valueFrom replace fabric's $context lookups.
+context: {}
+# Domain description.
+description: Terraform managed.
+# Set this to true to delete all records in the zone upon zone destruction.
+force_destroy: null
+# IAM bindings in {ROLE => [MEMBERS]} format.
+iam: null
+# Zone name, must be unique within the project.
+name: ""
+# Project id for the zone.
+project_id: ""
+# Map of DNS recordsets in "type name" => {ttl, records, geo_routing,
+# wrr_routing} format.
+recordsets: {}
+# DNS zone configuration: {domain, and at most one of forwarding, peering,
+# public, private}. null manages record sets and IAM in the existing zone
+# name.
+zone_config: null
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# zone and records when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null
