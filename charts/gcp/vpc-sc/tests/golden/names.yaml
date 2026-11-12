@@ -1,0 +1,101 @@
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: names-level-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "access_level:corp"
+spec:
+  accessPolicyRef:
+    name: names
+  resourceID: "corp"
+  title: "corp"
+  basic:
+    conditions:
+      - regions: ["DE"]
+---
+# Source: vpc-sc/templates/main.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessPolicy
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/organization-id: "123456"
+spec:
+  title: "shop-dev-vpcsc"
+---
+# Source: vpc-sc/templates/perimeters.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerServicePerimeter
+metadata:
+  name: names-perimeter-data
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "perimeter:data"
+spec:
+  accessPolicyRef:
+    name: names
+  resourceID: "data"
+  title: "data"
+  perimeterType: PERIMETER_TYPE_REGULAR
+  useExplicitDryRunSpec: false
+  status:
+    accessLevels:
+      - name: names-level-corp
+    resources:
+      - projectRef:
+          external: "projects/11111"
+---
+# Source: vpc-sc/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: names-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+    kind: AccessContextManagerAccessPolicy
+    name: names
+  bindings:
+    - role: "roles/accesscontextmanager.policyReader"
+      members:
+        - member: "user:auditor@example.com"
