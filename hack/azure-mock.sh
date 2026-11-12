@@ -24,9 +24,13 @@
 # applies only those charts. Writes offload-artifacts/azure-mock/.
 #
 # The fake keeps a resource's body as sent and adds its id, name, type and
-# provisioningState: the properties Azure computes (an address, a principal
-# ID, a login server) are not there, so a Package's outputs that read them
-# are evaluated and reported, not required.
+# provisioningState, and computes what Azure computes that the charts read
+# (an address, a principal ID, a login server, a vault's URI, FQDNs;
+# aso-extensions' pkg/fakecloud/arm/computed.go), so every Package's outputs
+# must evaluate too. A VaultKey reads its key in the vault's data plane:
+# <vault>.vault.azure.net is fakearm inside the cluster (a CoreDNS rewrite;
+# the fixtures' certificate carries the name), and fakearm is given ASO's
+# tenant, which Key Vault's challenge names.
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
@@ -116,7 +120,7 @@ spec:
       - name: fakearm
         image: catalog.local/fakearm:mock
         imagePullPolicy: Never
-        args: [--listen=:443, --audience=https://fakearm.fake-cloud.svc, "--trust=${CLIENT}=${ASO_SUBJECT}", "--resource=/subscriptions/${SUB},${RG}"]
+        args: [--listen=:443, --audience=https://fakearm.fake-cloud.svc, "--tenant=${TENANT}", "--trust=${CLIENT}=${ASO_SUBJECT}", "--resource=/subscriptions/${SUB},${RG}"]
         ports: [{containerPort: 443}]
         volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
       volumes: [{name: tls, secret: {secretName: fakearm-tls}}]
@@ -156,10 +160,14 @@ EOF
 kubectl apply -f "${WORK}/fake-cloud.yaml" >/dev/null
 kubectl -n fake-cloud rollout status deploy/fakearm --timeout=180s
 kubectl -n fake-cloud rollout status deploy/fakeentra --timeout=180s
-# login.microsoftonline.com is the fake Entra inside the cluster.
+# login.microsoftonline.com is the fake Entra inside the cluster, and every
+# vault's data plane (<vault>.vault.azure.net, which ASO's VaultKey reads) is
+# fakearm, which holds the keys and whose certificate carries the name.
 corefile="$(kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')"
-corefile="$(awk '{print} /^ *ready *$/ {print "    rewrite name exact login.microsoftonline.com fakeentra.fake-cloud.svc.cluster.local answer auto"}' <<<"${corefile}")"
-grep -q 'login.microsoftonline.com' <<<"${corefile}" || { echo "azure-mock: no ready line in the Corefile for the rewrite" >&2; exit 1; }
+corefile="$(awk '{print} /^ *ready *$/ {
+  print "    rewrite name exact login.microsoftonline.com fakeentra.fake-cloud.svc.cluster.local answer auto"
+  print "    rewrite name regex (.+)\\.vault\\.azure\\.net fakearm.fake-cloud.svc.cluster.local answer auto"}' <<<"${corefile}")"
+grep -q 'vault' <<<"${corefile}" || { echo "azure-mock: no ready line in the Corefile for the rewrite" >&2; exit 1; }
 kubectl -n kube-system create configmap coredns --from-literal=Corefile="${corefile}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 kubectl -n kube-system rollout restart deploy/coredns >/dev/null
 kubectl -n kube-system rollout status deploy/coredns --timeout=120s
@@ -224,7 +232,8 @@ for dir in "${dirs[@]}"; do
   if bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}/live.json" "${dir}/values.yaml" "${dir}/tests/mock.values.yaml" >"${OUT}/${chart}/outputs.json" 2>"${OUT}/${chart}/outputs.err"; then
     outputs=evaluated
   else
-    outputs="not all evaluated (the fake computes no Azure-made properties): $(tr '\n|' '  ' <"${OUT}/${chart}/outputs.err" | cut -c1-120)"
+    outputs="not evaluated: $(tr '\n|' '  ' <"${OUT}/${chart}/outputs.err" | cut -c1-120)"
+    failed=$((failed + 1))
   fi
   kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
   deadline=$(( $(date +%s) + TIMEOUT ))
@@ -251,7 +260,7 @@ kubectl -n fake-cloud logs deployment/fakearm --tail=-1 >"${OUT}/fakearm.log" 2>
 kubectl -n fake-cloud logs deployment/fakeentra --tail=-1 >"${OUT}/fakeentra.log" 2>&1 || true
 {
   echo
-  echo "${total} objects; ${failed} failures (an object not Ready or not deleted)."
+  echo "${total} objects; ${failed} failures (an object not Ready or not deleted, or a chart's outputs not evaluated)."
 } >>"${summary}"
 cat "${summary}"
 [[ ${total} -gt 0 && ${failed} -eq 0 ]]

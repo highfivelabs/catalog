@@ -790,13 +790,19 @@ both over TLS from a throwaway CA; stock ASO v2.22.0 from its own chart
 talks to them (`azureResourceManagerEndpoint`, workload identity, the CA
 through `SSL_CERT_FILE`; the fakes listen on 443 in their pods, the only
 egress ASO's network policies allow). Each chart's `tests/mock.values.yaml`
-is applied, every object must become Ready and be deleted; the Package's
-outputs are evaluated and reported, not required, since the fake keeps a
-body as sent and computes nothing Azure computes. First run on 2026-11-12
-(run `off-catalog-1112211443-12213`): 23 of 26 objects Ready and deleted
-across the twelve charts. The three that are not are the fake's gaps, for
-aso-extensions: a vault's `properties.vaultUri` (a `VaultKey` waits for
-it) and a storage account's default `blobServices/default` and
-`queueServices/default` (Azure makes them with the account; a container's
-or queue's parent). Not applied to the fake: anything needing the
+is applied, every object must become Ready and be deleted, and the
+Package's outputs must evaluate against the live objects. First run on
+2026-11-12 (run `off-catalog-1112211443-12213`): 23 of 26 objects Ready
+and deleted across the twelve charts; the three that were not were the
+fake's gaps (a vault's `vaultUri`, a storage account's default blob and
+queue services). aso-extensions `b9beb5b` closed them: its fake Resource
+Manager computes what Azure computes and the charts read (addresses,
+principal IDs, a login server, a vault's URI, FQDNs, endpoints), makes a
+storage account's default services and a DNS zone's SOA record set, and
+serves Key Vault keys in the vault's data plane, which ASO's `VaultKey`
+reads (`<vault>.vault.azure.net` is `fakearm` inside the cluster, through
+a second CoreDNS rewrite; `fakearm` is given ASO's tenant, which Key
+Vault's challenge names). Run `off-catalog-1112232041-31702`: 26 of 26
+objects Ready and deleted, every chart's outputs evaluated. Not applied
+to the fake: anything needing the
 aso-extensions manager (the lock).
