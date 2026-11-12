@@ -437,6 +437,18 @@ this script):
   ran. The wait now prints a line a minute. The next run's `sweep_old`
   deletes any `cat-` cluster or network older than two hours.
 
+Firewall rules, 2026-11-12 (catalog `fe91774`): on the fake cloud (offload
+VM `off-catalog-1112192444-31061`) the seven `ComputeFirewall`s of
+`tests/mock.values.yaml` were Ready and deleted with the cluster, pool,
+account and grants, outputs evaluated. Live (`task test-live-gke`, run
+`cat-11121930-084f`, VM `off-catalog-1112192448-25649`, as
+`cce-live-tests`): the Standard cluster's seven rules Ready in 22 to 23 s
+and the Autopilot cluster's webhook rule with its cluster; every object
+Ready and deleted, no cluster and no chart firewall rule left in
+`gcloud`. The fleet service agent grants are render-tested only: the fake
+cloud answers `generateServiceIdentity` for `gkehub.googleapis.com` with
+500, and the live runner has no project IAM role.
+
 ## Changes
 
 - **0.2.0** (2026-11-12): the firewall rules (`add_cluster_firewall_rules`,
