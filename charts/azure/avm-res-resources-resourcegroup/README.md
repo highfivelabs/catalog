@@ -103,8 +103,9 @@ as `azure/avm-res-resources-resourcegroup`.
 `task test CHART=avm-res-resources-resourcegroup`: render cases `basic`,
 `full`, `names`, `abandon` and `mock`, each validated against ASO
 v2.22.0's CRD schemas (`hack/aso.sh`) and, for the lock, aso-extensions'
-CRD (`crds/aso-extensions`); the refusals in `tests/*.fail.yaml`. Not yet
-applied to the fake cloud or to Azure (`docs/azure.md`, "8. Charts").
+CRD (`crds/aso-extensions`); the refusals in `tests/*.fail.yaml`. Not applied to Azure yet: the live identity cannot make a resource group
+(a subscription-scope action), and the fake cloud does not run yet
+(`docs/azure.md`, "8. Charts").
 
 ## Changes
 

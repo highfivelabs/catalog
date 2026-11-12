@@ -134,8 +134,10 @@ refusal.
 `task test CHART=avm-res-storage-storageaccount`: render cases `basic`,
 `full`, `premium`, `names` and `mock`, each validated against ASO
 v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD, and the
-refusals in `tests/*.fail.yaml`. Not yet applied to the fake cloud or to
-Azure (`docs/azure.md`, "8. Charts").
+refusals in `tests/*.fail.yaml`. `task test-live-azure` applies a Standard_LRS account with a container and a queue to the Azure sandbox with
+Azure Service Operator, evaluates the outputs, deletes it and checks Azure
+no longer has it: passed on 2026-11-12. Not yet applied to the fake cloud
+(`docs/azure.md`, "8. Charts").
 
 ## Changes
 
