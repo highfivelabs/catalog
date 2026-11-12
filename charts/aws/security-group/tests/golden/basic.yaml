@@ -1,0 +1,33 @@
+---
+# Source: security-group/templates/security-group.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: SecurityGroup
+metadata:
+  name: basic-sg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: security-group
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "security-group"
+spec:
+  name: "example"
+  description: "Example security group"
+  vpcID: "vpc-12345678"
+  ingressRules:
+    - ipProtocol: "tcp"
+      fromPort: 443
+      toPort: 443
+      ipRanges:
+        - {"cidrIP":"10.0.0.0/16","description":"HTTPS from internal"}
+    - ipProtocol: "-1"
+      userIDGroupPairs:
+        - {"description":"All traffic from members of this SG"}
+  egressRules:
+    - ipProtocol: "-1"
+      ipRanges:
+        - {"cidrIP":"0.0.0.0/0"}
+  tags:
+    - key: "Environment"
+      value: "dev"
