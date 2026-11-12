@@ -1,0 +1,322 @@
+---
+# Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: logging-sink-writer-audit-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:audit-bucket"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: logging-sink-audit-bucket
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/logs-project"
+  condition:
+    title: "audit-bucket bucket writer"
+    description: "Grants bucketWriter to the writer identity used by log sink audit-bucket on logs-project"
+    expression: "resource.name.endsWith('locations/global/buckets/audit')"
+---
+# Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: logging-sink-writer-to-gcs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:to-gcs"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: logging-sink-to-gcs
+  role: roles/storage.objectCreator
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    external: "my-log-archive"
+---
+# Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: logging-sink-writer-to-pubsub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:to-pubsub"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: logging-sink-to-pubsub
+  role: roles/pubsub.publisher
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    external: "projects/logs-project/topics/logs"
+---
+# Source: project/templates/logging-metrics.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  name: logging-metric-bounds
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-metric:bounds"
+spec:
+  resourceID: "bounds"
+  projectRef:
+    name: logging
+  filter: "resource.type=gce_instance"
+  valueExtractor: "EXTRACT(jsonPayload.n)"
+  bucketOptions:
+    explicitBuckets:
+      bounds: [1,10,100]
+  metricDescriptor:
+    metricKind: "DELTA"
+    valueType: "DISTRIBUTION"
+---
+# Source: project/templates/logging-metrics.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  name: logging-metric-errors
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-metric:errors"
+spec:
+  resourceID: "errors"
+  projectRef:
+    name: logging
+  filter: "severity>=ERROR"
+  description: "Errors."
+  labelExtractors: {"service":"EXTRACT(resource.labels.service_name)"}
+  metricDescriptor:
+    metricKind: "DELTA"
+    valueType: "INT64"
+    displayName: "Errors"
+    labels:
+      - key: "service"
+        description: "The service."
+        valueType: "STRING"
+---
+# Source: project/templates/logging-metrics.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  name: logging-metric-latency
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-metric:latency"
+spec:
+  resourceID: "latency"
+  projectRef:
+    name: logging
+  filter: "resource.type=http_load_balancer"
+  disabled: false
+  loggingLogBucketRef:
+    external: "projects/logs-project/locations/global/buckets/audit"
+  valueExtractor: "EXTRACT(httpRequest.latency)"
+  bucketOptions:
+    exponentialBuckets:
+      numFiniteBuckets: 64
+      growthFactor: 2
+      scale: 0.01
+  metricDescriptor:
+    metricKind: "DELTA"
+    valueType: "DISTRIBUTION"
+    unit: "s"
+---
+# Source: project/templates/logging-metrics.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  name: logging-metric-sizes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-metric:sizes"
+spec:
+  resourceID: "sizes"
+  projectRef:
+    name: logging
+  filter: "resource.type=gcs_bucket"
+  valueExtractor: "EXTRACT(protoPayload.size)"
+  bucketOptions:
+    linearBuckets:
+      numFiniteBuckets: 10
+      width: 100
+      offset: 0
+  metricDescriptor:
+    metricKind: "DELTA"
+    valueType: "DISTRIBUTION"
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1alpha1
+kind: LoggingLogScope
+metadata:
+  name: logging-log-scope-all-apps
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "log-scope:all-apps"
+spec:
+  resourceID: "all-apps"
+  projectRef:
+    name: logging
+  location: global
+  resourceNames:
+    - "projects/app-1"
+    - "projects/app-2"
+  description: "Every app project."
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-audit-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink:audit-bucket"
+spec:
+  resourceID: "audit-bucket"
+  projectRef:
+    name: logging
+  description: "audit-bucket (Terraform-managed)."
+  destination:
+    loggingLogBucketRef:
+      external: "projects/logs-project/locations/global/buckets/audit"
+  filter: "logName:\"cloudaudit.googleapis.com\""
+  uniqueWriterIdentity: true
+  disabled: false
+  exclusions:
+    - name: "no-gce"
+      filter: "resource.type=gce_instance"
+    - name: "no-gke"
+      filter: "resource.type=k8s_container"
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-to-bq
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink:to-bq"
+spec:
+  resourceID: "to-bq"
+  projectRef:
+    name: logging
+  description: "to-bq (Terraform-managed)."
+  destination:
+    bigQueryDatasetRef:
+      external: "projects/logs-project/datasets/logs"
+  uniqueWriterIdentity: true
+  disabled: false
+  bigqueryOptions:
+    usePartitionedTables: true
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-to-gcs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink:to-gcs"
+spec:
+  resourceID: "to-gcs"
+  projectRef:
+    name: logging
+  description: "Archive."
+  destination:
+    storageBucketRef:
+      external: "my-log-archive"
+  uniqueWriterIdentity: false
+  disabled: false
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-to-pubsub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "logging-sink:to-pubsub"
+spec:
+  resourceID: "to-pubsub"
+  projectRef:
+    name: logging
+  description: "to-pubsub (Terraform-managed)."
+  destination:
+    pubSubTopicRef:
+      external: "projects/logs-project/topics/logs"
+  uniqueWriterIdentity: true
+  disabled: true
+---
+# Source: project/templates/project.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Project
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+  annotations:
+    hfl.dev/id: "project"
+    cnrm.cloud.google.com/auto-create-network: "false"
+spec:
+  resourceID: logs-project
+  name: "logs-project"
+  folderRef:
+    external: "1234567890"

@@ -50,13 +50,16 @@ org_policies:
 | `custom_roles` | one `IAMCustomRole` each, its ID the key; title `Custom role <key>` and description `Terraform-managed.` unless given, as fabric; fabric's stage check |
 | `logging_data_access` | one `IAMAuditConfig` per service (`allServices` for all), a log config per type set, with its exempted members |
 | `logging_exclusions` | one `LoggingLogExclusion` each, named by its key (with the `namePrefix`), described `<name> (Terraform-managed).` |
+| `logging_sinks` | one `LoggingLogSink` each, named by its key (with the `namePrefix`), described `<name> (Terraform-managed).` unless given, with a unique writer identity unless `unique_writer: false`, its exclusions, and `bigqueryOptions` for a dataset; with `iam` (the default) one `IAMPolicyMember` granting the sink's writer identity (`memberFrom.logSinkRef`) `roles/storage.objectCreator` on the bucket, `roles/pubsub.publisher` on the topic, or `roles/logging.bucketWriter` on the log bucket's project with fabric's condition naming the bucket. Refused: type `project` (no such destination in `LoggingLogSink`), and `iam` on a `bigquery` sink (dataset IAM is the alpha `BigQueryDatasetAccess`: set `iam: false`) |
+| `logging_metrics` | one `LoggingLogMetric` each, named by its key (with the `namePrefix`), with its bucket, extractors, bucket options and metric descriptor |
+| `log_scopes` | one `LoggingLogScope` each (alpha: needs `allow_alpha: true`), bare project IDs written `projects/<id>` as fabric does |
+| `allow_alpha` | not a fabric variable: accept `log_scopes`, whose kind is `v1alpha1` |
 | `tag_bindings` | one `TagsTagBinding` each on the project: the `Project` object (Config Connector reads its number), or with `project_reuse` the number in `project_reuse.attributes.number`, which it then needs |
 
 ## Not ported
 
 Config Connector has kinds for these; the chart refuses them until they
-are mapped: `logging_sinks`, `logging_metrics`, `log_scopes`,
-`metric_scopes`, `notification_channels`, `alerts`, `asset_feeds`,
+are mapped: `metric_scopes`, `notification_channels`, `alerts`, `asset_feeds`,
 `bigquery_reservations`, `tags`, `network_tags`, `tags_config`,
 `kms_autokeys`, `service_encryption_key_ids`, `workload_identity_pools`,
 `pam_entitlements`, `iam_deny_policies` (alpha), `scc_mute_configs`
@@ -87,16 +90,17 @@ Fabric's declared outputs for what the chart ports, selected.
 | `number` | `status.number` |
 | `services` | the services the chart enables, sorted |
 | `organization_policies_ids` | `projects/<id>/policies/<policy>` per policy |
+| `sink_writer_identities` | each sink's `status.writerIdentity`, by its key |
 
 With `project_reuse` there is no project object, so `name` and `number`
 have no value.
 
 ## Alpha
 
-The chart has no `allow_alpha` value yet: it ports no alpha kind.
+`allow_alpha: true` accepts `log_scopes` (`LoggingLogScope` is
+`v1alpha1`), render-tested only (docs/design.md, "Alpha kinds").
 `iam_deny_policies`, `scc_mute_configs` and `scc_sha_custom_modules` need
-one and are listed under "Not ported"; they will come behind
-`allow_alpha` (docs/design.md, "Alpha kinds").
+alpha kinds too and are not ported yet, even with `allow_alpha`.
 
 ## Upstream
 
@@ -110,9 +114,9 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=project`: seven render cases (`extras` carries the
-0.5.0 variables, `reuse-tags` tag bindings on a reused project), twelve
-refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
+`task test CHART=project`: eight render cases (`extras` carries the
+0.5.0 variables, `logging` the 0.6.0 ones, `reuse-tags` tag bindings on a
+reused project), seventeen refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
 neither) is applied to the fake cloud.
 
 On 2026-11-12 (`task test-mock MOCK_CHARTS=project`, offload VM), with the
@@ -123,8 +127,23 @@ organization policy, `IAMCustomRole`, `IAMAuditConfig` and
 case cannot name (Google Cloud assigns its ID), so tag bindings are
 render-tested only and the case no longer sets one.
 
+On 2026-11-12 again (0.6.0, offload VM), with a log sink to the project's
+`_Default` log bucket (its writer identity's conditional
+`roles/logging.bucketWriter` grant) and a log-based metric added: all
+13 objects Ready, `sink_writer_identities` evaluated, all deleted. Log
+scopes (alpha) are render-tested only. No live run: the project chart's
+live case waits for the test provisioner (`docs/design.md`, "The test
+provisioner").
+
 ## Changes
 
+- **0.6.0** (2026-11-12): fabric's logging: `logging_sinks` (one
+  `LoggingLogSink` each and, with `iam`, the writer identity's grant on its
+  destination; type `project`, and `iam` on a `bigquery` sink, refused),
+  `logging_metrics` (one `LoggingLogMetric` each), `log_scopes` (alpha,
+  behind the new `allow_alpha`), and the output `sink_writer_identities`.
+  Values that set none of them render as before, with the new version
+  label.
 - **0.5.0** (2026-11-12): five more of fabric's variables:
   `custom_roles` (one `IAMCustomRole` each, fabric's default title and
   description), `logging_data_access` (one `IAMAuditConfig` per service),
