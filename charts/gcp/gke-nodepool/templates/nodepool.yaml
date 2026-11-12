@@ -47,9 +47,12 @@ spec:
   resourceID: {{ include "nodepool.name" . | quote }}
   location: {{ $v.location | quote }}
   clusterRef:
-    {{- /* Config Connector takes the cluster by its full id; fabric gives
-    the provider cluster_id, or cluster_name with project and location. */}}
-    external: {{ $v.cluster_id | default (printf "projects/%s/locations/%s/clusters/%s" $v.project_id $v.location $v.cluster_name) | quote }}
+    {{- /* The cluster's name, as Config Connector resolves a clusterRef to
+    a ContainerCluster object: the node pool's project and location say
+    where it is. A full id here makes Config Connector's delete look the
+    pool up by a malformed id, find nothing and leave the pool in Google
+    Cloud (live run, 2026-11-12), so cluster_id gives its last segment. */}}
+    external: {{ $v.cluster_id | default $v.cluster_name | splitList "/" | last | quote }}
   {{- with $v.gke_version }}
   version: {{ . | quote }}
   {{- end }}

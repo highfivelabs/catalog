@@ -31,7 +31,7 @@ The module's variables, with the same names, types and defaults.
 | `namePrefix` | not a fabric variable: an optional convenience; when set, the derived node pool name and account ID start with `<namePrefix>-`; empty changes nothing |
 | `labels` | fabric's node resource labels: `nodeConfig.resourceLabels` (the unprefixed keys); as every chart's `labels`, also Kubernetes labels on every object |
 | `tags` | a list is fabric's network tags, `nodeConfig.tags`; a map is every chart's `tags`, cloud labels: on the nodes (`resourceLabels`) and on every object |
-| `project_id`, `location`, `cluster_name`, `cluster_id` | the project annotation, `location` and `clusterRef`: `cluster_id` when set, else `projects/<project>/locations/<location>/clusters/<cluster_name>` |
+| `project_id`, `location`, `cluster_name`, `cluster_id` | the project annotation, `location` and `clusterRef`: the cluster's name (`cluster_name`, or the last segment of `cluster_id`), in the node pool's project and location |
 | `name`, `gke_version`, `max_pods_per_node`, `node_count`, `node_locations` | `resourceID`, `version`, `maxPodsPerNode`, `initialNodeCount` and `nodeCount`, `nodeLocations` |
 | `nodepool_config` | `autoscaling` (per zone, or total with `use_total_nodes`), `management`, `placementPolicy`, `queuedProvisioning`, `upgradeSettings` with blue-green settings |
 | `network_config` | `networkConfig`: private nodes, the pod range (made, named or by CIDR), additional node and pod networks, pod CIDR overprovisioning |
