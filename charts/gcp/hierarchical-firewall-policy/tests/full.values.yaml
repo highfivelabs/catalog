@@ -1,0 +1,51 @@
+# Every input: an organization-level policy adopted by its number, attached
+# to two folders and the organization, with ingress and egress rules using
+# every match field Config Connector carries, address groups, target
+# networks and service accounts, a rule with the default layer 4 config, and
+# ingress-only fields on an egress rule (dropped, as the module drops them).
+parent_node: organizations/123456789012
+policy_name: org-baseline
+description: Organization baseline
+target_folders: ["333333333333", "444444444444"]
+target_org: "123456789012"
+resource_ids: {policy: "987654321098"}
+deletion_policy: ABANDON
+labels: {hfl.dev/team: platform}
+tags: {team: platform}
+rules:
+  - priority: 100
+    direction: INGRESS
+    action: allow
+    rule_name: from-groups
+    description: From address groups to tagged networks
+    disabled: false
+    enable_logging: false
+    target_resources: [projects/net-host/global/networks/shared]
+    target_service_accounts: [web@app-project.iam.gserviceaccount.com]
+    match:
+      src_ip_ranges: ["10.0.0.0/8"]
+      src_fqdns: [example.com]
+      src_region_codes: [US]
+      src_threat_intelligences: [iplist-known-malicious-ips]
+      src_address_groups: [organizations/123456789012/locations/global/addressGroups/corp]
+      dest_ip_ranges: ["10.1.0.0/16"]
+      dest_fqdns: [ignored-on-ingress.example.com]
+      layer4_configs:
+        - {ip_protocol: tcp, ports: ["443"]}
+        - {ip_protocol: udp}
+  - priority: 200
+    direction: EGRESS
+    action: deny
+    match:
+      src_fqdns: [ignored-on-egress.example.com]
+      dest_ip_ranges: ["0.0.0.0/0"]
+      dest_fqdns: [blocked.example.com]
+      dest_region_codes: [KP]
+      dest_threat_intelligences: [iplist-tor-exit-nodes]
+      dest_address_groups: [organizations/123456789012/locations/global/addressGroups/blocked]
+  - priority: 300
+    direction: EGRESS
+    action: allow
+    match:
+      dest_ip_ranges: ["10.0.0.0/8"]
+      layer4_configs: []

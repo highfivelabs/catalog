@@ -1,0 +1,32 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (bundt: specs/catalog/packages.md R6).
+# hack/publish.sh pushes the chart and writes spec.source (its OCI
+# repository and digest) into the copy it submits; spec.version is the
+# chart's version. Outputs mirror the module's outputs (docs/design.md,
+# "Outputs"). The module computes all three from its inputs (the helper's
+# bindings_by_member: every folder, role and member with at least one
+# member, in its order: folders as given, roles of bindings in key order,
+# then those of conditional_bindings), and so do these.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-iam-folders-iam
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    folders: >-
+      inputs.bindings.exists(r, size(inputs.bindings[r]) > 0)
+        || inputs.conditional_bindings.exists(b, size(b.members) > 0)
+      ? inputs.folders.distinct() : []
+    roles: >-
+      size(inputs.folders) == 0 ? [] :
+      (inputs.bindings.filter(r, size(inputs.bindings[r]) > 0).sort()
+        + inputs.conditional_bindings.filter(b, size(b.members) > 0).map(b, b.role)).distinct()
+    members: >-
+      size(inputs.folders) == 0 ? [] :
+      (inputs.bindings.filter(r, true).sort().map(r, inputs.bindings[r]).flatten()
+        + inputs.conditional_bindings.map(b, b.members).flatten()).distinct()

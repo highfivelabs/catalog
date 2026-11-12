@@ -1,0 +1,140 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-google-network
+modules/hierarchical-firewall-policy/main.tf (v18.3.1), Copyright Google
+LLC, Apache-2.0.
+
+The firewall policy (google_compute_firewall_policy.fw_policy), the chart's
+core object; its associations with target_folders and target_org
+(google_compute_firewall_policy_association.target_associations, one per
+attachment target, named as the module names them: the target's last path
+element); and its rules (google_compute_firewall_policy_rule.rules, one per
+priority). Rules and associations refer to the policy by its object's name,
+so Config Connector resolves its number, which the cloud assigns.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "policy")) }}
+{{- range $k, $_ := ($v.resource_ids | default dict) }}
+{{- if ne $k "policy" }}
+{{- fail (printf "%s: resource_ids.%s: only the firewall policy (id policy) has an ID the cloud assigns; rules are found by priority and associations by name" $.Chart.Name $k) }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $parent := splitList "/" $v.parent_node }}
+{{- $policyName := include "kcc.resourceName" (list $ "policy" "firewall policy" $v.policy_name 63 "letter") }}
+{{- $policyObject := .Release.Name }}
+{{- /* locals.attachment_targets: toset(flatten([formatlist("folders/%s", var.target_folders), local.org])) */}}
+{{- $targets := list }}
+{{- range $f := ($v.target_folders | default list) }}{{ $targets = append $targets (printf "folders/%s" $f) }}{{ end }}
+{{- if not (kindIs "invalid" $v.target_org) }}{{ $targets = append $targets (printf "organizations/%s" $v.target_org) }}{{ end }}
+{{- $targets = $targets | uniq | sortAlpha }}
+{{- /* rules: for_each = { for x in var.rules : x.priority => x } */}}
+{{- $rules := dict }}
+{{- range $r := ($v.rules | default list) }}
+{{- $p := toString (int64 $r.priority) }}
+{{- if hasKey $rules $p }}
+{{- fail (printf "%s: two rules have priority %s: the module keys rules by priority, and a policy has one rule per priority" $.Chart.Name $p) }}
+{{- end }}
+{{- $_ := set $rules $p $r }}
+{{- end }}
+{{- include "hfp.refused" . }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $policyObject "id" "policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  {{ ternary "organizationRef" "folderRef" (eq (first $parent) "organizations") }}:
+    external: {{ $v.parent_node | quote }}
+  shortName: {{ $policyName | quote }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- with (index ($v.resource_ids | default dict) "policy") }}
+  resourceID: {{ . | quote }}
+{{- end }}
+{{- range $t := $targets }}
+{{- $name := last (splitList "/" $t) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "association" $t)) "id" (printf "association:%s" $t) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  attachmentTargetRef:
+    external: {{ $t | quote }}
+  firewallPolicyRef:
+    name: {{ $policyObject }}
+{{- end }}
+{{- range $p := (keys $rules | sortAlpha) }}
+{{- $r := get $rules $p }}
+{{- $m := $r.match | default dict }}
+{{- $ingress := eq $r.direction "INGRESS" }}
+{{- $egress := eq $r.direction "EGRESS" }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $p)) "id" (printf "rule:%s" $p) "abandon" $abandon) | nindent 2 }}
+spec:
+  firewallPolicyRef:
+    name: {{ $policyObject }}
+  priority: {{ $p }}
+  action: {{ $r.action | quote }}
+  direction: {{ $r.direction | quote }}
+{{- if not (kindIs "invalid" $r.description) }}
+  description: {{ $r.description | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $r.disabled) }}
+  disabled: {{ $r.disabled }}
+{{- end }}
+{{- if not (kindIs "invalid" $r.enable_logging) }}
+  enableLogging: {{ $r.enable_logging }}
+{{- end }}
+{{- with $r.target_service_accounts }}
+  targetServiceAccounts:
+{{- range $sa := . }}
+    - external: {{ $sa | quote }}
+{{- end }}
+{{- end }}
+{{- with $r.target_resources }}
+  targetResources:
+{{- range $tr := . }}
+    - external: {{ printf "https://www.googleapis.com/compute/v1/%s" $tr | quote }}
+{{- end }}
+{{- end }}
+  match:
+{{- $fields := list
+      (list "srcIPRanges" $m.src_ip_ranges true)
+      (list "srcFqdns" $m.src_fqdns $ingress)
+      (list "srcRegionCodes" $m.src_region_codes $ingress)
+      (list "srcThreatIntelligences" $m.src_threat_intelligences $ingress)
+      (list "srcAddressGroups" $m.src_address_groups $ingress)
+      (list "destIPRanges" $m.dest_ip_ranges true)
+      (list "destFqdns" $m.dest_fqdns $egress)
+      (list "destRegionCodes" $m.dest_region_codes $egress)
+      (list "destThreatIntelligences" $m.dest_threat_intelligences $egress)
+      (list "destAddressGroups" $m.dest_address_groups $egress) }}
+{{- range $f := $fields }}
+{{- if and (index $f 2) (index $f 1) }}
+    {{ index $f 0 }}:
+{{- range $x := (index $f 1) }}
+      - {{ $x | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $l4 := list (dict) }}
+{{- if hasKey $m "layer4_configs" }}{{ if not (kindIs "invalid" $m.layer4_configs) }}{{ $l4 = $m.layer4_configs }}{{ end }}{{ end }}
+    layer4Configs:
+{{- if not $l4 }} []{{ end }}
+{{- range $c := $l4 }}
+    - ipProtocol: {{ (get $c "ip_protocol" | default "all") | quote }}
+{{- with (get $c "ports") }}
+      ports:
+{{- range $port := . }}
+        - {{ $port | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

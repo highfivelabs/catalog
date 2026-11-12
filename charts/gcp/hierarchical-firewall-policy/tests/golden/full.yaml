@@ -1,0 +1,196 @@
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  organizationRef:
+    external: "organizations/123456789012"
+  shortName: "org-baseline"
+  description: "Organization baseline"
+  resourceID: "987654321098"
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: full-association-folders-333333333333-6c026d32
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "association:folders/333333333333"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "333333333333"
+  attachmentTargetRef:
+    external: "folders/333333333333"
+  firewallPolicyRef:
+    name: full
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: full-association-folders-444444444444-ca967b94
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "association:folders/444444444444"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "444444444444"
+  attachmentTargetRef:
+    external: "folders/444444444444"
+  firewallPolicyRef:
+    name: full
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: full-association-organizations-123456789012-104893f3
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "association:organizations/123456789012"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "123456789012"
+  attachmentTargetRef:
+    external: "organizations/123456789012"
+  firewallPolicyRef:
+    name: full
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  name: full-rule-100
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "rule:100"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  firewallPolicyRef:
+    name: full
+  priority: 100
+  action: "allow"
+  direction: "INGRESS"
+  description: "From address groups to tagged networks"
+  disabled: false
+  enableLogging: false
+  targetServiceAccounts:
+    - external: "web@app-project.iam.gserviceaccount.com"
+  targetResources:
+    - external: "https://www.googleapis.com/compute/v1/projects/net-host/global/networks/shared"
+  match:
+    srcIPRanges:
+      - "10.0.0.0/8"
+    srcFqdns:
+      - "example.com"
+    srcRegionCodes:
+      - "US"
+    srcThreatIntelligences:
+      - "iplist-known-malicious-ips"
+    srcAddressGroups:
+      - "organizations/123456789012/locations/global/addressGroups/corp"
+    destIPRanges:
+      - "10.1.0.0/16"
+    layer4Configs:
+    - ipProtocol: "tcp"
+      ports:
+        - "443"
+    - ipProtocol: "udp"
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  name: full-rule-200
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "rule:200"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  firewallPolicyRef:
+    name: full
+  priority: 200
+  action: "deny"
+  direction: "EGRESS"
+  match:
+    destIPRanges:
+      - "0.0.0.0/0"
+    destFqdns:
+      - "blocked.example.com"
+    destRegionCodes:
+      - "KP"
+    destThreatIntelligences:
+      - "iplist-tor-exit-nodes"
+    destAddressGroups:
+      - "organizations/123456789012/locations/global/addressGroups/blocked"
+    layer4Configs:
+    - ipProtocol: "all"
+---
+# Source: hierarchical-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+metadata:
+  name: full-rule-300
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: hierarchical-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "rule:300"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  firewallPolicyRef:
+    name: full
+  priority: 300
+  action: "allow"
+  direction: "EGRESS"
+  match:
+    destIPRanges:
+      - "10.0.0.0/8"
+    layer4Configs: []

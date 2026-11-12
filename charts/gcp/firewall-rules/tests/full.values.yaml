@@ -1,0 +1,40 @@
+# Every input of ingress_rules and egress_rules, and an ingress and an
+# egress rule of one name (the egress rule wins, as the module's merge
+# does).
+project_id: my-project
+network_name: projects/host-project/global/networks/shared
+deletion_policy: ABANDON
+labels: {hfl.dev/team: net}
+ingress_rules:
+  - name: allow-lb
+    description: Load balancer health checks
+    disabled: true
+    priority: 100
+    source_ranges: [35.191.0.0/16, 130.211.0.0/22]
+    destination_ranges: [10.1.0.0/24]
+    source_tags: [lb]
+    target_tags: [web, api]
+    allow:
+      - {protocol: tcp, ports: ["80", "443", 8080, "9000-9100"]}
+    log_config: {metadata: INCLUDE_ALL_METADATA}
+  - name: allow-sa
+    source_service_accounts: [frontend@my-project.iam.gserviceaccount.com]
+    target_service_accounts: [backend@my-project.iam.gserviceaccount.com]
+    allow: [{protocol: all}]
+  - name: same-name
+    source_ranges: [10.0.0.0/8]
+    allow: [{protocol: icmp}]
+egress_rules:
+  - name: deny-all
+    description: Deny all egress
+    priority: 65535
+    destination_ranges: [0.0.0.0/0]
+    source_ranges: [10.2.0.0/16]
+    target_tags: [locked]
+    deny: [{protocol: all}]
+    log_config: {metadata: EXCLUDE_ALL_METADATA}
+  - name: same-name
+    disabled: false
+    priority: 0
+    destination_ranges: [192.168.0.0/16]
+    allow: [{protocol: udp, ports: ["53"]}]

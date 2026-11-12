@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "network-firewall-policy values (terraform-google-network modules/network-firewall-policy v18.3.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "policy_name"],
+  "definitions": {
+    "stringList": {"type": ["array", "null"], "items": {"type": "string"}},
+    "rule": {
+      "description": "One rule. priority, direction, action and match are required; the template checks them, after the allow_alpha check.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "priority": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "direction": {"type": "string", "enum": ["INGRESS", "EGRESS"]},
+        "action": {"type": "string"},
+        "rule_name": {"type": ["string", "null"]},
+        "disabled": {"type": ["boolean", "null"]},
+        "description": {"type": ["string", "null"]},
+        "enable_logging": {"type": ["boolean", "null"]},
+        "target_secure_tags": {"$ref": "#/definitions/stringList"},
+        "target_service_accounts": {"$ref": "#/definitions/stringList"},
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "src_ip_ranges": {"$ref": "#/definitions/stringList"},
+            "src_fqdns": {"$ref": "#/definitions/stringList"},
+            "src_region_codes": {"$ref": "#/definitions/stringList"},
+            "src_secure_tags": {"$ref": "#/definitions/stringList"},
+            "src_threat_intelligences": {"$ref": "#/definitions/stringList"},
+            "src_address_groups": {"$ref": "#/definitions/stringList"},
+            "dest_ip_ranges": {"$ref": "#/definitions/stringList"},
+            "dest_fqdns": {"$ref": "#/definitions/stringList"},
+            "dest_region_codes": {"$ref": "#/definitions/stringList"},
+            "dest_threat_intelligences": {"$ref": "#/definitions/stringList"},
+            "dest_address_groups": {"$ref": "#/definitions/stringList"},
+            "layer4_configs": {
+              "type": ["array", "null"],
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "ip_protocol": {"type": ["string", "null"]},
+                  "ports": {"type": ["array", "null"], "items": {"type": ["string", "integer"]}}
+                }
+              }
+            }
+          }
+        },
+        "is_mirroring": {"type": ["boolean", "null"]},
+        "tls_inspect": {"type": ["boolean", "null"]},
+        "security_profile_group_id": {"type": ["string", "null"]},
+        "src_networks": {"$ref": "#/definitions/stringList"},
+        "src_network_scope": {"type": ["string", "null"]},
+        "dest_network_scope": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set is policy_name.",
+      "properties": {
+        "policy": {"type": "string", "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the policy's derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -). Network firewall policies take none.",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "deletion_policy": {
+      "enum": ["DELETE", "ABANDON", "PREVENT", null],
+      "description": "Not a module variable. PREVENT is refused (no Config Connector equivalent)."
+    },
+    "allow_alpha": {
+      "type": "boolean",
+      "description": "Not a module variable. Rules need the v1alpha1 kind ComputeNetworkFirewallPolicyRule: true accepts that its schema may change."
+    },
+    "project_id": {"type": "string", "minLength": 1, "description": "Project ID of the Network firewall policy. Required."},
+    "policy_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$",
+      "description": "User-provided name of the Network firewall policy. Required. The module's validation: 1-63 characters, RFC1035."
+    },
+    "description": {"type": ["string", "null"]},
+    "target_vpcs": {"$ref": "#/definitions/stringList"},
+    "target_vpcs_map": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+    "policy_region": {"type": ["string", "null"]},
+    "policy_type": {"type": ["string", "null"]},
+    "rules": {"type": ["array", "null"], "items": {"$ref": "#/definitions/rule"}}
+  }
+}
