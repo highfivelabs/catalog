@@ -142,7 +142,8 @@ On 2026-11-12 again (0.6.0, offload VM), with a log sink to the project's
 notification channel, an alert policy that refers to it by its key, and
 a quota preference added, all 16 objects Ready, outputs evaluated, all
 deleted. Metric scopes need a second project and are render-tested
-only. Log
+only. And for 0.8.0: a tag key with a value added, all 18 objects
+Ready and deleted; tag IAM and network tags are render-tested only. Log
 scopes (alpha) are render-tested only. No live run: the project chart's
 live case waits for the test provisioner (`docs/design.md`, "The test
 provisioner").
