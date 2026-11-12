@@ -84,8 +84,13 @@ against Config Connector v1.160.0's CRD schemas, and the refusals in
 Applied to the fake cloud on 2026-11-12 on an offload VM (`task test-mock
 MOCK_CHARTS=net-vpc-firewall`): `tests/mock.values.yaml`, the SSH default
 rule, a custom ingress rule and a custom egress rule on the network in
-`tests/mock.needs.yaml`: all 3 objects Ready, all deleted. Not applied
-live yet.
+`tests/mock.needs.yaml`: all 3 objects Ready, all deleted.
+
+Applied live on 2026-11-12 (`task test-live LIVE_CHARTS=net-vpc-firewall`,
+offload VM as `cce-live-tests`, which has `roles/compute.securityAdmin`):
+the SSH default rule, an ingress rule with a named range and an egress
+rule with logging, on a network made for the run: all Ready, deleted with
+the network, and gone from Google Cloud.
 
 ## Changes
 
