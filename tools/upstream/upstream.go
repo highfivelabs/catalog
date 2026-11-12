@@ -310,6 +310,27 @@ func CheckAll(root string, only []string) ([]string, error) {
 	if len(only) > 0 {
 		charts = only
 	}
+	// A wrapper chart (Chart.yaml annotation hfl.dev/kind: wrapper) ports
+	// no module: it composes charts that do, which carry the pins. It must
+	// not have an upstream.yaml, and it must depend on another chart.
+	var ported []string
+	for _, c := range charts {
+		w, deps, err := wrapper(root, c)
+		if err != nil {
+			return nil, err
+		}
+		if !w {
+			ported = append(ported, c)
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, c, "upstream.yaml")); err == nil {
+			p = append(p, c+": a wrapper chart (hfl.dev/kind: wrapper) has no upstream.yaml; its dependencies carry the pins")
+		}
+		if deps == 0 {
+			p = append(p, c+": a wrapper chart (hfl.dev/kind: wrapper) has no dependencies in Chart.yaml")
+		}
+	}
+	charts = ported
 	for _, c := range charts {
 		p = append(p, CheckChart(root, f, c)...)
 	}
@@ -324,4 +345,24 @@ func CheckAll(root string, only []string) ([]string, error) {
 		}
 	}
 	return p, nil
+}
+
+// wrapper reports whether the chart at chartDir (relative to root) is a
+// wrapper (Chart.yaml annotation hfl.dev/kind: wrapper), and how many
+// charts it depends on.
+func wrapper(root, chartDir string) (bool, int, error) {
+	data, err := os.ReadFile(filepath.Join(root, chartDir, "Chart.yaml"))
+	if err != nil {
+		return false, 0, err
+	}
+	var ch struct {
+		Annotations  map[string]string `yaml:"annotations"`
+		Dependencies []struct {
+			Name string `yaml:"name"`
+		} `yaml:"dependencies"`
+	}
+	if err := yaml.Unmarshal(data, &ch); err != nil {
+		return false, 0, fmt.Errorf("%s/Chart.yaml: %w", chartDir, err)
+	}
+	return ch.Annotations["hfl.dev/kind"] == "wrapper", len(ch.Dependencies), nil
 }

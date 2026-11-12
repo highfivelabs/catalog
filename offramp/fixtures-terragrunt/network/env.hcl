@@ -6,7 +6,7 @@
 # terragrunt/README.md).
 
 locals {
-  project_id = "hfl-dev-514205"
+  project_id = "my-dev-project"
   prefix     = "ofr-11110114-2801"
-  members    = ["serviceAccount:cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com"]
+  members    = ["serviceAccount:cce-live-tests@my-dev-project.iam.gserviceaccount.com"]
 }

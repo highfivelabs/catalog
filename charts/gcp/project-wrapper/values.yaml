@@ -1,0 +1,44 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# project-wrapper: the project chart (under project:) plus a baseline for
+# running GKE in the project. README.md says what each value renders.
+
+# The namePrefix convention (docs/design.md, "Names, labels and tags").
+# The project chart reads project.namePrefix; Helm cannot pass a parent's
+# value down, so set both to the same value (the render stops when they
+# differ, rather than leave the project ID without the prefix).
+namePrefix: ""
+
+# The project, as the project chart takes it: fabric's project module
+# variables (charts/gcp/project/README.md). Its labels and tags also go on
+# every object this chart adds.
+project: {}
+
+# APIs every project of this kind enables, besides project.services. An API
+# already in project.services is rendered by the project chart, not twice.
+baseline_services:
+  - compute.googleapis.com
+  - container.googleapis.com
+  - iam.googleapis.com
+  - logging.googleapis.com
+  - monitoring.googleapis.com
+
+# Label keys the project must carry, as a cloud label (an unprefixed
+# project.labels key, or a project.tags key). Empty: none required.
+required_labels: []
+
+# The project's dedicated GKE node service account, named for its job:
+# <name>@<project ID>.iam.gserviceaccount.com. Pass its email to
+# gke-cluster as service_account (with create_service_account: false).
+node_service_account:
+  # The account ID: 6 to 30 lower-case letters, digits or hyphens. Taken as
+  # given (no namePrefix): it lives in this project, whose ID carries one.
+  name: k8s-nodes
+  display_name: GKE nodes
+  description: Runs this project's GKE nodes; holds only the roles nodes need.
+  # roles/artifactregistry.reader on the project, so nodes pull images
+  # from its Artifact Registry repositories (and enables the API).
+  grant_artifact_registry_reader: false
+  # More project roles for the account, beyond the minimal node roles.
+  extra_roles: []

@@ -24,7 +24,7 @@ The design, the live results and the questions for the builder are in Bundt,
 ## The fixtures: module calls and their charts
 
 Every resource comes from a module call. Calls use terraform-google-modules,
-the family the builder uses. They use Cloud Foundation Fabric where the
+the family in use. They use Cloud Foundation Fabric where the
 catalog's existing chart ports Fabric (`net-vpc`, `project`,
 `iam-service-account`, `gcs`), so every call has a chart that ports the same
 module at the same release.
@@ -220,8 +220,9 @@ The others are synthetic (`internal/offramp/testdata/terragrunt/README.md`).
   check of every fixture. It needs helm.
 - `task offramp-validate`: checks the fixtures on an offload VM and keeps
   each fixture's `modules.json`.
-- `task offramp-live SHAPE=shared-vpc`: runs the live proof in
-  hfl-dev-514205 as `cce-live-tests@`, adopting `krm/adopt.yaml`.
+- `task offramp-live SHAPE=shared-vpc`: runs the live proof in the
+  live-test project (`GCP_PROJECT`) as `GCP_CCE_LIVE_SA`, adopting
+  `krm/adopt.yaml`; the other shapes need the grants the design lists.
 
 Each takes `FIXTURES`, the directory of root modules relative to the
 repository (default `offramp/fixtures`).

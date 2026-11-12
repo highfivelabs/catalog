@@ -93,6 +93,21 @@ var commands = map[string]func(args []string) error{
 		fmt.Println("namePrefix: ok")
 		return nil
 	},
+	// nameprefix-sets CHART_DIR PREFIX: the --set arguments, one a line,
+	// that give the chart and each chart it depends on the namePrefix.
+	"nameprefix-sets": func(args []string) error {
+		if len(args) != 2 {
+			return fmt.Errorf("usage: catalogtool nameprefix-sets CHART_DIR PREFIX")
+		}
+		sets, err := nameprefix.Sets(args[0], args[1])
+		if err != nil {
+			return err
+		}
+		for _, s := range sets {
+			fmt.Println(s)
+		}
+		return nil
+	},
 	"ids": func(args []string) error {
 		var all []string
 		for _, dir := range args {

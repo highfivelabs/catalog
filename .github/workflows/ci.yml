@@ -57,13 +57,8 @@ jobs:
           key: tools-${{ runner.os }}-kubeconform-${{ env.KUBECONFORM_VERSION }}-actionlint-${{ env.ACTIONLINT_VERSION }}
       - name: Install kubeconform and actionlint
         if: steps.tools.outputs.cache-hit != 'true'
-        # kubeconform v0.8.0 needs a newer Go than tools/go.mod's; let go
-        # fetch the toolchain each tool asks for.
-        env:
-          GOTOOLCHAIN: auto
-        run: |
-          GOBIN="${HOME}/.local/hfl-tools" go install "github.com/yannh/kubeconform/cmd/kubeconform@${KUBECONFORM_VERSION}"
-          GOBIN="${HOME}/.local/hfl-tools" go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
+        # The script task ci:tools runs on a laptop, at these pins.
+        run: hack/ci/tools.sh kubeconform actionlint
       - run: echo "${HOME}/.local/hfl-tools" >> "${GITHUB_PATH}"
       # Config Connector's CRDs and the schemas made from them (hack/kcc.sh),
       # and the tracked modules' tarballs (hack/coverage), both at the pins.

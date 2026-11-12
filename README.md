@@ -42,6 +42,62 @@ and `tags` (cloud labels) that it puts on every object, so Bundt can supply
 names and identity labels from a team's naming convention
 (`docs/design.md`, "Names, labels and tags").
 
+## Run CI locally
+
+Every job in `.github/workflows/` is a `task` call; the steps around it
+only check out the code and install tools. The same commands run here:
+
+```sh
+task ci:tools       # task, helm, kubeconform, actionlint at ci.yml's pins
+                    # into ~/.local/hfl-tools; put that first on PATH
+                    # (shellcheck: your package manager, as the runner's image)
+task ci             # ci.yml's pull-request job (task check) at those pins
+task upstream-watch # upstream-watch.yml's daily job, read-only
+```
+
+`upstream-watch.yml` then runs `task upstream-watch:issue`, which writes
+this repository's tracking issue; run it by hand only to do that.
+
+## The merge gate
+
+GitHub Actions is off in the organization (2026-11-11); the
+workflows in `.github/workflows/` stay, disabled. `ci.yml`'s pull-request
+job runs before the push instead:
+
+```sh
+task hooks          # once per clone: core.hooksPath=hack/hooks
+task ci             # by hand: HEAD (or SHA=...)
+```
+
+`task ci` (`hack/ci/gate.sh`) checks the commit out into a temporary
+worktree and runs `task check` there, on this machine: it takes under a
+minute (an offload VM takes longer than that to boot), and the offload
+image lacks the linters it runs. It fails unless task and the tools
+`ci.yml` pins (`*_VERSION`) are installed at those versions and
+shellcheck is installed, and it runs Go at `ci.yml`'s `go-version-file`
+(`GOTOOLCHAIN`), so nothing is skipped as "not installed". It uploads the
+log to the offload bucket, prints its location (the bucket is private),
+and posts the commit status `offload/ci` (success or failure, what ran,
+in how long; no link and no environment identifiers, since the
+repository's statuses are public) on the commit. The pre-push
+hook (`hack/hooks/pre-push`) runs it for every branch commit pushed and
+refuses the push on a failure; a commit that already has `offload/ci`
+success is not run again.
+
+**Merge only when the `offload/ci` status on the pull request's head is
+success.** A new commit on the branch needs its own run.
+
+### Environment identifiers
+
+Project IDs, buckets and service accounts are not in the tree. Scripts read
+them from the environment and fail, naming the variable, when one is
+missing. Copy `.env.example` to `.env` (git-ignored; `Taskfile.yml` and
+`hack/ci/gate.sh` load it) and fill in: `OFFLOAD_PROJECT` and
+`OFFLOAD_BUCKET` for `task ci`; `GCP_PROJECT` (or the test estate's
+`HFL_GCP_TEST_PROJECT`), `GCP_LIVE_SA` and `OFFLOAD_BUCKET` for
+`task test-live`, which passes the project to the VM on the offload
+command line.
+
 <!-- coverage:start -->
 ## Coverage against the open-source modules
 

@@ -7,7 +7,7 @@ From the Terraform state `/work/offload-artifacts/offramp/shared-vpc-ofr-1110223
 | Component | Package | Source | Kind | Name | Resource ID | Note |
 | --- | --- | --- | --- | --- | --- | --- |
 | root | shared-vpc-root | `google_compute_subnetwork_iam_binding.gke_network_users` | IAMPartialPolicy | ofr-11102237-8371-gke-compute-networkuser-9a7b57 |  |  |
-| root | shared-vpc-root | `google_compute_subnetwork_iam_member.apps_network_users["serviceAccount:cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com"]` | IAMPolicyMember | ofr-11102237-8371-apps-compute-networkuser-42a401 |  |  |
+| root | shared-vpc-root | `google_compute_subnetwork_iam_member.apps_network_users["serviceAccount:cce-live-tests@${GCP_PROJECT}.iam.gserviceaccount.com"]` | IAMPolicyMember | ofr-11102237-8371-apps-compute-networkuser-42a401 |  |  |
 | network-firewall-policy | shared-vpc-network-firewall-policy | `module.network_firewall_policy.google_compute_network_firewall_policy.fw_policy[0]` | ComputeNetworkFirewallPolicy | ofr-11102237-8371-policy | ofr-11102237-8371-policy |  |
 | network-firewall-policy | shared-vpc-network-firewall-policy | `module.network_firewall_policy.google_compute_network_firewall_policy_association.vpc_associations["shared"]` | ComputeNetworkFirewallPolicyAssociation | ofr-11102237-8371-policy-ofr-11102237-8371-shared | ofr-11102237-8371-policy-ofr-11102237-8371-shared |  |
 | network-firewall-policy | shared-vpc-network-firewall-policy | `module.network_firewall_policy.google_compute_network_firewall_policy_rule.rules["1000"]` | ComputeNetworkFirewallPolicyRule | ofr-11102237-8371-policy-1000 | 1000 |  |

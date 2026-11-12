@@ -32,7 +32,8 @@ The module's variables, with the same names, types and defaults.
 | `name`, `prefix`, `project_id`, `location`, `storage_class`, `uniform_bucket_level_access`, `default_event_based_hold`, `requester_pays`, `public_access_prevention`, `versioning`, `autoclass`, `cors`, `custom_placement_config`, `encryption_key`, `logging_config`, `lifecycle_rules`, `retention_policy`, `soft_delete_retention`, `website`, `ip_filter` | the `StorageBucket`'s fields of the same meaning; the name is `<prefix>-<name>` lower-cased; `cors.max_age_seconds` is at least 3600, as fabric sets it |
 | `force_destroy` | the `cnrm.cloud.google.com/force-destroy` annotation: the bucket's objects are deleted with it |
 | `bucket_create: false` | no bucket: IAM, the notification and tag bindings go on the existing bucket `<prefix>-<name>` |
-| `iam`, `iam_by_principals`, `iam_bindings` | one `IAMPartialPolicy` on the bucket |
+| `iam`, `iam_by_principals` | one `IAMPartialPolicy` on the bucket |
+| `iam_bindings` | one `IAMBinding` each (exact per role; config-connector-extensions, `v1beta1`) |
 | `iam_bindings_additive` | one `IAMPolicyMember` each |
 | `notification_config` | a `StorageNotification`; with `create_topic` (the default) also the `PubSubTopic` and an `IAMPartialPolicy` granting `roles/pubsub.publisher` to `sa_email` |
 | `tag_bindings` | one `TagsLocationTagBinding` each |
@@ -65,7 +66,9 @@ not outputs.
 
 ## Differences from the module
 
-- Authoritative IAM is `IAMPartialPolicy` (`docs/design.md`, "IAM").
+- `iam` and `iam_by_principals` are `IAMPartialPolicy`, which keeps the
+  listed members but does not remove others; `iam_bindings` are exact, as
+  `IAMBinding` (`docs/design.md`, "IAM").
 - The notification can be created before the publisher grant is in
   place; Config Connector retries until it is.
 
@@ -81,11 +84,12 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=gcs`: six render cases, fourteen refusals.
+`task test CHART=gcs`: seven render cases, fourteen refusals.
 `tests/mock.values.yaml` is applied to the fake cloud.
 
 ## Changes
 
+- **0.4.0** (2026-11-10): `iam_bindings` render one exact `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`) by default (K5, K12), instead of bindings of the `IAMPartialPolicy`: members added to those roles out of band are now removed, as fabric removes them. Values that set `iam_bindings` render different objects (`docs/design.md`, "Versioning and the OCI layout").
 - **0.3.0** (2026-11-10): `names` (`names.bucket`, `names.topic`) sets cloud names in full;
   `labels` and `tags` go on every object; `namePrefix` is an optional
   convenience that never touches a name set in full. fabric's `labels` now label every object, not only the core resource.

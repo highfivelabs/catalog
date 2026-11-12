@@ -27,6 +27,11 @@ CRDS="$(hack/kcc.sh)"
 VERSION="$(basename "$(dirname "$(dirname "$(dirname "${CRDS}")")")" | sed 's/^kcc-//')"
 SCHEMAS="${ROOT}/.cache/schemas-${VERSION}"
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
+# config-connector-extensions kinds (IAMBinding) validate against the CRDs
+# copied in crds/config-connector-extensions.
+CCE_SCHEMAS="${ROOT}/.cache/schemas-cce"
+rm -rf "${CCE_SCHEMAS}"
+bin/catalogtool schemas crds/config-connector-extensions "${CCE_SCHEMAS}" >/dev/null
 if [[ -n "${UPDATE:-}" ]]; then (cd tools && UPDATE=1 go test ./convert >/dev/null); fi
 
 fail=0; passed=0
@@ -59,7 +64,8 @@ for dir in examples/*/; do
       if diff -u "${want}" "${got}" >/dev/null 2>&1; then ok; else bad "${name}: ${f}${suffix}.${ext} differs (UPDATE=1 to accept)"; diff -u "${want}" "${got}" | head -20 || true; fi
     done
     if [[ -s "${tmp}/rendered.yaml" ]]; then
-      if out="$(kubeconform -strict -summary -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" "${tmp}/rendered.yaml" 2>&1)"; then
+      if out="$(kubeconform -strict -summary -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+          -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" "${tmp}/rendered.yaml" 2>&1)"; then
         ok; echo "ok   ${name}${suffix}: ${out#Summary: }"
       else
         bad "${name}${suffix}: kubeconform"; echo "${out}"

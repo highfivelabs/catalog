@@ -19,7 +19,7 @@
 #
 # The network is Cloud Foundation Fabric's because the catalog's network
 # chart ports fabric's net-vpc; the firewall modules are
-# terraform-google-modules', the family the builder uses.
+# terraform-google-modules', the family in use.
 #
 # Shared VPC host enablement (`shared_vpc_host = true`) needs
 # roles/compute.xpnAdmin on the folder or organization, which the live-test

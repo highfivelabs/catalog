@@ -15,7 +15,7 @@
 #
 # The network is Cloud Foundation Fabric's because the catalog's network
 # chart ports fabric's net-vpc; the cluster is terraform-google-modules',
-# the family the builder uses.
+# the family in use.
 #
 # Needs roles/container.admin on the project and the Container API
 # enabled; with create_service_account (the module's default) also

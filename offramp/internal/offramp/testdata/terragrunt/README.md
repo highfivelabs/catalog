@@ -4,9 +4,9 @@ The states of the units of `offramp/fixtures-terragrunt`, by unit path,
 and what Terragrunt itself made of three units.
 
 - `network/<unit>/terraform.tfstate`: the live run ofr-11110114-2801's state
-  (`../live/shared-vpc-modules/`, a real `terraform apply` in
-  hfl-dev-514205), split by module call and re-rooted: the resources of
-  `module.vpc` are the `network/vpc` unit's, with the `module.vpc.` prefix
+  (`../live/shared-vpc-modules/`, a real `terraform apply` in the
+  live-test project, recorded as `my-dev-project`), split by module call
+  and re-rooted: the resources of `module.vpc` are the `network/vpc` unit's, with the `module.vpc.` prefix
   removed from their addresses and their dependencies. That is what
   Terraform records when the module is the root of a unit's state, as it
   is under Terragrunt. Dependencies on another call's resources are dropped:

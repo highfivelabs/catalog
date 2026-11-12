@@ -108,7 +108,7 @@ func TestTerragruntMatchesRenderJSON(t *testing.T) {
 			}
 		}
 	}
-	if loc := byRel["network/vpc"].RemoteState.Location; loc != "gs://hfl-dev-514205-tfstate/network/vpc/default.tfstate" {
+	if loc := byRel["network/vpc"].RemoteState.Location; loc != "gs://my-dev-project-tfstate/network/vpc/default.tfstate" {
 		t.Errorf("network/vpc's state is at %q", loc)
 	}
 	var gens []string

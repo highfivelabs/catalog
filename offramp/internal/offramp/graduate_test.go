@@ -42,7 +42,7 @@ type equivalenceCase struct {
 
 var equivalenceCases = []equivalenceCase{
 	{
-		// A real state: the live run ofr-11110114-2801 in hfl-dev-514205.
+		// A real state: the live run ofr-11110114-2801 in the live-test project.
 		shape: "shared-vpc", state: "testdata/live/shared-vpc-modules/terraform.tfstate", tfvars: "testdata/live/shared-vpc-modules/terraform.tfvars",
 		graduate: []string{"firewall_rules", "network_firewall_policy", "vpc"},
 	},
