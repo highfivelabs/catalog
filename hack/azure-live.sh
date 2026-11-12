@@ -270,7 +270,8 @@ diagnostic_settings:
   self: {log_groups: [audit], metric_categories: []}
 EOF
 # A Basic registry (the cheapest; no zone redundancy below Premium) with a
-# cache rule for a public image. Its name is letters and digits.
+# cache rule for an anonymous MCR image (Docker Hub needs credentials). Its
+# name is letters and digits.
 cat >"${WORK}/acr.yaml" <<EOF
 name: ${RUN}acr
 location: ${LOCATION}
@@ -279,7 +280,7 @@ sku: Basic
 zone_redundancy_enabled: false
 tags: {catalog-run: ${RUN}}
 cache_rules:
-  hub: {name: dockerhub-busybox, source_repository: docker.io/library/busybox, target_repository: cache/busybox}
+  mcr: {name: mcr-busybox, source_repository: mcr.microsoft.com/azurelinux/busybox, target_repository: cache/busybox}
 EOF
 summary="${OUT}/summary.md"
 {
