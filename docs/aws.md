@@ -662,6 +662,19 @@ vpc) passed: 29 objects synced in moto, every Package's outputs evaluated,
 every object deleted (offload VM `off-catalog-1112191931-32354`,
 2026-11-12, 12 minutes after a 9-minute setup).
 
+`upstream/aws-kinds.yaml` classifies every resource type of the tracked
+modules (321), taking the types it did not list from ack-extensions'
+`docs/catalog-aws-types.csv` at `74d322f` (2026-11-12): 1,378 kinds, Cloud
+Control's among them (`*.cloudcontrol.aws.hfl.dev`, class extensions).
+Where the two disagree the catalog's entry stays, for these reasons:
+`aws_default_vpc`, `aws_default_security_group`, `aws_default_network_acl`
+and `aws_default_route_table` (no kind adopts a VPC's default object by
+its VPC), `aws_kms_external_key` (nothing imports the key material) and
+`aws_s3_bucket_metadata_configuration` (ACK's `Bucket` has no metadata
+field at s3-controller v1.15.0). Every module is now classified: with
+every type stable a module without a chart is "not started" (8), with any
+type ack-extensions-only or uncovered "blocked" (26).
+
 Gaps the charts found, for ack-extensions (beyond section 5):
 
 | Gap | Needed by | Shape |
