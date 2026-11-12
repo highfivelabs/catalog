@@ -1,0 +1,32 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/vpc-sc/iam.tf (v60.0.0),
+Copyright 2023 Google LLC, Apache-2.0.
+
+IAM on the access policy (the chart's, or access_policy's, by its name
+accessPolicies/<number>): iam (google_access_context_manager_access_policy_iam_binding.authoritative)
+and iam_bindings (.bindings) as one IAMPartialPolicy, since IAMBinding does
+not take this kind; iam_bindings_additive
+(google_access_context_manager_access_policy_iam_member.bindings) one
+IAMPolicyMember each (docs/design.md, "IAM"). Config Connector's IAM on this
+kind takes no conditions.
+*/ -}}
+{{- $v := .Values }}
+{{- range $k, $b := ($v.iam_bindings | default dict) }}
+{{- include "kcc.unsupported" (list $ (printf "iam_bindings.%s.condition" $k) $b.condition "Config Connector's IAM on AccessContextManagerAccessPolicy takes no conditions") }}
+{{- range $m := $b.members }}{{ include "vpcsc.context" (list $ (printf "iam_bindings.%s.members" $k) $m) }}{{ end }}
+{{- end }}
+{{- range $k, $b := ($v.iam_bindings_additive | default dict) }}
+{{- include "kcc.unsupported" (list $ (printf "iam_bindings_additive.%s.condition" $k) $b.condition "Config Connector's IAM on AccessContextManagerAccessPolicy takes no conditions") }}
+{{- include "vpcsc.context" (list $ (printf "iam_bindings_additive.%s.member" $k) $b.member) }}
+{{- end }}
+{{- if or $v.iam $v.iam_bindings $v.iam_bindings_additive }}
+{{- $ref := dict "apiVersion" "accesscontextmanager.cnrm.cloud.google.com/v1beta1" "kind" "AccessContextManagerAccessPolicy" }}
+{{- if $v.access_policy_create }}
+{{- $_ := set $ref "name" .Release.Name }}
+{{- else }}
+{{- $_ := set $ref "external" (include "vpcsc.policyRef" . | trimPrefix "external: " | trimAll "\"") }}
+{{- end }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" $ref "v" (dict "iam" $v.iam "iam_bindings" $v.iam_bindings "iam_bindings_additive" $v.iam_bindings_additive)) }}
+{{- end }}

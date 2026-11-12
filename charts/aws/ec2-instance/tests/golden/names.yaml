@@ -1,0 +1,73 @@
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: names-iam-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "iam-role"
+spec:
+  name: "shop-dev-euw1-web"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ec2.amazonaws.com\"]},\"Sid\":\"EC2AssumeRole\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "team"
+      value: "shop"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Instance
+metadata:
+  name: names-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  imageID: "ami-0123456789abcdef0"
+  instanceType: "t3.micro"
+  minCount: 1
+  maxCount: 1
+  subnetID: "subnet-0123456789abcdef0"
+  iamInstanceProfile:
+    name: "shop-dev-euw1-web"
+  metadataOptions:
+    httpEndpoint: "enabled"
+    httpPutResponseHopLimit: 1
+    httpTokens: "required"
+  tags:
+    - key: "Name"
+      value: "shop-web"
+    - key: "team"
+      value: "shop"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+  name: names-instance-profile
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "iam-instance-profile"
+spec:
+  name: "shop-dev-euw1-web"
+  roleRef:
+    from:
+      name: names-iam-role
+  tags:
+    - key: "team"
+      value: "shop"

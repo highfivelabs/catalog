@@ -25,6 +25,11 @@ vars:
   # terraform-offramp-demo repository's layout).
   FIXTURES: '{{.FIXTURES | default "offramp/fixtures"}}'
   CCE_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
+  # ack-extensions at this commit supplies the fake AWS (moto), its
+  # no-real-AWS guard and its kinds for the AWS charts' fake-AWS runs; the
+  # CRDs in crds/ack-extensions are copied from the same commit.
+  ACKX_COMMIT: 52556a276e902db1c835e2f7cd3b3d034f0465e8
+  ACKX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/ackx-{{.ACKX_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:
@@ -169,6 +174,22 @@ tasks:
     deps: [test, cce-snapshot]
     cmds:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply.sh'
+
+  ackx-snapshot:
+    desc: Upload ack-extensions at ACKX_COMMIT for the AWS charts' fake-AWS runs
+    preconditions:
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
+    status:
+      - gcloud storage ls {{.ACKX_TARBALL}}
+    cmds:
+      - git -C ../ack-extensions archive --format=tar.gz {{.ACKX_COMMIT}} | gcloud storage cp --quiet - {{.ACKX_TARBALL}}
+
+  test-mock-aws:
+    desc: Apply each AWS chart's tests/mock.values.yaml to the fake AWS (the pinned ACK controllers and ack-extensions against moto, on kind) on an offload VM (MOCK_CHARTS="vpc kms" for some)
+    deps: [test, ackx-snapshot]
+    cmds:
+      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env ACKX_TARBALL={{.ACKX_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply-aws.sh'
 
   offramp-test:
     desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/), the equivalence of each fixture's module calls with their charts included (FIXTURES=dir of root modules, default offramp/fixtures)
