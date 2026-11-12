@@ -1,0 +1,40 @@
+# Every input of a public NAT on a router the chart makes: manual
+# addresses, a subnetwork list, timeouts, logging, port allocation and
+# rules (placeholder project, network, addresses and subnets).
+project_id: my-project
+region: europe-west8
+name: nat
+router_name: my-router
+router_network: projects/my-project/global/networks/my-vpc
+router_asn: 64514
+addresses:
+  - projects/my-project/regions/europe-west8/addresses/nat-1
+  - projects/my-project/regions/europe-west8/addresses/nat-2
+endpoint_types: [ENDPOINT_TYPE_VM, ENDPOINT_TYPE_SWG]
+logging_filter: ERRORS_ONLY
+config_timeouts: {icmp: 30, tcp_established: 1200, tcp_time_wait: 120, tcp_transitory: 30, udp: 30}
+config_port_allocation:
+  enable_endpoint_independent_mapping: false
+  enable_dynamic_port_allocation: true
+  min_ports_per_vm: 64
+  max_ports_per_vm: 4096
+config_source_subnetworks:
+  all: false
+  subnetworks:
+    - self_link: projects/my-project/regions/europe-west8/subnetworks/apps
+    - self_link: projects/my-project/regions/europe-west8/subnetworks/gke
+      all_ranges: false
+      primary_range: true
+      secondary_ranges: [pods]
+    - self_link: projects/my-project/regions/europe-west8/subnetworks/data
+      all_ranges: false
+      primary_range: true
+rules:
+  - description: to the partner
+    match: inIpRange(destination.ip, '1.1.0.0/16')
+    source_ips: [projects/my-project/regions/europe-west8/addresses/nat-2]
+  - rule_number: 100
+    match: destination.ip == '8.8.8.8'
+    source_ips: [projects/my-project/regions/europe-west8/addresses/nat-1]
+deletion_policy: ABANDON
+labels: {hfl.dev/team: platform}
