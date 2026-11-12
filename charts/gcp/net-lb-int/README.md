@@ -41,7 +41,7 @@ The module's variables, with the same names, types and defaults.
 | `backends` | the backend service's `backend` entries (`CONNECTION` balancing); a `group` that is a key of `group_configs` refers to the chart's group, any other is an instance group's id or self link |
 | `forwarding_rules_config` | one `ComputeForwardingRule` per key (`INTERNAL`): address (an IP, else an address reference), IP version when no address, protocol, ports or all ports, global access |
 | `group_configs` | one unmanaged `ComputeInstanceGroup` per key, with its instances and named ports |
-| `health_check`, `health_check_config` | an existing health check, or the `ComputeHealthCheck` the chart makes (global, or regional with `is_regional`), with one of its six check types; fabric's one-type check |
+| `health_check`, `health_check_config` | an existing health check, or the `ComputeHealthCheck` the chart makes (global, or regional with `is_regional`), with one of its six check types; fabric's one-type check. Helm merges a values file's `health_check_config` into the default (`tcp` on the serving port) where Terraform replaces it, so a type set beside the untouched default drops the default |
 | `service_attachments` | one `ComputeServiceAttachment` per key that is a forwarding rule's, named as the forwarding rule fabric derives, with `description`. Refused: `domain_name` and `reconcile_connections` (no such fields) |
 | `service_label` | the forwarding rules' `serviceLabel` |
 | `description` | the service attachments' description, as in fabric |
@@ -83,6 +83,13 @@ with every other module the catalog tracks. To take a newer release, see
 `task test CHART=net-lb-int`: render cases `basic`, `full`, `external-hc`
 and `names`, each validated against Config Connector v1.160.0's CRD
 schemas, and the refusals in `tests/*.fail.yaml`.
+
+Fake cloud (`task test-mock MOCK_CHARTS=net-lb-int`, 2026-11-12): an empty
+group the chart makes, the default health check, a forwarding rule on port
+80 and its PSC service attachment, on a network and subnets from
+`tests/mock.needs.yaml`: every object Ready, the outputs evaluated, every
+object deleted. mockgcp does not write the forwarding rule's allocated
+address back, so `forwarding_rule_addresses` was null there.
 
 ## Changes
 
