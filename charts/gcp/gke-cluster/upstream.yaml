@@ -1,0 +1,183 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+#
+# The chart also carries the inputs of the module's sibling variants, every
+# one a subset of beta-private-cluster's: the root module, private-cluster,
+# beta-public-cluster and the *-update-variant modules (same inputs; they
+# differ only in how Terraform replaces node pools), and, with mode:
+# autopilot, beta-autopilot-private-cluster and beta-autopilot-public-cluster,
+# whose two extra inputs (allow_net_admin, default_compute_class_enabled) are
+# values here too (README.md, "Variants").
+module: gcp/kubernetes-engine-beta-private-cluster
+repo: https://github.com/terraform-google-modules/terraform-google-kubernetes-engine
+path: modules/beta-private-cluster
+version: v47.0.0
+commit: a19597ac18ad833d224448e2954df93095b8ce9d
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster
+registry_url: https://registry.terraform.io/modules/terraform-google-modules/kubernetes-engine/google
+synced: 2026-11-10
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: add_cluster_firewall_rules
+    kind: not-ported
+    reason: "the module's firewall rules take the subnetwork's and pod ranges' CIDRs from data sources, which a chart cannot read; ComputeFirewall can carry them once the ranges are inputs"
+  - variable: add_master_webhook_firewall_rules
+    kind: not-ported
+    reason: "as add_cluster_firewall_rules"
+  - variable: add_shadow_firewall_rules
+    kind: not-ported
+    reason: "as add_cluster_firewall_rules"
+  - variable: additive_vpc_scope_dns_domain
+    kind: gap
+    reason: "ContainerCluster's dnsConfig has no additiveVpcScopeDnsDomain"
+  - variable: agent_sandbox_enabled
+    kind: gap
+    reason: "ContainerCluster's addonsConfig has no agentSandboxConfig"
+  - variable: anonymous_authentication_config_mode
+    kind: gap
+    reason: "ContainerCluster has no anonymousAuthenticationConfig"
+  - variable: cluster_autoscaling
+    kind: gap
+    reason: "accepted; disk_type other than pd-standard is refused (autoProvisioningDefaults has no diskType, so pd-standard is not sent either and GKE's default applies)"
+    partial: true
+    fields: [disk_type]
+  - variable: configure_ip_masq
+    kind: by-design
+    reason: "the module writes the ip-masq-agent ConfigMap into the cluster through the kubernetes provider; with Bundt that is a component delivered to the cluster as a Target"
+  - variable: deletion_protection
+    kind: by-design
+    reason: "accepted and has no effect: it is Terraform's own guard against destroy, and Config Connector has none; deletion_policy: ABANDON keeps the cluster, and a Bundt policy can block deleting it"
+    partial: true
+  - variable: enable_legacy_lustre_port
+    kind: gap
+    reason: "ContainerCluster's addonsConfig has no lustreCsiDriverConfig"
+  - variable: enable_managed_machine_learning_diagnostics
+    kind: gap
+    reason: "ContainerCluster has no managedMachineLearningDiagnosticsConfig"
+  - variable: enable_secret_manager_addon
+    kind: gap
+    reason: "ContainerCluster has no secretManagerConfig"
+  - variable: enable_secret_sync
+    kind: gap
+    reason: "ContainerCluster has no secretSyncConfig"
+  - variable: enterprise_config
+    kind: gap
+    reason: "ContainerCluster has no enterpriseConfig"
+  - variable: firewall_inbound_ports
+    kind: not-ported
+    reason: "only used by the firewall rules, which are not ported"
+    partial: true
+  - variable: firewall_priority
+    kind: not-ported
+    reason: "only used by the firewall rules, which are not ported"
+    partial: true
+  - variable: fleet_project
+    kind: gap
+    reason: "ContainerCluster has no fleet; GKEHubMembership is Config Connector's way to register a cluster, not ported"
+  - variable: fleet_project_grant_service_agent
+    kind: not-ported
+    reason: "grants the fleet project's GKE Hub service agent roles, for fleet_project, which is a gap"
+  - variable: gke_auto_upgrade_config_patch_mode
+    kind: gap
+    reason: "ContainerCluster has no gkeAutoUpgradeConfig"
+  - variable: hpa_profile
+    kind: gap
+    reason: "ContainerCluster has no podAutoscaling"
+  - variable: insecure_kubelet_readonly_port_enabled
+    kind: gap
+    reason: "neither nodePoolDefaults, nodePoolAutoConfig nor a node pool's kubeletConfig has insecureKubeletReadonlyPortEnabled"
+  - variable: ip_masq_link_local
+    kind: by-design
+    reason: "as configure_ip_masq"
+  - variable: ip_masq_resync_interval
+    kind: by-design
+    reason: "only used with configure_ip_masq, which Bundt does as an in-cluster component"
+    partial: true
+  - variable: lustre_csi_driver
+    kind: gap
+    reason: "ContainerCluster's addonsConfig has no lustreCsiDriverConfig"
+  - variable: monitoring_auto_monitoring_config_scope
+    kind: gap
+    reason: "accepted at NONE (the default); ALL is refused: managedPrometheus has no autoMonitoringConfig"
+    partial: true
+    values: [ALL]
+  - variable: monitoring_enable_observability_relay
+    kind: gap
+    reason: "ContainerCluster has only the deprecated relayMode, not enableRelay"
+  - variable: network_tier_config
+    kind: gap
+    reason: "ContainerCluster's ipAllocationPolicy has no networkTierConfig"
+  - variable: node_pools
+    kind: gap
+    reason: "accepted; these keys of a pool are refused, having no ContainerNodePool field: total_egress_bandwidth_tier, respect_pdb_during_node_pool_deletion, enable_confidential_storage, provisioned_iops, provisioned_throughput, secondary_boot_disk, secondary_boot_disk_mode, performance_monitoring_unit, insecure_kubelet_readonly_port_enabled, container_log_max_size, container_log_max_files, allowed_unsafe_sysctls, shutdown_grace_period_seconds, shutdown_grace_period_critical_pods_seconds, single_process_oom_kill, storage_pools, local_ssd_encryption_mode, max_run_duration, flex_start"
+    partial: true
+    fields: [total_egress_bandwidth_tier, respect_pdb_during_node_pool_deletion, enable_confidential_storage, provisioned_iops, provisioned_throughput, secondary_boot_disk, secondary_boot_disk_mode, performance_monitoring_unit, insecure_kubelet_readonly_port_enabled, container_log_max_size, container_log_max_files, allowed_unsafe_sysctls, shutdown_grace_period_seconds, shutdown_grace_period_critical_pods_seconds, single_process_oom_kill, storage_pools, local_ssd_encryption_mode, max_run_duration, flex_start]
+  - variable: node_pools_cgroup_mode
+    kind: gap
+    reason: "accepted for node pools; refused for Autopilot and auto-provisioned nodes (nodePoolAutoConfig has no linuxNodeConfig)"
+    partial: true
+  - variable: node_pools_hugepage_size_1g
+    kind: gap
+    reason: "nodeConfig's linuxNodeConfig has no hugepagesConfig"
+    partial: true
+  - variable: node_pools_hugepage_size_2m
+    kind: gap
+    reason: "nodeConfig's linuxNodeConfig has no hugepagesConfig"
+    partial: true
+  - variable: node_pools_transparent_hugepage_defrag
+    kind: gap
+    reason: "nodeConfig's linuxNodeConfig has no transparentHugepageDefrag"
+    partial: true
+  - variable: node_pools_transparent_hugepage_enabled
+    kind: gap
+    reason: "nodeConfig's linuxNodeConfig has no transparentHugepageEnabled"
+    partial: true
+  - variable: non_masquerade_cidrs
+    kind: by-design
+    reason: "only used with configure_ip_masq, which Bundt does as an in-cluster component"
+    partial: true
+  - variable: ray_operator_config
+    kind: gap
+    reason: "ContainerCluster's addonsConfig has no rayOperatorConfig"
+  - variable: rbac_binding_config
+    kind: gap
+    reason: "ContainerCluster has no rbacBindingConfig"
+  - variable: shadow_firewall_rules_log_config
+    kind: not-ported
+    reason: "only used by the firewall rules, which are not ported"
+    partial: true
+  - variable: shadow_firewall_rules_priority
+    kind: not-ported
+    reason: "only used by the firewall rules, which are not ported"
+    partial: true
+  - variable: stateful_ha
+    kind: gap
+    reason: "ContainerCluster's addonsConfig has no statefulHaConfig"
+  - variable: stub_domains
+    kind: by-design
+    reason: "the module writes the kube-dns ConfigMap into the cluster through the kubernetes provider; with Bundt that is a component delivered to the cluster as a Target"
+  - variable: timeouts
+    kind: by-design
+    reason: "Config Connector has no per-resource timeouts; it retries until the cluster is ready"
+  - variable: total_egress_bandwidth_tier
+    kind: gap
+    reason: "ContainerCluster has no networkPerformanceConfig"
+  - variable: upstream_nameservers
+    kind: by-design
+    reason: "as stub_domains"
+  - variable: user_managed_keys_config
+    kind: gap
+    reason: "ContainerCluster has no userManagedKeysConfig"

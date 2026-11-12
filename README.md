@@ -14,7 +14,7 @@ its outputs.
 | `docs/migrating-from-terraform.md`, `examples/` | moving a Terraform module call to the catalog: the mapping, `catalogtool convert` (`task convert`), a worked example for each chart with its plan, and adopting resources that already exist |
 | `docs/upstream-status.md`, `.github/workflows/upstream-watch.yml` | which tracked modules have a newer release than their pin, and what changed (`task upstream-watch`); a daily workflow keeps one tracking issue; `task upstream-bump` records a release as taken |
 | `charts/gcp/<module>/` | one chart per ported module, with its Bundt Package (`package.yaml`), README and tests |
-| `upstream/modules.yaml` | every open-source Terraform module the catalog tracks (91 fabric modules, 40 terraform-aws-modules, 37 Azure Verified Modules): repository, path, pinned release and commit, licence, registry and module pages, and the chart that ports it |
+| `upstream/modules.yaml` | every open-source Terraform module the catalog tracks (91 fabric modules, terraform-google-modules' kubernetes-engine beta-private-cluster, 40 terraform-aws-modules, 37 Azure Verified Modules): repository, path, pinned release and commit, licence, registry and module pages, and the chart that ports it |
 | `charts/<cloud>/<chart>/upstream.yaml` | where one chart came from: the module, release, commit, licence and date synced |
 | `lib/_kcc.tpl` | helpers every chart carries a copy of (`hack/sync-lib.sh`) |
 | `tools/catalogtool` | Config Connector CRDs to kubeconform schemas; Package checks; outputs evaluated against live objects |
@@ -31,10 +31,12 @@ task test-update CHART=gcs   # accept a chart's new renders
 task check                   # what CI runs: gofmt, vet, Go tests, task test, examples, coverage current, shellcheck, actionlint
 ```
 
-Charts: `iam-service-account`, `gcs`, `net-vpc`, `project` (partial). Every
-chart links to the open-source module it ports and records the release it
-was ported from (`upstream.yaml`), so changes upstream are easy to find and
-pull in. Every chart takes whole cloud names (`names.<resource>`; a name not
+Charts: `iam-service-account`, `gcs`, `net-vpc`, `project` (partial), and
+`gke-cluster` (partial), a GKE cluster in Standard or Autopilot mode ported
+from terraform-google-modules' kubernetes-engine `beta-private-cluster` and
+its Autopilot twin. Every chart links to the open-source module it ports
+and records the release it was ported from (`upstream.yaml`), so changes
+upstream are easy to find and pull in. Every chart takes whole cloud names (`names.<resource>`; a name not
 set derives from `name`), an optional `namePrefix`, and `labels` (Kubernetes)
 and `tags` (cloud labels) that it puts on every object, so Bundt can supply
 names and identity labels from a team's naming convention
@@ -101,18 +103,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**168 modules tracked**: 0 ported, 4 partial, 62 blocked, 102 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**169 modules tracked**: 0 ported, 5 partial, 62 blocked, 102 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric | 91 | ![gcp](docs/coverage/gcp.svg) | 99 of 1277 (7.8%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 92 | ![gcp](docs/coverage/gcp.svg) | 232 of 1439 (16.1%) |
 | AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 0 of 2310 (0.0%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 0 of 1170 (0.0%) |
-| **All** | **168** | | **99 of 4757 (2.1%)** |
+| **All** | **169** | | **232 of 4919 (4.7%)** |
 
-### Google Cloud: Cloud Foundation Fabric
+### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-0 ported, 4 partial, 62 blocked, 25 not started.
+0 ported, 5 partial, 62 blocked, 25 not started.
 
 **Ported and partial**
 
@@ -122,6 +124,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account) ([chart](charts/gcp/iam-service-account)) | ![iam-service-account](docs/coverage/bars/gcp-iam-service-account.svg) 24 of 28 | 5 of 6 | 9 of 9 | partial |
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`gcs`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcs) ([chart](charts/gcp/gcs)) | ![gcs](docs/coverage/bars/gcp-gcs.svg) 30 of 36 | 5 of 7 | 8 of 12 | partial |
+| [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 133 of 162 | 30 of 36 | 0 of 0 | partial |
 
 **Blocked: a resource type has no stable kind (first 10 of 62, by rank)**
 
