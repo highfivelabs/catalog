@@ -1,0 +1,103 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-virtualnetwork main.subnet.tf,
+modules/subnet/main.tf, ipam.tf and locals.tf (v0.23.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+module.subnet (azapi_resource.subnet or subnet_ipam,
+Microsoft.Network/virtualNetworks/subnets): one ASO VirtualNetworksSubnet
+per entry, owned by the network; its role_assignments, one ASO
+RoleAssignment each, owned by the subnet. The body is the module's,
+property for property.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $vnet := include "aso.name" (list .Release.Name "vnet") }}
+{{- range $key, $s := $v.subnets }}
+{{- include "aso.unsupported" (list $ (printf "subnets.%s.ignore_body_changes" $key) $s.ignore_body_changes "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
+{{- include "aso.unsupported" (list $ (printf "subnets.%s.retry" $key) $s.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ (printf "subnets.%s.timeouts" $key) $s.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- if $s.service_endpoints_with_location }}
+{{- fail "avm-res-network-virtualnetwork: `service_endpoints_with_location` has been removed. Use `service_endpoints` with a set of service names instead, for example `service_endpoints = [\"Microsoft.Storage\"]`. Locations are no longer configurable because Azure expands service-endpoint locations implicitly, which caused perpetual drift." }}
+{{- end }}
+{{- $ipam := not (kindIs "invalid" $s.ipam_pools) }}
+{{- if not (or $ipam (not (kindIs "invalid" $s.address_prefix)) (not (kindIs "invalid" $s.address_prefixes))) }}
+{{- fail "avm-res-network-virtualnetwork: Each subnet must specify one of: ipam_pools (for IPAM allocation), address_prefix, or address_prefixes." }}
+{{- end }}
+{{- if ternary (or (not (kindIs "invalid" $s.address_prefix)) (not (kindIs "invalid" $s.address_prefixes))) (eq (kindIs "invalid" $s.address_prefix) (kindIs "invalid" $s.address_prefixes)) $ipam }}
+{{- fail "avm-res-network-virtualnetwork: IPAM subnets should only specify ipam_pools. Non-IPAM subnets must specify exactly one of: address_prefix or address_prefixes." }}
+{{- end }}
+{{- $obj := include "aso.name" (list $.Release.Name "subnet" $key) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "subnet:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $s.name | quote }}
+  owner:
+    name: {{ $vnet }}
+  {{- if $ipam }}
+  ipamPoolPrefixAllocations:
+    {{- range $p := $s.ipam_pools }}
+    - numberOfIpAddresses: {{ ternary (ternary (include "vnet.pow2" (sub 32 (int ($p.prefix_length | default 0)))) "0" (le (int ($p.prefix_length | default 0)) 32)) $p.number_of_ip_addresses (kindIs "invalid" $p.number_of_ip_addresses) | quote }}
+      reference:
+        armId: {{ $p.pool_id | quote }}
+    {{- end }}
+  {{- else }}
+  {{- with $s.address_prefix }}
+  addressPrefix: {{ . | quote }}
+  {{- end }}
+  {{- with $s.address_prefixes }}
+  addressPrefixes:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- with $s.delegations }}
+  delegations:
+    {{- range . }}
+    - name: {{ .name | quote }}
+      serviceName: {{ .service_delegation.name | quote }}
+    {{- end }}
+  {{- end }}
+  defaultOutboundAccess: {{ eq $s.default_outbound_access_enabled true }}
+  {{- with $s.nat_gateway }}
+  natGateway:
+    reference:
+      armId: {{ .id | quote }}
+  {{- end }}
+  {{- with $s.network_security_group }}
+  networkSecurityGroup:
+    reference:
+      armId: {{ .id | quote }}
+  {{- end }}
+  privateLinkServiceNetworkPolicies: {{ ternary "Disabled" "Enabled" (eq $s.private_link_service_network_policies_enabled false) }}
+  {{- if ne $s.private_endpoint_network_policies_enabled false }}
+  privateEndpointNetworkPolicies: {{ $s.private_endpoint_network_policies | default "Enabled" | quote }}
+  {{- end }}
+  {{- with $s.route_table }}
+  routeTable:
+    reference:
+      armId: {{ .id | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $s.service_endpoints) }}
+  serviceEndpoints:
+    {{- range (uniq $s.service_endpoints | sortAlpha) }}
+    - service: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $s.service_endpoint_policies) }}
+  serviceEndpointPolicies:
+    {{- range $_, $p := $s.service_endpoint_policies }}
+    - reference:
+        armId: {{ $p.id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $s.sharing_scope }}
+  sharingScope: {{ . | quote }}
+  {{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "subnet:%s/" $key) "owner" (dict "group" "network.azure.com" "kind" "VirtualNetworksSubnet" "name" $obj) "v" $s.role_assignments) }}
+{{- end }}

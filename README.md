@@ -48,7 +48,11 @@ or VPN gateway yet), a VPC with its subnets, route tables, gateways,
 network ACLs and subnet groups, and `security-group` (partial: rules
 without per-rule tags). On Azure, ported
 from Azure Verified Modules to Azure Service Operator objects:
-`avm-res-resources-resourcegroup` (partial). Every chart links to
+`avm-res-resources-resourcegroup` (partial) and
+`avm-res-network-virtualnetwork` (partial: subnets, peerings) and
+`avm-res-storage-storageaccount` (partial: the account, containers, queues,
+tables and shares) and `avm-res-keyvault-vault` (partial: the vault and its keys;
+no secrets yet). Every chart links to
 the open-source module it ports
 and records the release it was ported from (`upstream.yaml`), so changes
 upstream are easy to find and pull in. Every chart takes whole cloud names (`names.<resource>`; a name not
@@ -120,18 +124,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**175 modules tracked**: 2 ported, 15 partial, 63 blocked, 95 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**175 modules tracked**: 2 ported, 19 partial, 63 blocked, 91 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 318 of 1478 (21.5%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 333 of 1478 (22.5%) |
 | AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 119 of 2310 (5.2%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 7 of 1170 (0.6%) |
-| **All** | **175** | | **444 of 4958 (9.0%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 99 of 1170 (8.5%) |
+| **All** | **175** | | **551 of 4958 (11.1%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-2 ported, 12 partial, 61 blocked, 23 not started.
+2 ported, 13 partial, 61 blocked, 22 not started.
 
 **Ported and partial**
 
@@ -142,6 +146,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`net-cloudnat`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloudnat) ([chart](charts/gcp/net-cloudnat)) | ![net-cloudnat](docs/coverage/bars/gcp-net-cloudnat.svg) 15 of 16 | 5 of 6 | 2 of 2 | partial |
 | [`gcs`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcs) ([chart](charts/gcp/gcs)) | ![gcs](docs/coverage/bars/gcp-gcs.svg) 30 of 36 | 5 of 7 | 8 of 12 | partial |
+| [`artifact-registry`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/artifact-registry) ([chart](charts/gcp/artifact-registry)) | ![artifact-registry](docs/coverage/bars/gcp-artifact-registry.svg) 15 of 17 | 3 of 4 | 4 of 4 | partial |
 | [`secret-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secret-manager) ([chart](charts/gcp/secret-manager)) | ![secret-manager](docs/coverage/bars/gcp-secret-manager.svg) 3 of 4 | 1 of 5 | 6 of 10 | partial |
 | [`cloudsql-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance) ([chart](charts/gcp/cloudsql-instance)) | ![cloudsql-instance](docs/coverage/bars/gcp-cloudsql-instance.svg) 31 of 35 | 14 of 17 | 4 of 4 | partial |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 133 of 162 | 30 of 36 | 0 of 0 | partial |
@@ -167,20 +172,20 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 0 of 13 | 0 of 1 | 6 of 11 | blocked |
 | [`project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory) | ![project-factory](docs/coverage/bars/gcp-project-factory.svg) 0 of 8 | 0 of 16 | 0 of 1 | blocked |
 
-**Not started (first 10 of 23, by rank)**
+**Not started (first 10 of 22, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`net-vpc-firewall`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-firewall) | ![net-vpc-firewall](docs/coverage/bars/gcp-net-vpc-firewall.svg) 0 of 8 | 0 of 2 | 1 of 1 | not started |
 | [`dns`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dns) | ![dns](docs/coverage/bars/gcp-dns.svg) 0 of 9 | 0 of 6 | 3 of 3 | not started |
 | [`kms`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/kms) | ![kms](docs/coverage/bars/gcp-kms.svg) 0 of 10 | 0 of 7 | 8 of 8 | not started |
-| [`artifact-registry`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/artifact-registry) | ![artifact-registry](docs/coverage/bars/gcp-artifact-registry.svg) 0 of 17 | 0 of 4 | 4 of 4 | not started |
 | [`gke-nodepool`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool) | ![gke-nodepool](docs/coverage/bars/gcp-gke-nodepool.svg) 0 of 20 | 0 of 4 | 2 of 2 | not started |
 | [`pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub) | ![pubsub](docs/coverage/bars/gcp-pubsub.svg) 0 of 14 | 0 of 6 | 7 of 7 | not started |
 | [`vpc-sc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/vpc-sc) | ![vpc-sc](docs/coverage/bars/gcp-vpc-sc.svg) 0 of 12 | 0 of 6 | 5 of 5 | not started |
 | [`net-vpc-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-factory) | ![net-vpc-factory](docs/coverage/bars/gcp-net-vpc-factory.svg) 0 of 4 | 0 of 3 | 0 of 0 | not started |
 | [`net-vpc-peering`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-peering) | ![net-vpc-peering](docs/coverage/bars/gcp-net-vpc-peering.svg) 0 of 7 | 0 of 2 | 1 of 1 | not started |
 | [`cloud-identity-group`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-identity-group) | ![cloud-identity-group](docs/coverage/bars/gcp-cloud-identity-group.svg) 0 of 6 | 0 of 2 | 2 of 2 | not started |
+| [`net-lb-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-int) | ![net-lb-int](docs/coverage/bars/gcp-net-lb-int.svg) 0 of 15 | 0 of 13 | 6 of 6 | not started |
 
 ### AWS: terraform-aws-modules
 
@@ -217,28 +222,31 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### Azure: Azure Verified Modules
 
-0 ported, 1 partial, 0 blocked, 36 not started.
+0 ported, 4 partial, 0 blocked, 33 not started.
 
 **Ported and partial**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
+| [`avm-res-network-virtualnetwork`](https://github.com/Azure/terraform-azurerm-avm-res-network-virtualnetwork/tree/v0.23.0) ([chart](charts/azure/avm-res-network-virtualnetwork)) | ![avm-res-network-virtualnetwork](docs/coverage/bars/azure-avm-res-network-virtualnetwork.svg) 19 of 22 | 5 of 6 | 5 | partial |
+| [`avm-res-storage-storageaccount`](https://github.com/Azure/terraform-azurerm-avm-res-storage-storageaccount/tree/v0.11.0) ([chart](charts/azure/avm-res-storage-storageaccount)) | ![avm-res-storage-storageaccount](docs/coverage/bars/azure-avm-res-storage-storageaccount.svg) 49 of 63 | 7 of 11 | 2 | partial |
+| [`avm-res-keyvault-vault`](https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/tree/v0.13.0) ([chart](charts/azure/avm-res-keyvault-vault)) | ![avm-res-keyvault-vault](docs/coverage/bars/azure-avm-res-keyvault-vault.svg) 24 of 34 | 5 of 8 | 5 | partial |
 | [`avm-res-resources-resourcegroup`](https://github.com/Azure/terraform-azurerm-avm-res-resources-resourcegroup/tree/v0.5.0) ([chart](charts/azure/avm-res-resources-resourcegroup)) | ![avm-res-resources-resourcegroup](docs/coverage/bars/azure-avm-res-resources-resourcegroup.svg) 7 of 10 | 3 of 4 | 2 | partial |
 
-**Not started (first 10 of 36, by rank)**
+**Not started (first 10 of 33, by rank)**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
-| [`avm-res-network-virtualnetwork`](https://github.com/Azure/terraform-azurerm-avm-res-network-virtualnetwork/tree/v0.23.0) | ![avm-res-network-virtualnetwork](docs/coverage/bars/azure-avm-res-network-virtualnetwork.svg) 0 of 22 | 0 of 6 | 5 | not started |
 | [`avm-res-network-networksecuritygroup`](https://github.com/Azure/terraform-azurerm-avm-res-network-networksecuritygroup/tree/v0.6.0) | ![avm-res-network-networksecuritygroup](docs/coverage/bars/azure-avm-res-network-networksecuritygroup.svg) 0 of 13 | 0 of 3 | 1 | not started |
-| [`avm-res-storage-storageaccount`](https://github.com/Azure/terraform-azurerm-avm-res-storage-storageaccount/tree/v0.11.0) | ![avm-res-storage-storageaccount](docs/coverage/bars/azure-avm-res-storage-storageaccount.svg) 0 of 63 | 0 of 11 | 2 | not started |
-| [`avm-res-keyvault-vault`](https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/tree/v0.13.0) | ![avm-res-keyvault-vault](docs/coverage/bars/azure-avm-res-keyvault-vault.svg) 0 of 34 | 0 of 8 | 5 | not started |
 | [`avm-res-compute-virtualmachine`](https://github.com/Azure/terraform-azurerm-avm-res-compute-virtualmachine/tree/v0.21.0) | ![avm-res-compute-virtualmachine](docs/coverage/bars/azure-avm-res-compute-virtualmachine.svg) 0 of 74 | 0 of 13 | 20 | not started |
 | [`avm-res-managedidentity-userassignedidentity`](https://github.com/Azure/terraform-azurerm-avm-res-managedidentity-userassignedidentity/tree/v0.6.0) | ![avm-res-managedidentity-userassignedidentity](docs/coverage/bars/azure-avm-res-managedidentity-userassignedidentity.svg) 0 of 9 | 0 of 6 | 4 | not started |
 | [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1) | ![avm-res-operationalinsights-workspace](docs/coverage/bars/azure-avm-res-operationalinsights-workspace.svg) 0 of 31 | 0 of 3 | 20 | not started |
 | [`avm-res-network-routetable`](https://github.com/Azure/terraform-azurerm-avm-res-network-routetable/tree/v0.6.0) | ![avm-res-network-routetable](docs/coverage/bars/azure-avm-res-network-routetable.svg) 0 of 11 | 0 of 4 | 6 | not started |
 | [`avm-res-network-natgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-natgateway/tree/v0.3.2) | ![avm-res-network-natgateway](docs/coverage/bars/azure-avm-res-network-natgateway.svg) 0 of 18 | 0 of 3 | 4 | not started |
 | [`avm-res-network-privatednszone`](https://github.com/Azure/terraform-azurerm-avm-res-network-privatednszone/tree/v0.6.0) | ![avm-res-network-privatednszone](docs/coverage/bars/azure-avm-res-network-privatednszone.svg) 0 of 19 | 0 of 12 | 12 | not started |
+| [`avm-res-network-publicipaddress`](https://github.com/Azure/terraform-azurerm-avm-res-network-publicipaddress/tree/v0.2.1) | ![avm-res-network-publicipaddress](docs/coverage/bars/azure-avm-res-network-publicipaddress.svg) 0 of 21 | 0 of 4 | 4 | not started |
+| [`avm-res-network-loadbalancer`](https://github.com/Azure/terraform-azurerm-avm-res-network-loadbalancer/tree/v0.5.0) | ![avm-res-network-loadbalancer](docs/coverage/bars/azure-avm-res-network-loadbalancer.svg) 0 of 23 | 0 of 7 | 13 | not started |
+| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 0 of 35 | 0 of 12 | 10 | not started |
 
 Every module, variable and output: [`modules.csv`](docs/coverage/modules.csv), [`variables.csv`](docs/coverage/variables.csv), [`outputs.csv`](docs/coverage/outputs.csv), [`resource-types.csv`](docs/coverage/resource-types.csv). `task coverage` regenerates this section and those files; `task coverage-check` fails when they are out of date.
 <!-- coverage:end -->

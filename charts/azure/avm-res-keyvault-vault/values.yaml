@@ -1,0 +1,125 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-keyvault-vault (v0.13.0): same names, types and defaults, so a
+# module block's arguments become this file one to one. values.schema.json
+# carries the types and the module's validations.
+#
+# Descriptions quoted or condensed from terraform-azurerm-avm-res-keyvault-vault
+# (variables.tf, v0.13.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The key vault's name in full, {keyVault}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front. Keys are named
+# by their entries.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the vault's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure.
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock or purge_protection_enabled. Not a module
+# variable.
+deletion_policy: null
+
+# The name of the Key Vault: 3 to 24 letters, digits and dashes, starting
+# with a letter. Required.
+name: ""
+# The Azure location where the resources will be deployed. Required.
+location: ""
+# The resource ID of the resource group. Required.
+parent_id: ""
+# The Azure tenant ID used for authenticating requests to Key Vault. Use
+# lowercase letters. Required.
+tenant_id: ""
+# Map of tags to assign to the Key Vault resource.
+tags: null
+# Controls whether or not telemetry is enabled for the module. Accepted;
+# the chart never sends telemetry.
+enable_telemetry: true
+
+# The SKU name of the Key Vault. standard or premium.
+sku_name: premium
+# Specifies whether Azure Virtual Machines are permitted to retrieve
+# certificates stored as secrets from the key vault.
+enabled_for_deployment: false
+# Specifies whether Azure Disk Encryption is permitted to retrieve secrets
+# from the vault and unwrap keys.
+enabled_for_disk_encryption: false
+# Specifies whether Azure Resource Manager is permitted to retrieve secrets
+# from the key vault.
+enabled_for_template_deployment: false
+# Specifies whether public network access is enabled.
+public_network_access_enabled: true
+# Specifies whether protection against purge is enabled for this Key
+# Vault. Note once enabled this cannot be disabled.
+purge_protection_enabled: true
+# The number of days that items should be retained for once soft-deleted.
+# 7 to 90.
+soft_delete_retention_days: null
+# The network ACL configuration for the Key Vault. If not specified then
+# the Key Vault will be created with a firewall that blocks access.
+# {bypass ("None"), default_action ("Deny"), ip_rules,
+# virtual_network_subnet_ids}. null leaves them out.
+network_acls: {}
+# Specifies whether legacy access policies are enabled for this Key Vault.
+# Prevents use of Azure RBAC for data plane.
+legacy_access_policies_enabled: false
+# A map of legacy access policies, used when legacy_access_policies_enabled.
+# Each: {object_id, application_id, certificate_permissions,
+# key_permissions, secret_permissions, storage_permissions}.
+legacy_access_policies: {}
+# Controls the Resource Lock configuration for this resource.
+# {kind (CanNotDelete or ReadOnly), name (default lock-<name>)}
+lock: null
+# A map of role assignments to create on the Key Vault.
+# Each: {role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+role_assignments: {}
+# A map of diagnostic settings to create on the Key Vault.
+# Each: {name (default diag-<name>), log_categories, log_groups
+# (["allLogs"]), metric_categories (["AllMetrics"]),
+# log_analytics_destination_type ("Dedicated"), workspace_resource_id,
+# storage_account_resource_id, event_hub_authorization_rule_resource_id,
+# event_hub_name, marketplace_partner_resource_id}.
+diagnostic_settings: {}
+# A map of keys to create on the Key Vault.
+# Each: {name, key_type (RSA, RSA-HSM, EC, EC-HSM), key_opts (["sign",
+# "verify"]), key_size, curve, not_before_date, expiration_date, tags,
+# role_assignments, release_policy: {json, immutable}, rotation_policy:
+# {automatic: {time_after_creation, time_before_expiry}, expire_after,
+# notify_before_expiry}}. release_policy.immutable is refused.
+keys: {}
+# How long to wait after role assignments before creating keys, secrets
+# and contacts. Accepted, no effect: ASO retries until the role assignment
+# has propagated. {create ("30s"), destroy ("0s")}
+wait_for_rbac_before_key_operations: {}
+wait_for_rbac_before_secret_operations: {}
+wait_for_rbac_before_contact_operations: {}
+
+# Not mapped yet, or no ASO kind: refused when set (README.md, "Refused
+# when set").
+contacts: {}
+secrets: {}
+secrets_value: {}
+secrets_value_wo: null
+secrets_value_wo_version: null
+private_endpoints: {}
+# Whether the module manages the private DNS zone group of its private
+# endpoints. Accepted; private_endpoints are refused.
+private_endpoints_manage_dns_zone_group: true
+# Paths whose changes are ignored after creation. Refused when a list is
+# not empty: ASO cannot leave a path to another writer.
+ignore_body_changes: {}
+# The API versions of the azapi resources. Refused when set: ASO's kinds
+# fix them.
+resource_types: {}
+# Refused when set: ASO retries itself and has no per-request timeouts.
+retry: null
+timeouts: null

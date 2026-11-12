@@ -1,0 +1,97 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-storage-storageaccount
+repo: https://github.com/Azure/terraform-azurerm-avm-res-storage-storageaccount
+path: .
+version: v0.11.0
+commit: 226f9bbefcc9299ad46f6263fc9005edb39a38e5
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-storage-storageaccount/tree/v0.11.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-storage-storageaccount/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the ARM type when a kind is missing), not-ported
+# (ASO has it, this chart does not map it yet) or by-design (Bundt replaces
+# it). partial: the variable is accepted, the reason says what is refused.
+refused:
+  - variable: local_user
+    kind: gap
+    reason: "Microsoft.Storage/storageAccounts/localUsers (SFTP and NFSv3 local users) has no ASO or aso-extensions kind"
+  - variable: static_website
+    kind: gap
+    reason: "a static website is set on the blob service's data plane (Set Blob Service Properties), which ASO does not call"
+  - variable: access_tier
+    kind: gap
+    reason: "accepted, but Smart is refused: ASO's StorageAccount is at API version 2025-06-01, and Smart needs 2025-08-01"
+    partial: true
+    fields: [Smart]
+  - variable: tables
+    kind: gap
+    reason: "accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)"
+    partial: true
+    fields: [signed_identifiers, timeouts]
+  - variable: shares
+    kind: gap
+    reason: "accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)"
+    partial: true
+    fields: [signed_identifiers, timeouts]
+  - variable: containers
+    kind: by-design
+    reason: "accepted, but an entry's timeouts are refused: ASO has no per-request timeouts"
+    partial: true
+    fields: [timeouts]
+  - variable: queues
+    kind: by-design
+    reason: "accepted, but an entry's timeouts are refused: ASO has no per-request timeouts"
+    partial: true
+    fields: [timeouts]
+  - variable: network_rules
+    kind: by-design
+    reason: "accepted, but its timeouts are refused: ASO has no per-request timeouts"
+    partial: true
+    fields: [timeouts]
+  - variable: blob_properties
+    kind: not-ported
+    reason: "ASO has StorageAccountsBlobService; this chart does not map the blob service's properties yet"
+  - variable: file_service_properties
+    kind: not-ported
+    reason: "ASO has StorageAccountsFileService; this chart does not map the file service's properties yet"
+  - variable: queue_properties
+    kind: not-ported
+    reason: "ASO has StorageAccountsQueueService; this chart does not map the queue service's properties yet"
+  - variable: table_properties
+    kind: not-ported
+    reason: "ASO has StorageAccountsTableService; this chart does not map the table service's properties yet"
+  - variable: storage_management_policy_rule
+    kind: not-ported
+    reason: "ASO has StorageAccountsManagementPolicy; this chart does not map the lifecycle rules yet"
+  - variable: storage_data_lake_gen2_filesystems
+    kind: not-ported
+    reason: "a Data Lake Gen2 filesystem is a blob container with its ACLs; this chart does not map them yet"
+  - variable: private_endpoints
+    kind: not-ported
+    reason: "ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet"
+  - variable: customer_managed_key
+    kind: not-ported
+    reason: "ASO's StorageAccount has encryption.keyvaultproperties; this chart does not map the customer-managed key yet"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's kinds fix the API versions (StorageAccount 2025-06-01)"
+  - variable: storage_management_policy_timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

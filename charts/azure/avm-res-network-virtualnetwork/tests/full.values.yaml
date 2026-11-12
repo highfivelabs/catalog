@@ -1,0 +1,85 @@
+# Every input the chart carries: DNS, DDoS, encryption, flow timeout, tags,
+# a lock, role assignments and diagnostic settings on the network; subnets
+# with delegations, NSG, route table, NAT gateway, service endpoints and
+# policies, network policies and a subnet role assignment; a full peering
+# with its reverse, an address-space peering and a subnet peering.
+name: vnet-hub
+location: westeurope
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net
+address_space: [10.1.0.0/16, 10.0.0.0/16]
+bgp_community: "12076:20000"
+dns_servers: {dns_servers: [10.0.0.4, 10.0.0.5]}
+ddos_protection_plan:
+  id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ddosProtectionPlans/ddos
+  enable: true
+enable_vm_protection: true
+encryption: {enabled: true, enforcement: AllowUnencrypted}
+flow_timeout_in_minutes: 10
+enable_telemetry: false
+tags: {environment: prod}
+lock: {kind: CanNotDelete, name: vnet-lock}
+role_assignments:
+  netops:
+    role_definition_id_or_name: Network Contributor
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law
+  archive:
+    name: to-storage
+    log_groups: []
+    log_categories: [VMProtectionAlerts]
+    metric_categories: []
+    log_analytics_destination_type: AzureDiagnostics
+    storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag
+subnets:
+  apps:
+    name: snet-apps
+    address_prefix: 10.0.1.0/24
+    network_security_group: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/networkSecurityGroups/nsg-apps}
+    route_table: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/routeTables/rt-apps}
+    nat_gateway: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/natGateways/ng}
+    service_endpoints: [Microsoft.Storage, Microsoft.KeyVault]
+    service_endpoint_policies:
+      sep: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/serviceEndpointPolicies/sep}
+    private_endpoint_network_policies: NetworkSecurityGroupEnabled
+    private_link_service_network_policies_enabled: false
+    default_outbound_access_enabled: true
+    role_assignments:
+      deployer:
+        role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+        principal_id: 7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f
+  delegated:
+    name: snet-aci
+    address_prefixes: [10.0.2.0/24]
+    private_endpoint_network_policies_enabled: false
+    sharing_scope: Tenant
+    delegations:
+      - name: aci
+        service_delegation: {name: Microsoft.ContainerInstance/containerGroups}
+  gateway:
+    name: GatewaySubnet
+    address_prefix: 10.0.255.0/27
+peerings:
+  spoke1:
+    name: hub-to-spoke1
+    remote_virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke1/providers/Microsoft.Network/virtualNetworks/vnet-spoke1
+    allow_forwarded_traffic: true
+    allow_gateway_transit: true
+    create_reverse_peering: true
+    reverse_name: spoke1-to-hub
+    reverse_allow_forwarded_traffic: true
+    reverse_use_remote_gateways: true
+  spoke2:
+    name: hub-to-spoke2
+    remote_virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke2/providers/Microsoft.Network/virtualNetworks/vnet-spoke2
+    peer_complete_vnets: false
+    local_peered_address_spaces: [{address_prefix: 10.0.0.0/16}]
+    remote_peered_address_spaces: [{address_prefix: 10.2.0.0/16}]
+  spoke3:
+    name: hub-to-spoke3
+    remote_virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke3/providers/Microsoft.Network/virtualNetworks/vnet-spoke3
+    peer_complete_vnets: false
+    local_peered_subnets: [{subnet_name: snet-apps}]
+    remote_peered_subnets: [{subnet_name: snet-db}]
