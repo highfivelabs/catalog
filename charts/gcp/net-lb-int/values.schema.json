@@ -1,0 +1,864 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-lb-int values (fabric net-lb-int v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id",
+    "region",
+    "vpc_config"
+  ],
+  "properties": {
+    "names": {
+      "description": "The backend service's and the health check's names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "backendService": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "healthCheck": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every name the chart derives or is given in an entry. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "fabric's labels: Kubernetes labels on every object; unprefixed ones also become Google Cloud labels on the forwarding rules.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "backend_service_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connection_draining_timeout_sec": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "connection_tracking": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "idle_timeout_sec": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "persist_conn_on_unhealthy": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "track_per_session": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "enable_subsetting": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "failover_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "disable_conn_drain": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "drop_traffic_if_unhealthy": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "ratio": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "log_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enable": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "sample_rate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "optional_mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "optional_fields": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "network_pass_through_lb_traffic_policy": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "zonal_affinity": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "spillover": {
+                  "enum": [
+                    "ZONAL_AFFINITY_DISABLED",
+                    "ZONAL_AFFINITY_SPILL_CROSS_ZONE",
+                    "ZONAL_AFFINITY_STAY_WITHIN_ZONE",
+                    null
+                  ]
+                },
+                "spillover_ratio": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          "required": [
+            "zonal_affinity"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocol": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_affinity": {
+          "enum": [
+            "NONE",
+            "CLIENT_IP",
+            "CLIENT_IP_NO_DESTINATION",
+            "CLIENT_IP_PORT_PROTO",
+            "CLIENT_IP_PROTO",
+            null
+          ]
+        },
+        "timeout_sec": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "description": "Backend service level configuration. network_pass_through_lb_traffic_policy and log_config's optional_mode and optional_fields are refused."
+    },
+    "backends": {
+      "description": "Load balancer backends.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failover": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "group"
+        ]
+      }
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "description": {
+      "description": "Optional description used for resources (the service attachments).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "forwarding_rules_config": {
+      "description": "The forwarding rules, keyed.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "global_access": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "ipv6": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ports": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "protocol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "group_configs": {
+      "description": "Optional unmanaged groups to create, keyed.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "zone": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instances": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "named_ports": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "zone"
+        ]
+      }
+    },
+    "health_check": {
+      "description": "Id or self link of an existing health check; disables the auto-created one.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "health_check_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "check_interval_sec": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_logging": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "healthy_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "is_regional": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_sec": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "unhealthy_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "grpc": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "enum": [
+                "USE_FIXED_PORT",
+                "USE_NAMED_PORT",
+                "USE_SERVING_PORT",
+                null
+              ]
+            },
+            "service_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "http": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "enum": [
+                "USE_FIXED_PORT",
+                "USE_NAMED_PORT",
+                "USE_SERVING_PORT",
+                null
+              ]
+            },
+            "host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "http2": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "enum": [
+                "USE_FIXED_PORT",
+                "USE_NAMED_PORT",
+                "USE_SERVING_PORT",
+                null
+              ]
+            },
+            "host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "https": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "enum": [
+                "USE_FIXED_PORT",
+                "USE_NAMED_PORT",
+                "USE_SERVING_PORT",
+                null
+              ]
+            },
+            "host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tcp": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "enum": [
+                "USE_FIXED_PORT",
+                "USE_NAMED_PORT",
+                "USE_SERVING_PORT",
+                null
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "ssl": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "enum": [
+                "USE_FIXED_PORT",
+                "USE_NAMED_PORT",
+                "USE_SERVING_PORT",
+                null
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "description": "The auto-created health check; at most one of grpc, http, http2, https, tcp and ssl (fabric's validation, checked by the template). null with health_check set."
+    },
+    "project_id": {
+      "description": "Project id where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "GCP region.",
+      "type": "string",
+      "minLength": 1
+    },
+    "service_attachments": {
+      "description": "PSC service attachments, keyed by forwarding rule. domain_name and reconcile_connections are refused.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nat_subnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "automatic_connection": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "consumer_accept_lists": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            }
+          },
+          "consumer_reject_lists": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "domain_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enable_proxy_protocol": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "reconcile_connections": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "nat_subnets"
+        ]
+      }
+    },
+    "service_label": {
+      "description": "Optional prefix of the fully qualified forwarding rule name.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "vpc_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subnetwork": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "network",
+        "subnetwork"
+      ],
+      "description": "VPC-level configuration."
+    },
+    "name": {
+      "description": "Name used for all resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}
