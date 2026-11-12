@@ -16,6 +16,9 @@ a new group, as the Terraform provider does.
 {{- if not $name }}
 {{- fail "security-group: name is required: the group's name (or names.securityGroup)" }}
 {{- end }}
+{{- if not $v.vpc_id }}
+{{- fail "security-group: vpc_id is required: ACK's SecurityGroup needs its VPC's ID, and the chart cannot look up the account's default VPC, which Terraform takes when vpc_id is unset (docs/aws.md)" }}
+{{- end }}
 ---
 apiVersion: ec2.services.k8s.aws/v1alpha1
 kind: SecurityGroup
@@ -25,9 +28,7 @@ spec:
   name: {{ $name | quote }}
   {{- /* Unset, the Terraform provider's default; AWS cannot change it later. */}}
   description: {{ $v.description | default "Managed by Terraform" | quote }}
-{{- with $v.vpc_id }}
-  vpcID: {{ . | quote }}
-{{- end }}
+  vpcID: {{ $v.vpc_id | quote }}
 {{- range $dir := list "ingress" "egress" }}
 {{- $rules := index $v (printf "%s_rules" $dir) | default dict }}
 {{- if $rules }}

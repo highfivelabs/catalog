@@ -1,0 +1,47 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/vpc-sc/access-levels.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_access_context_manager_access_level.basic: one basic
+AccessContextManagerAccessLevel per entry of factories_data.access_levels
+and access_levels (the variable's wins), named by its key, its title the
+title or the name, as fabric's coalesce(title, key). Members are users and
+service accounts (Config Connector has no group member, as the API); VPC
+network sources (vpc_subnets) have no field.
+*/ -}}
+{{- $data := include "vpcsc.data" . | fromJson }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $key := keys $data.levels | sortAlpha }}
+{{- $l := index $data.levels $key }}
+{{- $name := include "vpcsc.shortName" (list $ "access level" $key) }}
+---
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "level" $key)) "id" (printf "access_level:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  accessPolicyRef:
+    {{- include "vpcsc.policyRef" $ | nindent 4 }}
+  resourceID: {{ $name | quote }}
+  title: {{ $l.title | default $name | quote }}
+{{- with $l.description }}
+  description: {{ . | quote }}
+{{- end }}
+  basic:
+{{- with $l.combining_function }}
+    combiningFunction: {{ . | quote }}
+{{- end }}
+{{- if not $l.conditions }}
+    conditions: []
+{{- else }}
+    conditions:
+{{- range $i, $c := $l.conditions }}
+{{- $w := printf "access_levels.%s.conditions[%d]" $key $i }}
+{{- include "kcc.unsupported" (list $ (printf "%s.vpc_subnets" $w) $c.vpc_subnets "AccessContextManagerAccessLevel has no vpcNetworkSources") }}
+{{- $body := include "vpcsc.condition" (dict "root" $ "c" $c "w" $w "levels" $data.levels) }}
+      - {{ $body | trim | indent 8 | trim }}
+{{- end }}
+{{- end }}
+{{- end }}
