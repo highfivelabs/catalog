@@ -1,0 +1,104 @@
+# Every field the chart carries: a created policy, its IAM, access levels
+# with device policies, ingress and egress policies, a perimeter with an
+# enforced and a dry-run spec, and the factory files.
+access_policy: null
+access_policy_create:
+  parent: organizations/123456
+  title: vpcsc-policy
+iam:
+  roles/accesscontextmanager.policyAdmin: ["group:vpcsc-admins@example.com"]
+iam_bindings:
+  readers: {role: roles/accesscontextmanager.policyReader, members: ["user:auditor@example.com"]}
+iam_bindings_additive:
+  editor: {role: roles/accesscontextmanager.policyEditor, member: "serviceAccount:ops@my-project.iam.gserviceaccount.com"}
+access_levels:
+  corp:
+    title: Corporate devices
+    description: Managed, encrypted devices
+    combining_function: AND
+    conditions:
+      - device_policy:
+          allowed_device_management_levels: [COMPLETE]
+          allowed_encryption_statuses: [ENCRYPTED]
+          require_admin_approval: true
+          require_corp_owned: true
+          require_screen_lock: true
+          os_constraints:
+            - {os_type: DESKTOP_CHROME_OS, minimum_version: "100.0.0", require_verified_chrome_os: true}
+        members: ["serviceAccount:ci@my-project.iam.gserviceaccount.com", "user:admin@example.com"]
+        negate: false
+        required_access_levels: ["$access_levels:geo", accessPolicies/12345678/accessLevels/other]
+  geo:
+    conditions:
+      - regions: [DE]
+ingress_policies:
+  from-ci:
+    from:
+      identity_type: null
+      identities: ["serviceAccount:ci@my-project.iam.gserviceaccount.com", "user:admin@example.com"]
+      access_levels: ["$access_levels:corp"]
+      resources: [projects/22222]
+    to:
+      operations:
+        - service_name: storage.googleapis.com
+          method_selectors: [google.storage.objects.get]
+        - service_name: bigquery.googleapis.com
+          permission_selectors: [bigquery.tables.getData]
+      resources: ["*"]
+  any-identity:
+    from:
+      identity_type: ANY_IDENTITY
+      access_levels: ["*"]
+    to:
+      operations: [{service_name: "*"}]
+      resources: [projects/33333]
+egress_policies:
+  to-bq:
+    from:
+      identity_type: ANY_USER_ACCOUNT
+    to:
+      operations: [{service_name: bigquery.googleapis.com, method_selectors: ["*"]}]
+      resources: [projects/44444]
+  to-s3:
+    from:
+      identities: ["serviceAccount:ci@my-project.iam.gserviceaccount.com"]
+    to:
+      external_resources: ["s3://bucket-a"]
+      operations: [{service_name: storage.googleapis.com}]
+factories_config:
+  perimeters: data/perimeters
+factories_data:
+  access_levels:
+    fact-level:
+      conditions: [{ip_subnetworks: [10.0.0.0/8]}]
+  ingress_policies:
+    fact-ingress:
+      from: {identity_type: ANY_SERVICE_ACCOUNT}
+      to: {operations: [{service_name: "*"}], resources: ["*"]}
+  perimeters:
+    fact:
+      status:
+        resources: [projects/55555]
+        restricted_services: [storage.googleapis.com]
+        ingress_policies: ["$ingress_policies:fact-ingress"]
+perimeters:
+  main:
+    title: Main perimeter
+    description: Data projects
+    use_explicit_dry_run_spec: true
+    spec:
+      access_levels: ["$access_levels:corp"]
+      resources: [projects/11111, "//compute.googleapis.com/projects/my-project/global/networks/vpc"]
+      restricted_services: [storage.googleapis.com, bigquery.googleapis.com]
+      ingress_policies: ["$ingress_policies:from-ci", "$ingress_policies:any-identity"]
+      egress_policies: ["$egress_policies:to-bq", "$egress_policies:to-s3"]
+      vpc_accessible_services:
+        allow_all_restricted_services: false
+        allowed_services: [storage.googleapis.com]
+        enable_restriction: true
+    status:
+      resources: [projects/11111]
+      restricted_services: [storage.googleapis.com]
+      egress_policies: ["$egress_policies:to-bq"]
+      vpc_accessible_services: {enable_restriction: false}
+deletion_policy: ABANDON

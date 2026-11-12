@@ -1,0 +1,61 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: vpc-sc
+spec:
+  version: "1.0.0"
+  components:
+    - name: vpc-sc
+      package:
+        name: gcp-vpc-sc
+        version: "0.1.0"
+      inputs:
+        access_levels:
+          a1:
+            conditions:
+              - members:
+                  - user:user1@example.com
+        ingress_policies:
+          i1:
+            from:
+              access_levels:
+                - $access_levels:a1
+              identity_type: ANY_IDENTITY
+            to:
+              operations:
+                - service_name: storage.googleapis.com
+              resources:
+                - projects/11111
+        perimeters:
+          p1:
+            status:
+              access_levels:
+                - $access_levels:a1
+              ingress_policies:
+                - $ingress_policies:i1
+              resources:
+                - projects/11111
+                - projects/22222
+              restricted_services:
+                - storage.googleapis.com
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: vpc-sc
+  scope: my-team
+spec:
+  template: vpc-sc
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: vpc-sc-dev
+  scope: my-team/dev
+spec:
+  stack: vpc-sc
+  version: "1.0.0"
+  components:
+    vpc-sc:
+      values:
+        access_policy: "12345678"
