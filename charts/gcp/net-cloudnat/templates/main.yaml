@@ -1,0 +1,162 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-cloudnat/main.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_compute_router.router (router_create): one ComputeRouter.
+google_compute_router_nat.nat: one ComputeRouterNAT on it, or on the
+existing router router_name. The module's validations stop the render
+here as they stop Terraform's plan.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "nat" "router")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $private := eq $v.type "PRIVATE" }}
+{{- $pa := $v.config_port_allocation | default dict }}
+{{- $eim := not $private }}
+{{- if not (kindIs "invalid" $pa.enable_endpoint_independent_mapping) }}{{ $eim = $pa.enable_endpoint_independent_mapping }}{{ end }}
+{{- $dpa := $private }}
+{{- if not (kindIs "invalid" $pa.enable_dynamic_port_allocation) }}{{ $dpa = $pa.enable_dynamic_port_allocation }}{{ end }}
+{{- if and (eq $pa.enable_dynamic_port_allocation true) $eim }}
+{{- fail "net-cloudnat: You must set enable_endpoint_independent_mapping to false to set enable_dynamic_port_allocation to true." }}
+{{- end }}
+{{- if and $private (eq $pa.enable_endpoint_independent_mapping true) }}
+{{- fail "net-cloudnat: Endpoint-independent mapping cannot be enabled for PRIVATE NAT." }}
+{{- end }}
+{{- $sc := $v.config_source_subnetworks | default dict }}
+{{- $subnets := $sc.subnetworks | default list }}
+{{- range $s := $subnets }}
+{{- $allRanges := ternary true $s.all_ranges (kindIs "invalid" $s.all_ranges) }}
+{{- if eq (eq $allRanges true) (or (eq $s.primary_range true) (gt (len ($s.secondary_ranges | default list)) 0)) }}
+{{- fail "net-cloudnat: Either config_source_subnetworks.subnetworks.all_ranges is true or one of primary_range or secondary_ranges must be defined." }}
+{{- end }}
+{{- if and $private (ne $allRanges true) }}
+{{- fail "net-cloudnat: Private NAT does not support primary_ranges_only = true or subnetworks with all_ranges = false." }}
+{{- end }}
+{{- end }}
+{{- $scAll := ternary true $sc.all (kindIs "invalid" $sc.all) }}
+{{- if eq (or (eq $scAll true) (eq $sc.primary_ranges_only true)) (gt (len $subnets) 0) }}
+{{- fail "net-cloudnat: Cannot use config_source_subnetworks.all and config_source_subnetworks.primary_ranges_only together with config_source_subnetworks.subnetworks." }}
+{{- end }}
+{{- if and $private (eq $sc.primary_ranges_only true) }}
+{{- fail "net-cloudnat: Private NAT does not support primary_ranges_only = true or subnetworks with all_ranges = false." }}
+{{- end }}
+{{- $numbers := dict }}
+{{- range $i, $r := $v.rules }}
+{{- if and (kindIs "invalid" $r.source_ips) (kindIs "invalid" $r.source_ranges) }}
+{{- fail "net-cloudnat: All rules must specify either source_ips or source_ranges." }}
+{{- end }}
+{{- $n := toString (ternary $i $r.rule_number (kindIs "invalid" $r.rule_number)) }}
+{{- if hasKey $numbers $n }}
+{{- fail "net-cloudnat: Resolved rule numbers (rule_number or 0-based list index) must be unique and between 0 and 65000." }}
+{{- end }}
+{{- $_ := set $numbers $n true }}
+{{- end }}
+{{- $subnetConfig := include "cloudnat.subnetConfig" . }}
+{{- $routerObj := include "kcc.name" (list .Release.Name "router") }}
+{{- if $v.router_create }}
+{{- if not $v.router_network }}
+{{- fail "net-cloudnat: router_network is needed to create the router (router_create is true)" }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $routerObj "id" "router" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "cloudnat.routerName" . }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ include "cloudnat.networkSelfLink" . | quote }}
+  {{- if not (kindIs "invalid" $v.router_asn) }}
+  bgp:
+    asn: {{ $v.router_asn | int64 }}
+  {{- end }}
+{{- else if not $v.router_name }}
+{{- fail "net-cloudnat: router_name is needed when router_create is false: it names the existing router the NAT goes on" }}
+{{- else }}
+{{- include "kcc.names" (list $ (list "nat")) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterNAT
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "nat" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "cloudnat.natName" . }}
+  region: {{ $v.region | quote }}
+  routerRef:
+    {{- if $v.router_create }}
+    name: {{ $routerObj }}
+    {{- else if contains "/" $v.router_name }}
+    external: {{ $v.router_name | quote }}
+    {{- else }}
+    external: {{ printf "projects/%s/regions/%s/routers/%s" $v.project_id $v.region $v.router_name | quote }}
+    {{- end }}
+  type: {{ $v.type }}
+  {{- with $v.endpoint_types }}
+  endpointTypes: {{ toJson . }}
+  {{- end }}
+  {{- if not $private }}
+  natIpAllocateOption: {{ ternary "MANUAL_ONLY" "AUTO_ONLY" (gt (len $v.addresses) 0) }}
+  {{- end }}
+  {{- with $v.addresses }}
+  natIps:
+    {{- include "cloudnat.refs" . | nindent 4 }}
+  {{- end }}
+  sourceSubnetworkIpRangesToNat: {{ $subnetConfig }}
+  {{- if eq $subnetConfig "LIST_OF_SUBNETWORKS" }}
+  subnetwork:
+    {{- range $s := $subnets }}
+    {{- $allRanges := ternary true $s.all_ranges (kindIs "invalid" $s.all_ranges) }}
+    - subnetworkRef:
+        external: {{ $s.self_link | quote }}
+      {{- if eq $allRanges true }}
+      sourceIpRangesToNat: ["ALL_IP_RANGES"]
+      {{- else }}
+      {{- $ranges := list }}
+      {{- if $s.primary_range }}{{ $ranges = append $ranges "PRIMARY_IP_RANGE" }}{{ end }}
+      {{- if not (kindIs "invalid" $s.secondary_ranges) }}{{ $ranges = append $ranges "LIST_OF_SECONDARY_IP_RANGES" }}{{ end }}
+      sourceIpRangesToNat: {{ toJson $ranges }}
+      {{- with $s.secondary_ranges }}
+      secondaryIpRangeNames: {{ toJson . }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- $t := $v.config_timeouts | default dict }}
+  {{- range $field, $key := dict "icmpIdleTimeoutSec" "icmp" "tcpEstablishedIdleTimeoutSec" "tcp_established" "tcpTimeWaitTimeoutSec" "tcp_time_wait" "tcpTransitoryIdleTimeoutSec" "tcp_transitory" "udpIdleTimeoutSec" "udp" }}
+  {{- with index $t $key }}
+  {{ $field }}: {{ . | int64 }}
+  {{- end }}
+  {{- end }}
+  enableEndpointIndependentMapping: {{ $eim }}
+  enableDynamicPortAllocation: {{ $dpa }}
+  logConfig:
+    enable: {{ not (kindIs "invalid" $v.logging_filter) }}
+    filter: {{ $v.logging_filter | default "ALL" }}
+  {{- if not (kindIs "invalid" $pa.min_ports_per_vm) }}
+  minPortsPerVm: {{ $pa.min_ports_per_vm | int64 }}
+  {{- end }}
+  maxPortsPerVm: {{ ternary 65536 $pa.max_ports_per_vm (kindIs "invalid" $pa.max_ports_per_vm) | int64 }}
+  {{- with $v.rules }}
+  rules:
+    {{- range $i, $r := . }}
+    - ruleNumber: {{ ternary $i $r.rule_number (kindIs "invalid" $r.rule_number) | int64 }}
+      {{- with $r.description }}
+      description: {{ . | quote }}
+      {{- end }}
+      match: {{ $r.match | quote }}
+      action:
+        {{- if $r.source_ips }}
+        sourceNatActiveIpsRefs:
+          {{- include "cloudnat.refs" $r.source_ips | nindent 10 }}
+        {{- end }}
+        {{- if $r.source_ranges }}
+        sourceNatActiveRangesRefs:
+          {{- include "cloudnat.refs" $r.source_ranges | nindent 10 }}
+        {{- end }}
+    {{- end }}
+  {{- end }}

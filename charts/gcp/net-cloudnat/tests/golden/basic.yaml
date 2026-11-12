@@ -1,0 +1,47 @@
+---
+# Source: net-cloudnat/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: basic-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-cloudnat
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: default-nat
+  region: "europe-west8"
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-vpc"
+---
+# Source: net-cloudnat/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterNAT
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-cloudnat
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: default
+  region: "europe-west8"
+  routerRef:
+    name: basic-router
+  type: PUBLIC
+  natIpAllocateOption: AUTO_ONLY
+  sourceSubnetworkIpRangesToNat: ALL_SUBNETWORKS_ALL_IP_RANGES
+  enableEndpointIndependentMapping: true
+  enableDynamicPortAllocation: false
+  logConfig:
+    enable: false
+    filter: ALL
+  maxPortsPerVm: 65536

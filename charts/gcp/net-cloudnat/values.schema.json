@@ -1,0 +1,338 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-cloudnat values (cloud-foundation-fabric modules/net-cloudnat v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id",
+    "region"
+  ],
+  "definitions": {
+    "stringList": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set derives from name.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nat": {
+          "description": "The NAT gateway's name in full (1 to 63 characters, RFC 1035).",
+          "type": "string",
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "router": {
+          "description": "The router's name in full, when the chart makes it (1 to 63 characters, RFC 1035).",
+          "type": "string",
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived cloud name, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object. Routers and NAT gateways have no Google Cloud labels.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource; routers and NAT gateways take none, so they stay on the objects.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "deletion_policy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    },
+    "addresses": {
+      "description": "Optional list of external address self links.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "config_port_allocation": {
+      "description": "Configuration for how to assign ports to virtual machines.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable_endpoint_independent_mapping": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_dynamic_port_allocation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "min_ports_per_vm": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "max_ports_per_vm": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "config_source_subnetworks": {
+      "description": "Subnetwork configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "primary_ranges_only": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "subnetworks": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "self_link"
+            ],
+            "properties": {
+              "self_link": {
+                "type": "string",
+                "minLength": 1
+              },
+              "all_ranges": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "primary_range": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "secondary_ranges": {
+                "$ref": "#/definitions/stringList"
+              }
+            }
+          }
+        }
+      }
+    },
+    "config_timeouts": {
+      "description": "Timeout configurations, in seconds.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "icmp": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tcp_established": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tcp_time_wait": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tcp_transitory": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "udp": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "context": {
+      "description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.",
+      "type": "object"
+    },
+    "endpoint_types": {
+      "description": "The endpoint types the NAT gateway supports.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string",
+        "enum": [
+          "ENDPOINT_TYPE_VM",
+          "ENDPOINT_TYPE_SWG",
+          "ENDPOINT_TYPE_MANAGED_PROXY_LB"
+        ]
+      }
+    },
+    "logging_filter": {
+      "description": "Enables logging if not null.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "ERRORS_ONLY",
+        "TRANSLATIONS_ONLY",
+        "ALL",
+        null
+      ]
+    },
+    "name": {
+      "description": "Name of the Cloud NAT resource.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "router_asn": {
+      "description": "Router ASN used for auto-created router.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "router_create": {
+      "description": "Create router.",
+      "type": "boolean"
+    },
+    "router_name": {
+      "description": "Router name; with router_create false, the existing router.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "router_network": {
+      "description": "Name of the VPC used for auto-created router: a name, a projects/... path or a self link.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rules": {
+      "description": "List of rules associated with this NAT.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "match"
+        ],
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "match": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rule_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 65000
+          },
+          "source_ips": {
+            "$ref": "#/definitions/stringList"
+          },
+          "source_ranges": {
+            "$ref": "#/definitions/stringList"
+          }
+        }
+      }
+    },
+    "type": {
+      "description": "PUBLIC or PRIVATE.",
+      "type": "string",
+      "enum": [
+        "PUBLIC",
+        "PRIVATE"
+      ]
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# component net-cloudnat-dev-nat
+---
+# Source: net-cloudnat/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: net-cloudnat-dev-nat-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-cloudnat-dev-nat"
+    app.kubernetes.io/name: net-cloudnat
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: default-nat
+  region: "europe-west8"
+  networkRef:
+    external: "https://www.googleapis.com/compute/v1/projects/myproject/global/networks/my-vpc"
+---
+# Source: net-cloudnat/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterNAT
+metadata:
+  name: net-cloudnat-dev-nat
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-cloudnat-dev-nat"
+    app.kubernetes.io/name: net-cloudnat
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: default
+  region: "europe-west8"
+  routerRef:
+    name: net-cloudnat-dev-nat-router
+  type: PUBLIC
+  natIpAllocateOption: AUTO_ONLY
+  sourceSubnetworkIpRangesToNat: ALL_SUBNETWORKS_ALL_IP_RANGES
+  enableEndpointIndependentMapping: false
+  enableDynamicPortAllocation: true
+  logConfig:
+    enable: true
+    filter: ERRORS_ONLY
+  minPortsPerVm: 64
+  maxPortsPerVm: 65536

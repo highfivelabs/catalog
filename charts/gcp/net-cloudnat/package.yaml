@@ -1,0 +1,30 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.<id>: nat, and router when the chart makes it) and the
+# component's values (inputs). ComputeRouterNAT reports no status fields
+# but its conditions, so every output comes from the spec, as Terraform
+# computes it: id is "<project>/<region>/<router>/<name>", the
+# google_compute_router_nat's id. Not an output: router, fabric's whole
+# google_compute_router object; router_name is what consumers take from it.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-cloudnat
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.nat.spec.resourceID
+    region: resources.nat.spec.region
+    router_name: >-
+      'router' in resources ? resources.router.spec.resourceID : inputs.router_name
+    id: >-
+      resources.nat.metadata.annotations['cnrm.cloud.google.com/project-id'] + '/' + resources.nat.spec.region
+      + '/' + ('router' in resources ? resources.router.spec.resourceID : inputs.router_name)
+      + '/' + resources.nat.spec.resourceID
+    nat_ip_allocate_option: >-
+      has(resources.nat.spec.natIpAllocateOption) ? dyn(resources.nat.spec.natIpAllocateOption) : null
