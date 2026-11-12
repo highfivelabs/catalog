@@ -127,14 +127,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 5 ported, 45 partial, 61 blocked, 66 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 5 ported, 46 partial, 61 blocked, 65 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 547 of 1478 (37.0%) |
-| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 289 of 2348 (12.3%) |
+| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 316 of 2348 (13.5%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 180 of 1170 (15.4%) |
-| **All** | **177** | | **1016 of 4996 (20.3%)** |
+| **All** | **177** | | **1043 of 4996 (20.9%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -205,7 +205,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### AWS: terraform-aws-modules
 
-0 ported, 8 partial, 1 blocked, 33 not started.
+0 ported, 9 partial, 1 blocked, 32 not started.
 
 **Ported and partial**
 
@@ -217,6 +217,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) ([chart](charts/aws/security-group)) | ![security-group](docs/coverage/bars/aws-security-group.svg) 10 of 14 | 5 of 5 | 4 of 5 | partial |
 | [`acm`](https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1) ([chart](charts/aws/acm)) | ![acm](docs/coverage/bars/aws-acm.svg) 23 of 24 | 7 of 7 | 2 of 3 | partial |
 | [`ec2-instance`](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1) ([chart](charts/aws/ec2-instance)) | ![ec2-instance](docs/coverage/bars/aws-ec2-instance.svg) 53 of 83 | 20 of 30 | 8 of 12 | partial |
+| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) ([chart](charts/aws/dynamodb-table)) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 27 of 39 | 4 of 8 | 4 | partial |
 | [`iam-role`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-role) ([chart](charts/aws/iam-role)) | ![iam-role](docs/coverage/bars/aws-iam-role.svg) 31 of 31 | 7 of 7 | 4 of 4 | partial |
 | [`iam-policy`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-policy) ([chart](charts/aws/iam-policy)) | ![iam-policy](docs/coverage/bars/aws-iam-policy.svg) 6 of 7 | 4 of 4 | 1 of 1 | partial |
 
@@ -226,7 +227,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | --- | ---: | ---: | --- |
 | [`iam`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2) | ![iam](docs/coverage/bars/aws-iam.svg) 0 of 0 | 0 of 0 | 11 of 17 | blocked |
 
-**Not started (first 10 of 33, by rank)**
+**Not started (first 10 of 32, by rank)**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
@@ -238,8 +239,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`route53`](https://github.com/terraform-aws-modules/terraform-aws-route53/tree/v6.5.1) | ![route53](docs/coverage/bars/aws-route53.svg) 0 of 22 | 0 of 16 | 16 | not started |
 | [`ecs`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/v7.6.1) | ![ecs](docs/coverage/bars/aws-ecs.svg) 0 of 60 | 0 of 20 | 18 | not started |
 | [`alb`](https://github.com/terraform-aws-modules/terraform-aws-alb/tree/v10.5.1) | ![alb](docs/coverage/bars/aws-alb.svg) 0 of 50 | 0 of 11 | 14 | not started |
-| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 0 of 39 | 0 of 8 | 4 | not started |
 | [`eventbridge`](https://github.com/terraform-aws-modules/terraform-aws-eventbridge/tree/v4.3.3) | ![eventbridge](docs/coverage/bars/aws-eventbridge.svg) 0 of 83 | 0 of 34 | 18 | not started |
+| [`cloudwatch`](https://github.com/terraform-aws-modules/terraform-aws-cloudwatch/tree/v6.0.0) | ![cloudwatch](docs/coverage/bars/aws-cloudwatch.svg) 0 of 0 | 0 of 0 | 11 | not started |
 
 ### Azure: Azure Verified Modules
 

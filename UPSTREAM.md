@@ -44,6 +44,7 @@ charts use are copied in `crds/ack-extensions`.
 | `iam-controller` | `v1.11.3` | `538aed660e54fc786fea8a386927ac74a12f9c30` | Role, Policy, InstanceProfile |
 | `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
 | `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
+| `dynamodb-controller` | `v1.14.2` | `2fcea71a4f8d6049c9e03d729561a26735245346` | Table |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in
