@@ -1,0 +1,102 @@
+---
+# Source: net-vpc-firewall/templates/default-rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: basic-default-http
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default:http"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-network-ingress-tag-http"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Allow http to machines with matching tags."
+  direction: INGRESS
+  sourceRanges: ["35.191.0.0/16","130.211.0.0/22","209.85.152.0/22","209.85.204.0/22"]
+  targetTags: ["http-server"]
+  allow:
+    - protocol: "tcp"
+      ports: ["80"]
+---
+# Source: net-vpc-firewall/templates/default-rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: basic-default-https
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default:https"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-network-ingress-tag-https"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Allow http to machines with matching tags."
+  direction: INGRESS
+  sourceRanges: ["35.191.0.0/16","130.211.0.0/22","209.85.152.0/22","209.85.204.0/22"]
+  targetTags: ["https-server"]
+  allow:
+    - protocol: "tcp"
+      ports: ["443"]
+---
+# Source: net-vpc-firewall/templates/default-rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: basic-default-ssh
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default:ssh"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-network-ingress-tag-ssh"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Allow SSH to machines with matching tags."
+  direction: INGRESS
+  sourceRanges: ["35.235.240.0/20"]
+  targetTags: ["ssh"]
+  allow:
+    - protocol: "tcp"
+      ports: ["22"]
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: basic-rule-allow-ingress-ntp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-ingress-ntp"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "allow-ingress-ntp"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Allow NTP service based on tag."
+  direction: "INGRESS"
+  priority: 1000
+  disabled: false
+  sourceRanges: ["0.0.0.0/0"]
+  targetTags: ["ntp-svc"]
+  allow:
+    - protocol: "udp"
+      ports: ["123"]
