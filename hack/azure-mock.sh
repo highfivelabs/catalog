@@ -53,7 +53,17 @@ if [[ -z "${ASOX_DIR:-}" ]]; then
   [[ -n "${ASOX_TARBALL:-}" ]] || { echo "azure-mock: set ASOX_TARBALL or ASOX_DIR" >&2; exit 2; }
   ASOX_DIR="${WORK}/aso-extensions"
   mkdir -p "${ASOX_DIR}"
-  gcloud storage cat "${ASOX_TARBALL}" | tar -xz -C "${ASOX_DIR}"
+  # gcloud where the VM has it, else the Cloud Storage JSON API as the VM's
+  # service account.
+  if command -v gcloud >/dev/null; then
+    gcloud storage cp --quiet "${ASOX_TARBALL}" "${WORK}/asox.tar.gz"
+  else
+    obj="${ASOX_TARBALL#gs://}"; bucket="${obj%%/*}"; obj="${obj#*/}"
+    token="$(curl -sf -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | jq -er .access_token)"
+    curl -sfL -o "${WORK}/asox.tar.gz" -H "Authorization: Bearer ${token}" \
+      "https://storage.googleapis.com/storage/v1/b/${bucket}/o/$(jq -rn --arg o "${obj}" '$o|@uri')?alt=media"
+  fi
+  tar -xzf "${WORK}/asox.tar.gz" -C "${ASOX_DIR}"
 fi
 ASOX_DIR="$(cd "${ASOX_DIR}" && pwd)"
 cleanup() {
