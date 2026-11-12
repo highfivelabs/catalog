@@ -1,0 +1,77 @@
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+spec:
+  resourceID: catalog-mock-adb
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  displayName: "catalog-mock-adb"
+  networkConfig:
+    networkRef:
+      external: "projects/mock-project/global/networks/default"
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  resourceID: catalog-mock-adb
+  clusterRef:
+    external: "projects/mock-project/locations/us-central1/clusters/catalog-mock-adb"
+  instanceType: PRIMARY
+  availabilityType: "ZONAL"
+  displayName: "catalog-mock-adb"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: mock-read-pool-ro
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "read-pool:ro"
+spec:
+  resourceID: catalog-ro
+  clusterRef:
+    external: "projects/mock-project/locations/us-central1/clusters/catalog-mock-adb"
+  instanceType: READ_POOL
+  displayName: "catalog-ro"
+  machineConfig:
+    cpuCount: 2
+  readPoolConfig:
+    nodeCount: 1
