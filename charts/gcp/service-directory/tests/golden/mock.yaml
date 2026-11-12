@@ -1,0 +1,106 @@
+---
+# Source: service-directory/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: service-directory
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+    kind: ServiceDirectoryNamespace
+    name: mock
+  bindings:
+    - role: "roles/servicedirectory.viewer"
+      members:
+        - member: "user:dev@example.com"
+---
+# Source: service-directory/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-service-web-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: service-directory
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service:web/iam"
+spec:
+  resourceRef:
+    apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+    kind: ServiceDirectoryService
+    name: mock-service-web
+  bindings:
+    - role: "roles/servicedirectory.viewer"
+      members:
+        - member: "user:dev@example.com"
+---
+# Source: service-directory/templates/main.yaml
+apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+kind: ServiceDirectoryEndpoint
+metadata:
+  name: mock-endpoint-web-a-c271e362
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: service-directory
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    zone: "b"
+  annotations:
+    hfl.dev/id: "endpoint:web/a"
+spec:
+  resourceID: "a"
+  serviceRef:
+    name: mock-service-web
+  addressRef:
+    external: "10.0.0.10"
+  port: 443
+---
+# Source: service-directory/templates/main.yaml
+apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+kind: ServiceDirectoryNamespace
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: service-directory
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "namespace"
+spec:
+  resourceID: "catalog-mock-sd"
+  location: "us-central1"
+  projectRef:
+    external: "mock-project"
+---
+# Source: service-directory/templates/main.yaml
+apiVersion: servicedirectory.cnrm.cloud.google.com/v1beta1
+kind: ServiceDirectoryService
+metadata:
+  name: mock-service-web
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: service-directory
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    tier: "frontend"
+  annotations:
+    hfl.dev/id: "service:web"
+spec:
+  resourceID: "web"
+  namespaceRef:
+    name: mock

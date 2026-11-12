@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "service-directory values (fabric service-directory v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "location",
+    "name",
+    "project_id"
+  ],
+  "properties": {
+    "names": {
+      "description": "The namespace ID in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the derived namespace ID. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Labels: Kubernetes labels on every object; unprefixed ones are Google Cloud labels (the namespace) or metadata (services, endpoints).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "endpoint_config": {
+      "description": "Map of endpoint attributes, keys are in service/endpoint format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[^/]+/[^/]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "address",
+          "port",
+          "metadata"
+        ],
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "network": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "iam": {
+      "description": "IAM bindings for namespace, in {ROLE => [MEMBERS]} format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "location": {
+      "description": "Namespace location.",
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "description": "Namespace name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project used for resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "service_iam": {
+      "description": "IAM bindings for services, in {SERVICE => {ROLE => [MEMBERS]}} format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "services": {
+      "description": "Service configuration, using service names as keys.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "endpoints",
+          "metadata"
+        ],
+        "properties": {
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "Not a fabric variable: DELETE (default) or ABANDON. PREVENT has no Config Connector equivalent.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "DELETE",
+        "ABANDON",
+        "PREVENT"
+      ]
+    }
+  }
+}

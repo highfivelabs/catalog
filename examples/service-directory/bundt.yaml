@@ -1,0 +1,51 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: service-directory
+spec:
+  version: "1.0.0"
+  components:
+    - name: service-directory
+      package:
+        name: gcp-service-directory
+        version: "0.1.0"
+      inputs:
+        project_id: my-project
+        location: europe-west1
+        name: sd-1
+        services:
+          one:
+            endpoints:
+              - first
+              - second
+            metadata: null
+        service_iam:
+          one:
+            roles/servicedirectory.editor:
+              - serviceAccount:service-editor.example.com
+        endpoint_config:
+          one/first:
+            address: 127.0.0.1
+            metadata: {}
+            port: 80
+          one/second:
+            address: 127.0.0.2
+            metadata: {}
+            port: 80
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: service-directory
+  scope: my-team
+spec:
+  template: service-directory
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: service-directory-dev
+  scope: my-team/dev
+spec:
+  stack: service-directory
+  version: "1.0.0"
