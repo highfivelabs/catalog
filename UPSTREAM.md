@@ -93,6 +93,7 @@ must carry.
 | `charts/azure/avm-res-network-natgateway` | Azure Verified Module `avm-res-network-natgateway` (v0.3.2) | the gateway, its public IPs and their locks, lock, role assignments, diagnostic settings | `timeouts` |
 | `charts/azure/avm-res-network-publicipaddress` | Azure Verified Module `avm-res-network-publicipaddress` (v0.2.1) | the address, lock, role assignments, diagnostic settings | none |
 | `charts/azure/avm-res-network-privatednszone` | Azure Verified Module `avm-res-network-privatednszone` (v0.6.0) | the zone, A/AAAA/CNAME/MX/PTR/SRV/TXT records, virtual network links, lock, role assignments | `soa_record`, `retry`, `timeouts` |
+| `charts/azure/avm-res-managedidentity-userassignedidentity` | Azure Verified Module `avm-res-managedidentity-userassignedidentity` (v0.6.0) | the identity, federated identity credentials, outbound role assignments, lock | `isolation_scope` |
 
 ## Moving the pins
 
