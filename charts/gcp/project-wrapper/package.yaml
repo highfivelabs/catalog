@@ -1,0 +1,25 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are the forms gke-cluster's inputs take (docs/design.md,
+# "References between resources"): project_id for project_id, and
+# node_service_account_email for service_account with
+# create_service_account: false. project_id is the ID the chart computed,
+# read from the node account's project annotation, so it has a value with
+# project_reuse too; project_number needs the project object.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-project-wrapper
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    project_id: resources.node_service_account.metadata.annotations['cnrm.cloud.google.com/project-id']
+    project_number: resources.project.status.number
+    node_service_account_email: resources.node_service_account.status.email
+    node_service_account_iam_email: resources.node_service_account.status.member
+    services: >-
+      resources.filter(k, resources[k].kind == 'Service').map(k, resources[k].spec.resourceID).sort()

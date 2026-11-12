@@ -1,0 +1,103 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+The baseline this chart adds to the project chart's objects: the APIs a
+GKE project needs, and the project's dedicated node service account with
+the minimal node roles (README.md). Every object takes the project's
+labels and tags and its deletion_policy, and names the project the way the
+project chart does: its own templates (project.id, project.ref,
+project.iamRef) run here on the project chart's values, so the two never
+disagree about the project ID.
+*/ -}}
+{{- $v := .Values }}
+{{- $pv := $v.project | default dict }}
+{{- $p := dict "Values" $pv "Release" .Release "Chart" (dict "Name" .Chart.Name "Version" .Chart.Version) }}
+
+{{- /* namePrefix: the project chart reads project.namePrefix only. */}}
+{{- $top := toString ($v.namePrefix | default "") }}
+{{- $sub := toString ($pv.namePrefix | default "") }}
+{{- if ne $top $sub }}
+{{- fail (printf "project-wrapper: namePrefix is %q but project.namePrefix is %q: the project chart reads project.namePrefix, so set both to the same value" $top $sub) }}
+{{- end }}
+
+{{- $projectId := include "project.id" $p }}
+
+{{- /* required_labels: each a cloud label on the project. */}}
+{{- range $k := ($v.required_labels | default list) }}
+{{- $has := false }}
+{{- if and (hasKey ($pv.labels | default dict) $k) (not (contains "/" $k)) }}{{ $has = true }}{{ end }}
+{{- if hasKey ($pv.tags | default dict) $k }}{{ $has = true }}{{ end }}
+{{- if not $has }}
+{{- fail (printf "project-wrapper: the project needs the cloud label %q (required_labels): set project.labels.%s or project.tags.%s" $k $k $k) }}
+{{- end }}
+{{- end }}
+
+{{- $sa := $v.node_service_account | default dict }}
+{{- $accountId := toString $sa.name }}
+{{- if not (regexMatch "^[a-z]([-a-z0-9]{4,28}[a-z0-9])$" $accountId) }}
+{{- fail (printf "project-wrapper: node_service_account.name %q must be 6 to 30 lower-case letters, digits or hyphens, start with a letter and not end with a hyphen" $accountId) }}
+{{- end }}
+
+{{- /* The APIs: the baseline, plus Artifact Registry's when nodes read it,
+less those the project chart already enables. Same object names and ids as
+the project chart's, so moving an API between the two lists renames nothing. */}}
+{{- $want := $v.baseline_services | default list }}
+{{- if $sa.grant_artifact_registry_reader }}{{ $want = append $want "artifactregistry.googleapis.com" }}{{ end }}
+{{- $c := $pv.service_config | default dict }}
+{{- $annotations := dict
+  "cnrm.cloud.google.com/disable-on-destroy" (toString ($c.disable_on_destroy | default false))
+  "cnrm.cloud.google.com/disable-dependent-services" (toString ($c.disable_dependent_services | default false)) }}
+{{- range $s := ($want | uniq | sortAlpha) }}
+{{- if not (has $s ($pv.services | default list)) }}
+---
+apiVersion: serviceusage.cnrm.cloud.google.com/v1beta1
+kind: Service
+metadata:
+  {{- include "kcc.metadata" (dict "root" $p "name" (include "kcc.name" (list $.Release.Name "service" (trimSuffix ".googleapis.com" $s))) "id" (printf "service:%s" $s) "annotations" $annotations) | nindent 2 }}
+spec:
+  resourceID: {{ $s }}
+  projectRef:
+    {{- include "project.ref" $p | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{- /* The node service account and its project roles: GKE's documented
+minimum for a node account (logging, monitoring, resource metadata), each
+an additive IAMPolicyMember, so nothing else on the project changes. */}}
+{{- $saObject := include "kcc.name" (list .Release.Name "node-sa") }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  {{- include "kcc.metadata" (dict "root" $p "name" $saObject "id" "node_service_account" "project" $projectId "abandon" (include "kcc.abandon" $p)) | nindent 2 }}
+spec:
+  resourceID: {{ $accountId }}
+  {{- with $sa.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $sa.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- $roles := list "roles/logging.logWriter" "roles/monitoring.metricWriter" "roles/monitoring.viewer" "roles/stackdriver.resourceMetadata.writer" }}
+{{- if $sa.grant_artifact_registry_reader }}{{ $roles = append $roles "roles/artifactregistry.reader" }}{{ end }}
+{{- range $r := ($sa.extra_roles | default list) }}
+{{- if not (hasPrefix "roles/" $r) }}{{ if not (hasPrefix "projects/" $r) }}
+{{- fail (printf "project-wrapper: node_service_account.extra_roles %q is not a role (roles/... or projects/<id>/roles/...)" $r) }}
+{{- end }}{{ end }}
+{{- $roles = append $roles $r }}
+{{- end }}
+{{- range $r := ($roles | uniq | sortAlpha) }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $p "name" (include "kcc.name" (list $.Release.Name "node-sa" (trimPrefix "roles/" $r))) "id" (printf "node_grant:%s" $r) "project" $projectId) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- include "project.iamRef" $p | nindent 4 }}
+  role: {{ $r | quote }}
+  memberFrom:
+    serviceAccountRef:
+      name: {{ $saObject }}
+{{- end }}

@@ -48,6 +48,36 @@ type object struct {
 	} `yaml:"spec"`
 }
 
+// Sets returns the --set arguments that give a chart the namePrefix p: its
+// own namePrefix, and the namePrefix of each chart it depends on (Chart.yaml
+// dependencies, by alias or name), since Helm cannot pass a parent's value
+// down to a subchart. A wrapper chart (charts/gcp/project-wrapper) checks
+// that the two agree.
+func Sets(chartDir, p string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(chartDir, "Chart.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	var c struct {
+		Dependencies []struct {
+			Name  string `yaml:"name"`
+			Alias string `yaml:"alias"`
+		} `yaml:"dependencies"`
+	}
+	if err := yaml.Unmarshal(data, &c); err != nil {
+		return nil, fmt.Errorf("%s/Chart.yaml: %w", chartDir, err)
+	}
+	out := []string{"namePrefix=" + p}
+	for _, d := range c.Dependencies {
+		key := d.Name
+		if d.Alias != "" {
+			key = d.Alias
+		}
+		out = append(out, key+".namePrefix="+p)
+	}
+	return out, nil
+}
+
 func render(chartDir, release, values string, set ...string) ([]byte, error) {
 	args := []string{"template", release, chartDir, "--namespace", "test", "-f", values}
 	for _, s := range set {
@@ -131,14 +161,22 @@ func Check(chartDir string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s/%s: %w", chart, name, err)
 		}
-		empty, err := render(chartDir, name, values, "namePrefix=")
+		emptySets, err := Sets(chartDir, "")
+		if err != nil {
+			return nil, err
+		}
+		empty, err := render(chartDir, name, values, emptySets...)
 		if err != nil {
 			return nil, fmt.Errorf("%s/%s with namePrefix empty: %w", chart, name, err)
 		}
 		if !bytes.Equal(plain, empty) {
 			bad("%s: an empty namePrefix changes the render", name)
 		}
-		with, err := render(chartDir, name, values, "namePrefix="+Prefix)
+		sets, err := Sets(chartDir, Prefix)
+		if err != nil {
+			return nil, err
+		}
+		with, err := render(chartDir, name, values, sets...)
 		if err != nil {
 			bad("%s: does not render with namePrefix=%s: %v", name, Prefix, err)
 			continue

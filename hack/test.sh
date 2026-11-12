@@ -57,6 +57,11 @@ fi
 for name in "${charts[@]}"; do
   dir="$(dirname "$(ls charts/*/"${name}"/Chart.yaml)")"
   if cmp -s lib/_kcc.tpl "${dir}/templates/_kcc.tpl"; then ok; else bad "${name}: templates/_kcc.tpl differs from lib/_kcc.tpl (run hack/sync-lib.sh)"; fi
+  # A chart that depends on others (a wrapper) gets them from Chart.lock,
+  # built from the charts beside it (file://), never fetched.
+  if grep -q '^dependencies:' "${dir}/Chart.yaml"; then
+    if out="$(helm dependency build "${dir}" 2>&1)"; then ok; else bad "${name}: helm dependency build"; echo "${out}"; continue; fi
+  fi
   first="$(ls "${dir}"/tests/*.values.yaml | head -1)"
   if out="$(helm lint "${dir}" -f "${first}" 2>&1)"; then ok; else bad "${name}: helm lint"; echo "${out}"; fi
   if out="$(bin/catalogtool check "${dir}/package.yaml" "${dir}/Chart.yaml" 2>&1)"; then ok; else bad "${name}: package.yaml"; echo "${out}"; fi
@@ -85,9 +90,12 @@ for name in "${charts[@]}"; do
   if out="$(bin/catalogtool nameprefix "${dir}" 2>&1)"; then ok; else bad "${name}: namePrefix"; echo "${out}"; fi
   # every object has an hfl.dev/id and no two share one (docs/design.md, "Outputs").
   if out="$(bin/catalogtool ids "${dir}" 2>&1)"; then ok; else bad "${name}: ids"; echo "${out}"; fi
+  # namePrefix=zz9 on the chart and on each chart it depends on.
+  prefix_sets=()
+  while read -r s; do prefix_sets+=(--set "$s"); done < <(bin/catalogtool nameprefix-sets "${dir}" zz9)
   for values in "${dir}"/tests/*.values.yaml; do
     case="$(basename "${values}" .values.yaml)"
-    if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" --set namePrefix=zz9 2>&1)" \
+    if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" "${prefix_sets[@]}" 2>&1)" \
         && out="$(printf '%s\n' "${rendered}" | kubeconform -strict -summary \
           -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
           -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then

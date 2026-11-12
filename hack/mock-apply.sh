@@ -83,6 +83,7 @@ for values in charts/*/*/tests/mock.values.yaml; do
   kubectl create namespace "${ns}" --dry-run=client -o yaml \
     | kubectl annotate --local -f - "cnrm.cloud.google.com/project-id=${PROJECT}" -o yaml \
     | kubectl apply -f - >/dev/null
+  if grep -q '^dependencies:' "${dir}/Chart.yaml"; then helm dependency build "${dir}" >/dev/null; fi
   helm template "${rel}" "${dir}" --namespace "${ns}" -f "${values}" >"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
