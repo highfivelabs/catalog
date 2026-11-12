@@ -615,6 +615,17 @@ Config Connector. What differs:
 | `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations, `revoke_rules_on_delete` and non-exclusive rules are refused |
 | `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
+| `charts/aws/iam-role` | `terraform-aws-iam` v6.8.2, `modules/iam-role` | partial: every variable carried; the trust policy and inline policy built as the submodule builds them (generic, GitHub and Bitbucket OIDC, SAML, statements, source and override documents merged by `Sid`, with `account_id`), policy attachments, instance profile; `use_name_prefix` names the role without Terraform's random suffix |
+| `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
+| `charts/aws/acm` | `terraform-aws-acm` v6.3.1 | partial: the certificate, or (`create_route53_records_only`) its DNS validation records from a certificate component's outputs: DNS validation with Route 53 is two components, since the records exist only in the certificate's status; EMAIL validation and the wait for `ISSUED` are gaps |
+| `charts/aws/ec2-instance` | `terraform-aws-ec2-instance` v6.4.1 | partial: the instance (AMI by ID or by SSM parameter, resolved by EC2 at launch) with most launch options, and its IAM role and instance profile; the security group the module makes by default is refused (no reference from `Instance`), as are extra EBS volumes, the Elastic IP, the Spot request and the root block device |
+
+The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
+and `aws/iam-policy`, ranked after the 40), since its root declares no
+variables. Its user and account submodules, gaps in section 3, map to
+ack-extensions kinds at the commit `crds/ack-extensions` is copied from:
+`UserGroupMembership`, `AccessKey`, `LoginProfile`, `SSHPublicKey`,
+`AccountAlias` and `AccountPasswordPolicy` (`upstream/aws-kinds.yaml`).
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 
@@ -631,3 +642,9 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |
 | `Key` fields: `pendingWindowInDays` (on delete), `rotationPeriodInDays`, `enabled` | kms (`deletion_window_in_days`, `rotation_period_in_days`, `is_enabled`) | fields on ACK's `Key` (upstream) or a patch |
 | S3 directory buckets, bucket metadata configurations; emptying a bucket on delete (`force_destroy`) | s3-bucket | generated (directory bucket, metadata); a field and hook on ACK's `Bucket` |
+| A certificate that is synced only once `ISSUED` (a `synced.when` on `Status.status`, or a `CertificateValidation` kind that waits), and `validationMethod` on `Certificate` (ACK always requests DNS validation) | acm (`wait_for_validation`, `validation_method: EMAIL`) | generator config on ACK's `Certificate` (upstream), or a hand-written kind |
+| A `RecordSet` that may overwrite a record already there (Route 53's `UPSERT` on create) | acm (`validation_allow_overwrite_records`) | a field on ACK's `RecordSet` (upstream) |
+| `securityGroupRefs` on ACK's `Instance` (it takes IDs only) | ec2-instance (`create_security_group`, the default) | a reference field on ACK's `Instance` (upstream) |
+| `instanceRef` on ack-extensions' `VolumeAttachment`, and a `Volume` that takes its Availability Zone from an instance | ec2-instance (`ebs_volumes`) | reference fields on ack-extensions' kinds |
+| An Elastic IP association with an instance (`AssociateAddress`, with `instanceRef` and `allocationRef`), and `domain` on `ElasticIPAddress` | ec2-instance (`create_eip`) | a new kind (ack-extensions) |
+| `groups` on `Instance.networkInterfaces` (so a public IP or secondary IPs can be asked for with the instance's groups), `enablePrimaryIPv6`, `placement.groupID`, `cpuOptions.amdSevSnp` | ec2-instance | fields on ACK's `Instance` (upstream) |

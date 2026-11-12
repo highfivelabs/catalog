@@ -1,0 +1,25 @@
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: user-assume-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "user-assume"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "example"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\",\"sts:TagSession\"],\"Condition\":{\"StringEquals\":{\"sts:ExternalId\":[\"some-secret-id\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::835367859851:user/anton\"]},\"Sid\":\"TrustRoleAndServiceToAssume\"}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::aws:policy/AlexaForBusinessFullAccess"
+    - "arn:aws:iam::aws:policy/AmazonCognitoReadOnly"
+    - "arn:aws:iam::835367859851:policy/custom"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Terraform"
+      value: "true"

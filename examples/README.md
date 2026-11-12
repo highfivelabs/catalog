@@ -11,7 +11,7 @@ task examples-test                                                              
 
 | Directory | Files |
 | --- | --- |
-| `artifact-registry/`, `cloudsql-instance/`, `dns/`, `gcs/`, `iam-service-account/`, `kms/`, `net-cloudnat/`, `net-vpc-firewall/`, `net-vpc-peering/`, `net-vpc/`, `project/`, `pubsub/`, `secret-manager/` | one module call each |
+| `artifact-registry/`, `cloudsql-instance/`, `dns/`, `gcs/`, `gke-nodepool/`, `iam-service-account/`, `kms/`, `net-cloudnat/`, `net-vpc-firewall/`, `net-vpc-peering/`, `net-vpc/`, `project/`, `pubsub/`, `secret-manager/`, `service-directory/` | one module call each |
 | `wiring/` | two calls, one using the other's output |
 | `names/` | `namePrefix: ${instance.name}` on every component, and the plans of two Instances (`convert.args`, `convert-prod.args`) |
 | `gaps/` | what the converter says about what it cannot carry |
