@@ -76,8 +76,10 @@ image lacks the linters it runs. It fails unless task and the tools
 `ci.yml` pins (`*_VERSION`) are installed at those versions and
 shellcheck is installed, and it runs Go at `ci.yml`'s `go-version-file`
 (`GOTOOLCHAIN`), so nothing is skipped as "not installed". It uploads the
-log to the offload bucket and posts the commit status `offload/ci`
-(success or failure, with a link to the log) on the commit. The pre-push
+log to the offload bucket, prints its location (the bucket is private),
+and posts the commit status `offload/ci` (success or failure, what ran,
+in how long; no link and no environment identifiers, since the
+repository's statuses are public) on the commit. The pre-push
 hook (`hack/hooks/pre-push`) runs it for every branch commit pushed and
 refuses the push on a failure; a commit that already has `offload/ci`
 success is not run again.
