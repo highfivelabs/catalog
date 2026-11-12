@@ -39,7 +39,8 @@ conditional_bindings:
 
 renders four `IAMPolicyMember`s, one per role (and condition) and member
 (`tests/golden/basic.yaml`). The same with `mode: authoritative` renders one
-`IAMPartialPolicy` per folder (`tests/authoritative.values.yaml`).
+`IAMBinding` per folder and role (and condition)
+(`tests/authoritative.values.yaml`).
 
 ## Values: module inputs to Config Connector
 
@@ -50,9 +51,9 @@ Every module input is a value of the same name (`values.yaml`,
 | --- | --- |
 | `folders` | each folder's `resourceRef` (`kind: Folder`, `external: folders/<number>`). A folder is `folders/<number>` or `<number>`, and the module writes `folders/` + the value with `folders/` taken out, so both name one folder; a folder given twice is one. Anything else (a display name, as the module's README shows) is refused by the schema: the API needs the number |
 | `mode: additive` (default) | the module's `google_folder_iam_member`s: one `IAMPolicyMember` (`iam.cnrm.cloud.google.com/v1beta1`) per folder, role and member, `hfl.dev/id` `folder:<number>:iam-additive-<role>--<member>` |
-| `mode: authoritative` | the module's `google_folder_iam_binding`s (one per folder and role): one `IAMPartialPolicy` per folder, `hfl.dev/id` `folder:<number>:iam`, with a binding per role |
+| `mode: authoritative` | the module's `google_folder_iam_binding`s (one per folder and role): one `IAMBinding` (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`) per folder and role, `hfl.dev/id` `folder:<number>:iam-binding-<role>`, exact as the module's: members of the role it does not list are removed |
 | `bindings` | `{ROLE: [MEMBER]}`, on every folder |
-| `conditional_bindings` | `[{role, title, description, expression, members}]`, on every folder, each with its `condition` (`title`, `expression`, `description` when not empty). Additive ids are `folder:<number>:iam-additive-<role>--<title>--<member>` |
+| `conditional_bindings` | `[{role, title, description, expression, members}]`, on every folder, each with its `condition` (`title`, `expression`, `description` when not empty). Additive ids are `folder:<number>:iam-additive-<role>--<title>--<member>`, authoritative ones `folder:<number>:iam-binding-<role>--<title>` |
 
 `mode` takes `additive` or `authoritative`, as the module's description
 says. The module itself takes any string and makes nothing for another
@@ -78,16 +79,13 @@ only for Terraform's plan-time counting.
 
 ## Differences from the module
 
-- **Authoritative mode keeps other members.** The module's
-  `google_folder_iam_binding` is authoritative for its role: on apply,
-  Terraform removes any member of that role on the folder that it does not
-  list. `IAMPartialPolicy` keeps the listed members but does not remove
-  others: a member added to one of these roles by hand, or by another tool,
-  stays (`docs/design.md`, "IAM"). Deleting the component removes only the
-  listed members. For the same reason a role (or conditional binding) with
-  no members, which the module would empty, is refused in authoritative
-  mode. This changes once `IAMRoleBinding` ships in
-  config-connector-extensions (decision 5).
+- **A role with no members is refused in authoritative mode.** The
+  module's `google_folder_iam_binding` with no members empties the role on
+  the folder; an `IAMBinding` needs at least one member, so the chart
+  refuses a role (or conditional binding) with none rather than leave its
+  members in place. Authoritative mode is otherwise exact, as the module's:
+  each `IAMBinding` removes members of its role (and condition) that it
+  does not list (`docs/design.md`, "IAM").
 - **Two `conditional_bindings` with one role and title** are refused: the
   module keys them by role and title, so Terraform fails on them too.
 - **Resource addresses.** With one folder, the module keys its resources
@@ -99,7 +97,7 @@ only for Terraform's plan-time counting.
 
 A `module "x" { source = "terraform-google-modules/iam/google//modules/folders_iam" ... }`
 block's arguments become the values unchanged. An `IAMPolicyMember` or
-`IAMPartialPolicy` that matches an existing grant changes nothing in the
+`IAMBinding` that matches an existing grant changes nothing in the
 cloud, so adoption needs no IDs; follow `docs/design.md`, "From Terraform".
 
 ## Upstream

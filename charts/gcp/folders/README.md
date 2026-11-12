@@ -15,10 +15,11 @@ platform namespace whose Config Connector account has them
 
 ## Example
 
-The module README's example, as values (`tests/basic.values.yaml`):
+The module README's example, as values, with a placeholder parent folder
+(`tests/basic.values.yaml`):
 
 ```yaml
-parent: folders/65552901371
+parent: folders/10000000001
 names: [dev, staging, production]
 set_roles: true
 per_folder_admins:

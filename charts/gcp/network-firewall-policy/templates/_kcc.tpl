@@ -178,8 +178,13 @@ description: {{ . | quote }}
 {{/*
 kcc.iam: the IAM a fabric module manages on one resource, from its
 standard IAM variables (docs/design.md, "IAM"):
-  iam, iam_by_principals, iam_bindings    authoritative for the roles they
+  iam, iam_by_principals                  authoritative for the roles they
                                           name: one IAMPartialPolicy
+  iam_bindings                            exact per role: one IAMBinding each
+                                          (config-connector-extensions,
+                                          iam.gcp.hfl.dev/v1beta1) when the
+                                          kind takes the resource; otherwise
+                                          bindings of the IAMPartialPolicy
   iam_bindings_additive,
   iam_by_principals_additive              additive: one IAMPolicyMember each
 Arguments (a dict):
@@ -202,6 +207,32 @@ Arguments (a dict):
 {{- end -}}
 {{- end -}}
 {{- $bindings := ($v.iam_bindings | default dict) -}}
+{{- /* The resource kinds IAMBinding takes (config-connector-extensions
+pkg/iampolicy/registry.go) that a catalog chart puts IAM on. */ -}}
+{{- $exact := dict -}}
+{{- if and $bindings (has .resourceRef.kind (list "Project" "Folder" "Organization" "IAMServiceAccount" "StorageBucket" "SecretManagerSecret" "ArtifactRegistryRepository" "RunService" "PubSubTopic" "PubSubSubscription" "KMSKeyRing" "KMSCryptoKey")) -}}
+{{- $exact = $bindings -}}
+{{- $bindings = dict -}}
+{{- end -}}
+{{- range $key, $b := $exact }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+{{- include "kcc.metadata" (dict "root" $root "name" (include "kcc.name" (list $.base "iam-binding" $key)) "id" (printf "%siam-binding-%s" $.idPrefix $key)) | nindent 2 }}
+spec:
+  resourceRef:
+{{- toYaml $.resourceRef | nindent 4 }}
+  role: {{ $b.role | quote }}
+  members:
+{{- range $m := (uniq $b.members | sortAlpha) }}
+    - {{ $m | quote }}
+{{- end }}
+{{- with $b.condition }}
+  condition:
+{{- include "kcc.condition" . | nindent 4 }}
+{{- end }}
+{{- end }}
 {{- if or $roles $bindings }}
 ---
 apiVersion: iam.cnrm.cloud.google.com/v1beta1

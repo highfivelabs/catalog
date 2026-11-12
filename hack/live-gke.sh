@@ -7,16 +7,19 @@
 # (docs/design.md, "Testing", layer 3). Only on an offload VM acting as a
 # service account, never with a key. `task test-live-gke` runs it:
 #
-#   offload run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com \
-#     --machine e2-standard-8 --hours 2 -- env PROJECT=hfl-dev-514205 \
+#   offload run --sa "$GCP_CCE_LIVE_SA" \
+#     --machine e2-standard-8 --hours 2 -- env PROJECT="$GCP_PROJECT" \
 #     CCE_TARBALL=gs://.../cce-<commit>.tar.gz hack/live-gke.sh
 #
 # What it makes, all named cat-<UTC month day hour minute>-<4 hex>-...:
 # a network and a /24 subnet with pod and service ranges (the net-vpc
-# chart), a zonal Standard cluster with its default pool removed and one
-# Spot e2-small node (pool min 1, max 1), and a regional Autopilot cluster
-# with no workloads. Both clusters have private nodes and a public
-# endpoint. The nodes run as NODE_SA (default: the project's Compute Engine
+# chart), a zonal Standard cluster with its default pool removed and two
+# node pools of one Spot e2-small node each (one autoscaled min 1 max 1,
+# one fixed), and a regional Autopilot cluster with no workloads. Both
+# clusters have private nodes and a public endpoint. Then the mode change:
+# the Standard cluster rendered as Autopilot must be refused by the chart
+# when helm can see the cluster (--dry-run=server), and by Config Connector
+# when the offline render is applied, leaving the cluster unchanged. The nodes run as NODE_SA (default: the project's Compute Engine
 # default account), so the run needs no project IAM change: the chart's
 # create_service_account path (an account and three project grants) is
 # render-tested only. Expect about 30 minutes and well under a dollar.
@@ -30,8 +33,15 @@
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
+: "${GCP_PROJECT:?set GCP_PROJECT, the live-test project (see .env.example)}"
+ALLOWED_PROJECTS=("${GCP_PROJECT}")
+# And the test estate generation's project (factory/estate/gcp), when its
+# env file is loaded.
+[[ -z "${HFL_GCP_TEST_PROJECT:-}" ]] || ALLOWED_PROJECTS+=("${HFL_GCP_TEST_PROJECT}")
 PROJECT="${PROJECT:-}"
-[[ "${PROJECT}" == hfl-dev-514205 ]] || { echo "live-gke: refusing project '${PROJECT}': only hfl-dev-514205" >&2; exit 2; }
+allowed=no
+for p in "${ALLOWED_PROJECTS[@]}"; do [[ "${PROJECT}" == "${p}" ]] && allowed=yes; done
+[[ "${allowed}" == yes ]] || { echo "live-gke: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]} (GCP_PROJECT, HFL_GCP_TEST_PROJECT)" >&2; exit 2; }
 REGION=us-central1
 ZONE=us-central1-a
 TIMEOUT="${LIVE_TIMEOUT:-1800}"
@@ -153,6 +163,16 @@ zones: [${ZONE}]
 remove_default_node_pool: true
 node_pools:
   - {name: spot, machine_type: e2-small, disk_size_gb: 20, min_count: 1, max_count: 1, spot: true}
+  - {name: spot-fixed, machine_type: e2-small, disk_size_gb: 20, autoscaling: false, node_count: 1, spot: true}
+VALUES
+# The same Standard cluster (same release, name and location) rendered as
+# Autopilot: the mode change the chart and Config Connector must refuse.
+cat >"${OUT}/modechange.values.yaml" <<VALUES
+${common}
+name: ${RUN}-std
+regional: false
+zones: [${ZONE}]
+mode: autopilot
 VALUES
 cat >"${OUT}/autopilot.values.yaml" <<VALUES
 ${common}
@@ -172,10 +192,12 @@ summary="${OUT}/summary.md"
 } >"${summary}"
 failed=0
 
-# objects FILE: the rendered objects, as kubectl names them.
+# objects FILE: the rendered objects, as kubectl names them. A file of one
+# object (Autopilot with an external node account) comes back as that
+# object, not a List.
 objects() {
   kubectl get -n "${NS}" -f "$1" -o json \
-    | jq -r '.items[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"'
+    | jq -r '(if .items then .items[] else . end) | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"'
 }
 # delete_all FILE...: delete the objects of every file at once, doing the
 # deletion defender's part, and wait until they are gone.
@@ -196,6 +218,9 @@ delete_all() {
       fi
     done
     (( left == 0 )) && return 0
+    # A line a minute: offload deletes a VM whose log is silent for 45
+    # minutes, and then the cleanup trap never runs (2026-11-11).
+    (( ($(date +%s) - deadline + TIMEOUT) % 60 < 10 )) && echo "   deleting: ${left} left, $(( deadline - $(date +%s) ))s to go: $(for o in "${objs[@]}"; do kubectl get -n "${NS}" "$o" -o jsonpath='{.kind}/{.metadata.name}={.status.conditions[?(@.type=="Ready")].reason} ' 2>/dev/null; done)"
     sleep 10
   done
   return 1
@@ -234,12 +259,49 @@ wait_ready standard "${OUT}/standard.rendered.yaml" "${t0}"
 wait_ready autopilot "${OUT}/autopilot.rendered.yaml" "${t0}"
 declare -A short=([standard]=std [autopilot]=ap)
 for m in standard autopilot; do
-  kubectl get -n "${NS}" -f "${OUT}/${m}.rendered.yaml" -o json >"${OUT}/${m}.live.json"
+  kubectl get -n "${NS}" -f "${OUT}/${m}.rendered.yaml" -o json \
+    | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${m}.live.json"
   echo "-- ${m} outputs"
   bin/catalogtool outputs charts/gcp/gke-cluster/package.yaml "${OUT}/${m}.live.json" charts/gcp/gke-cluster/values.yaml "${OUT}/${m}.values.yaml" \
     | tee "${OUT}/${m}.outputs.json" || failed=$((failed + 1))
   "${G[@]}" container clusters list --filter="name=${RUN}-${short[$m]}" --format='value(name,location,status,currentMasterVersion,autopilot.enabled)' | tee -a "${OUT}/${m}.gcloud.txt" || true
 done
+
+echo "== the refused mode change: Standard ${RUN}-std rendered as Autopilot"
+mc="${OUT}/modechange.md"
+{ echo; echo "## The mode change (Standard ${RUN}-std rendered with mode: autopilot)"; echo; } >"${mc}"
+std_before="$("${G[@]}" container clusters describe "${RUN}-std" --location "${ZONE}" --format='value(createTime,autopilot.enabled)' 2>&1 || true)"
+# 1. A render that can see the cluster stops (templates/refused.yaml).
+if helm install std charts/gcp/gke-cluster --namespace "${NS}" -f "${OUT}/modechange.values.yaml" --dry-run=server >"${OUT}/modechange.helm.txt" 2>&1; then
+  failed=$((failed + 1)); echo "1. helm install --dry-run=server: rendered (expected a refusal). FAIL" >>"${mc}"
+elif grep -q "cannot change a cluster's mode" "${OUT}/modechange.helm.txt"; then
+  echo "1. helm install --dry-run=server (lookup sees the cluster): refused: \`$(grep -o "gke-cluster: mode is[^.]*" "${OUT}/modechange.helm.txt" | head -1)\`. PASS" >>"${mc}"
+else
+  failed=$((failed + 1)); echo "1. helm install --dry-run=server failed for another reason: \`$(tail -1 "${OUT}/modechange.helm.txt" | cut -c1-300)\`. FAIL" >>"${mc}"
+fi
+# 2. An offline render applies; Config Connector must refuse the immutable
+# field and leave the cluster as it is.
+helm template std charts/gcp/gke-cluster --namespace "${NS}" -f "${OUT}/modechange.values.yaml" >"${OUT}/modechange.rendered.yaml"
+dry="$(kubectl apply --server-side --force-conflicts --dry-run=server -n "${NS}" -f "${OUT}/modechange.rendered.yaml" 2>&1 || true)"
+echo "2. kubectl apply --server-side --dry-run=server of the offline render: \`$(echo "${dry}" | tr '\n' ' ' | cut -c1-300)\` (this run has no Config Connector webhooks, so a dry run shows only the API server's schema checks)." >>"${mc}"
+kubectl apply --server-side --force-conflicts -n "${NS}" -f "${OUT}/modechange.rendered.yaml"
+refused=no; deadline=$(( $(date +%s) + 600 ))
+while (( $(date +%s) < deadline )); do
+  cond="$(kubectl get -n "${NS}" containercluster/std -o jsonpath='{.status.conditions[?(@.type=="Ready")].reason}|{.status.conditions[?(@.type=="Ready")].message}' 2>/dev/null || true)"
+  case "${cond%%|*}" in UpdateFailed|*Immutable*|*Error*) refused=yes; break ;; esac
+  sleep 10
+done
+std_after="$("${G[@]}" container clusters describe "${RUN}-std" --location "${ZONE}" --format='value(createTime,autopilot.enabled)' 2>&1 || true)"
+echo "3. Applied for real: Ready reason \`${cond%%|*}\`, message \`$(echo "${cond#*|}" | tr '\n|' '  ' | cut -c1-400)\`." >>"${mc}"
+echo "4. gcloud before (createTime, autopilot.enabled): \`${std_before}\`; after: \`${std_after}\`." >>"${mc}"
+if [[ "${refused}" == yes && -n "${std_before}" && "${std_before}" == "${std_after}" ]]; then
+  echo "5. Config Connector refused the change and the cluster is the same Standard cluster. PASS" >>"${mc}"
+else
+  failed=$((failed + 1)); echo "5. Refused: ${refused}; cluster unchanged: $([[ "${std_before}" == "${std_after}" ]] && echo yes || echo no). FAIL" >>"${mc}"
+fi
+# Put the Standard spec back before deleting.
+kubectl apply --server-side --force-conflicts -n "${NS}" -f "${OUT}/standard.rendered.yaml" >/dev/null
+cat "${mc}"
 
 echo "== delete the clusters, then the network"
 delete_all "${OUT}/standard.rendered.yaml" "${OUT}/autopilot.rendered.yaml" || echo "live-gke: the clusters were not deleted in ${TIMEOUT}s"
@@ -255,6 +317,7 @@ done
 gone="$("${G[@]}" container clusters list --filter="name~^${RUN}-" --format='value(name)')"
 [[ -z "${gone}" ]] || { failed=$((failed + 1)); echo "live-gke: still in Google Cloud: ${gone}"; }
 { echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}."
+  cat "${mc}"
   echo; echo "${failed} failures."; } >>"${summary}"
 cat "${summary}"
 [[ ${failed} -eq 0 ]]

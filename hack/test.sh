@@ -34,6 +34,11 @@ CRDS="$(hack/kcc.sh)"
 VERSION="$(basename "$(dirname "$(dirname "$(dirname "${CRDS}")")")" | sed 's/^kcc-//')"
 SCHEMAS="${ROOT}/.cache/schemas-${VERSION}"
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
+# config-connector-extensions kinds (IAMBinding) validate against the CRDs
+# copied in crds/config-connector-extensions.
+CCE_SCHEMAS="${ROOT}/.cache/schemas-cce"
+rm -rf "${CCE_SCHEMAS}"
+bin/catalogtool schemas crds/config-connector-extensions "${CCE_SCHEMAS}" >/dev/null
 
 fail=0; passed=0
 bad() { echo "FAIL $*"; fail=$((fail + 1)); }
@@ -52,6 +57,11 @@ fi
 for name in "${charts[@]}"; do
   dir="$(dirname "$(ls charts/*/"${name}"/Chart.yaml)")"
   if cmp -s lib/_kcc.tpl "${dir}/templates/_kcc.tpl"; then ok; else bad "${name}: templates/_kcc.tpl differs from lib/_kcc.tpl (run hack/sync-lib.sh)"; fi
+  # A chart that depends on others (a wrapper) gets them from Chart.lock,
+  # built from the charts beside it (file://), never fetched.
+  if grep -q '^dependencies:' "${dir}/Chart.yaml"; then
+    if out="$(helm dependency build "${dir}" 2>&1)"; then ok; else bad "${name}: helm dependency build"; echo "${out}"; continue; fi
+  fi
   first="$(ls "${dir}"/tests/*.values.yaml | head -1)"
   if out="$(helm lint "${dir}" -f "${first}" 2>&1)"; then ok; else bad "${name}: helm lint"; echo "${out}"; fi
   if out="$(bin/catalogtool check "${dir}/package.yaml" "${dir}/Chart.yaml" 2>&1)"; then ok; else bad "${name}: package.yaml"; echo "${out}"; fi
@@ -68,7 +78,8 @@ for name in "${charts[@]}"; do
       diff -u "${golden}" <(printf '%s\n' "${rendered}") | head -40 || true
     fi
     if out="$(printf '%s\n' "${rendered}" | kubeconform -strict -summary \
-        -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
+        -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+          -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
       ok; echo "ok   ${name}/${case}: ${out#Summary: }"
     else
       bad "${name}/${case}: kubeconform"; echo "${out}"
@@ -79,11 +90,15 @@ for name in "${charts[@]}"; do
   if out="$(bin/catalogtool nameprefix "${dir}" 2>&1)"; then ok; else bad "${name}: namePrefix"; echo "${out}"; fi
   # every object has an hfl.dev/id and no two share one (docs/design.md, "Outputs").
   if out="$(bin/catalogtool ids "${dir}" 2>&1)"; then ok; else bad "${name}: ids"; echo "${out}"; fi
+  # namePrefix=zz9 on the chart and on each chart it depends on.
+  prefix_sets=()
+  while read -r s; do prefix_sets+=(--set "$s"); done < <(bin/catalogtool nameprefix-sets "${dir}" zz9)
   for values in "${dir}"/tests/*.values.yaml; do
     case="$(basename "${values}" .values.yaml)"
-    if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" --set namePrefix=zz9 2>&1)" \
+    if rendered="$(helm template "${case}" "${dir}" --namespace test -f "${values}" "${prefix_sets[@]}" 2>&1)" \
         && out="$(printf '%s\n' "${rendered}" | kubeconform -strict -summary \
-          -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
+          -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
+          -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" - 2>&1)"; then
       ok
     else
       bad "${name}/${case}: with namePrefix=zz9"; echo "${rendered}" | head -5; echo "${out:-}"

@@ -1,0 +1,87 @@
+---
+# Source: gcs/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-binding-iam-binding-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam-binding"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "iam-binding-admins"
+spec:
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    name: iam-binding
+  role: "roles/storage.admin"
+  members:
+    - "group:admins@example.com"
+    - "user:ada@example.com"
+---
+# Source: gcs/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-binding-iam-binding-temp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam-binding"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "iam-binding-temp"
+spec:
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    name: iam-binding
+  role: "roles/storage.objectCreator"
+  members:
+    - "user:bob@example.com"
+  condition:
+    title: "until-2030"
+    expression: "request.time < timestamp('2030-01-01T00:00:00Z')"
+---
+# Source: gcs/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: iam-binding-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam-binding"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    name: iam-binding
+  bindings:
+    - role: "roles/storage.objectViewer"
+      members:
+        - member: "group:readers@example.com"
+---
+# Source: gcs/templates/bucket.yaml
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  name: iam-binding
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam-binding"
+    app.kubernetes.io/name: gcs
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: data
+  location: "EU"
+  storageClass: STANDARD
+  uniformBucketLevelAccess: true

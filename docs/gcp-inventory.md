@@ -27,7 +27,7 @@ alpha kind, 78 (18%) none; 2 of those 78 are covered by
 config-connector-extensions' gap kinds (regional secrets and their
 versions).
 
-Of the 19 modules the builder named first, 9 are **full**
+Of the 19 modules named first, 9 are **full**
 (iam-service-account, net-vpc-firewall, net-cloudnat, dns, kms,
 artifact-registry, cloudsql-instance, gke-nodepool, pubsub), 3 are
 **full with alpha** (gke-cluster-standard and gke-cluster-autopilot for
@@ -57,7 +57,7 @@ cloud-run-v2). None is uncovered.
   400 lines, M under 900, L under 2,000, XL above. For scale, the pilot
   ported iam-service-account (M) whole, gcs (L) and net-vpc (L) except
   their gaps and alpha features, and about a third of project (XL).
-- **Rank** is foundational value: the builder's list first (the order a
+- **Rank** is foundational value: the first-named list first (the order a
   landing zone needs them), then the rest of a landing zone (billing,
   logging, firewall policies, VPC-SC, the factories, peering, VPN,
   groups, load balancers, VMs), then managed services, then specialised
@@ -80,7 +80,7 @@ check `master` and open pull requests before building (config-connector-extensio
 
 | Rank | Gap | Modules | Which | Suggested kind |
 | ---: | --- | ---: | --- | --- |
-| 1 | **Role-authoritative IAM** (`google_*_iam_binding`): the members of one role on one resource, removing any others | 43 | every module with an `iam` or `iam_bindings` variable, all the foundation ones among them | `iam.gcp.hfl.dev/IAMRoleBinding` (the builder's name): `resourceRef` (any kind IAMPolicyMember takes), `role`, `members[]`/`memberFrom`, `condition`; owns that role (and condition) on the resource |
+| 1 | **Role-authoritative IAM** (`google_*_iam_binding`): the members of one role on one resource, removing any others | 43 | every module with an `iam` or `iam_bindings` variable, all the foundation ones among them | `iam.gcp.hfl.dev/IAMBinding` (built in config-connector-extensions; first named `IAMRoleBinding`): `resourceRef` (any kind IAMPolicyMember takes), `role`, `members[]`/`memberFrom`, `condition`; owns that role (and condition) on the resource |
 | 2 | **IAM on resources IAMPolicyMember cannot reference**: 32 resource types | 24 | secret-manager (regional secrets), gcs (managed folders), logging-bucket (log views), cloud-run-v2 (worker pools, IAP), cloud-function-v2, compute-vm (IAP tunnel), certificate-authority-service, cloud-deploy, dataform, dataplex (4), workstations, analytics-hub, api-gateway, binauthz, bigquery-connection, secure-source-manager, … | extend IAMPolicyMember/IAMPartialPolicy (or the kind in rank 1) to these resource types, starting with regional secrets, managed folders and log views |
 | 3 | **Network endpoints**: `google_compute_region_network_endpoint` (none) and `google_compute_network_endpoint` / global endpoints (alpha only) | 9 | the load balancer modules (net-lb-app-ext, -ext-regional, -int, -int-cross-region, net-lb-proxy-int, -cross-region) | `ComputeRegionNetworkEndpoint`; promote the endpoint kinds |
 | 4 | **Router route policies** (`google_compute_router_route_policy`) | 5 | net-vpn-ha, net-vpn-dynamic, net-vlan-attachment, net-ipsec-over-interconnect, ncc-spoke-ra | `ComputeRouterRoutePolicy` |
