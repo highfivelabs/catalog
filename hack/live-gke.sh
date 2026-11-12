@@ -297,11 +297,15 @@ bin/catalogtool outputs charts/gcp/gke-nodepool/package.yaml "${OUT}/nodepool.li
   | tee "${OUT}/nodepool.outputs.json" || failed=$((failed + 1))
 "${G[@]}" container node-pools list --cluster "${RUN}-std" --location "${ZONE}" --format='value(name,status,config.machineType,config.spot)' | tee "${OUT}/nodepool.gcloud.txt" || true
 delete_all "${OUT}/nodepool.rendered.yaml" || echo "live-gke: the node pool was not deleted in ${TIMEOUT}s"
-if "${G[@]}" container node-pools describe extra --cluster "${RUN}-std" --location "${ZONE}" >/dev/null 2>&1; then
-  failed=$((failed + 1)); echo "live-gke: node pool extra is still in Google Cloud"; np_gone=no
-else
-  np_gone=yes
-fi
+# Config Connector lets the object go once GKE has accepted the delete;
+# the pool can stay listed (STOPPING) for a few minutes after.
+np_gone=no; deadline=$(( $(date +%s) + 900 ))
+while (( $(date +%s) < deadline )); do
+  if ! "${G[@]}" container node-pools describe extra --cluster "${RUN}-std" --location "${ZONE}" >/dev/null 2>&1; then np_gone=yes; break; fi
+  echo "   node pool extra: $("${G[@]}" container node-pools describe extra --cluster "${RUN}-std" --location "${ZONE}" --format='value(status)' 2>/dev/null || true)"
+  sleep 20
+done
+[[ "${np_gone}" == yes ]] || { failed=$((failed + 1)); echo "live-gke: node pool extra is still in Google Cloud after 15 minutes"; }
 echo "   node pool extra gone from Google Cloud: ${np_gone}"
 
 echo "== the refused mode change: Standard ${RUN}-std rendered as Autopilot"
