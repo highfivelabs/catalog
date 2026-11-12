@@ -39,7 +39,7 @@ var statuses = []string{Ported, Partial, Blocked, NotStarted}
 func cloudName(c string) string {
 	switch c {
 	case "gcp":
-		return "Google Cloud: Cloud Foundation Fabric"
+		return "Google Cloud: Cloud Foundation Fabric and terraform-google-modules"
 	case "aws":
 		return "AWS: terraform-aws-modules"
 	case "azure":

@@ -1,0 +1,169 @@
+# Standard with most of what the chart carries: node auto-provisioning,
+# Shared VPC, authorized networks, a recurring maintenance window with
+# exclusions, Dataplane V2, Cloud DNS, Managed Prometheus, secrets
+# encryption, registry access, three Linux pools (spot, blue-green, GPU
+# and sole tenant) and a Windows pool, and per-pool labels, taints, tags,
+# metadata, sysctls and cgroup mode.
+project_id: my-project
+network_project_id: host-project
+name: std-prod
+description: Production cluster
+region: europe-west1
+zones: [europe-west1-b, europe-west1-c, europe-west1-d]
+network: shared-vpc
+subnetwork: gke-europe-west1
+ip_range_pods: pods
+ip_range_services: services
+additional_ip_range_pods: [pods-extra]
+additional_ip_ranges_config:
+  - subnetwork: projects/host-project/regions/europe-west1/subnetworks/gke-extra
+    pod_ipv4_range_names: [extra-pods]
+master_ipv4_cidr_block: 172.16.0.0/28
+master_authorized_networks:
+  - {cidr_block: 10.0.0.0/8, display_name: corp}
+  - {cidr_block: 192.168.0.0/24}
+enable_private_endpoint: false
+ip_endpoints_enabled: true
+dns_enable_k8s_tokens_via_dns: true
+release_channel: REGULAR
+kubernetes_version: "1.33"
+datapath_provider: ADVANCED_DATAPATH
+enable_cilium_clusterwide_network_policy: true
+enable_fqdn_network_policy: true
+cluster_dns_provider: CLOUD_DNS
+cluster_dns_scope: VPC_SCOPE
+cluster_dns_domain: std-prod.internal
+dns_cache: true
+enable_vertical_pod_autoscaling: true
+gce_pd_csi_driver: true
+gcs_fuse_csi_driver: true
+filestore_csi_driver: true
+parallelstore_csi_driver: false
+config_connector: true
+gke_backup_agent_config: true
+enable_cost_allocation: true
+enable_binary_authorization: true
+enable_intranode_visibility: true
+enable_l4_ilb_subsetting: true
+enable_multi_networking: false
+disable_l4_lb_firewall_reconciliation: false
+in_transit_encryption_config: IN_TRANSIT_ENCRYPTION_INTER_NODE_TRANSPARENT
+enable_identity_service: false
+enable_mesh_certificates: true
+enable_k8s_beta_apis: [resource.k8s.io/v1beta1/deviceclasses]
+service_external_ips: false
+monitoring_enabled_components: [SYSTEM_COMPONENTS, APISERVER]
+logging_enabled_components: [SYSTEM_COMPONENTS, WORKLOADS]
+monitoring_enable_managed_prometheus: true
+monitoring_enable_observability_metrics: true
+logging_variant: MAX_THROUGHPUT
+enable_gcfs: true
+grant_registry_access: true
+registry_project_ids: [my-project, artifacts-project]
+database_encryption:
+  - state: ENCRYPTED
+    key_name: projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/etcd
+boot_disk_kms_key: projects/kms-project/locations/europe-west1/keyRings/gke/cryptoKeys/disks
+authenticator_security_group: gke-security-groups@example.com
+resource_usage_export_dataset_id: gke_usage
+enable_network_egress_export: true
+maintenance_start_time: "2026-01-01T02:00:00Z"
+maintenance_end_time: "2026-01-01T06:00:00Z"
+maintenance_recurrence: FREQ=WEEKLY;BYDAY=SA,SU
+maintenance_exclusions:
+  - {name: freeze, start_time: "2026-12-20T00:00:00Z", end_time: "2027-01-03T00:00:00Z", exclusion_scope: NO_UPGRADES}
+remove_default_node_pool: true
+initial_node_count: 1
+network_tags: [nap-nodes]
+resource_manager_tags: {"tagKeys/123": "tagValues/456"}
+cluster_autoscaling:
+  enabled: true
+  autoscaling_profile: OPTIMIZE_UTILIZATION
+  min_cpu_cores: 0
+  max_cpu_cores: 64
+  min_memory_gb: 0
+  max_memory_gb: 256
+  gpu_resources:
+    - {resource_type: nvidia-l4, minimum: 0, maximum: 4}
+  auto_repair: true
+  auto_upgrade: true
+  disk_size: 50
+  strategy: BLUE_GREEN
+  node_pool_soak_duration: 600s
+  batch_soak_duration: 60s
+  batch_node_count: 1
+  enable_secure_boot: true
+  enable_default_compute_class: true
+deletion_policy: ABANDON
+node_pools:
+  - name: general
+    machine_type: e2-standard-4
+    min_count: 1
+    max_count: 5
+    location_policy: BALANCED
+    spot: true
+    enable_gvnic: true
+    enable_secure_boot: true
+    max_pods_per_node: 64
+    pod_range: pods-extra
+    pod_cidr_overprovision_disabled: true
+    cpu_manager_policy: static
+    cpu_cfs_quota: true
+    pod_pids_limit: 4096
+  - name: batch
+    machine_type: n2-standard-8
+    autoscaling: "false"
+    node_count: "3"
+    strategy: BLUE_GREEN
+    node_pool_soak_duration: 300s
+    batch_percentage: 0.5
+    threads_per_core: 1
+    enable_nested_virtualization: false
+    sandbox_enabled: true
+    image_type: COS_CONTAINERD
+    node_metadata: GKE_METADATA
+  - name: gpu
+    machine_type: g2-standard-8
+    total_min_count: 0
+    total_max_count: 8
+    accelerator_count: 1
+    accelerator_type: nvidia-l4
+    gpu_driver_version: DEFAULT
+    gpu_partition_size: ""
+    consume_reservation_type: SPECIFIC_RESERVATION
+    reservation_affinity_key: compute.googleapis.com/reservation-name
+    reservation_affinity_values: gpu-res-1,gpu-res-2
+    node_affinity: '{"key": "compute.googleapis.com/node-group-name", "operator": "IN", "values": ["sole-tenant-group"]}'
+    local_nvme_ssd_count: 1
+    service_account: gpu-nodes@my-project.iam.gserviceaccount.com
+windows_node_pools:
+  - name: win
+    machine_type: n2-standard-4
+    image_type: WINDOWS_LTSC_CONTAINERD
+    windows_node_config_os_version: OS_VERSION_LTSC2022
+    min_count: 1
+    max_count: 2
+node_pools_labels:
+  all: {team: platform}
+  general: {workload: general}
+  default_values: {cluster_name: false}
+node_pools_taints:
+  all: []
+  gpu:
+    - {key: nvidia.com/gpu, value: present, effect: NO_SCHEDULE}
+node_pools_tags:
+  all: [gke-nodes]
+  batch: [batch]
+node_pools_metadata:
+  all: {block-project-ssh-keys: "true"}
+node_pools_resource_labels:
+  all: {cost-center: platform}
+node_pools_linux_node_configs_sysctls:
+  all: {net.core.somaxconn: "4096"}
+  batch: {net.ipv4.tcp_tw_reuse: "1"}
+node_pools_cgroup_mode:
+  all: ""
+  general: CGROUP_MODE_V2
+node_pools_oauth_scopes:
+  all: [https://www.googleapis.com/auth/cloud-platform]
+  gpu: [https://www.googleapis.com/auth/devstorage.read_only]

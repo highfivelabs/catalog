@@ -1,0 +1,95 @@
+---
+# Source: gke-cluster/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: autopilot-full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-full"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: ap-prod
+  location: "europe-west1"
+  networkRef:
+    external: "projects/host-project/global/networks/shared-vpc"
+  subnetworkRef:
+    external: "projects/host-project/regions/europe-west1/subnetworks/gke-europe-west1"
+  networkingMode: VPC_NATIVE
+  enableAutopilot: true
+  allowNetAdmin: true
+  releaseChannel:
+    channel: "STABLE"
+  gatewayApiConfig:
+    channel: "CHANNEL_STANDARD"
+  defaultSnatStatus:
+    disabled: false
+  minMasterVersion: "1.33"
+  clusterAutoscaling:
+    defaultComputeClassConfig:
+      enabled: true
+    autoProvisioningDefaults:
+      serviceAccountRef: {"external":"gke-nodes@my-project.iam.gserviceaccount.com"}
+  verticalPodAutoscaling:
+    enabled: false
+  enableL4IlbSubsetting: false
+  enableCiliumClusterwideNetworkPolicy: false
+  masterAuthorizedNetworksConfig:
+    cidrBlocks:
+    - cidrBlock: 10.0.0.0/8
+      displayName: corp
+    gcpPublicCidrsAccessEnabled: false
+  nodePoolAutoConfig:
+    networkTags:
+      tags: ["allow-health-checks"]
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    gcpFilestoreCsiDriverConfig:
+      enabled: false
+    gkeBackupAgentConfig:
+      enabled: false
+  protectConfig:
+    workloadConfig:
+      auditMode: "DISABLED"
+  securityPostureConfig:
+    mode: "BASIC"
+    vulnerabilityMode: "VULNERABILITY_BASIC"
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+    stackType: "IPV4"
+  maintenancePolicy:
+    dailyMaintenanceWindow:
+      startTime: "05:00"
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: true
+    privateEndpointSubnetworkRef:
+      external: "projects/host-project/regions/europe-west1/subnetworks/gke-control-plane"
+    masterGlobalAccessConfig:
+      enabled: true
+  controlPlaneEndpointsConfig:
+    dnsEndpointConfig:
+      allowExternalTraffic: true
+  databaseEncryption:
+    state: "DECRYPTED"
+  workloadIdentityConfig:
+    workloadPool: "my-project.svc.id.goog"
+  notificationConfig:
+    pubsub:
+      enabled: true
+      topicRef:
+        external: "projects/my-project/topics/gke-events"
+      filter:
+        eventType: ["UPGRADE_EVENT"]

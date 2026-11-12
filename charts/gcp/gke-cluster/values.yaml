@@ -1,0 +1,424 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-google-modules'
+# kubernetes-engine beta-private-cluster module (v47.0.0), plus the two
+# its Autopilot twin adds (allow_net_admin, default_compute_class_enabled):
+# same names, types and defaults, so a module block's arguments become this
+# file one to one (README.md, "From Terraform"). The variables follow in
+# alphabetical order, each with the module's own description.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-google-kubernetes-engine
+# (modules/beta-private-cluster/variables.tf and
+# modules/beta-autopilot-private-cluster/variables.tf, v47.0.0),
+# Copyright Google LLC, Apache-2.0.
+
+# Standard (the default: node pools you define, beta-private-cluster) or
+# autopilot (GKE manages the nodes, beta-autopilot-private-cluster). Not a
+# Terraform variable: the module you call picks it. GKE cannot change a
+# cluster's mode: changing it means a new cluster (README.md, "Mode").
+mode: standard
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# Each collision-prone cloud name in full, {cluster, serviceAccount}. A name
+# set here takes no prefix. A name not set derives from name, as the module
+# names it.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every derived cloud
+# name (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. A prefixed key (hfl.dev/team) stays in
+# Kubernetes; an unprefixed one also becomes a Google Cloud label, since
+# Config Connector copies it to the resource.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels (Config
+# Connector carries them as unprefixed metadata.labels).
+tags: {}
+# DELETE (the default) or ABANDON, which keeps the cluster, its node pools
+# and its service account when the component is deleted. Not a module
+# variable: the module's deletion_protection is Terraform's own guard and
+# has no Config Connector equivalent (README.md, "Deletion").
+deletion_policy: null
+
+# Create additional firewall rules
+add_cluster_firewall_rules: false
+# Create master_webhook firewall rules for ports defined in `firewall_inbound_ports`
+add_master_webhook_firewall_rules: false
+# Create GKE shadow firewall (the same as default firewall rules with firewall logs enabled).
+add_shadow_firewall_rules: false
+# List of _names_ of the additional secondary subnet ip ranges to use for pods
+additional_ip_range_pods: []
+# the configuration for individual additional subnetworks attached to the cluster
+additional_ip_ranges_config: []
+# This will enable Cloud DNS additive VPC scope. Must provide a domain name that is unique within the VPC. For this to work cluster_dns = `CLOUD_DNS` and cluster_dns_scope = `CLUSTER_SCOPE` must both be set as well. Standard only.
+additive_vpc_scope_dns_domain: ""
+# The status of the Agent Sandbox addon, which isolates untrusted code execution (requires GKE version 1.35.2-gke.1269000 or later and a gVisor-enabled node pool)
+agent_sandbox_enabled: null
+# (Optional) Enable NET_ADMIN for the cluster. Autopilot only.
+allow_net_admin: null
+# Allows users to restrict or enable anonymous access to the cluster. Valid values are `ENABLED` and `LIMITED`.
+anonymous_authentication_config_mode: null
+# The name of the RBAC security group for use with Google security groups in Kubernetes RBAC. Group name must be in format gke-security-groups@yourdomain.com
+authenticator_security_group: null
+# The Customer Managed Encryption Key used to encrypt the boot disk attached to each node in the node pool, if not overridden in `node_pools`. This should be of the form projects/[KEY_PROJECT_ID]/locations/[LOCATION]/keyRings/[RING_NAME]/cryptoKeys/[KEY_NAME]. For more information about protecting resources with Cloud KMS Keys please see: https://cloud.google.com/compute/docs/disks/customer-managed-encryption
+boot_disk_kms_key: null
+# (Beta) Enable CloudRun addon Standard only.
+cloudrun: false
+# (Beta) Configure the Cloud Run load balancer type. External by default. Set to `LOAD_BALANCER_TYPE_INTERNAL` to configure as an internal load balancer. Standard only.
+cloudrun_load_balancer_type: ""
+# Cluster autoscaling configuration. See [more details](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1beta1/projects.locations.clusters#clusterautoscaling) Standard only.
+cluster_autoscaling:
+  enabled: false
+  autoscaling_profile: BALANCED
+  max_cpu_cores: 0
+  min_cpu_cores: 0
+  max_memory_gb: 0
+  min_memory_gb: 0
+  gpu_resources: []
+  auto_repair: true
+  auto_upgrade: true
+  disk_size: 100
+  disk_type: pd-standard
+  image_type: COS_CONTAINERD
+  enable_secure_boot: false
+  enable_integrity_monitoring: true
+  enable_default_compute_class: false
+# The suffix used for all cluster service records. Standard only.
+cluster_dns_domain: ""
+# Which in-cluster DNS provider should be used. PROVIDER_UNSPECIFIED (default) or PLATFORM_DEFAULT or CLOUD_DNS. Standard only.
+cluster_dns_provider: "PROVIDER_UNSPECIFIED"
+# The scope of access to cluster DNS records. DNS_SCOPE_UNSPECIFIED (default) or CLUSTER_SCOPE or VPC_SCOPE. Standard only.
+cluster_dns_scope: "DNS_SCOPE_UNSPECIFIED"
+# The IP address range of the kubernetes pods in this cluster. Default is an automatically assigned CIDR.
+cluster_ipv4_cidr: null
+# The GCE resource labels (a map of key/value pairs) to be applied to the cluster
+cluster_resource_labels: {}
+# Available options include ENABLED, DISABLED, and SYSTEM_ONLY Standard only.
+cluster_telemetry_type: null
+# Whether ConfigConnector is enabled for this cluster. Standard only.
+config_connector: false
+# Enables the installation of ip masquerading, which is usually no longer required when using aliasied IP addresses. IP masquerading uses a kubectl call, so when you have a private cluster, you will need access to the API server. Standard only.
+configure_ip_masq: false
+# Defines if service account specified to run nodes should be created.
+create_service_account: true
+# Application-layer Secrets Encryption settings. The object format is {state = string, key_name = string}. Valid values of state are: "ENCRYPTED"; "DECRYPTED". key_name is the name of a CloudKMS key.
+database_encryption:
+  - state: DECRYPTED
+    key_name: ""
+# The desired datapath provider for this cluster. By default, `DATAPATH_PROVIDER_UNSPECIFIED` enables the IPTables-based kube-proxy implementation. `ADVANCED_DATAPATH` enables Dataplane-V2 feature. Standard only.
+datapath_provider: "DATAPATH_PROVIDER_UNSPECIFIED"
+# Enable default compute class for Node Auto-Provisioning Autopilot only.
+default_compute_class_enabled: null
+# The maximum number of pods to schedule per node Standard only.
+default_max_pods_per_node: 110
+# Whether or not to allow Terraform to destroy the cluster.
+deletion_protection: true
+# A toggle for Terraform and kubectl to connect to the master's internal IP address during deployment.
+deploy_using_private_endpoint: false
+# The description of the cluster
+description: ""
+# Whether to disable the default SNAT to support the private use of public IP addresses
+disable_default_snat: false
+# Disable L4 Load Balancer firewall reconciliation
+disable_l4_lb_firewall_reconciliation: null
+# Disable the /0.1/ and /v1beta1/ metadata server endpoints on the node. Changing this value will cause all node pools to be recreated. Standard only.
+disable_legacy_metadata_endpoints: true
+# (Optional) Controls whether external traffic is allowed over the dns endpoint.
+dns_allow_external_traffic: null
+# The status of the NodeLocal DNSCache addon. null takes the mode's module default: false (Standard), true (Autopilot).
+dns_cache: null
+# (Optional) Controls whether Kubernetes ServiceAccount token authentication is allowed via the DNS endpoint.
+dns_enable_k8s_tokens_via_dns: null
+# Enable BinAuthZ Admission controller
+enable_binary_authorization: false
+# Enable Cilium Cluster Wide Network Policies on the cluster
+enable_cilium_clusterwide_network_policy: false
+# An optional flag to enable confidential node config.
+enable_confidential_nodes: false
+# Enables Cost Allocation Feature and the cluster name and namespace of your GKE workloads appear in the labels field of the billing export to BigQuery
+enable_cost_allocation: false
+# Whether to enable the default node pools metadata key-value pairs such as `cluster_name` and `node_pool` Standard only.
+enable_default_node_pools_metadata: true
+# Enable FQDN Network Policies on the cluster
+enable_fqdn_network_policy: null
+# Enable image streaming on cluster level. Standard only.
+enable_gcfs: false
+# (Optional) Enable the Identity Service component, which allows customers to use external identity providers with the K8S API. NOTE: Starting on July 1, 2025, new Google Cloud organizations that you create won't support Identity Service for GKE. Standard only.
+enable_identity_service: false
+# Whether Intra-node visibility is enabled for this cluster. This makes same node pod to pod traffic visible for VPC network Standard only.
+enable_intranode_visibility: false
+# (Optional) - List of Kubernetes Beta APIs to enable in cluster.
+enable_k8s_beta_apis: []
+# Whether to enable Kubernetes Alpha features for this cluster. Note that when this option is enabled, the cluster cannot be upgraded and will be automatically deleted after 30 days. Standard only.
+enable_kubernetes_alpha: false
+# Enable L4 ILB Subsetting on the cluster
+enable_l4_ilb_subsetting: false
+# Set it to true for GKE cluster runs a version earlier than 1.33.2-gke.4780000. Allows the Lustre CSI driver to initialize LNet (the virtual network layer for Lustre kernel module) using port 6988. This flag is required to workaround a port conflict with the gke-metadata-server on GKE nodes
+enable_legacy_lustre_port: false
+# (beta) Enable Managed Machine Learning Diagnostics on the cluster.
+enable_managed_machine_learning_diagnostics: null
+# Controls the issuance of workload mTLS certificates. When enabled the GKE Workload Identity Certificates controller and node agent will be deployed in the cluster. Requires Workload Identity. Standard only.
+enable_mesh_certificates: false
+# Whether multi-networking is enabled for this cluster
+enable_multi_networking: null
+# Whether to enable network egress metering for this cluster. If enabled, a daemonset will be created in the cluster to meter network egress traffic.
+enable_network_egress_export: false
+# enabled - Enable the PodSecurityPolicy controller for this cluster. If enabled, pods must be valid under a PodSecurityPolicy to be created. Pod Security Policy was removed from GKE clusters with version >= 1.25.0. Standard only.
+enable_pod_security_policy: false
+# Whether the master's internal IP address is used as the cluster endpoint
+enable_private_endpoint: false
+# Whether nodes have internal IP addresses only
+enable_private_nodes: true
+# Whether to enable resource consumption metering on this cluster. When enabled, a table will be created in the resource export BigQuery dataset to store resource consumption data. The resulting table can be joined with the resource usage table or with BigQuery billing export.
+enable_resource_consumption_export: true
+# Enable the Secret Manager add-on for this cluster
+enable_secret_manager_addon: false
+# Enable the Secret Sync add-on for this cluster.
+enable_secret_sync: false
+# Enable Shielded Nodes features on all nodes in this cluster Standard only.
+enable_shielded_nodes: true
+# Enable Cloud TPU resources in the cluster. WARNING: changing this after cluster creation is destructive!
+enable_tpu: false
+# Vertical Pod Autoscaling automatically adjusts the resources of pods controlled by it. null takes the mode's module default: false (Standard), true (Autopilot).
+enable_vertical_pod_autoscaling: null
+# (Optional) Enable or disable GKE enterprise. Valid values are STANDARD and ENTERPRISE.
+enterprise_config: null
+# The status of the Filestore CSI driver addon, which allows the usage of filestore instance as volumes
+filestore_csi_driver: false
+# List of TCP ports for admission/webhook controllers. Either flag `add_master_webhook_firewall_rules` or `add_cluster_firewall_rules` (also adds egress rules) must be set to `true` for inbound-ports firewall rules to be applied.
+firewall_inbound_ports: ["8443", "9443", "15017"]
+# Priority rule for firewall rules
+firewall_priority: 1000
+# (Optional) Register the cluster with the fleet in this project.
+fleet_project: null
+# (Optional) Grant the fleet project service identity the `roles/gkehub.serviceAgent` and `roles/gkehub.crossProjectServiceAgent` roles.
+fleet_project_grant_service_agent: false
+# The gateway api channel of this cluster. Accepted values are `CHANNEL_STANDARD` and `CHANNEL_DISABLED`.
+gateway_api_channel: null
+# Whether this cluster should enable the Google Compute Engine Persistent Disk Container Storage Interface (CSI) Driver. Standard only.
+gce_pd_csi_driver: true
+# Allow access through Google Cloud public IP addresses
+gcp_public_cidrs_access_enabled: null
+# Whether GCE FUSE CSI driver is enabled for this cluster. Standard only.
+gcs_fuse_csi_driver: false
+# The selected auto-upgrade patch type. Accepted values are: `ACCELERATED`: Upgrades to the latest available patch version in a given minor and release channel.
+gke_auto_upgrade_config_patch_mode: null
+# Whether Backup for GKE agent is enabled for this cluster.
+gke_backup_agent_config: false
+# Grants created cluster-specific service account storage.objectViewer and artifactregistry.reader roles.
+grant_registry_access: false
+# Enable horizontal pod autoscaling addon
+horizontal_pod_autoscaling: true
+# Enable the Horizontal Pod Autoscaling profile for this cluster. Values are "NONE" and "PERFORMANCE".
+hpa_profile: ""
+# Enable httpload balancer addon
+http_load_balancing: true
+# The workload pool to attach all Kubernetes service accounts to. (Default value of `enabled` automatically sets project-based pool `[project_id].svc.id.goog`)
+identity_namespace: "enabled"
+# Defines the config of in-transit encryption. Valid values are `IN_TRANSIT_ENCRYPTION_DISABLED` and `IN_TRANSIT_ENCRYPTION_INTER_NODE_TRANSPARENT`.
+in_transit_encryption_config: null
+# The number of nodes to create in this cluster's default node pool. Standard only.
+initial_node_count: 0
+# Whether or not to set `insecure_kubelet_readonly_port_enabled` for node pool defaults and autopilot clusters. Note: this can be set at the node pool level separately within `node_pools`.
+insecure_kubelet_readonly_port_enabled: null
+# (Optional) Controls whether to allow direct IP access. Defaults to `true`.
+ip_endpoints_enabled: null
+# Whether to masquerade traffic to the link-local prefix (169.254.0.0/16). Standard only.
+ip_masq_link_local: false
+# The interval at which the agent attempts to sync its ConfigMap file from the disk. Standard only.
+ip_masq_resync_interval: "60s"
+# The _name_ of the secondary subnet ip range to use for pods
+ip_range_pods: ""
+# The _name_ of the secondary subnet range to use for services. If not provided, the default `34.118.224.0/20` range will be used.
+ip_range_services: null
+# Issues a client certificate to authenticate to the cluster endpoint. To maximize the security of your cluster, leave this option disabled. Client certificates don't automatically rotate and aren't easily revocable. WARNING: changing this after cluster creation is destructive!
+issue_client_certificate: false
+# The Kubernetes version of the masters. If set to 'latest' it will pull latest available version in the selected region.
+kubernetes_version: "latest"
+# List of services to monitor: SYSTEM_COMPONENTS, APISERVER, CONTROLLER_MANAGER, KCP_CONNECTION, KCP_SSHD, KCP_HPA, SCHEDULER, and WORKLOADS. Empty list is default GKE configuration.
+logging_enabled_components: []
+# The logging service that the cluster should write logs to. Available options include logging.googleapis.com, logging.googleapis.com/kubernetes (beta), and none Standard only.
+logging_service: "logging.googleapis.com/kubernetes"
+# (Optional) The type of logging agent that is deployed by default for newly created node pools in the cluster. Valid values include DEFAULT and MAX_THROUGHPUT. Standard only.
+logging_variant: null
+# The status of the Lustre CSI driver addon, which allows the usage of a Lustre instances as volumes
+lustre_csi_driver: null
+# Time window specified for recurring maintenance operations in RFC3339 format
+maintenance_end_time: ""
+# List of maintenance exclusions. A cluster can have up to three
+maintenance_exclusions: []
+# Frequency of the recurring maintenance window in RFC5545 format.
+maintenance_recurrence: ""
+# Time window specified for daily or recurring maintenance operations in RFC3339 format
+maintenance_start_time: "05:00"
+# List of master authorized networks. If none are provided, disallow external access (except the cluster node IPs, which GKE automatically whitelists).
+master_authorized_networks: []
+# Whether the cluster master is accessible globally (from any region) or only within the same region as the private endpoint.
+master_global_access_enabled: true
+# (Optional) The IP range in CIDR notation to use for the hosted master network.
+master_ipv4_cidr_block: null
+# Whether or not to enable GKE Auto-Monitoring. Supported values include: ALL, NONE Standard only.
+monitoring_auto_monitoring_config_scope: "NONE"
+# Configuration for Managed Service for Prometheus. Whether or not the managed collection is enabled. Standard only.
+monitoring_enable_managed_prometheus: null
+# Whether or not the advanced datapath metrics are enabled. Standard only.
+monitoring_enable_observability_metrics: false
+# Whether or not the advanced datapath relay is enabled. Standard only.
+monitoring_enable_observability_relay: false
+# List of services to monitor: SYSTEM_COMPONENTS, APISERVER, SCHEDULER, CONTROLLER_MANAGER, STORAGE, HPA, POD, DAEMONSET, DEPLOYMENT, STATEFULSET, KUBELET, CADVISOR, DCGM, and JOBSET. In beta provider, WORKLOADS is supported on top of those 12 values. (WORKLOADS is deprecated and removed in GKE 1.24.) KUBELET and CADVISOR are only supported in GKE 1.29.3-gke.1093000 and above. JOBSET is only supported in GKE 1.32.1-gke.1357001 and above. Empty list is default GKE configuration.
+monitoring_enabled_components: []
+# The monitoring metrics writer role to assign to the GKE node service account
+monitoring_metric_writer_role: "roles/monitoring.metricWriter"
+# The monitoring service that the cluster should write metrics to. Automatically send metrics from pods in the cluster to the Google Cloud Monitoring API. VM metrics will be collected by Google Compute Engine regardless of this setting Available options include monitoring.googleapis.com, monitoring.googleapis.com/kubernetes (beta) and none Standard only.
+monitoring_service: "monitoring.googleapis.com/kubernetes"
+# The name of the cluster (required)
+name: ""
+# The VPC network to host the cluster in (required)
+network: ""
+# Enable network policy addon Standard only.
+network_policy: false
+# The network policy provider. Standard only.
+network_policy_provider: "CALICO"
+# The project ID of the shared VPC's host (for shared vpc support)
+network_project_id: ""
+# (Optional) - List of network tags applied to autopilot and auto-provisioned node pools.
+network_tags: []
+# Network tier configuration for the cluster
+network_tier_config: null
+# Specifies how node metadata is exposed to the workload running on the node Standard only.
+node_metadata: "GKE_METADATA"
+# List of maps containing node pools Standard only.
+node_pools:
+  - name: default-node-pool
+# Map of strings containing cgroup node config by node-pool name. Note: GKE is removing cgroup v1 support in 1.35. With mode: autopilot, a string (the Autopilot module's type), applied to Autopilot nodes.
+node_pools_cgroup_mode:
+  all: ""
+  default-node-pool: ""
+# Map of strings containing hugepage size 1g config by node-pool name Standard only.
+node_pools_hugepage_size_1g:
+  all: ""
+  default-node-pool: ""
+# Map of strings containing hugepage size 2m node config by node-pool name Standard only.
+node_pools_hugepage_size_2m:
+  all: ""
+  default-node-pool: ""
+# Map of maps containing node labels by node-pool name Standard only.
+node_pools_labels:
+  all: {}
+  default-node-pool: {}
+# Map of maps containing linux node config sysctls by node-pool name Standard only.
+node_pools_linux_node_configs_sysctls:
+  all: {}
+  default-node-pool: {}
+# Map of maps containing node metadata by node-pool name Standard only.
+node_pools_metadata:
+  all: {}
+  default-node-pool: {}
+# Map of lists containing node oauth scopes by node-pool name Standard only.
+node_pools_oauth_scopes:
+  all: ["https://www.googleapis.com/auth/cloud-platform"]
+  default-node-pool: []
+# Map of maps containing resource labels by node-pool name Standard only.
+node_pools_resource_labels:
+  all: {}
+  default-node-pool: {}
+# Map of maps containing resource manager tags by node-pool name Standard only.
+node_pools_resource_manager_tags:
+  all: {}
+  default-node-pool: {}
+# Map of lists containing node network tags by node-pool name Standard only.
+node_pools_tags:
+  all: []
+  default-node-pool: []
+# Map of lists containing node taints by node-pool name Standard only.
+node_pools_taints:
+  all: []
+  default-node-pool: []
+# Map of strings containing transparent hugepage defrag node config by node-pool name Standard only.
+node_pools_transparent_hugepage_defrag:
+  all: ""
+  default-node-pool: ""
+# Map of strings containing transparent hugepage enabled node config by node-pool name Standard only.
+node_pools_transparent_hugepage_enabled:
+  all: ""
+  default-node-pool: ""
+# List of strings in CIDR notation that specify the IP address ranges that do not use IP masquerading. Standard only.
+non_masquerade_cidrs: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+# The desired Pub/Sub topic to which notifications will be sent by GKE. Format is projects/{project}/topics/{topic}.
+notification_config_topic: ""
+# Choose what type of notifications you want to receive. If no filters are applied, you'll receive all notification types. Can be used to filter what notifications are sent. Accepted values are UPGRADE_AVAILABLE_EVENT, UPGRADE_EVENT, and SECURITY_BULLETIN_EVENT.
+notification_filter_event_type: []
+# Whether the Parallelstore CSI driver Addon is enabled for this cluster. Standard only.
+parallelstore_csi_driver: null
+# The subnetwork to use for the hosted master network.
+private_endpoint_subnetwork: null
+# The project ID to host the cluster in (required)
+project_id: ""
+# The Ray Operator Addon configuration for this cluster.
+ray_operator_config:
+  enabled: false
+  logging_enabled: false
+  monitoring_enabled: false
+# RBACBindingConfig allows user to restrict ClusterRoleBindings an RoleBindings that can be created.
+rbac_binding_config:
+  enable_insecure_binding_system_unauthenticated: null
+  enable_insecure_binding_system_authenticated: null
+# The region to host the cluster in (optional if zonal cluster / required if regional)
+region: null
+# Whether is a regional cluster (zonal cluster if set false. WARNING: changing this after cluster creation is destructive!)
+regional: true
+# Projects holding Google Container Registries. If empty, we use the cluster project. If a service account is created and the `grant_registry_access` variable is set to `true`, the `storage.objectViewer` and `artifactregsitry.reader` roles are assigned on these projects.
+registry_project_ids: []
+# The release channel of this cluster. Accepted values are `UNSPECIFIED`, `RAPID`, `REGULAR` and `STABLE`. Defaults to `REGULAR`.
+release_channel: "REGULAR"
+# Remove default node pool while setting up the cluster Standard only.
+remove_default_node_pool: false
+# (Optional) - List of resource manager tags applied to autopilot and auto-provisioned node pools. A maximum of 5 tags can be specified. Tags must be in one of these formats: "tagKeys/{tag_key_id}"="tagValues/{tag_value_id}", "{org_id}/{tag_key_name}"="{tag_value_name}", "{project_id}/{tag_key_name}"="{tag_value_name}".
+resource_manager_tags: {}
+# The ID of a BigQuery Dataset for using BigQuery as the destination of resource usage export.
+resource_usage_export_dataset_id: ""
+# (Beta) Enable GKE Sandbox (Do not forget to set `image_type` = `COS_CONTAINERD` to use it). Standard only.
+sandbox_enabled: false
+# Security posture mode. Accepted values are `DISABLED` and `BASIC`. Defaults to `DISABLED`.
+security_posture_mode: "DISABLED"
+# Security posture vulnerability mode. Accepted values are `VULNERABILITY_DISABLED`, `VULNERABILITY_BASIC`, and `VULNERABILITY_ENTERPRISE`. Defaults to `VULNERABILITY_DISABLED`.
+security_posture_vulnerability_mode: "VULNERABILITY_DISABLED"
+# The service account to run nodes as if not overridden in `node_pools`. The create_service_account variable default value (true) will cause a cluster-specific service account to be created. This service account should already exists and it will be used by the node pools. If you wish to only override the service account name, you can use service_account_name variable.
+service_account: ""
+# The name of the service account that will be created if create_service_account is true. If you wish to use an existing service account, use service_account variable.
+service_account_name: ""
+# Whether external ips specified by a service will be allowed in this cluster. Set to null to leave the setting unmanaged.
+service_external_ips: null
+# The log_config for shadow firewall rules. You can set this variable to `null` to disable logging.
+shadow_firewall_rules_log_config:
+  metadata: INCLUDE_ALL_METADATA
+# The firewall priority of GKE shadow firewall rules. The priority should be less than default firewall, which is 1000.
+shadow_firewall_rules_priority: 999
+# The stack type to use for this cluster. Either `IPV4` or `IPV4_IPV6`. Defaults to `IPV4`.
+stack_type: "IPV4"
+# Whether the Stateful HA Addon is enabled for this cluster.
+stateful_ha: false
+# Map of stub domains and their resolvers to forward DNS queries for a certain domain to an external DNS server Standard only.
+stub_domains: {}
+# The subnetwork to host the cluster in (required)
+subnetwork: ""
+# Timeout for cluster operations.
+timeouts: {}
+# Specifies the total network bandwidth tier for NodePools in the cluster. Valid values are `TIER_UNSPECIFIED` and `TIER_1`. Defaults to `TIER_UNSPECIFIED`.
+total_egress_bandwidth_tier: null
+# If specified, the values replace the nameservers taken by default from the node’s /etc/resolv.conf Standard only.
+upstream_nameservers: []
+# The User Managed Keys configuration for the cluster.
+user_managed_keys_config: null
+# List of maps containing Windows node pools Standard only.
+windows_node_pools: []
+# (beta) Sets which mode of auditing should be used for the cluster's workloads. Accepted values are DISABLED, BASIC.
+workload_config_audit_mode: "DISABLED"
+# (beta) Sets which mode to use for Protect workload vulnerability scanning feature. Accepted values are DISABLED, BASIC.
+workload_vulnerability_mode: ""
+# The zones to host the cluster in (optional if regional cluster / required if zonal)
+zones: []

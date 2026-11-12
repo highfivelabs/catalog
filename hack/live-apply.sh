@@ -5,15 +5,16 @@
 # Apply three pilot charts (iam-service-account, gcs, net-vpc) to real
 # Google Cloud with tiny resources, delete them, and check nothing is left
 # (docs/design.md, "Testing", layer 3). Only after hack/mock-apply.sh
-# passes; only in a project listed below; only on an offload VM acting as
+# passes; only in a project allowed below; only on an offload VM acting as
 # a service account, never with a key. `task test-live` runs it:
 #
-#   ../offload/offload run --sa catalog-live-tests@hfl-dev-514205.iam.gserviceaccount.com \
-#     --machine e2-standard-8 --hours 2 -- env PROJECT=hfl-dev-514205 \
-#     CCE_TARBALL=gs://.../cce-<commit>.tar.gz hack/live-apply.sh
+#   ../offload/offload run --sa "$GCP_LIVE_SA" \
+#     --machine e2-standard-8 --hours 2 -- env PROJECT="$GCP_PROJECT" \
+#     GCP_PROJECT="$GCP_PROJECT" CCE_TARBALL=gs://.../cce-<commit>.tar.gz \
+#     hack/live-apply.sh
 #
-# Rules: one project (hfl-dev-514205, or a test estate generation
-# hfl-test-g<N>); every gcloud call passes --project;
+# Rules: one project (GCP_PROJECT, or the test estate generation's project
+# HFL_GCP_TEST_PROJECT); every gcloud call passes --project;
 # every name starts with a run ID, cat-<UTC month day hour minute>-<4 hex>,
 # and every object that takes labels carries catalog-run=<run ID>; the test
 # deletes what it makes; a sweeper runs before and after (this run's
@@ -28,10 +29,11 @@
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
-ALLOWED_PROJECTS=(hfl-dev-514205)
-# And the test estate's generations, hfl-test-g1, hfl-test-g2, ...
-# (factory/estate/gcp), in the live-tests folder.
-ALLOWED_PROJECT_PATTERN='^hfl-test-g[0-9]+$'
+: "${GCP_PROJECT:?set GCP_PROJECT, the live-test project (see .env.example)}"
+ALLOWED_PROJECTS=("${GCP_PROJECT}")
+# And the test estate generation's project (factory/estate/gcp), in the
+# live-tests folder, when its env file is loaded.
+[[ -z "${HFL_GCP_TEST_PROJECT:-}" ]] || ALLOWED_PROJECTS+=("${HFL_GCP_TEST_PROJECT}")
 PROJECT="${PROJECT:-}"
 REGION=us-central1
 TIMEOUT="${LIVE_TIMEOUT:-600}"
@@ -40,8 +42,7 @@ mkdir -p "${OUT}"
 
 allowed=no
 for p in "${ALLOWED_PROJECTS[@]}"; do [[ "${PROJECT}" == "${p}" ]] && allowed=yes; done
-[[ "${PROJECT}" =~ ${ALLOWED_PROJECT_PATTERN} ]] && allowed=yes
-[[ "${allowed}" == yes ]] || { echo "live-apply: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]} and ${ALLOWED_PROJECT_PATTERN}" >&2; exit 2; }
+[[ "${allowed}" == yes ]] || { echo "live-apply: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]} (GCP_PROJECT, HFL_GCP_TEST_PROJECT)" >&2; exit 2; }
 md() { curl -sf -H 'Metadata-Flavor: Google' "http://metadata.google.internal/computeMetadata/v1/$1"; }
 RUNNER="$(md instance/service-accounts/default/email || true)"
 [[ "${RUNNER}" == *.iam.gserviceaccount.com ]] || { echo "live-apply: not on a VM acting as a service account (got '${RUNNER}')" >&2; exit 2; }
