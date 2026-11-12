@@ -1,0 +1,46 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: pubsub
+spec:
+  version: "1.0.0"
+  components:
+    - name: pubsub
+      package:
+        name: gcp-pubsub
+        version: "0.1.0"
+      inputs:
+        name: my-topic
+        iam:
+          roles/pubsub.publisher:
+            - group:publishers@example.org
+        subscriptions:
+          test-pull:
+            ack_deadline_seconds: 20
+            retry_policy:
+              maximum_backoff: 300
+              minimum_backoff: 10
+          test-push:
+            push:
+              endpoint: https://example.com/foo
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: pubsub
+  scope: my-team
+spec:
+  template: pubsub
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: pubsub-dev
+  scope: my-team/dev
+spec:
+  stack: pubsub
+  version: "1.0.0"
+  components:
+    pubsub:
+      values:
+        project_id: myproject
