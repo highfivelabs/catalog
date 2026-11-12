@@ -87,6 +87,7 @@ must carry.
 | `charts/azure/avm-res-resources-resourcegroup` | Azure Verified Module `avm-res-resources-resourcegroup` (v0.5.0) | the group, its lock (aso-extensions `ManagementLock`) and role assignments | `ignore_tag_changes`, `retry`, `timeouts` |
 | `charts/azure/avm-res-network-virtualnetwork` | Azure Verified Module `avm-res-network-virtualnetwork` (v0.23.0) | the network, subnets, peerings (and reverse peerings), lock, role assignments, diagnostic settings | `ignore_body_changes`, `retry`, `timeouts`, a peering's address space sync |
 | `charts/azure/avm-res-storage-storageaccount` | Azure Verified Module `avm-res-storage-storageaccount` (v0.11.0) | the account, containers, queues, tables, shares, lock, role assignments, diagnostic settings | see the chart's README |
+| `charts/azure/avm-res-keyvault-vault` | Azure Verified Module `avm-res-keyvault-vault` (v0.13.0) | the vault, keys, lock, role assignments, diagnostic settings | see the chart's README |
 
 ## Moving the pins
 
