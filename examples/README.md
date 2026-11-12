@@ -11,7 +11,7 @@ task examples-test                                                              
 
 | Directory | Files |
 | --- | --- |
-| `gcs/`, `iam-service-account/`, `net-vpc/`, `project/` | one module call each |
+| `cloudsql-instance/`, `gcs/`, `iam-service-account/`, `net-vpc/`, `project/` | one module call each |
 | `wiring/` | two calls, one using the other's output |
 | `names/` | `namePrefix: ${instance.name}` on every component, and the plans of two Instances (`convert.args`, `convert-prod.args`) |
 | `gaps/` | what the converter says about what it cannot carry |

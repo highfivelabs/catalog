@@ -1,0 +1,98 @@
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLDatabase
+metadata:
+  name: names-db-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "database:orders"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "orders"
+  instanceRef:
+    name: names
+---
+# Source: cloudsql-instance/templates/instance.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: shop-dev-euw1-orders
+  region: "europe-west1"
+  databaseVersion: "POSTGRES_16"
+  settings:
+    tier: "db-custom-1-3840"
+    edition: ENTERPRISE
+    deletionProtectionEnabled: true
+    diskAutoresize: true
+    diskAutoresizeLimit: 0
+    diskType: PD_SSD
+    availabilityType: ZONAL
+    activationPolicy: ALWAYS
+    ipConfiguration:
+      ipv4Enabled: false
+      privateNetworkRef:
+        external: "projects/myproject/global/networks/shop"
+      enablePrivatePathForGoogleCloudServices: false
+---
+# Source: cloudsql-instance/templates/instance.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  name: names-replica-shop-dev-euw4-orders-ro
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc-1234"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "replica:shop-dev-euw4-orders-ro"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: shop-dev-euw4-orders-ro
+  region: "europe-west4"
+  databaseVersion: "POSTGRES_16"
+  masterInstanceRef:
+    name: names
+  settings:
+    tier: "db-custom-1-3840"
+    edition: ENTERPRISE
+    deletionProtectionEnabled: true
+    diskAutoresize: true
+    diskAutoresizeLimit: 0
+    diskType: PD_SSD
+    activationPolicy: ALWAYS
+    ipConfiguration:
+      ipv4Enabled: false
+      privateNetworkRef:
+        external: "projects/myproject/global/networks/shop"
+      enablePrivatePathForGoogleCloudServices: false

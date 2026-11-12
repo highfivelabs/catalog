@@ -1,0 +1,62 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/cloudsql-instance
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/cloudsql-instance
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: data_api_access
+    kind: gap
+    reason: "SQLInstance has no Data API access field"
+  - variable: enable_dataplex_integration
+    kind: gap
+    reason: "SQLInstance has no Dataplex integration field"
+  - variable: root_password
+    kind: not-ported
+    reason: "a password given here would be in the rendered manifest, and Terraform's random_password has no Config Connector equivalent; SQLInstance takes the password from a Kubernetes Secret (rootPassword.valueFrom), which the chart does not take yet (an open question)"
+  - variable: backup_configuration
+    kind: gap
+    reason: "retain_backups_on_delete and final_backup are refused: SQLInstance has no field for either"
+    partial: true
+    fields: [retain_backups_on_delete, final_backup]
+  - variable: insights_config
+    kind: gap
+    reason: "enhanced_query_insights_enabled: true is refused: SQLInstance's insightsConfig has no such field"
+    partial: true
+    fields: [enhanced_query_insights_enabled]
+  - variable: managed_connection_pooling_config
+    kind: gap
+    reason: "enabled: true is refused where fabric would apply it (PostgreSQL, ENTERPRISE_PLUS): SQLInstance has no connection pool field"
+    partial: true
+    fields: [enabled, flags]
+  - variable: network_config
+    kind: gap
+    reason: "psc_config's network_attachment_uri, psc_auto_connection_policy_enabled, psc_auto_connections, psc_auto_dns_enabled and psc_write_endpoint_dns_enabled are refused: SQLInstance's pscConfig has only pscEnabled and allowedConsumerProjects"
+    partial: true
+    fields: [network_attachment_uri, psc_auto_connection_policy_enabled, psc_auto_connections, psc_auto_dns_enabled, psc_write_endpoint_dns_enabled]
+  - variable: users
+    kind: gap
+    reason: "only CLOUD_IAM_USER and CLOUD_IAM_SERVICE_ACCOUNT users are accepted: a BUILT_IN user's password would be in the rendered manifest or made by Terraform's random_password (the same open question as root_password); database_roles and password_version are refused (SQLUser has no such field)"
+    partial: true
+    fields: [password, password_version, database_roles]

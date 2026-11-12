@@ -1,0 +1,81 @@
+# component cloudsql-instance-dev-db
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLDatabase
+metadata:
+  name: cloudsql-instance-dev-db-db-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "cloudsql-instance-dev-db"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:orders"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "orders"
+  instanceRef:
+    name: cloudsql-instance-dev-db
+---
+# Source: cloudsql-instance/templates/instance.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  name: cloudsql-instance-dev-db
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "cloudsql-instance-dev-db"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: db
+  region: "europe-west8"
+  databaseVersion: "POSTGRES_16"
+  settings:
+    tier: "db-custom-2-7680"
+    edition: ENTERPRISE
+    deletionProtectionEnabled: false
+    diskAutoresize: true
+    diskAutoresizeLimit: 0
+    diskType: PD_SSD
+    availabilityType: ZONAL
+    activationPolicy: ALWAYS
+    ipConfiguration:
+      ipv4Enabled: false
+      privateNetworkRef:
+        external: "projects/myproject/global/networks/my-network"
+      enablePrivatePathForGoogleCloudServices: false
+    backupConfiguration:
+      enabled: true
+      startTime: "23:00"
+      pointInTimeRecoveryEnabled: true
+      transactionLogRetentionDays: 7
+      backupRetentionSettings:
+        retainedBackups: 7
+        retentionUnit: COUNT
+    databaseFlags:
+      - name: "cloudsql.iam_authentication"
+        value: "on"
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLUser
+metadata:
+  name: cloudsql-instance-dev-db-user-app-myproject-iam-gservi-be45c713
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "cloudsql-instance-dev-db"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "user:app@myproject.iam.gserviceaccount.com"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "app@myproject.iam"
+  instanceRef:
+    name: cloudsql-instance-dev-db
+  type: CLOUD_IAM_SERVICE_ACCOUNT

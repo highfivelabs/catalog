@@ -1,0 +1,196 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloudsql-instance/main.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_sql_database_instance.primary: the SQLInstance "instance";
+google_sql_database_instance.replicas: one SQLInstance per entry of
+replicas, its masterInstanceRef the primary.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.unsupported" (list $ "data_api_access" $v.data_api_access "SQLInstance has no Data API access field") }}
+{{- include "kcc.unsupported" (list $ "enable_dataplex_integration" $v.enable_dataplex_integration "SQLInstance has no Dataplex integration field") }}
+{{- $rp := dict }}
+{{- range $k, $x := ($v.root_password | default dict) }}{{ if $x }}{{ $_ := set $rp $k $x }}{{ end }}{{ end }}
+{{- include "kcc.unsupported" (list $ "root_password" $rp "a password given here would be in the rendered manifest, and Terraform's random_password has no Config Connector equivalent (README.md, \"Values\")") }}
+{{- $isPostgres := hasPrefix "POSTGRES" $v.database_version }}
+{{- $isMysql := hasPrefix "MYSQL" $v.database_version }}
+{{- $plus := eq $v.edition "ENTERPRISE_PLUS" }}
+{{- $pool := $v.managed_connection_pooling_config | default dict }}
+{{- if and $pool.enabled $isPostgres $plus }}
+{{- include "kcc.unsupported" (list $ "managed_connection_pooling_config.enabled" true "SQLInstance has no connection pool field") }}
+{{- end }}
+{{- $b := $v.backup_configuration }}
+{{- if $b }}
+{{- include "kcc.unsupported" (list $ "backup_configuration.retain_backups_on_delete" $b.retain_backups_on_delete "SQLInstance has no such field") }}
+{{- include "kcc.unsupported" (list $ "backup_configuration.final_backup" $b.final_backup "SQLInstance has no final backup field") }}
+{{- end }}
+{{- with $v.insights_config }}
+{{- include "kcc.unsupported" (list $ "insights_config.enhanced_query_insights_enabled" .enhanced_query_insights_enabled "SQLInstance's insightsConfig has no such field") }}
+{{- end }}
+{{- $psc := (($v.network_config | default dict).connectivity | default dict).psc_config | default dict }}
+{{- range $f := list "network_attachment_uri" "psc_auto_connection_policy_enabled" "psc_auto_connections" "psc_auto_dns_enabled" "psc_write_endpoint_dns_enabled" }}
+{{- include "kcc.unsupported" (list $ (printf "network_config.connectivity.psc_config.%s" $f) (index $psc $f) "SQLInstance's pscConfig has only pscEnabled and allowedConsumerProjects") }}
+{{- end }}
+{{- include "kcc.names" (list $ (list "instance")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $hasReplicas := gt (len ($v.replicas | default dict)) 0 }}
+{{- $name := include "cloudsql.instanceName" . }}
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "instance" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name }}
+  region: {{ $v.region | quote }}
+  databaseVersion: {{ $v.database_version | quote }}
+  {{- with $v.encryption_key_name }}
+  encryptionKMSCryptoKeyRef:
+    external: {{ . | quote }}
+  {{- end }}
+  settings:
+    tier: {{ $v.tier | quote }}
+    edition: {{ $v.edition }}
+    deletionProtectionEnabled: {{ $v.gcp_deletion_protection }}
+    diskAutoresize: {{ kindIs "invalid" $v.disk_size }}
+    diskAutoresizeLimit: {{ $v.disk_autoresize_limit | default 0 | int64 }}
+    {{- if not (kindIs "invalid" $v.disk_size) }}
+    diskSize: {{ $v.disk_size | int64 }}
+    {{- end }}
+    diskType: {{ $v.disk_type }}
+    availabilityType: {{ $v.availability_type }}
+    activationPolicy: {{ $v.activation_policy }}
+    {{- with $v.collation }}
+    collation: {{ . | quote }}
+    {{- end }}
+    {{- with $v.connector_enforcement }}
+    connectorEnforcement: {{ . }}
+    {{- end }}
+    {{- with $v.time_zone }}
+    timeZone: {{ . | quote }}
+    {{- end }}
+    ipConfiguration:
+      {{- include "cloudsql.ipConfiguration" (list $ "primary") | nindent 6 }}
+    {{- with $b }}
+    {{- $enabled := .enabled | default false }}
+    backupConfiguration:
+      enabled: {{ $enabled }}
+      {{- /* fabric: binary logging is on for MySQL with backups when asked, or
+      when replicas or regional HA need it; unset (not false) otherwise. */}}
+      {{- if and $isMysql $enabled }}
+      binaryLogEnabled: {{ or .binary_log_enabled $hasReplicas (eq $v.availability_type "REGIONAL") }}
+      {{- end }}
+      startTime: {{ .start_time | default "23:00" | quote }}
+      {{- with .location }}
+      location: {{ . | quote }}
+      {{- end }}
+      {{- /* fabric: explicitly false when backups are off. */}}
+      {{- if not $enabled }}
+      pointInTimeRecoveryEnabled: false
+      {{- else if not (kindIs "invalid" .point_in_time_recovery_enabled) }}
+      pointInTimeRecoveryEnabled: {{ .point_in_time_recovery_enabled }}
+      {{- end }}
+      transactionLogRetentionDays: {{ (kindIs "invalid" .log_retention_days) | ternary 7 .log_retention_days | int64 }}
+      {{- if $enabled }}
+      backupRetentionSettings:
+        retainedBackups: {{ (kindIs "invalid" .retention_count) | ternary 7 .retention_count | int64 }}
+        retentionUnit: COUNT
+      {{- end }}
+    {{- end }}
+    {{- if $plus }}
+    dataCacheConfig:
+      dataCacheEnabled: {{ $v.data_cache }}
+    {{- end }}
+    {{- with include "cloudsql.flags" $ }}{{ . | nindent 4 }}{{ end }}
+    {{- with ($v.maintenance_config | default dict) }}
+    {{- with .deny_maintenance_period }}
+    denyMaintenancePeriod:
+      startDate: {{ .start_date | quote }}
+      endDate: {{ .end_date | quote }}
+      time: {{ .start_time | default "00:00:00" | quote }}
+    {{- end }}
+    {{- with .maintenance_window }}
+    maintenanceWindow:
+      {{- if not (kindIs "invalid" .day) }}
+      day: {{ .day | int64 }}
+      {{- end }}
+      hour: {{ .hour | int64 }}
+      {{- with .update_track }}
+      updateTrack: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- with $v.insights_config }}
+    insightsConfig:
+      queryInsightsEnabled: true
+      queryStringLength: {{ (kindIs "invalid" .query_string_length) | ternary 1024 .query_string_length | int64 }}
+      recordApplicationTags: {{ .record_application_tags | default false }}
+      recordClientAddress: {{ .record_client_address | default false }}
+      queryPlansPerMinute: {{ (kindIs "invalid" .query_plans_per_minute) | ternary 5 .query_plans_per_minute | int64 }}
+    {{- end }}
+    {{- with $v.password_validation_policy }}
+    passwordValidationPolicy:
+      {{- /* fabric: COMPLEXITY_UNSPECIFIED makes a permanent diff, so unset. */}}
+      {{- if .default_complexity }}
+      complexity: COMPLEXITY_DEFAULT
+      {{- end }}
+      {{- if not (kindIs "invalid" .disallow_username_substring) }}
+      disallowUsernameSubstring: {{ .disallow_username_substring }}
+      {{- end }}
+      enablePasswordPolicy: {{ (kindIs "invalid" .enabled) | ternary true .enabled }}
+      {{- if not (kindIs "invalid" .min_length) }}
+      minLength: {{ .min_length | int64 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .change_interval) }}
+      passwordChangeInterval: {{ printf "%ds" (.change_interval | int64) | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .reuse_interval) }}
+      reuseInterval: {{ .reuse_interval | int64 }}
+      {{- end }}
+    {{- end }}
+{{- range $key := keys ($v.replicas | default dict) | sortAlpha }}
+{{- $r := index $v.replicas $key }}
+---
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "replica" $key)) "id" (printf "replica:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "cloudsql.replicaName" (list $ $key) }}
+  region: {{ $r.region | quote }}
+  databaseVersion: {{ $v.database_version | quote }}
+  masterInstanceRef:
+    name: {{ $.Release.Name }}
+  {{- with $r.encryption_key_name }}
+  encryptionKMSCryptoKeyRef:
+    external: {{ . | quote }}
+  {{- end }}
+  settings:
+    tier: {{ $r.tier | default $v.tier | quote }}
+    edition: {{ $v.edition }}
+    deletionProtectionEnabled: {{ $v.gcp_deletion_protection }}
+    diskAutoresize: {{ kindIs "invalid" $v.disk_size }}
+    diskAutoresizeLimit: {{ $v.disk_autoresize_limit | default 0 | int64 }}
+    {{- if not (kindIs "invalid" $v.disk_size) }}
+    diskSize: {{ $v.disk_size | int64 }}
+    {{- end }}
+    diskType: {{ $v.disk_type }}
+    {{- with $r.availability_type }}
+    availabilityType: {{ . }}
+    {{- end }}
+    activationPolicy: {{ $v.activation_policy }}
+    {{- with $v.collation }}
+    collation: {{ . | quote }}
+    {{- end }}
+    {{- with $v.connector_enforcement }}
+    connectorEnforcement: {{ . }}
+    {{- end }}
+    {{- with $v.time_zone }}
+    timeZone: {{ . | quote }}
+    {{- end }}
+    ipConfiguration:
+      {{- include "cloudsql.ipConfiguration" (list $ "replica") | nindent 6 }}
+    {{- with include "cloudsql.flags" $ }}{{ . | nindent 4 }}{{ end }}
+{{- end }}

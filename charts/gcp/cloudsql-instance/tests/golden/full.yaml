@@ -1,0 +1,288 @@
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLDatabase
+metadata:
+  name: full-db-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "database:orders"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "orders"
+  instanceRef:
+    name: full
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLDatabase
+metadata:
+  name: full-db-payments
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "database:payments"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "payments"
+  instanceRef:
+    name: full
+---
+# Source: cloudsql-instance/templates/instance.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: shop-orders
+  region: "europe-west1"
+  databaseVersion: "MYSQL_8_0"
+  encryptionKMSCryptoKeyRef:
+    external: "projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/sql"
+  settings:
+    tier: "db-n1-standard-2"
+    edition: ENTERPRISE_PLUS
+    deletionProtectionEnabled: false
+    diskAutoresize: false
+    diskAutoresizeLimit: 0
+    diskSize: 100
+    diskType: PD_SSD
+    availabilityType: REGIONAL
+    activationPolicy: ALWAYS
+    collation: "utf8mb4_general_ci"
+    connectorEnforcement: REQUIRED
+    ipConfiguration:
+      ipv4Enabled: true
+      privateNetworkRef:
+        external: "projects/myproject/global/networks/my-network"
+      allocatedIpRange: "sql-primary"
+      sslMode: ENCRYPTED_ONLY
+      enablePrivatePathForGoogleCloudServices: true
+      authorizedNetworks:
+        - name: "office"
+          value: "203.0.113.0/24"
+        - name: "vpn"
+          value: "198.51.100.0/24"
+    backupConfiguration:
+      enabled: true
+      binaryLogEnabled: true
+      startTime: "02:00"
+      location: "eu"
+      pointInTimeRecoveryEnabled: true
+      transactionLogRetentionDays: 5
+      backupRetentionSettings:
+        retainedBackups: 14
+        retentionUnit: COUNT
+    dataCacheConfig:
+      dataCacheEnabled: true
+    databaseFlags:
+      - name: "cloudsql_iam_authentication"
+        value: "on"
+      - name: "max_connections"
+        value: "500"
+    denyMaintenancePeriod:
+      startDate: "2026-12-20"
+      endDate: "2027-01-05"
+      time: "00:00:00"
+    maintenanceWindow:
+      day: 7
+      hour: 3
+      updateTrack: stable
+    insightsConfig:
+      queryInsightsEnabled: true
+      queryStringLength: 2048
+      recordApplicationTags: true
+      recordClientAddress: true
+      queryPlansPerMinute: 10
+    passwordValidationPolicy:
+      complexity: COMPLEXITY_DEFAULT
+      disallowUsernameSubstring: true
+      enablePasswordPolicy: true
+      minLength: 12
+      reuseInterval: 5
+---
+# Source: cloudsql-instance/templates/instance.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  name: full-replica-orders-replica-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "replica:orders-replica-1"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: shop-orders-replica-1
+  region: "europe-west1"
+  databaseVersion: "MYSQL_8_0"
+  masterInstanceRef:
+    name: full
+  settings:
+    tier: "db-n1-standard-2"
+    edition: ENTERPRISE_PLUS
+    deletionProtectionEnabled: false
+    diskAutoresize: false
+    diskAutoresizeLimit: 0
+    diskSize: 100
+    diskType: PD_SSD
+    availabilityType: ZONAL
+    activationPolicy: ALWAYS
+    collation: "utf8mb4_general_ci"
+    connectorEnforcement: REQUIRED
+    ipConfiguration:
+      ipv4Enabled: true
+      privateNetworkRef:
+        external: "projects/myproject/global/networks/my-network"
+      allocatedIpRange: "sql-replica"
+      sslMode: ENCRYPTED_ONLY
+      enablePrivatePathForGoogleCloudServices: true
+      authorizedNetworks:
+        - name: "office"
+          value: "203.0.113.0/24"
+        - name: "vpn"
+          value: "198.51.100.0/24"
+    databaseFlags:
+      - name: "cloudsql_iam_authentication"
+        value: "on"
+      - name: "max_connections"
+        value: "500"
+---
+# Source: cloudsql-instance/templates/instance.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLInstance
+metadata:
+  name: full-replica-orders-replica-2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "replica:orders-replica-2"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: shop-orders-replica-2
+  region: "europe-west4"
+  databaseVersion: "MYSQL_8_0"
+  masterInstanceRef:
+    name: full
+  encryptionKMSCryptoKeyRef:
+    external: "projects/kms-project/locations/europe-west4/keyRings/ring/cryptoKeys/sql"
+  settings:
+    tier: "db-n1-standard-4"
+    edition: ENTERPRISE_PLUS
+    deletionProtectionEnabled: false
+    diskAutoresize: false
+    diskAutoresizeLimit: 0
+    diskSize: 100
+    diskType: PD_SSD
+    activationPolicy: ALWAYS
+    collation: "utf8mb4_general_ci"
+    connectorEnforcement: REQUIRED
+    ipConfiguration:
+      ipv4Enabled: true
+      privateNetworkRef:
+        external: "projects/myproject/global/networks/my-network"
+      allocatedIpRange: "sql-replica"
+      sslMode: ENCRYPTED_ONLY
+      enablePrivatePathForGoogleCloudServices: true
+      authorizedNetworks:
+        - name: "office"
+          value: "203.0.113.0/24"
+        - name: "vpn"
+          value: "198.51.100.0/24"
+    databaseFlags:
+      - name: "cloudsql_iam_authentication"
+        value: "on"
+      - name: "max_connections"
+        value: "500"
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLSSLCert
+metadata:
+  name: full-cert-app-client
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "client-certificate:app-client"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  commonName: "app-client"
+  instanceRef:
+    name: full
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLUser
+metadata:
+  name: full-user-app-myproject-iam-gserviceaccount-com-887bde93
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "user:app@myproject.iam.gserviceaccount.com"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "app@myproject.iam.gserviceaccount.com"
+  instanceRef:
+    name: full
+  type: CLOUD_IAM_SERVICE_ACCOUNT
+---
+# Source: cloudsql-instance/templates/databases.yaml
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLUser
+metadata:
+  name: full-user-dev-example-com-7f29d1df
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloudsql-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "devops"
+  annotations:
+    hfl.dev/id: "user:dev@example.com"
+    cnrm.cloud.google.com/project-id: "myproject"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "dev@example.com"
+  instanceRef:
+    name: full
+  type: CLOUD_IAM_USER
