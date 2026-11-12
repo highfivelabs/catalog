@@ -1,0 +1,207 @@
+---
+# Source: avm-res-network-natgateway/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-natgw-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "to-law"
+  owner:
+    group: network.azure.com
+    kind: NatGateway
+    name: full-natgw
+  logAnalyticsDestinationType: "Dedicated"
+  metrics:
+    - category: AllMetrics
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-network-natgateway/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-natgw-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "natgw-lock"
+  owner:
+    group: network.azure.com
+    kind: NatGateway
+    name: full-natgw
+  level: CanNotDelete
+---
+# Source: avm-res-network-natgateway/templates/public-ips.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-pip-v4-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:v4/lock"
+spec:
+  azureName: "lock-ReadOnly"
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip-v4
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-network-natgateway/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: NatGateway
+metadata:
+  name: full-natgw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat_gateway"
+spec:
+  azureName: "natgw-hub"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  idleTimeoutInMinutes: 10
+  publicIpAddresses:
+    - reference:
+        group: network.azure.com
+        kind: PublicIPAddress
+        name: full-pip-v4
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip-existing
+  publicIpAddressesV6:
+    - reference:
+        group: network.azure.com
+        kind: PublicIPAddress
+        name: full-pip-v6
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip-existing-v6
+  publicIpPrefixes:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPPrefixes/ippre-v4"
+  publicIpPrefixesV6:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPPrefixes/ippre-v6"
+  sku:
+    name: StandardV2
+  zones:
+    - "1"
+    - "2"
+    - "3"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-natgateway/templates/public-ips.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: full-pip-v4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:v4"
+spec:
+  azureName: "pip-natgw-v4"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  ddosSettings:
+    ddosProtectionPlan:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ddosProtectionPlans/ddos"
+    protectionMode: Enabled
+  dnsSettings:
+    domainNameLabel: "natgw-hub"
+  idleTimeoutInMinutes: 15
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: StandardV2
+    tier: Regional
+  zones:
+    - "1"
+    - "2"
+    - "3"
+  tags:
+    owner: network
+---
+# Source: avm-res-network-natgateway/templates/public-ips.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: full-pip-v6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:v6"
+spec:
+  azureName: "pip-natgw-v6"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 30
+  publicIPAddressVersion: IPv6
+  publicIPAllocationMethod: Static
+  sku:
+    name: StandardV2
+    tier: Regional
+  zones:
+    - "1"
+    - "2"
+    - "3"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-natgateway/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-natgw-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: NatGateway
+    name: full-natgw
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
