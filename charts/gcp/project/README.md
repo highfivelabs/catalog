@@ -132,6 +132,14 @@ organization policy, `IAMCustomRole`, `IAMAuditConfig` and
 case cannot name (Google Cloud assigns its ID), so tag bindings are
 render-tested only and the case no longer sets one.
 
+On 2026-11-12 again (0.6.0, offload VM), with a log sink to the project's
+`_Default` log bucket (its writer identity's conditional
+`roles/logging.bucketWriter` grant) and a log-based metric added: all
+13 objects Ready, `sink_writer_identities` evaluated, all deleted. Log
+scopes (alpha) are render-tested only. No live run: the project chart's
+live case waits for the test provisioner (`docs/design.md`, "The test
+provisioner").
+
 ## Changes
 
 - **0.7.0** (2026-11-12): fabric's monitoring and quotas:
