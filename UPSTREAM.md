@@ -94,6 +94,7 @@ must carry.
 | `charts/azure/avm-res-network-networksecuritygroup` | Azure Verified Module `avm-res-network-networksecuritygroup` (v0.6.0) | the group, security rules, lock, role assignments, diagnostic settings | `ignore_body_changes`, `resource_types`, `retry`, `timeouts` |
 | `charts/azure/avm-res-network-routetable` | Azure Verified Module `avm-res-network-routetable` (v0.6.0) | the table, routes, lock, role assignments | `subnet_resource_ids` |
 | `charts/azure/avm-res-network-natgateway` | Azure Verified Module `avm-res-network-natgateway` (v0.3.2) | the gateway, its public IPs and their locks, lock, role assignments, diagnostic settings | `timeouts` |
+| `charts/azure/avm-res-network-publicipaddress` | Azure Verified Module `avm-res-network-publicipaddress` (v0.2.1) | the address, lock, role assignments, diagnostic settings | none |
 
 ## Moving the pins
 
