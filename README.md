@@ -131,10 +131,10 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 420 of 1478 (28.4%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 423 of 1478 (28.6%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 289 of 2348 (12.3%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 135 of 1170 (11.5%) |
-| **All** | **177** | | **844 of 4996 (16.9%)** |
+| **All** | **177** | | **847 of 4996 (17.0%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -144,7 +144,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
-| [`project`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project) ([chart](charts/gcp/project)) | ![project](docs/coverage/bars/gcp-project.svg) 26 of 58 | 6 of 27 | 41 of 49 | partial |
+| [`project`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project) ([chart](charts/gcp/project)) | ![project](docs/coverage/bars/gcp-project.svg) 29 of 58 | 7 of 27 | 41 of 49 | partial |
 | [`iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account) ([chart](charts/gcp/iam-service-account)) | ![iam-service-account](docs/coverage/bars/gcp-iam-service-account.svg) 24 of 28 | 5 of 6 | 9 of 9 | partial |
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`net-vpc-firewall`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-firewall) ([chart](charts/gcp/net-vpc-firewall)) | ![net-vpc-firewall](docs/coverage/bars/gcp-net-vpc-firewall.svg) 7 of 8 | 0 of 2 | 1 of 1 | partial |
