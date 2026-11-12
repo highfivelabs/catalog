@@ -19,6 +19,28 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
 | Read on | 2026-11-09 |
 
+## ACK controllers
+
+The AWS charts (`charts/aws/`) render AWS Controllers for Kubernetes
+(ACK) objects. `hack/ack.sh` reads these rows, fetches each controller's
+CRDs at its release, checks the tag is the commit named here, and
+`task test` validates every AWS render against them. The releases are
+the ones `docs/aws.md` maps the modules against (section 4); kinds ACK
+lacks come from `ack-extensions` (groups `*.aws.hfl.dev`), whose CRDs the
+charts use are copied in `crds/ack-extensions`.
+
+| ACK controller | Release | Commit | Kinds the charts use |
+| --- | --- | --- | --- |
+| `ec2-controller` | `v1.23.1` | `9303654c2cffad05147e4260105439149f7c81bf` | VPC, Subnet, RouteTable, InternetGateway, NATGateway, ElasticIPAddress, NetworkACL, DHCPOptions, SecurityGroup |
+| `rds-controller` | `v1.14.2` | `8ee2451cc31ed4c6a1c313d3697437aca7b660e2` | DBSubnetGroup |
+| `elasticache-controller` | `v1.12.0` | `c1c4c0897b82bd77bcc2370aa53b044c23bbfca7` | CacheSubnetGroup |
+| `s3-controller` | `v1.15.0` | `e679633287f9f95ec71f0ce5a26a415636fd5b25` | Bucket |
+| `kms-controller` | `v1.7.0` | `57250fba83d58aeb84a3ec2770cf3e9b45708895` | Key, Alias, Grant |
+
+To move a controller: change its row, run `task test` (it re-fetches the
+CRDs and re-validates every AWS render), and re-read the gaps in
+`docs/aws.md`.
+
 ## Every module the catalog tracks
 
 `upstream/modules.yaml` is the one list of the open-source Terraform modules

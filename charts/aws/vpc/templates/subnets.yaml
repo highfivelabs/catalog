@@ -1,0 +1,120 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "Public Subnets" to "Intra Subnets" (redshift and outpost subnets
+are refused): each type's subnets (aws_subnet), route tables
+(aws_route_table) and their routes to the internet and NAT gateways
+(aws_route, as RouteTable.routes), the associations
+(aws_route_table_association, as Subnet.routeTableRefs), and the type's
+dedicated network ACL with its rules (aws_network_acl,
+aws_network_acl_rule, as NetworkACL.entries and associations).
+*/ -}}
+{{- $p := include "vpc.plan" . | fromJson -}}
+{{- if $p.create }}
+{{- $v := .Values }}
+{{- $vpc := include "ack.name" (list .Release.Name "vpc") }}
+{{- $igw := include "ack.name" (list .Release.Name "igw") }}
+{{- range $t := list "public" "private" "database" "elasticache" "intra" }}
+{{- $tagsT := index $v (printf "%s_subnet_tags" $t) }}
+{{- $perAZ := index $v (printf "%s_subnet_tags_per_az" $t) | default dict }}
+{{- range $s := index $p.subnets $t }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $s.k8s "id" (printf "%s-subnet-%d" $t (int $s.i)) "region" $v.region) | nindent 2 }}
+spec:
+  vpcRef:
+{{- include "vpc.ref" $vpc | nindent 4 }}
+  cidrBlock: {{ $s.cidr | quote }}
+  {{ $s.azField }}: {{ $s.az | quote }}
+{{- if eq $t "public" }}
+  mapPublicIPOnLaunch: {{ $v.map_public_ip_on_launch }}
+{{- end }}
+  enableResourceNameDNSARecord: {{ index $v (printf "%s_subnet_enable_resource_name_dns_a_record_on_launch" $t) }}
+{{- with index $v (printf "%s_subnet_private_dns_hostname_type_on_launch" $t) }}
+  hostnameType: {{ . | quote }}
+{{- end }}
+{{- with include "vpc.subnetRT" (list $ $p $t $s.i) }}
+  routeTableRefs:
+    - {{- include "vpc.ref" . | nindent 6 }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" $s.name) $v.tags $tagsT (index $perAZ $s.az | default dict)) | fromJson)) | nindent 4 }}
+{{- end }}
+{{- range $rt := index $p.rts $t }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $rt.k8s "id" (printf "%s-route-table-%d" $t (int $rt.i)) "region" $v.region) | nindent 2 }}
+spec:
+  vpcRef:
+{{- include "vpc.ref" $vpc | nindent 4 }}
+{{- $routes := list }}
+{{- if and (eq $t "public") $v.create_igw }}
+{{- $routes = append $routes (dict "destinationCIDRBlock" "0.0.0.0/0" "gatewayRef" (dict "from" (dict "name" $igw))) }}
+{{- end }}
+{{- if and (eq $t "private") $v.enable_nat_gateway $v.create_private_nat_gateway_route }}
+{{- $routes = append $routes (dict "destinationCIDRBlock" $v.nat_gateway_destination_cidr_block "natGatewayRef" (dict "from" (dict "name" (include "ack.name" (list $.Release.Name "nat" (toString (mod (int $rt.i) (int $p.natCount)))))))) }}
+{{- end }}
+{{- if eq $t "database" }}
+{{- if and (eq (int $rt.i) 0) $v.create_igw $v.create_database_internet_gateway_route (not $v.create_database_nat_gateway_route) }}
+{{- $routes = append $routes (dict "destinationCIDRBlock" "0.0.0.0/0" "gatewayRef" (dict "from" (dict "name" $igw))) }}
+{{- end }}
+{{- if and (not $v.create_database_internet_gateway_route) $v.create_database_nat_gateway_route $v.enable_nat_gateway (or (not $v.single_nat_gateway) (eq (int $rt.i) 0)) }}
+{{- $routes = append $routes (dict "destinationCIDRBlock" "0.0.0.0/0" "natGatewayRef" (dict "from" (dict "name" (include "ack.name" (list $.Release.Name "nat" (toString (mod (int $rt.i) (int $p.natCount)))))))) }}
+{{- end }}
+{{- end }}
+{{- with $routes }}
+  routes:
+{{- toYaml . | nindent 4 }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" $rt.name) $v.tags (index $v (printf "%s_route_table_tags" $t))) | fromJson)) | nindent 4 }}
+{{- end }}
+{{- if and (gt (len (index $p.subnets $t)) 0) (index $v (printf "%s_dedicated_network_acl" $t)) }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NetworkACL
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name $t "acl")) "id" (printf "%s-network-acl" $t) "region" $v.region) | nindent 2 }}
+spec:
+  vpcRef:
+{{- include "vpc.ref" $vpc | nindent 4 }}
+  associations:
+{{- range $s := index $p.subnets $t }}
+    - subnetRef:
+{{- include "vpc.ref" $s.k8s | nindent 8 }}
+{{- end }}
+{{- $entries := list }}
+{{- range $egress := list false true }}
+{{- range $r := index $v (printf "%s_%s_acl_rules" $t (ternary "outbound" "inbound" $egress)) | default list }}
+{{- $e := dict "egress" $egress "ruleNumber" (int $r.rule_number) "ruleAction" (toString $r.rule_action) "protocol" (toString $r.protocol) }}
+{{- with $r.cidr_block }}{{ $_ := set $e "cidrBlock" (toString .) }}{{ end }}
+{{- with $r.ipv6_cidr_block }}{{ $_ := set $e "ipv6CIDRBlock" (toString .) }}{{ end }}
+{{- if or (hasKey $r "from_port") (hasKey $r "to_port") }}
+{{- $pr := dict }}
+{{- if hasKey $r "from_port" }}{{ $_ := set $pr "from" (int $r.from_port) }}{{ end }}
+{{- if hasKey $r "to_port" }}{{ $_ := set $pr "to" (int $r.to_port) }}{{ end }}
+{{- $_ := set $e "portRange" $pr }}
+{{- end }}
+{{- if or (hasKey $r "icmp_code") (hasKey $r "icmp_type") }}
+{{- $ic := dict }}
+{{- if hasKey $r "icmp_code" }}{{ $_ := set $ic "code" (int $r.icmp_code) }}{{ end }}
+{{- if hasKey $r "icmp_type" }}{{ $_ := set $ic "type_" (int $r.icmp_type) }}{{ end }}
+{{- $_ := set $e "icmpTypeCode" $ic }}
+{{- end }}
+{{- $entries = append $entries $e }}
+{{- end }}
+{{- end }}
+{{- with $entries }}
+  entries:
+{{- toYaml . | nindent 4 }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" (printf "%s-%s" $p.base (index $v (printf "%s_subnet_suffix" $t)))) $v.tags (index $v (printf "%s_acl_tags" $t))) | fromJson)) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

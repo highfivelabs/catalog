@@ -1,0 +1,39 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "Customer Gateways": one customer gateway per entry of
+customer_gateways (aws_customer_gateway), as ack-extensions'
+CustomerGateway, which ACK has no kind for: only with allow_alpha: true
+(docs/design.md, "Alpha kinds").
+*/ -}}
+{{- $p := include "vpc.plan" . | fromJson -}}
+{{- $v := .Values -}}
+{{- include "ack.alpha" (list $ "customer_gateways" $v.customer_gateways "CustomerGateway (ack-extensions)") -}}
+{{- range $key, $g := ($v.customer_gateways | default dict) }}
+{{- if not $g.ip_address }}
+{{- fail (printf "vpc: customer_gateways.%s needs ip_address" $key) }}
+{{- end }}
+---
+apiVersion: ec2.aws.hfl.dev/v1alpha1
+kind: CustomerGateway
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "cgw" $key)) "id" (printf "customer-gateway-%s" $key) "region" $v.region) | nindent 2 }}
+spec:
+  type_: ipsec.1
+  ipAddress: {{ $g.ip_address | quote }}
+{{- if hasKey $g "bgp_asn" }}
+  bgpASN: {{ int64 $g.bgp_asn }}
+{{- end }}
+{{- if hasKey $g "bgp_asn_extended" }}
+  bgpASNExtended: {{ int64 $g.bgp_asn_extended }}
+{{- end }}
+{{- with $g.device_name }}
+  deviceName: {{ . | quote }}
+{{- end }}
+{{- with $g.certificate_arn }}
+  certificateARN: {{ . | quote }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" (printf "%s-%s" $p.base $key)) $v.tags $v.customer_gateway_tags) | fromJson)) | nindent 4 }}
+{{- end }}
