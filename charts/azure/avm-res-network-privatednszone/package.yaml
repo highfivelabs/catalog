@@ -1,0 +1,40 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is the zone's name, domain_name;
+# resource_id is its ARM ID from ASO's status; each <type>_record_outputs
+# is {<key>: {id, fqdn}} from the record objects' status, as the module
+# builds it; virtual_network_link_outputs is {<key>: {id}}.
+# soa_record_outputs is {}: the module's output is empty unless
+# soa_record is set, which this chart refuses. The module's resource
+# output (the whole azapi object) is not an output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-privatednszone
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: inputs.domain_name
+    resource_id: resources.private_dns_zone.status.id
+    a_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('a_record:'), {k.substring(9): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    aaaa_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('aaaa_record:'), {k.substring(12): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    cname_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('cname_record:'), {k.substring(13): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    mx_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('mx_record:'), {k.substring(10): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    ptr_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('ptr_record:'), {k.substring(11): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    srv_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('srv_record:'), {k.substring(11): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    txt_record_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('txt_record:'), {k.substring(11): {'id': v.status.id, 'fqdn': v.status.fqdn}})
+    soa_record_outputs: '{}'
+    virtual_network_link_outputs: >-
+      resources.transformMapEntry(k, v, k.startsWith('virtual_network_link:'), {k.substring(21): {'id': v.status.id}})
