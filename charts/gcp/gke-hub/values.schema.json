@@ -1,0 +1,560 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gke-hub values (fabric gke-hub v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id"
+  ],
+  "properties": {
+    "names": {
+      "description": "Membership IDs in full, by cluster key (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 63,
+        "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the derived membership IDs. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "clusters": {
+      "description": "A map of GKE clusters to register with GKE Hub and their associated feature configurations.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configmanagement": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "policycontroller": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servicemesh": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workload_identity": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    "configmanagement_templates": {
+      "description": "Sets of config management configurations that can be applied to member clusters, in config name => {options} format.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "config_sync": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "git": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sync_repo": {
+                    "type": "string"
+                  },
+                  "policy_dir": {
+                    "type": "string"
+                  },
+                  "gcp_service_account_email": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "https_proxy": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "secret_type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sync_branch": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sync_rev": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sync_wait_secs": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "sync_repo",
+                  "policy_dir"
+                ]
+              },
+              "prevent_drift": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "source_format": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "hierarchy_controller": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "enable_hierarchical_resource_quota": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "enable_pod_tree_labels": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "policy_controller": {
+            "description": "DEPRECATED: The 'policy_controller' field in configmanagement_templates is deprecated. Please use the 'policycontroller_templates' variable instead to configure Policy Controller with its own API.",
+            "type": "null"
+          }
+        },
+        "required": [
+          "config_sync"
+        ]
+      }
+    },
+    "features": {
+      "description": "Enable and configure fleet features.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appdevexperience": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "configmanagement": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "identityservice": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "multiclusteringress": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "multiclusterservicediscovery": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "policycontroller": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "servicemesh": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "fleet_default_member_config": {
+      "description": "Fleet default member config (refused: GKEHubFeature has no fleetDefaultMemberConfig).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "location": {
+      "description": "GKE hub location, will also be used for the membership location.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "policycontroller_templates": {
+      "description": "Sets of Policy Controller configurations that can be applied to member clusters, in config name => {options} format.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "policy_controller_hub_config": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "audit_interval_seconds": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "constraint_violation_limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "exemptable_namespaces": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "install_spec": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "log_denies_enabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "mutation_enabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "referential_rules_enabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "deployment_configs": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "propertyNames": {
+                  "enum": [
+                    "admission",
+                    "audit",
+                    "mutation"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "container_resources": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "limits": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "cpu": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "memory": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        },
+                        "requests": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "cpu": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "memory": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "pod_affinity": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pod_tolerations": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "key": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "operator": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "value": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "effect": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "replica_count": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              },
+              "monitoring": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "backends": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "policy_content": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "bundles": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "exempted_namespaces": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "template_library": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "installation": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "policy_controller_hub_config"
+        ]
+      }
+    },
+    "project_id": {
+      "description": "GKE hub project ID.",
+      "type": "string",
+      "minLength": 1
+    },
+    "servicemesh_templates": {
+      "description": "Sets of Service Mesh configurations that can be applied to member clusters, in config name => {options} format.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "management": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "Not a fabric variable: DELETE (default) or ABANDON. PREVENT has no Config Connector equivalent.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "DELETE",
+        "ABANDON",
+        "PREVENT"
+      ]
+    }
+  }
+}

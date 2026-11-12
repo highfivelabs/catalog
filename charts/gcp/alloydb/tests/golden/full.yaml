@@ -1,0 +1,254 @@
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: prod-db
+  projectRef:
+    external: "myproject"
+  location: "europe-west8"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_16"
+  displayName: "Orders database"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/my-network"
+    allocatedIpRange: "alloydb-range"
+  automatedBackupPolicy:
+    enabled: true
+    location: "europe-west8"
+    backupWindow: "3600s"
+    labels:
+      team: "orders"
+    encryptionConfig:
+      kmsKeyNameRef:
+        external: "projects/myproject/locations/europe-west8/keyRings/ring/cryptoKeys/alloydb"
+    weeklySchedule:
+      daysOfWeek: ["MONDAY","THURSDAY"]
+      startTimes:
+        - hours: 2
+          minutes: 0
+          seconds: 0
+          nanos: 0
+        - hours: 14
+          minutes: 0
+          seconds: 0
+          nanos: 0
+    quantityBasedRetention:
+      count: 14
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 7
+    encryptionConfig:
+      kmsKeyNameRef:
+        external: "projects/myproject/locations/europe-west8/keyRings/ring/cryptoKeys/alloydb"
+  encryptionConfig:
+    kmsKeyNameRef:
+      external: "projects/myproject/locations/europe-west8/keyRings/ring/cryptoKeys/alloydb"
+  maintenanceUpdatePolicy:
+    maintenanceWindows:
+      - day: SATURDAY
+        startTime:
+          hours: 3
+          minutes: 0
+          seconds: 0
+          nanos: 0
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: prod-db
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/prod-db"
+  instanceType: PRIMARY
+  availabilityType: "ZONAL"
+  displayName: "Orders primary"
+  gceZone: "europe-west8-b"
+  annotations:
+    "owner": "orders-team"
+  databaseFlags:
+    "alloydb.iam_authentication": "on"
+    "max_connections": "200"
+  connectionPoolConfig:
+    enabled: true
+    flags:
+      "max_pool_size": "50"
+      "pool_mode": "transaction"
+  machineConfig:
+    cpuCount: 4
+  networkConfig:
+    authorizedExternalNetworks:
+      - cidrRange: "198.51.100.0/24"
+      - cidrRange: "203.0.113.0/24"
+    enablePublicIp: true
+    enableOutboundPublicIp: true
+  observabilityConfig:
+    enabled: true
+    preserveComments: false
+    trackWaitEvents: true
+    maxQueryStringLength: 10240
+    recordApplicationTags: false
+    queryPlansPerMinute: 20
+    trackActiveQueries: true
+    trackClientAddress: false
+    assistiveExperiencesEnabled: false
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: full-read-pool-analytics
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "read-pool:analytics"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: prod-analytics
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/prod-db"
+  instanceType: READ_POOL
+  displayName: "prod-analytics"
+  annotations:
+    "owner": "orders-team"
+  connectionPoolConfig:
+    enabled: true
+    flags:
+      "max_pool_size": "50"
+      "pool_mode": "transaction"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 2048
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5
+  readPoolConfig:
+    nodeCount: 1
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: full-read-pool-ro
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "read-pool:ro"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: prod-ro
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/prod-db"
+  instanceType: READ_POOL
+  displayName: "Read pool"
+  annotations:
+    "owner": "orders-team"
+  databaseFlags:
+    "max_connections": "100"
+  connectionPoolConfig:
+    enabled: true
+    flags:
+      "max_pool_size": "50"
+      "pool_mode": "transaction"
+  machineConfig:
+    cpuCount: 2
+  networkConfig:
+    authorizedExternalNetworks:
+      - cidrRange: "203.0.113.0/24"
+    enablePublicIp: true
+  readPoolConfig:
+    nodeCount: 2
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBUser
+metadata:
+  name: full-user-dba-example-com-99cd1216
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "user:dba@example.com"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "dba@example.com"
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/prod-db"
+  userType: ALLOYDB_IAM_GROUP
+  databaseRoles: ["alloydbsuperuser"]
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBUser
+metadata:
+  name: full-user-orders-example-com-41e0b4f5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "user:orders@example.com"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "orders@example.com"
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/prod-db"
+  userType: ALLOYDB_IAM_USER
+  databaseRoles: ["alloydbiamuser"]
+---
+# Source: alloydb/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  name: full-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+    team: "orders"
+  annotations:
+    hfl.dev/id: "tag-env"
+spec:
+  location: "europe-west8"
+  parentRef:
+    external: "//alloydb.googleapis.com/projects/123456789012/locations/europe-west8/clusters/prod-db"
+  tagValueRef:
+    external: "tagValues/281484836404786"

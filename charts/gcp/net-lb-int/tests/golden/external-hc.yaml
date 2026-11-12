@@ -1,0 +1,53 @@
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: external-hc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "external-hc"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-ext-hc"
+  location: "europe-west1"
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL
+  protocol: "UNSPECIFIED"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  healthChecks:
+    - healthCheckRef:
+        external: "projects/my-project/global/healthChecks/shared"
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: external-hc-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "external-hc"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-ext-hc"
+  location: "europe-west1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: external-hc
+  loadBalancingScheme: INTERNAL
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gce"
+  allPorts: true
+  allowGlobalAccess: true

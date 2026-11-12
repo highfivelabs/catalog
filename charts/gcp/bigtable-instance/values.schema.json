@@ -1,0 +1,352 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bigtable-instance values (fabric bigtable-instance v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "clusters",
+    "name",
+    "project_id"
+  ],
+  "properties": {
+    "names": {
+      "description": "The instance ID in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "instance": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 33,
+          "pattern": "^[a-z][-a-z0-9]*[a-z0-9]$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the instance ID. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "fabric's labels: Kubernetes labels on every object; an unprefixed key is also a Google Cloud label on the instance.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "clusters": {
+      "description": "Clusters to be created in the BigTable instance. Set more than one cluster to enable replication. If you set autoscaling, num_nodes will be ignored.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][-a-z0-9]{4,28}[a-z0-9]$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "zone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "storage_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "SSD",
+              "HDD",
+              null
+            ]
+          },
+          "num_nodes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "autoscaling": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "min_nodes",
+              "max_nodes",
+              "cpu_target"
+            ],
+            "properties": {
+              "min_nodes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "max_nodes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "cpu_target": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 80
+              },
+              "storage_target": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "default_autoscaling": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "min_nodes",
+        "max_nodes",
+        "cpu_target"
+      ],
+      "properties": {
+        "min_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_nodes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cpu_target": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 80
+        },
+        "storage_target": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "description": "Default settings for autoscaling of clusters, for any cluster not specifying any autoscaling details."
+    },
+    "default_gc_policy": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "deletion_policy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "ABANDON",
+            null
+          ]
+        },
+        "gc_rules": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A JSON garbage collection rule (google_bigtable_gc_policy's gc_rules)."
+        },
+        "mode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "INTERSECTION",
+            "UNION",
+            null
+          ]
+        },
+        "max_age": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A duration, as 7d or 168h."
+        },
+        "max_version": {
+          "type": [
+            "string",
+            "integer",
+            "null"
+          ],
+          "pattern": "^[0-9]+$"
+        }
+      },
+      "description": "Default garbage collection policy, applied to all column families of all tables unless a column family sets its own."
+    },
+    "deletion_protection": {
+      "description": "Whether the instance may be deleted.",
+      "type": "boolean"
+    },
+    "display_name": {
+      "description": "The human-readable display name of the Bigtable instance.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 4,
+      "maxLength": 30
+    },
+    "encryption_key": {
+      "description": "The KMS key id used for encryption of the Bigtable instance.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "iam": {
+      "description": "IAM bindings in {ROLE => [MEMBERS]} format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "name": {
+      "description": "The name of the Cloud Bigtable instance.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Id of the project where the instance will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "tables": {
+      "description": "Tables to be created in the BigTable instance.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "split_keys": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "column_families": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "gc_policy": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "deletion_policy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "ABANDON",
+                        null
+                      ]
+                    },
+                    "gc_rules": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "A JSON garbage collection rule (google_bigtable_gc_policy's gc_rules)."
+                    },
+                    "mode": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "INTERSECTION",
+                        "UNION",
+                        null
+                      ]
+                    },
+                    "max_age": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "A duration, as 7d or 168h."
+                    },
+                    "max_version": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ],
+                      "pattern": "^[0-9]+$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}
