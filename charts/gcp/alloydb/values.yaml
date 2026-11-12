@@ -1,0 +1,106 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's alloydb module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# The cloud names in full: {cluster, instance, secondaryCluster,
+# secondaryInstance}. A name set here takes no prefix. Not set, each
+# derives as fabric derives it: <prefix>-<cluster_name>,
+# <prefix>-<instance_name>, and the secondaries <cluster_name>-sec and
+# <instance_name>-sec unless cross_region_replication names them. Read
+# pools are named by their keys.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every derived cloud
+# name (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object (fabric's labels, on the clusters and
+# instances, are these). A prefixed key (hfl.dev/team) stays in Kubernetes;
+# an unprefixed one also becomes a Google Cloud label, since Config
+# Connector copies it, and is put on the automated backups as fabric does.
+labels: null
+# Cloud labels on every resource (Config Connector carries them as
+# unprefixed metadata.labels).
+tags: {}
+
+# Map FLAG_NAME=>VALUE for annotations which allow client tools to store a
+# small amount of arbitrary data (on the instances: the cluster kind has no
+# annotations).
+annotations: null
+# Automated backup settings for the clusters.
+automated_backup_configuration: {}
+# Availability type for the primary replica: ZONAL or REGIONAL.
+availability_type: REGIONAL
+# Client connection config {require_connectors, ssl_config: {ssl_mode}}:
+# refused (AlloyDBInstance has no such field).
+client_connection_config: null
+# Display name of the primary cluster.
+cluster_display_name: null
+# Name of the primary cluster.
+cluster_name: ""
+# Map FLAG_NAME=>VALUE for managed connection pooling.
+connection_pool_flags: null
+# Continuous backup settings for the clusters.
+continuous_backup_configuration: {}
+# Cross region replication config: a secondary cluster, its instance and
+# read pools.
+cross_region_replication: {}
+# Database type and version to create.
+database_version: POSTGRES_15
+# fabric's AlloyDB cluster deletion policy, DEFAULT or FORCE (the primary
+# cluster's deletionPolicy). The catalog's DELETE (the same as null) and
+# ABANDON (keep the cloud resources when the component is deleted) are
+# accepted too; PREVENT has no Config Connector equivalent.
+deletion_policy: null
+# Terraform's own guard against destroying the cluster: accepted and
+# ignored (README.md, "Differences from the module").
+deletion_protection: null
+# AlloyDB primary instance display name.
+display_name: null
+# {primary_kms_key_name, secondary_kms_key_name}.
+encryption_config: null
+# Map FLAG_NAME=>VALUE for database-specific tuning.
+flags: null
+# The GCE zone the instance serves from; ZONAL instances only.
+gce_zone: null
+# The cluster's initial user {user, password}: refused (a password).
+initial_user: null
+# Name of the primary instance.
+instance_name: ""
+# Region of the cluster and instance.
+location: ""
+# {cpu_count, machine_type}.
+machine_config: {}
+# Maintenance window {enabled, day, start_time: {hours}}.
+maintenance_config: {}
+# {psa_config: {network, allocated_ip_range, authorized_external_networks,
+# enable_public_ip, enable_outbound_public_ip}} (psc_config is refused).
+network_config: {}
+# Advanced query insights; mutually exclusive with query_insights_config.
+observability_config: null
+# Optional prefix used to generate instance names (null, never "").
+prefix: null
+# The project the clusters and instances are created in.
+project_id: ""
+# The project's number: needed for tag_bindings (fabric reads it with a
+# data source, which a chart cannot).
+project_number: null
+# Query insights; ignored when observability_config is enabled.
+query_insights_config: {}
+# Read pool instances in the primary cluster, by name.
+read_pool: {}
+# Terraform's wait on a major version upgrade: accepted and ignored.
+skip_await_major_version_upgrade: true
+# STANDARD (TRIAL is refused: AlloyDBCluster has no subscription field).
+subscription_type: STANDARD
+# Tag bindings for the clusters, in key => tag value id format.
+tag_bindings: {}
+# Users of the primary cluster, by name: {password, roles, type}. Only
+# ALLOYDB_IAM_USER and ALLOYDB_IAM_GROUP users are accepted.
+users: {}

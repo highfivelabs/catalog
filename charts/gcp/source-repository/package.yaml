@@ -1,0 +1,22 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"): name
+# and id computed from inputs (names.repository when it is set), url read
+# from the repository's status.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-source-repository
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id + '/repos/' +
+      ('repository' in inputs.names && inputs.names.repository != '' ? inputs.names.repository : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    name: >-
+      ('repository' in inputs.names && inputs.names.repository != '' ? inputs.names.repository : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    url: resources.repository.status.url

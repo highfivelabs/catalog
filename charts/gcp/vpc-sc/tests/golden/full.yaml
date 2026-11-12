@@ -1,0 +1,292 @@
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: full-level-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_level:corp"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  accessPolicyRef:
+    name: full
+  resourceID: "corp"
+  title: "Corporate devices"
+  description: "Managed, encrypted devices"
+  basic:
+    combiningFunction: "AND"
+    conditions:
+      - devicePolicy:
+          allowedDeviceManagementLevels: ["COMPLETE"]
+          allowedEncryptionStatuses: ["ENCRYPTED"]
+          requireAdminApproval: true
+          requireCorpOwned: true
+          requireScreenLock: true
+          osConstraints:
+            - osType: "DESKTOP_CHROME_OS"
+              minimumVersion: "100.0.0"
+              requireVerifiedChromeOs: true
+        members:
+          - serviceAccountRef:
+              external: "serviceAccount:ci@my-project.iam.gserviceaccount.com"
+          - user: "admin@example.com"
+        negate: false
+        requiredAccessLevels:
+          - name: full-level-geo
+          - external: "accessPolicies/12345678/accessLevels/other"
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: full-level-fact-level
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_level:fact-level"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  accessPolicyRef:
+    name: full
+  resourceID: "fact-level"
+  title: "fact-level"
+  basic:
+    conditions:
+      - ipSubnetworks: ["10.0.0.0/8"]
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: full-level-geo
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_level:geo"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  accessPolicyRef:
+    name: full
+  resourceID: "geo"
+  title: "geo"
+  basic:
+    conditions:
+      - regions: ["DE"]
+---
+# Source: vpc-sc/templates/main.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessPolicy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/deletion-policy: abandon
+    cnrm.cloud.google.com/organization-id: "123456"
+spec:
+  title: "vpcsc-policy"
+---
+# Source: vpc-sc/templates/perimeters.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerServicePerimeter
+metadata:
+  name: full-perimeter-fact
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "perimeter:fact"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  accessPolicyRef:
+    name: full
+  resourceID: "fact"
+  title: "fact"
+  perimeterType: PERIMETER_TYPE_REGULAR
+  useExplicitDryRunSpec: false
+  status:
+    resources:
+      - projectRef:
+          external: "projects/55555"
+    restrictedServices:
+      - "storage.googleapis.com"
+    ingressPolicies:
+      - ingressFrom:
+          identityType: "ANY_SERVICE_ACCOUNT"
+        ingressTo:
+          operations:
+            - serviceName: "*"
+          resources:
+            - projectRef:
+                external: "*"
+---
+# Source: vpc-sc/templates/perimeters.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerServicePerimeter
+metadata:
+  name: full-perimeter-main
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "perimeter:main"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  accessPolicyRef:
+    name: full
+  resourceID: "main"
+  title: "Main perimeter"
+  description: "Data projects"
+  perimeterType: PERIMETER_TYPE_REGULAR
+  useExplicitDryRunSpec: true
+  spec:
+    accessLevels:
+      - name: full-level-corp
+    resources:
+      - projectRef:
+          external: "projects/11111"
+      - projectRef:
+          external: "//compute.googleapis.com/projects/my-project/global/networks/vpc"
+    restrictedServices:
+      - "storage.googleapis.com"
+      - "bigquery.googleapis.com"
+    egressPolicies:
+      - egressFrom:
+          identityType: "ANY_USER_ACCOUNT"
+        egressTo:
+          operations:
+            - serviceName: "bigquery.googleapis.com"
+              methodSelectors:
+                - method: "*"
+          resources:
+            - projectRef:
+                external: "projects/44444"
+      - egressFrom:
+          identities:
+            - serviceAccountRef:
+                external: "serviceAccount:ci@my-project.iam.gserviceaccount.com"
+        egressTo:
+          externalResources:
+            - "s3://bucket-a"
+          operations:
+            - serviceName: "storage.googleapis.com"
+    ingressPolicies:
+      - ingressFrom:
+          identities:
+            - serviceAccountRef:
+                external: "serviceAccount:ci@my-project.iam.gserviceaccount.com"
+            - user: "admin@example.com"
+          sources:
+            - accessLevelRef:
+                name: full-level-corp
+            - projectRef:
+                external: "projects/22222"
+        ingressTo:
+          operations:
+            - serviceName: "storage.googleapis.com"
+              methodSelectors:
+                - method: "google.storage.objects.get"
+            - serviceName: "bigquery.googleapis.com"
+              methodSelectors:
+                - permission: "bigquery.tables.getData"
+          resources:
+            - projectRef:
+                external: "*"
+      - ingressFrom:
+          identityType: "ANY_IDENTITY"
+          sources:
+            - accessLevelRef:
+                external: "*"
+        ingressTo:
+          operations:
+            - serviceName: "*"
+          resources:
+            - projectRef:
+                external: "projects/33333"
+    vpcAccessibleServices:
+      enableRestriction: true
+      allowedServices:
+        - "storage.googleapis.com"
+  status:
+    resources:
+      - projectRef:
+          external: "projects/11111"
+    restrictedServices:
+      - "storage.googleapis.com"
+    egressPolicies:
+      - egressFrom:
+          identityType: "ANY_USER_ACCOUNT"
+        egressTo:
+          operations:
+            - serviceName: "bigquery.googleapis.com"
+              methodSelectors:
+                - method: "*"
+          resources:
+            - projectRef:
+                external: "projects/44444"
+    vpcAccessibleServices:
+      enableRestriction: false
+---
+# Source: vpc-sc/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+    kind: AccessContextManagerAccessPolicy
+    name: full
+  bindings:
+    - role: "roles/accesscontextmanager.policyAdmin"
+      members:
+        - member: "group:vpcsc-admins@example.com"
+    - role: "roles/accesscontextmanager.policyReader"
+      members:
+        - member: "user:auditor@example.com"
+---
+# Source: vpc-sc/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-editor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-editor"
+spec:
+  resourceRef:
+    apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+    kind: AccessContextManagerAccessPolicy
+    name: full
+  role: "roles/accesscontextmanager.policyEditor"
+  member: "serviceAccount:ops@my-project.iam.gserviceaccount.com"

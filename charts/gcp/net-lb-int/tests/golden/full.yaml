@@ -1,0 +1,211 @@
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-bs"
+  location: "europe-west1"
+  description: "the backend"
+  loadBalancingScheme: INTERNAL
+  protocol: "TCP"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  healthChecks:
+    - healthCheckRef:
+        name: full
+  connectionDrainingTimeoutSec: 10
+  sessionAffinity: "CLIENT_IP"
+  timeoutSec: 30
+  backend:
+    - balancingMode: CONNECTION
+      description: "Terraform managed."
+      failover: false
+      group:
+        instanceGroupRef:
+          name: full-group-my-group
+    - balancingMode: CONNECTION
+      description: "failover group"
+      failover: true
+      group:
+        instanceGroupRef:
+          external: "projects/my-project/zones/europe-west1-c/instanceGroups/other"
+  connectionTrackingPolicy:
+    connectionPersistenceOnUnhealthyBackends: "NEVER_PERSIST"
+    idleTimeoutSec: 600
+    trackingMode: PER_SESSION
+  failoverPolicy:
+    disableConnectionDrainOnFailover: true
+    dropTrafficIfUnhealthy: true
+    failoverRatio: 0.5
+  logConfig:
+    enable: true
+    sampleRate: 0.5
+  subsetting:
+    policy: CONSISTENT_HASH_SUBSETTING
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full"
+  location: "europe-west1"
+  description: "the main rule"
+  ipAddress:
+    ip: "10.0.0.10"
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: full
+  loadBalancingScheme: INTERNAL
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gce"
+  allPorts: true
+  allowGlobalAccess: false
+  serviceLabel: "svc"
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr-ipv6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:ipv6"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-fr"
+  location: "europe-west1"
+  ipVersion: IPV6
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: full
+  loadBalancingScheme: INTERNAL
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gce"
+  ports:
+    - "80"
+    - "443"
+  allowGlobalAccess: true
+  serviceLabel: "svc"
+---
+# Source: net-lb-int/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+    env: "test"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-hc"
+  location: "europe-west1"
+  description: "Terraform managed."
+  checkIntervalSec: 5
+  healthyThreshold: 2
+  timeoutSec: 5
+  unhealthyThreshold: 3
+  httpHealthCheck:
+    port: 80
+    portSpecification: USE_FIXED_PORT
+    requestPath: /healthz
+  logConfig:
+    enable: true
+---
+# Source: net-lb-int/templates/groups.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  name: full-group-my-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+    env: "test"
+  annotations:
+    hfl.dev/id: "group:my-group"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-my-group"
+  zone: "europe-west1-b"
+  description: "Terraform managed."
+  instances:
+    - external: "projects/my-project/zones/europe-west1-b/instances/vm-a"
+  namedPort:
+    - name: "http"
+      port: 80
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: full-psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service_attachment:"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full"
+  location: "europe-west1"
+  description: "PSC for ilb-full"
+  projectRef:
+    external: "projects/my-project"
+  targetServiceRef:
+    name: full-fr
+  natSubnets:
+    - external: "projects/my-project/regions/europe-west1/subnetworks/psc"
+  connectionPreference: ACCEPT_AUTOMATIC
+  consumerAcceptLists:
+    - projectRef:
+        external: "projects/consumer-project"
+      connectionLimit: 10
+  consumerRejectLists:
+    - external: "projects/bad-project"
+  enableProxyProtocol: true

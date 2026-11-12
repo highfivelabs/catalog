@@ -1,0 +1,102 @@
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: switchover
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "switchover"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+spec:
+  resourceID: db
+  projectRef:
+    external: "myproject"
+  location: "europe-west8"
+  clusterType: SECONDARY
+  databaseVersion: "POSTGRES_15"
+  displayName: "db"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/my-network"
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+  secondaryConfig:
+    primaryClusterNameRef:
+      external: "projects/myproject/locations/europe-west12/clusters/db-sec"
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: switchover-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "switchover"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "secondary_cluster"
+spec:
+  resourceID: db-sec
+  projectRef:
+    external: "myproject"
+  location: "europe-west12"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  deletionPolicy: FORCE
+  displayName: "db-sec"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/my-network"
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: switchover
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "switchover"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  resourceID: db
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/db"
+  instanceType: SECONDARY
+  availabilityType: "REGIONAL"
+  displayName: "db"
+  machineConfig:
+    cpuCount: 2
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: switchover-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "switchover"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "secondary_instance"
+spec:
+  resourceID: db-sec
+  clusterRef:
+    external: "projects/myproject/locations/europe-west12/clusters/db-sec"
+  instanceType: PRIMARY
+  availabilityType: "REGIONAL"
+  displayName: "db-sec"
+  machineConfig:
+    cpuCount: 2
