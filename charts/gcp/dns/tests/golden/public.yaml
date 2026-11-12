@@ -1,0 +1,110 @@
+---
+# Source: dns/templates/main.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSManagedZone
+metadata:
+  name: public
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: dns
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "zone"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+    cnrm.cloud.google.com/force-destroy: "true"
+spec:
+  resourceID: "example"
+  dnsName: "example.com."
+  description: "Public zone"
+  visibility: "public"
+  reverseLookup: false
+  dnssecConfig:
+    kind: dns#managedZoneDnsSecConfig
+    nonExistence: "nsec3"
+    state: "on"
+    defaultKeySpecs:
+      - algorithm: "ecdsap256sha256"
+        keyLength: 256
+        keyType: keySigning
+        kind: dns#dnsKeySpec
+      - algorithm: "rsasha256"
+        keyLength: 1024
+        keyType: zoneSigning
+        kind: dns#dnsKeySpec
+  cloudLoggingConfig:
+    enableLogging: true
+---
+# Source: dns/templates/recordsets.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSRecordSet
+metadata:
+  name: public-rs-a-76120098
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: dns
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "recordset:A "
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  name: "example.com."
+  type: "A"
+  ttl: 300
+  managedZoneRef:
+    name: public
+  rrdatas:
+    - "203.0.113.10"
+---
+# Source: dns/templates/recordsets.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSRecordSet
+metadata:
+  name: public-rs-cname-www-00eba527
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: dns
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "recordset:CNAME www"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  name: "www.example.com."
+  type: "CNAME"
+  ttl: 300
+  managedZoneRef:
+    name: public
+  rrdatas:
+    - "example.com."
+---
+# Source: dns/templates/recordsets.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSRecordSet
+metadata:
+  name: public-rs-txt-other-example-com-6c806c2c
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "public"
+    app.kubernetes.io/name: dns
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "recordset:TXT other.example.com."
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  name: "other.example.com."
+  type: "TXT"
+  ttl: 60
+  managedZoneRef:
+    name: public
+  rrdatas:
+    - "v=spf1 -all"
