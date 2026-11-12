@@ -1,0 +1,109 @@
+# component alloydb-dev-alloydb
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: alloydb-dev-alloydb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alloydb-dev-alloydb"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+spec:
+  resourceID: db
+  projectRef:
+    external: "my-project"
+  location: "europe-west8"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  displayName: "db"
+  networkConfig:
+    networkRef:
+      external: "projects/my-project/global/networks/my-network"
+  automatedBackupPolicy:
+    enabled: true
+    backupWindow: "1800s"
+    weeklySchedule:
+      daysOfWeek: ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"]
+      startTimes:
+        - hours: 23
+          minutes: 0
+          seconds: 0
+          nanos: 0
+    quantityBasedRetention:
+      count: 7
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: alloydb-dev-alloydb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alloydb-dev-alloydb"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  resourceID: db
+  clusterRef:
+    external: "projects/my-project/locations/europe-west8/clusters/db"
+  instanceType: PRIMARY
+  availabilityType: "REGIONAL"
+  displayName: "db"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: alloydb-dev-alloydb-read-pool-ro
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alloydb-dev-alloydb"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "read-pool:ro"
+spec:
+  resourceID: ro
+  clusterRef:
+    external: "projects/my-project/locations/europe-west8/clusters/db"
+  instanceType: READ_POOL
+  displayName: "ro"
+  machineConfig:
+    cpuCount: 2
+  readPoolConfig:
+    nodeCount: 2
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBUser
+metadata:
+  name: alloydb-dev-alloydb-user-app-example-com-a4c61387
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alloydb-dev-alloydb"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "user:app@example.com"
+spec:
+  resourceID: "app@example.com"
+  clusterRef:
+    external: "projects/my-project/locations/europe-west8/clusters/db"
+  userType: ALLOYDB_IAM_USER
+  databaseRoles: ["alloydbiamuser"]
