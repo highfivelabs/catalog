@@ -617,6 +617,7 @@ Config Connector. What differs:
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
 | `charts/aws/iam-role` | `terraform-aws-iam` v6.8.2, `modules/iam-role` | partial: every variable carried; the trust policy and inline policy built as the submodule builds them (generic, GitHub and Bitbucket OIDC, SAML, statements, source and override documents merged by `Sid`, with `account_id`), policy attachments, instance profile; `use_name_prefix` names the role without Terraform's random suffix |
 | `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
+| `charts/aws/acm` | `terraform-aws-acm` v6.3.1 | partial: the certificate, or (`create_route53_records_only`) its DNS validation records from a certificate component's outputs: DNS validation with Route 53 is two components, since the records exist only in the certificate's status; EMAIL validation and the wait for `ISSUED` are gaps |
 
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
@@ -640,3 +641,5 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |
 | `Key` fields: `pendingWindowInDays` (on delete), `rotationPeriodInDays`, `enabled` | kms (`deletion_window_in_days`, `rotation_period_in_days`, `is_enabled`) | fields on ACK's `Key` (upstream) or a patch |
 | S3 directory buckets, bucket metadata configurations; emptying a bucket on delete (`force_destroy`) | s3-bucket | generated (directory bucket, metadata); a field and hook on ACK's `Bucket` |
+| A certificate that is synced only once `ISSUED` (a `synced.when` on `Status.status`, or a `CertificateValidation` kind that waits), and `validationMethod` on `Certificate` (ACK always requests DNS validation) | acm (`wait_for_validation`, `validation_method: EMAIL`) | generator config on ACK's `Certificate` (upstream), or a hand-written kind |
+| A `RecordSet` that may overwrite a record already there (Route 53's `UPSERT` on create) | acm (`validation_allow_overwrite_records`) | a field on ACK's `RecordSet` (upstream) |

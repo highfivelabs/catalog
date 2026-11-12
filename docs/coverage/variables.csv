@@ -2320,30 +2320,30 @@ aws,rds-aurora,subnets,list(string),no,,no-chart
 aws,rds-aurora,tags,map(string),no,,no-chart
 aws,rds-aurora,vpc_id,string,no,,no-chart
 aws,rds-aurora,vpc_security_group_ids,list(string),no,,no-chart
-aws,acm,acm_certificate_domain_validation_options,any,no,,no-chart
-aws,acm,certificate_transparency_logging_preference,bool,no,,no-chart
-aws,acm,create_certificate,bool,no,,no-chart
-aws,acm,create_route53_records,bool,no,,no-chart
-aws,acm,create_route53_records_only,bool,no,,no-chart
-aws,acm,distinct_domain_names,list(string),no,,no-chart
-aws,acm,dns_ttl,number,no,,no-chart
-aws,acm,domain_name,string,no,,no-chart
-aws,acm,export,string,no,,no-chart
-aws,acm,key_algorithm,string,no,,no-chart
-aws,acm,private_authority_arn,string,no,,no-chart
-aws,acm,putin_khuylo,bool,no,,no-chart
-aws,acm,region,string,no,,no-chart
-aws,acm,subject_alternative_names,list(string),no,,no-chart
-aws,acm,tags,map(string),no,,no-chart
-aws,acm,validate_certificate,bool,no,,no-chart
-aws,acm,validation_allow_overwrite_records,bool,no,,no-chart
-aws,acm,validation_method,string,no,,no-chart
-aws,acm,validation_option,any,no,,no-chart
-aws,acm,validation_record_fqdns,list(string),no,,no-chart
-aws,acm,validation_timeout,string,no,,no-chart
-aws,acm,wait_for_validation,bool,no,,no-chart
-aws,acm,zone_id,string,no,,no-chart
-aws,acm,zones,map(string),no,,no-chart
+aws,acm,acm_certificate_domain_validation_options,any,yes,,
+aws,acm,certificate_transparency_logging_preference,bool,yes,,
+aws,acm,create_certificate,bool,yes,,
+aws,acm,create_route53_records,bool,partial,"accepted, except true (the default) for a certificate this component requests with DNS validation: the validation records' names and values exist only in the Certificate's status, so one render cannot write them; a second component with create_route53_records_only: true writes them from this one's outputs, as the module's ""separate AWS providers"" example does",gap
+aws,acm,create_route53_records_only,bool,yes,,
+aws,acm,distinct_domain_names,list(string),yes,,
+aws,acm,dns_ttl,number,yes,,
+aws,acm,domain_name,string,yes,,
+aws,acm,export,string,yes,,
+aws,acm,key_algorithm,string,yes,,
+aws,acm,private_authority_arn,string,yes,,
+aws,acm,putin_khuylo,bool,yes,,
+aws,acm,region,string,yes,,
+aws,acm,subject_alternative_names,list(string),yes,,
+aws,acm,tags,map(string),yes,,
+aws,acm,validate_certificate,bool,partial,"accepted; true with DNS validation and create_route53_records: true is refused, as for create_route53_records",gap
+aws,acm,validation_allow_overwrite_records,bool,partial,"accepted, but ACK's RecordSet is created with Route 53's CREATE action, which fails on a record already there (as false does): true's overwrite is not carried",gap
+aws,acm,validation_method,string,partial,accepted DNS or unset; EMAIL is refused: ACK's Certificate always requests DNS validation,gap
+aws,acm,validation_option,any,yes,,
+aws,acm,validation_record_fqdns,list(string),partial,"accepted, but the validation wait (aws_acm_certificate_validation) has no kind: the component is Ready once ACK has requested the certificate, not when it is ISSUED (ACK's Certificate is synced in PENDING_VALIDATION); the acm_certificate_status output reports ISSUED",gap
+aws,acm,validation_timeout,string,no,"Terraform's wait for validation, which has no kind here (aws_acm_certificate_validation): Bundt waits for the component to be Ready",by-design
+aws,acm,wait_for_validation,bool,partial,"accepted, but the validation wait (aws_acm_certificate_validation) has no kind: the component is Ready once ACK has requested the certificate, not when it is ISSUED (ACK's Certificate is synced in PENDING_VALIDATION); the acm_certificate_status output reports ISSUED",gap
+aws,acm,zone_id,string,yes,,
+aws,acm,zones,map(string),yes,,
 aws,ec2-instance,ami,string,no,,no-chart
 aws,ec2-instance,ami_ssm_parameter,string,no,,no-chart
 aws,ec2-instance,associate_public_ip_address,bool,no,,no-chart
