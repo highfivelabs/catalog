@@ -1,0 +1,109 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-managedidentity-userassignedidentity
+main.tf and locals.tf (v0.6.0), Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_user_assigned_identity.this: one ASO UserAssignedIdentity
+(managedidentity.azure.com/v1api20230131), owned by the resource group
+resource_group_name names, exporting its principal ID to a ConfigMap
+(operatorSpec.configMaps). azurerm_federated_identity_credential.this: one
+ASO FederatedIdentityCredential per entry, owned by the identity.
+azurerm_role_assignment.this (outbound_role_assignments): one ASO
+RoleAssignment per entry, owned by the scope it grants (by ARM ID), its
+principal the identity's, read from that ConfigMap (principalIdFromConfig).
+azurerm_management_lock.this: an aso-extensions ManagementLock, with the
+module's notes. The telemetry is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "isolation_scope" $v.isolation_scope "ASO's UserAssignedIdentity is at ARM API version 2023-01-31, which has no isolationScope") }}
+{{- include "aso.names" (list $ (list "userAssignedIdentity")) }}
+{{- if not $v.name }}{{ fail "avm-res-managedidentity-userassignedidentity: name is required" }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-managedidentity-userassignedidentity: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "id") }}
+{{- $cm := include "aso.name" (list .Release.Name "id" "outputs") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "user_assigned_identity" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "userAssignedIdentity" "user-assigned identity" $v.name 128 "^[a-zA-Z0-9][a-zA-Z0-9_-]{2,127}$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- if $v.outbound_role_assignments }}
+  operatorSpec:
+    configMaps:
+      principalId:
+        name: {{ $cm }}
+        key: principalId
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $key, $f := ($v.federated_identity_credentials | default dict) }}
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "fic" $key)) "id" (printf "federated_identity_credential:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $f.name | quote }}
+  owner:
+    name: {{ $obj }}
+  audiences:
+    {{- range $f.audience }}
+    - {{ . | quote }}
+    {{- end }}
+  issuer: {{ $f.issuer | quote }}
+  subject: {{ $f.subject | quote }}
+{{- end }}
+{{- $roleID := "^(/subscriptions/[0-9a-fA-F-]+)?/providers/Microsoft\\.Authorization/roleDefinitions/[0-9a-fA-F-]+$" }}
+{{- range $key, $r := ($v.outbound_role_assignments | default dict) }}
+---
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "role" $key)) "id" (printf "outbound_role_assignment:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    {{- include "aso.owner" (list $ (printf "outbound_role_assignments.%s.scope" $key) $r.scope) | nindent 4 }}
+  principalIdFromConfig:
+    name: {{ $cm }}
+    key: principalId
+  {{- if $r.skip_service_principal_aad_check }}
+  principalType: ServicePrincipal
+  {{- end }}
+  roleDefinitionReference:
+    {{- if regexMatch $roleID $r.role_definition_id_or_name }}
+    armId: {{ $r.role_definition_id_or_name | quote }}
+    {{- else }}
+    wellKnownName: {{ $r.role_definition_id_or_name | quote }}
+    {{- end }}
+  {{- with $r.condition }}
+  condition: {{ . | quote }}
+  {{- end }}
+  {{- with $r.condition_version }}
+  conditionVersion: {{ . | quote }}
+  {{- end }}
+  {{- with $r.delegated_managed_identity_resource_id }}
+  delegatedManagedIdentityResourceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" (dict "group" "managedidentity.azure.com" "kind" "UserAssignedIdentity" "name" $obj) "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
