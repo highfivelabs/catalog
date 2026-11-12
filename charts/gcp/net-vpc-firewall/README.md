@@ -81,6 +81,12 @@ field the chart carries), `no-defaults`, `names` and `mock`, each validated
 against Config Connector v1.160.0's CRD schemas, and the refusals in
 `tests/*.fail.yaml`.
 
+Applied to the fake cloud on 2026-11-12 on an offload VM (`task test-mock
+MOCK_CHARTS=net-vpc-firewall`): `tests/mock.values.yaml`, the SSH default
+rule, a custom ingress rule and a custom egress rule on the network in
+`tests/mock.needs.yaml`: all 3 objects Ready, all deleted. Not applied
+live yet.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: custom, factory and default rules.

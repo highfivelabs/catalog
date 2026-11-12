@@ -17,7 +17,9 @@
 # `git archive` of one commit, in Cloud Storage) or CCE_DIR (a checkout).
 #
 # MOCK_CHARTS="gcs net-vpc" applies only those charts (default: every
-# chart with a tests/mock.values.yaml).
+# chart with a tests/mock.values.yaml). A chart whose case needs objects it
+# does not make (gke-nodepool, a cluster) has them in tests/mock.needs.yaml:
+# applied first and waited for, deleted after the chart's objects.
 #
 # Writes offload-artifacts/mock/summary.md and, per chart, the render,
 # the live objects and the outputs.
@@ -88,6 +90,12 @@ for values in charts/*/*/tests/mock.values.yaml; do
     | kubectl annotate --local -f - "cnrm.cloud.google.com/project-id=${PROJECT}" -o yaml \
     | kubectl apply -f - >/dev/null
   if grep -q '^dependencies:' "${dir}/Chart.yaml"; then helm dependency build "${dir}" >/dev/null; fi
+  needs="${dir}/tests/mock.needs.yaml"
+  if [[ -f "${needs}" ]]; then
+    kubectl apply --server-side -n "${ns}" -f "${needs}" >"${OUT}/${chart}/needs.log"
+    kubectl wait -n "${ns}" --for=condition=Ready -f "${needs}" --timeout="${TIMEOUT}s" >>"${OUT}/${chart}/needs.log" 2>&1 \
+      || echo "   ${chart}: tests/mock.needs.yaml not Ready in ${TIMEOUT}s" >&2
+  fi
   helm template "${rel}" "${dir}" --namespace "${ns}" -f "${values}" >"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${ns}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
@@ -150,6 +158,16 @@ for values in charts/*/*/tests/mock.values.yaml; do
     echo "   ${d}: ready=${ready[$o]} deleted=${deleted} ${msg}"
   done
   echo "| ${chart} | outputs | ${outputs_ok} | | $(tr '\n' ' ' <"${OUT}/${chart}/outputs.err" | cut -c1-160) |" >>"${summary}"
+  if [[ -f "${needs}" ]]; then
+    kubectl delete -n "${ns}" -f "${needs}" --wait=false >/dev/null 2>&1 || true
+    deadline=$(( $(date +%s) + TIMEOUT ))
+    while kubectl get -n "${ns}" -f "${needs}" >/dev/null 2>&1 && (( $(date +%s) < deadline )); do
+      kubectl get -n "${ns}" -f "${needs}" -o json \
+        | jq '(if .items then .items[] else . end) | .metadata.finalizers |= map(select(. != "cnrm.cloud.google.com/deletion-defender"))' \
+        | kubectl replace -f - >/dev/null 2>&1 || true
+      sleep 3
+    done
+  fi
   [[ "${outputs_ok}" == yes ]] || failed=$((failed + 1))
   unset ready
 done
