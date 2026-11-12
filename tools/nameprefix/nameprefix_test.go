@@ -102,6 +102,33 @@ func TestNameFieldsAndNothingNamed(t *testing.T) {
 	}
 }
 
+func TestCompactNames(t *testing.T) {
+	lib, _ := os.ReadFile(filepath.Join("..", "..", "lib", "_kcc.tpl"))
+	// A name that cannot hold a hyphen takes the prefix without one.
+	compact := chart(t, `{{ printf "%s%s" (replace "-" "" (include "kcc.namePrefix" .)) .Values.name }}`, "  Other: because\ncompactNames:\n  Thing: lower-case letters and digits only\n")
+	os.WriteFile(filepath.Join(compact, "templates", "_kcc.tpl"), lib, 0o644)
+	if p, err := Check(compact); err != nil || len(p) != 0 {
+		t.Fatalf("a compact prefixed name passes: %v %v", p, err)
+	}
+	// Listed as compact, a name without the prefix at its start still fails.
+	bad := chart(t, `{{ .Values.name }}`, "  Other: because\ncompactNames:\n  Thing: lower-case letters and digits only\n")
+	p, err := Check(bad)
+	if err != nil || len(p) == 0 || !strings.Contains(p[0], "without the namePrefix at its start") {
+		t.Fatalf("a compact name without the prefix fails: %v %v", p, err)
+	}
+	// Not listed, the same compact name fails: the hyphen is required.
+	unlisted := chart(t, `{{ printf "%s%s" (replace "-" "" (include "kcc.namePrefix" .)) .Values.name }}`, "  Other: because\n")
+	os.WriteFile(filepath.Join(unlisted, "templates", "_kcc.tpl"), lib, 0o644)
+	if p, _ := Check(unlisted); len(p) == 0 || !strings.Contains(p[0], "without the namePrefix") {
+		t.Fatalf("a compact name of a kind not listed fails: %v", p)
+	}
+	// A reason is needed.
+	noReason := chart(t, `{{ .Values.name }}`, "  Other: because\ncompactNames:\n  Thing: \"\"\n")
+	if p, _ := Check(noReason); len(p) == 0 || !strings.Contains(p[0], "under compactNames without a reason") {
+		t.Fatalf("compactNames needs a reason: %v", p)
+	}
+}
+
 func TestSets(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: w\nversion: 0.1.0\ndependencies:\n  - name: project\n    version: 0.4.0\n  - name: project\n    alias: second\n"), 0o644)

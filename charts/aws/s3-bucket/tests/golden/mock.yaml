@@ -1,0 +1,33 @@
+---
+# Source: s3-bucket/templates/bucket.yaml
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: mock-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: s3-bucket
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "bucket"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "catalog-test-bucket"
+  publicAccessBlock:
+    blockPublicACLs: true
+    blockPublicPolicy: true
+    ignorePublicACLs: true
+    restrictPublicBuckets: true
+  versioning:
+    status: "Enabled"
+  encryption:
+    rules:
+      -
+        applyServerSideEncryptionByDefault:
+          sseAlgorithm: "AES256"
+  policy: "{\"Statement\":[{\"Action\":[\"s3:*\"],\"Condition\":{\"Bool\":{\"aws:SecureTransport\":[\"false\"]}},\"Effect\":\"Deny\",\"Principal\":\"*\",\"Resource\":[\"arn:aws:s3:::catalog-test-bucket\",\"arn:aws:s3:::catalog-test-bucket/*\"],\"Sid\":\"denyInsecureTransport\"}],\"Version\":\"2012-10-17\"}"
+  tagging:
+    tagSet:
+      - key: "catalog-test"
+        value: "true"

@@ -1,0 +1,80 @@
+# component kms-dev-kms
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: kms-dev-kms-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kms-dev-kms"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSKeyRing
+    name: kms-dev-kms
+  bindings:
+    - role: "roles/cloudkms.admin"
+      members:
+        - member: "group:kms-admins@example.org"
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: kms-dev-kms-key-data-iam-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kms-dev-kms"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:data:iam-additive-app"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSCryptoKey
+    name: kms-dev-kms-key-data
+  role: "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member: "serviceAccount:app@myproject.iam.gserviceaccount.com"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: kms-dev-kms-key-data
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kms-dev-kms"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:data"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "data"
+  keyRingRef:
+    name: kms-dev-kms
+  purpose: "ENCRYPT_DECRYPT"
+  rotationPeriod: "7776000s"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyRing
+metadata:
+  name: kms-dev-kms
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kms-dev-kms"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "keyring"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "app"
+  location: "europe-west1"

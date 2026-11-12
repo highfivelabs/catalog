@@ -146,14 +146,14 @@ func TestSourceWithoutAChart(t *testing.T) {
   source = "terraform-aws-modules/eks/aws"
 }
 module "k" {
-  source = "./modules/kms"
+  source = "./modules/looker-core"
 }`)
 	res, err := Convert(f, Options{Repo: repo(t)})
 	if err == nil {
 		t.Fatal("nothing converts, so Convert should fail")
 	}
 	m := messages(res)
-	if !strings.Contains(m, "aws/eks") || !strings.Contains(m, "gcp/kms") || !strings.Contains(m, "has no chart yet") {
+	if !strings.Contains(m, "aws/eks") || !strings.Contains(m, "gcp/looker-core") || !strings.Contains(m, "has no chart yet") {
 		t.Fatalf("got:\n%s", m)
 	}
 }
@@ -197,5 +197,19 @@ func TestTerraformPrefixStaysPrefixAndNamePrefixIsAdded(t *testing.T) {
 	res, _ = Convert(f, Options{Repo: repo(t), NamePrefix: "${instance.name}"})
 	if !strings.Contains(messages(res), "sets namePrefix itself") {
 		t.Fatalf("got:\n%s", messages(res))
+	}
+}
+
+// Two clouds have a kms chart: a bare name is ambiguous, cloud/name is not.
+func TestChartByNameWithTwoClouds(t *testing.T) {
+	r := repo(t)
+	if _, err := r.ChartByName("kms"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("want kms to be ambiguous, got %v", err)
+	}
+	for _, n := range []string{"aws/kms", "gcp/kms"} {
+		ch, err := r.ChartByName(n)
+		if err != nil || ch.Dir != "charts/"+n {
+			t.Fatalf("%s: got %+v, %v", n, ch, err)
+		}
 	}
 }

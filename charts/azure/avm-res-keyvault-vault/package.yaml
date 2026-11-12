@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is computed from inputs as the module
+# sets it; resource_id and uri are the vault's ARM ID and URI from ASO's
+# status. keys_resource_ids maps each key's entry to its data-plane URIs
+# and ARM IDs, versioned and versionless, as the module does; keys, the
+# module's map of key objects, is the same map here (the public key
+# material is not in ASO's status). Not outputs: secrets,
+# secrets_resource_ids and private_endpoints, which the chart refuses.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-keyvault-vault
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('keyVault' in inputs.names && inputs.names.keyVault != '' ? inputs.names.keyVault : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    resource_id: resources.vault.status.id
+    uri: resources.vault.status.properties.vaultUri
+    keys_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('key:') && !k.contains('/'), {k.substring(4): {'id': v.status.keyUriWithVersion, 'name': v.spec.azureName, 'resource_id': v.status.id + '/versions/' + v.status.keyUriWithVersion.split('/')[5], 'resource_versionless_id': v.status.id, 'versionless_id': v.status.keyUri}})
+    keys: >-
+      resources.transformMapEntry(k, v, k.startsWith('key:') && !k.contains('/'), {k.substring(4): {'id': v.status.keyUriWithVersion, 'name': v.spec.azureName, 'resource_id': v.status.id + '/versions/' + v.status.keyUriWithVersion.split('/')[5], 'resource_versionless_id': v.status.id, 'versionless_id': v.status.keyUri}})

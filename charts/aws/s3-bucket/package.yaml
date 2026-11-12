@@ -1,0 +1,41 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# outputs for what the chart ports, from the live Bucket (resources.bucket)
+# and the component's values (inputs). The bucket's ID is its name; its
+# ARN and domain names are built as the Terraform provider builds them.
+# Not provided: the lifecycle rules, directory bucket, S3 Files and
+# namespace outputs (refused), s3_bucket_hosted_zone_id and
+# s3_bucket_website_domain (Region tables the provider keeps), and
+# s3_bucket_tags.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-s3-bucket
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    s3_bucket_id: >-
+      'bucket' in resources ? resources.bucket.spec.name : null
+    s3_bucket_arn: >-
+      'bucket' in resources ? dyn('arn:' + inputs.partition + ':s3:::' + resources.bucket.spec.name) : null
+    s3_bucket_region: >-
+      'bucket' in resources ? resources.bucket.status.ackResourceMetadata.region : null
+    s3_bucket_bucket_domain_name: >-
+      'bucket' in resources ? dyn(resources.bucket.spec.name + '.s3.amazonaws.com') : null
+    s3_bucket_bucket_regional_domain_name: >-
+      'bucket' in resources
+      ? dyn(resources.bucket.spec.name + '.s3.' + resources.bucket.status.ackResourceMetadata.region + '.amazonaws.com'
+        + (resources.bucket.status.ackResourceMetadata.region.startsWith('cn-') ? '.cn' : ''))
+      : null
+    s3_bucket_policy: >-
+      'bucket' in resources && has(resources.bucket.spec.policy) ? resources.bucket.spec.policy : ''
+    aws_s3_bucket_versioning_status: >-
+      'bucket' in resources && has(resources.bucket.spec.versioning) ? resources.bucket.spec.versioning.status : null
+    s3_bucket_website_endpoint: >-
+      'bucket' in resources && has(resources.bucket.spec.website)
+      ? dyn(resources.bucket.spec.name + '.s3-website-' + resources.bucket.status.ackResourceMetadata.region + '.amazonaws.com')
+      : null

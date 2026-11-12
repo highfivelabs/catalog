@@ -1,0 +1,107 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-keyvault-vault main.tf and locals.tf
+(v0.13.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.KeyVault/vaults): one ASO Vault, owned by
+the resource group parent_id names. azapi_resource.lock: an aso-extensions
+ManagementLock. azapi_resource.role_assignments: one ASO RoleAssignment
+each. azapi_resource.diagnostic_settings: one ASO DiagnosticSetting each.
+The telemetry deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "contacts" $v.contacts "certificate contacts are a Key Vault data-plane setting, with no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "secrets" $v.secrets "aso-extensions' VaultSecret takes its value from a Kubernetes Secret, and how a component supplies one is not settled; this chart does not map secrets yet") }}
+{{- include "aso.unsupported" (list $ "secrets_value" $v.secrets_value "this chart does not map secrets yet; a secret's value belongs in a Kubernetes Secret, not in a component's inputs") }}
+{{- include "aso.unsupported" (list $ "secrets_value_wo" $v.secrets_value_wo "this chart does not map secrets yet") }}
+{{- include "aso.unsupported" (list $ "secrets_value_wo_version" $v.secrets_value_wo_version "this chart does not map secrets yet") }}
+{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" (include "kv.anySet" $v.ignore_body_changes) "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
+{{- include "aso.unsupported" (list $ "resource_types" (include "kv.anySet" $v.resource_types) "ASO's kinds fix the API versions (Vault 2023-07-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "keyVault")) }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "kv") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: keyvault.azure.com/v1api20230701
+kind: Vault
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "vault" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "kv.vaultName" . | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  properties:
+    {{- /* Access policy permissions as ASO's enums spell them: Azure takes
+    them in any case (Get, get), ASO's schema lower-case but for wrapKey
+    and unwrapKey. */}}
+    tenantId: {{ $v.tenant_id | quote }}
+    sku:
+      family: A
+      name: {{ $v.sku_name }}
+    {{- if $v.legacy_access_policies_enabled }}
+    accessPolicies:
+      {{- range $_, $p := $v.legacy_access_policies }}
+      - objectId: {{ $p.object_id | quote }}
+        {{- with $p.application_id }}
+        applicationId: {{ . | quote }}
+        {{- end }}
+        tenantId: {{ $v.tenant_id | quote }}
+        permissions:
+          {{- range $k := list "certificates" "keys" "secrets" "storage" }}
+          {{- $perms := list }}
+          {{- range (index $p (printf "%s_permissions" (trimSuffix "s" $k)) | default list) }}
+          {{- $perms = append $perms (lower . | replace "unwrapkey" "unwrapKey" | replace "wrapkey" "wrapKey") }}
+          {{- end }}
+          {{ $k }}: {{ toJson (uniq $perms | sortAlpha) }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
+    enabledForDeployment: {{ $v.enabled_for_deployment }}
+    enabledForDiskEncryption: {{ $v.enabled_for_disk_encryption }}
+    enabledForTemplateDeployment: {{ $v.enabled_for_template_deployment }}
+    {{- if $v.purge_protection_enabled }}
+    enablePurgeProtection: true
+    {{- end }}
+    enableRbacAuthorization: {{ not $v.legacy_access_policies_enabled }}
+    {{- if not (kindIs "invalid" $v.network_acls) }}
+    {{- $na := $v.network_acls }}
+    networkAcls:
+      bypass: {{ $na.bypass | default "None" }}
+      defaultAction: {{ $na.default_action | default "Deny" }}
+      ipRules:
+        {{- range ($na.ip_rules | default list) }}
+        - value: {{ . | quote }}
+        {{- else }} []
+        {{- end }}
+      virtualNetworkRules:
+        {{- range ($na.virtual_network_subnet_ids | default list) }}
+        - reference:
+            armId: {{ . | quote }}
+        {{- else }} []
+        {{- end }}
+    {{- end }}
+    publicNetworkAccess: {{ ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
+    {{- if not (kindIs "invalid" $v.soft_delete_retention_days) }}
+    softDeleteRetentionInDays: {{ $v.soft_delete_retention_days | int }}
+    {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "keyvault.azure.com" "kind" "Vault" "name" $obj }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $v.name)))) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}

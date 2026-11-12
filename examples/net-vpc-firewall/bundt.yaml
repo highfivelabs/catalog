@@ -1,0 +1,49 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-vpc-firewall
+spec:
+  version: "1.0.0"
+  components:
+    - name: firewall
+      package:
+        name: gcp-net-vpc-firewall
+        version: "0.1.0"
+      inputs:
+        network: my-network
+        default_rules_config:
+          admin_ranges:
+            - 10.0.0.0/8
+        egress_rules:
+          deny-all:
+            priority: 65000
+        ingress_rules:
+          allow-ingress-ntp:
+            description: Allow NTP service based on tag.
+            rules:
+              - ports:
+                  - "123"
+                protocol: udp
+            targets:
+              - ntp-svc
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-vpc-firewall
+  scope: my-team
+spec:
+  template: net-vpc-firewall
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-vpc-firewall-dev
+  scope: my-team/dev
+spec:
+  stack: net-vpc-firewall
+  version: "1.0.0"
+  components:
+    firewall:
+      values:
+        project_id: myproject

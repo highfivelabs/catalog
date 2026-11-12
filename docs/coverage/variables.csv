@@ -9,7 +9,7 @@ gcp,project,cloud_armor_policy,"object({excluded_folders, excluded_projects, nam
 gcp,project,compute_metadata,map(string),no,"ComputeProjectMetadata owns all of a project's metadata, while fabric sets single items; there is no per-item kind (gap 10)",gap
 gcp,project,contacts,map(list(string)),yes,,
 gcp,project,context,"object({bigquery_datasets, condition_vars, custom_roles, email_addresses, folder_ids, iam_principals, +11})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
-gcp,project,custom_roles,"map(object({description, permissions, stage, title}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,custom_roles,"map(object({description, permissions, stage, title}))",yes,,
 gcp,project,default_network_tier,string,no,Config Connector has no project default network tier (gap 10),gap
 gcp,project,default_service_account,string,partial,"only keep (the default) is supported: Config Connector cannot delete, deprivilege or disable a project's default service accounts (gap 10)",gap
 gcp,project,deletion_policy,string,partial,"DELETE and ABANDON only: PREVENT is refused, use lien_reason",by-design
@@ -26,8 +26,8 @@ gcp,project,kms_autokeys,"map(object({location, resource_type_selector}))",no,"C
 gcp,project,labels,map(string),yes,,
 gcp,project,lien_reason,string,yes,,
 gcp,project,log_scopes,"map(object({description, resource_names}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,logging_data_access,"map(object({ADMIN_READ, DATA_READ, DATA_WRITE}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,logging_exclusions,map(string),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,logging_data_access,"map(object({ADMIN_READ, DATA_READ, DATA_WRITE}))",yes,,
+gcp,project,logging_exclusions,map(string),yes,,
 gcp,project,logging_metrics,"map(object({bucket_name, bucket_options, description, disabled, filter, label_extractors, +2}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +3}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,metric_scopes,list(string),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
@@ -48,10 +48,10 @@ gcp,project,service_agents_project_bindings,"map(object({condition, project, rol
 gcp,project,service_config,"object({disable_dependent_services, disable_on_destroy})",yes,,
 gcp,project,service_encryption_key_ids,map(list(string)),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,services,list(string),yes,,
-gcp,project,shared_vpc_host_config,"object({enabled, service_projects})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,shared_vpc_host_config,"object({enabled, service_projects})",yes,,
 gcp,project,shared_vpc_service_config,"object({host_project, iam_bindings_additive, network_subnet_users, network_users, service_agent_iam, service_agent_subnet_iam, +1})",partial,"host_project, network_users and iam_bindings_additive are ported; service_agent_iam, service_agent_subnet_iam, service_iam_grants and network_subnet_users name the project number, known only after apply (gap 8)",gap
 gcp,project,skip_delete,bool,no,deprecated in fabric: use deletion_policy,by-design
-gcp,project,tag_bindings,map(string),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,tag_bindings,map(string),yes,,
 gcp,project,tags,"map(object({allowed_values_regex, description, iam, iam_bindings, iam_bindings_additive, id, +1}))",no,"fabric's tag keys (a map value per key) have a stable Config Connector kind; the chart does not map them yet (charts/gcp/project/README.md, ""Not ported""). A tags entry whose value is a string is the catalog's cloud label, applied to every object",not-ported
 gcp,project,tags_config,"object({force_context_ids, ignore_iam})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,universe,"object({forced_jit_service_identities, prefix, unavailable_service_identities, unavailable_services})",no,universes other than Google Cloud's are not supported,gap
@@ -180,14 +180,14 @@ gcp,net-vpc,subnets_private_nat,"list(object({description, ip_cidr_range, name, 
 gcp,net-vpc,subnets_proxy_only,"list(object({active, description, global, iam, iam_bindings, iam_bindings_additive, +3}))",yes,,
 gcp,net-vpc,subnets_psc,"list(object({description, flow_logs_config, iam, iam_bindings, iam_bindings_additive, ip_cidr_range, +2}))",yes,,
 gcp,net-vpc,vpc_reuse,"object({attributes, use_data_source})",yes,,
-gcp,net-vpc-firewall,context,"object({cidr_ranges, cidr_ranges_sets, iam_principals, networks, project_ids})",no,,no-chart
-gcp,net-vpc-firewall,default_rules_config,"object({admin_ranges, disabled, http_ranges, http_tags, https_ranges, https_tags, +2})",no,,no-chart
-gcp,net-vpc-firewall,egress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +4}))",no,,no-chart
-gcp,net-vpc-firewall,factories_config,"object({cidr_tpl_file, rules_folder})",no,,no-chart
-gcp,net-vpc-firewall,ingress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +5}))",no,,no-chart
-gcp,net-vpc-firewall,named_ranges,map(list(string)),no,,no-chart
-gcp,net-vpc-firewall,network,string,no,,no-chart
-gcp,net-vpc-firewall,project_id,string,no,,no-chart
+gcp,net-vpc-firewall,context,"object({cidr_ranges, cidr_ranges_sets, iam_principals, networks, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-vpc-firewall,default_rules_config,"object({admin_ranges, disabled, http_ranges, http_tags, https_ranges, https_tags, +2})",yes,,
+gcp,net-vpc-firewall,egress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +4}))",yes,,
+gcp,net-vpc-firewall,factories_config,"object({cidr_tpl_file, rules_folder})",partial,a chart cannot read the caller's files: accepted and ignored; the rule files' contents go under factories_data.rules and the CIDR template's under factories_data.cidr_tpl,by-design
+gcp,net-vpc-firewall,ingress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +5}))",yes,,
+gcp,net-vpc-firewall,named_ranges,map(list(string)),yes,,
+gcp,net-vpc-firewall,network,string,yes,,
+gcp,net-vpc-firewall,project_id,string,yes,,
 gcp,net-cloudnat,addresses,list(string),yes,,
 gcp,net-cloudnat,config_port_allocation,"object({enable_dynamic_port_allocation, enable_endpoint_independent_mapping, max_ports_per_vm, min_ports_per_vm})",yes,,
 gcp,net-cloudnat,config_source_subnetworks,"object({all, primary_ranges_only, subnetworks})",yes,,
@@ -204,25 +204,25 @@ gcp,net-cloudnat,router_name,string,yes,,
 gcp,net-cloudnat,router_network,string,yes,,
 gcp,net-cloudnat,rules,"list(object({description, match, rule_number, source_ips, source_ranges}))",yes,,
 gcp,net-cloudnat,type,string,yes,,
-gcp,dns,context,"object({custom_roles, iam_principals, networks, project_ids})",no,,no-chart
-gcp,dns,description,string,no,,no-chart
-gcp,dns,force_destroy,bool,no,,no-chart
-gcp,dns,iam,map(list(string)),no,,no-chart
-gcp,dns,labels,map(string),no,,no-chart
-gcp,dns,name,string,no,,no-chart
-gcp,dns,project_id,string,no,,no-chart
-gcp,dns,recordsets,"map(object({geo_routing, records, ttl, wrr_routing}))",no,,no-chart
-gcp,dns,zone_config,"object({domain, forwarding, peering, private, public})",no,,no-chart
-gcp,kms,context,"object({condition_vars, custom_roles, iam_principals, kms_keys, locations, project_ids, +3})",no,,no-chart
-gcp,kms,iam,map(list(string)),no,,no-chart
-gcp,kms,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,kms,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,kms,import_job,"object({id, import_method, protection_level})",no,,no-chart
-gcp,kms,keyring,"object({location, name})",no,,no-chart
-gcp,kms,keyring_create,bool,no,,no-chart
-gcp,kms,keys,"map(object({destroy_scheduled_duration, iam, iam_bindings, iam_bindings_additive, labels, purpose, +3}))",no,,no-chart
-gcp,kms,project_id,string,no,,no-chart
-gcp,kms,tag_bindings,map(string),no,,no-chart
+gcp,dns,context,"object({custom_roles, iam_principals, networks, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,dns,description,string,yes,,
+gcp,dns,force_destroy,bool,yes,,
+gcp,dns,iam,map(list(string)),yes,,
+gcp,dns,labels,map(string),yes,,
+gcp,dns,name,string,yes,,
+gcp,dns,project_id,string,yes,,
+gcp,dns,recordsets,"map(object({geo_routing, records, ttl, wrr_routing}))",partial,"with zone_config null (an existing zone) the chart cannot read the zone's domain, as fabric's data source does, so a record name must be absolute (ending in .); the apex and relative names are refused",by-design
+gcp,dns,zone_config,"object({domain, forwarding, peering, private, public})",yes,,
+gcp,kms,context,"object({condition_vars, custom_roles, iam_principals, kms_keys, locations, project_ids, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,kms,iam,map(list(string)),yes,,
+gcp,kms,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,kms,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,kms,import_job,"object({id, import_method, protection_level})",yes,,
+gcp,kms,keyring,"object({location, name})",yes,,
+gcp,kms,keyring_create,bool,yes,,
+gcp,kms,keys,"map(object({destroy_scheduled_duration, iam, iam_bindings, iam_bindings_additive, labels, purpose, +3}))",yes,,
+gcp,kms,project_id,string,yes,,
+gcp,kms,tag_bindings,map(string),yes,,
 gcp,gcs,autoclass,bool,yes,,
 gcp,gcs,bucket_create,bool,yes,,
 gcp,gcs,context,"object({condition_vars, custom_roles, iam_principals, kms_keys, locations, project_ids, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
@@ -381,20 +381,20 @@ gcp,gke-nodepool,service_account,"object({create, display_name, email, oauth_sco
 gcp,gke-nodepool,sole_tenant_nodegroup,string,yes,,
 gcp,gke-nodepool,tags,list(string),yes,,
 gcp,gke-nodepool,taints,"map(object({effect, value}))",yes,,
-gcp,pubsub,context,"object({custom_roles, iam_principals, kms_keys, locations, project_ids})",no,,no-chart
-gcp,pubsub,iam,map(list(string)),no,,no-chart
-gcp,pubsub,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,pubsub,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,pubsub,iam_by_principals,map(list(string)),no,,no-chart
-gcp,pubsub,kms_key,string,no,,no-chart
-gcp,pubsub,labels,map(string),no,,no-chart
-gcp,pubsub,message_retention_duration,string,no,,no-chart
-gcp,pubsub,message_storage_enforce_in_transit,bool,no,,no-chart
-gcp,pubsub,name,string,no,,no-chart
-gcp,pubsub,project_id,string,no,,no-chart
-gcp,pubsub,regions,list(string),no,,no-chart
-gcp,pubsub,schema,"object({definition, msg_encoding, schema_type})",no,,no-chart
-gcp,pubsub,subscriptions,"map(object({ack_deadline_seconds, bigquery, cloud_storage, dead_letter_policy, deletion_policy, enable_exactly_once_delivery, +11}))",no,,no-chart
+gcp,pubsub,context,"object({custom_roles, iam_principals, kms_keys, locations, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,pubsub,iam,map(list(string)),yes,,
+gcp,pubsub,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,pubsub,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,pubsub,iam_by_principals,map(list(string)),yes,,
+gcp,pubsub,kms_key,string,yes,,
+gcp,pubsub,labels,map(string),yes,,
+gcp,pubsub,message_retention_duration,string,yes,,
+gcp,pubsub,message_storage_enforce_in_transit,bool,yes,,
+gcp,pubsub,name,string,yes,,
+gcp,pubsub,project_id,string,yes,,
+gcp,pubsub,regions,list(string),yes,,
+gcp,pubsub,schema,"object({definition, msg_encoding, schema_type})",yes,,
+gcp,pubsub,subscriptions,"map(object({ack_deadline_seconds, bigquery, cloud_storage, dead_letter_policy, deletion_policy, enable_exactly_once_delivery, +11}))",partial,PubSubSubscription's bigqueryConfig has no useTableSchema or serviceAccountEmail; a subscription's deletion_policy PREVENT has no Config Connector equivalent (ABANDON is the deletion-policy annotation),gap
 gcp,bigquery-dataset,access,"map(object({role, type}))",no,,no-chart
 gcp,bigquery-dataset,access_identities,map(string),no,,no-chart
 gcp,bigquery-dataset,authorized_datasets,"list(object({dataset_id, project_id}))",no,,no-chart
@@ -500,13 +500,13 @@ gcp,net-vpc-factory,context,"object({addresses, cidr_ranges, cidr_ranges_sets, c
 gcp,net-vpc-factory,data_defaults,"object({auto_create_subnetworks, create_googleapis_routes, delete_default_routes_on_create, description, dns_policy, firewall_policy_enforcement_order, +4})",no,,no-chart
 gcp,net-vpc-factory,data_overrides,"object({auto_create_subnetworks, create_googleapis_routes, delete_default_routes_on_create, description, dns_policy, firewall_policy_enforcement_order, +6})",no,,no-chart
 gcp,net-vpc-factory,factories_config,"object({basepath, paths})",no,,no-chart
-gcp,net-vpc-peering,local_network,string,no,,no-chart
-gcp,net-vpc-peering,name,"object({local, peer})",no,,no-chart
-gcp,net-vpc-peering,peer_create_peering,bool,no,,no-chart
-gcp,net-vpc-peering,peer_network,string,no,,no-chart
-gcp,net-vpc-peering,prefix,string,no,,no-chart
-gcp,net-vpc-peering,routes_config,"object({local, peer})",no,,no-chart
-gcp,net-vpc-peering,stack_type,string,no,,no-chart
+gcp,net-vpc-peering,local_network,string,yes,,
+gcp,net-vpc-peering,name,"object({local, peer})",yes,,
+gcp,net-vpc-peering,peer_create_peering,bool,yes,,
+gcp,net-vpc-peering,peer_network,string,yes,,
+gcp,net-vpc-peering,prefix,string,yes,,
+gcp,net-vpc-peering,routes_config,"object({local, peer})",yes,,
+gcp,net-vpc-peering,stack_type,string,yes,,
 gcp,net-address,context,"object({locations, networks, project_ids, subnets})",no,,no-chart
 gcp,net-address,external_addresses,"map(object({description, ipv6, labels, name, region, subnetwork, +1}))",no,,no-chart
 gcp,net-address,global_addresses,"map(object({description, ipv6, name}))",no,,no-chart
@@ -1477,84 +1477,84 @@ gcp,org-policy-v2,policy_root,string,yes,,
 gcp,org-policy-v2,policy_root_id,string,yes,,
 gcp,org-policy-v2,policy_type,string,yes,,
 gcp,org-policy-v2,rules,"list(object({allow, conditions, deny, dry_run, enforcement, parameters}))",partial,"accepted; a rule's parameters are refused when they name a parameter OrgPolicyPolicy v1.160.0 does not have (its rule parameters are a closed set of 23 known managed-constraint parameters, not free JSON)",gap
-aws,s3-bucket,acceleration_status,string,no,,no-chart
-aws,s3-bucket,access_log_delivery_policy_source_accounts,list(string),no,,no-chart
-aws,s3-bucket,access_log_delivery_policy_source_buckets,list(string),no,,no-chart
-aws,s3-bucket,access_log_delivery_policy_source_organizations,list(string),no,,no-chart
-aws,s3-bucket,acl,string,no,,no-chart
-aws,s3-bucket,allowed_kms_key_arn,string,no,,no-chart
-aws,s3-bucket,analytics_configuration,"map(object({filter, storage_class_analysis}))",no,,no-chart
-aws,s3-bucket,analytics_self_source_destination,bool,no,,no-chart
-aws,s3-bucket,analytics_source_account_id,string,no,,no-chart
-aws,s3-bucket,analytics_source_bucket_arn,string,no,,no-chart
-aws,s3-bucket,attach_access_log_delivery_policy,bool,no,,no-chart
-aws,s3-bucket,attach_analytics_destination_policy,bool,no,,no-chart
-aws,s3-bucket,attach_cloudtrail_log_delivery_policy,bool,no,,no-chart
-aws,s3-bucket,attach_deny_incorrect_encryption_headers,bool,no,,no-chart
-aws,s3-bucket,attach_deny_incorrect_kms_key_sse,bool,no,,no-chart
-aws,s3-bucket,attach_deny_insecure_transport_policy,bool,no,,no-chart
-aws,s3-bucket,attach_deny_ssec_encrypted_object_uploads,bool,no,,no-chart
-aws,s3-bucket,attach_deny_unencrypted_object_uploads,bool,no,,no-chart
-aws,s3-bucket,attach_elb_log_delivery_policy,bool,no,,no-chart
-aws,s3-bucket,attach_inventory_destination_policy,bool,no,,no-chart
-aws,s3-bucket,attach_lb_log_delivery_policy,bool,no,,no-chart
-aws,s3-bucket,attach_policy,bool,no,,no-chart
-aws,s3-bucket,attach_public_policy,bool,no,,no-chart
-aws,s3-bucket,attach_require_latest_tls_policy,bool,no,,no-chart
-aws,s3-bucket,attach_waf_log_delivery_policy,bool,no,,no-chart
-aws,s3-bucket,availability_zone_id,string,no,,no-chart
-aws,s3-bucket,block_public_acls,bool,no,,no-chart
-aws,s3-bucket,block_public_policy,bool,no,,no-chart
-aws,s3-bucket,bucket,string,no,,no-chart
-aws,s3-bucket,bucket_namespace,string,no,,no-chart
-aws,s3-bucket,bucket_prefix,string,no,,no-chart
-aws,s3-bucket,control_object_ownership,bool,no,,no-chart
-aws,s3-bucket,cors_rule,"list(object({allowed_headers, allowed_methods, allowed_origins, expose_headers, id, max_age_seconds}))",no,,no-chart
-aws,s3-bucket,create_bucket,bool,no,,no-chart
-aws,s3-bucket,create_file_system_security_group,bool,no,,no-chart
-aws,s3-bucket,create_metadata_configuration,bool,no,,no-chart
-aws,s3-bucket,data_redundancy,string,no,,no-chart
-aws,s3-bucket,expected_bucket_owner,string,no,,no-chart
-aws,s3-bucket,file_system_security_group_egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,s3-bucket,file_system_security_group_ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,s3-bucket,file_system_security_group_tags,map(string),no,,no-chart
-aws,s3-bucket,file_system_security_group_vpc_id,string,no,,no-chart
-aws,s3-bucket,file_systems,"map(object({accept_bucket_warning, access_points, create, create_iam_role, create_policy, create_security_group, +31}))",no,,no-chart
-aws,s3-bucket,force_destroy,bool,no,,no-chart
-aws,s3-bucket,grant,"list(object({email, id, permission, type, uri}))",no,,no-chart
-aws,s3-bucket,ignore_public_acls,bool,no,,no-chart
-aws,s3-bucket,intelligent_tiering,"map(object({filter, status, tiering}))",no,,no-chart
-aws,s3-bucket,inventory_configuration,"map(object({bucket, destination, enabled, filter, frequency, included_object_versions, +1}))",no,,no-chart
-aws,s3-bucket,inventory_self_source_destination,bool,no,,no-chart
-aws,s3-bucket,inventory_source_account_id,string,no,,no-chart
-aws,s3-bucket,inventory_source_bucket_arn,string,no,,no-chart
-aws,s3-bucket,is_directory_bucket,bool,no,,no-chart
-aws,s3-bucket,lb_log_delivery_policy_source_organizations,list(string),no,,no-chart
-aws,s3-bucket,lifecycle_rule,"list(object({abort_incomplete_multipart_upload_days, enabled, expiration, filter, id, noncurrent_version_expiration, +4}))",no,,no-chart
-aws,s3-bucket,location_type,string,no,,no-chart
-aws,s3-bucket,logging,"object({target_bucket, target_object_key_format, target_prefix})",no,,no-chart
-aws,s3-bucket,metadata_encryption_configuration,"object({kms_key_arn, sse_algorithm})",no,,no-chart
-aws,s3-bucket,metadata_inventory_table_configuration_state,string,no,,no-chart
-aws,s3-bucket,metadata_journal_table_record_expiration,string,no,,no-chart
-aws,s3-bucket,metadata_journal_table_record_expiration_days,number,no,,no-chart
-aws,s3-bucket,metric_configuration,"list(object({filter, name}))",no,,no-chart
-aws,s3-bucket,object_lock_configuration,"object({rule, token})",no,,no-chart
-aws,s3-bucket,object_lock_enabled,bool,no,,no-chart
-aws,s3-bucket,object_ownership,string,no,,no-chart
-aws,s3-bucket,owner,map(string),no,,no-chart
-aws,s3-bucket,policy,string,no,,no-chart
-aws,s3-bucket,putin_khuylo,bool,no,,no-chart
-aws,s3-bucket,region,string,no,,no-chart
-aws,s3-bucket,replication_configuration,"object({role, rule, rules})",no,,no-chart
-aws,s3-bucket,request_payer,string,no,,no-chart
-aws,s3-bucket,restrict_public_buckets,bool,no,,no-chart
-aws,s3-bucket,server_side_encryption_configuration,object({rule}),no,,no-chart
-aws,s3-bucket,skip_destroy_public_access_block,bool,no,,no-chart
-aws,s3-bucket,tags,map(string),no,,no-chart
-aws,s3-bucket,transition_default_minimum_object_size,string,no,,no-chart
-aws,s3-bucket,type,string,no,,no-chart
-aws,s3-bucket,versioning,map(string),no,,no-chart
-aws,s3-bucket,website,"object({error_document, index_document, redirect_all_requests_to, routing_rules})",no,,no-chart
+aws,s3-bucket,acceleration_status,string,yes,,
+aws,s3-bucket,access_log_delivery_policy_source_accounts,list(string),no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,access_log_delivery_policy_source_buckets,list(string),no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,access_log_delivery_policy_source_organizations,list(string),no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,acl,string,yes,,
+aws,s3-bucket,allowed_kms_key_arn,string,no,the encryption-header deny policies are not ported yet; write them in policy (attach_policy),not-ported
+aws,s3-bucket,analytics_configuration,"map(object({filter, storage_class_analysis}))",no,analytics configurations are not ported yet (Bucket.analytics),not-ported
+aws,s3-bucket,analytics_self_source_destination,bool,no,analytics configurations are not ported yet (Bucket.analytics),not-ported
+aws,s3-bucket,analytics_source_account_id,string,no,analytics configurations are not ported yet (Bucket.analytics),not-ported
+aws,s3-bucket,analytics_source_bucket_arn,string,no,analytics configurations are not ported yet (Bucket.analytics),not-ported
+aws,s3-bucket,attach_access_log_delivery_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,attach_analytics_destination_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,attach_cloudtrail_log_delivery_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,attach_deny_incorrect_encryption_headers,bool,no,the encryption-header deny policies are not ported yet; write them in policy (attach_policy),not-ported
+aws,s3-bucket,attach_deny_incorrect_kms_key_sse,bool,no,the encryption-header deny policies are not ported yet; write them in policy (attach_policy),not-ported
+aws,s3-bucket,attach_deny_insecure_transport_policy,bool,yes,,
+aws,s3-bucket,attach_deny_ssec_encrypted_object_uploads,bool,no,the encryption-header deny policies are not ported yet; write them in policy (attach_policy),not-ported
+aws,s3-bucket,attach_deny_unencrypted_object_uploads,bool,no,the encryption-header deny policies are not ported yet; write them in policy (attach_policy),not-ported
+aws,s3-bucket,attach_elb_log_delivery_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,attach_inventory_destination_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,attach_lb_log_delivery_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,attach_policy,bool,yes,,
+aws,s3-bucket,attach_public_policy,bool,yes,,
+aws,s3-bucket,attach_require_latest_tls_policy,bool,yes,,
+aws,s3-bucket,attach_waf_log_delivery_policy,bool,no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,availability_zone_id,string,no,"directory buckets (S3 Express One Zone, aws_s3_directory_bucket) have no kind",gap
+aws,s3-bucket,block_public_acls,bool,yes,,
+aws,s3-bucket,block_public_policy,bool,yes,,
+aws,s3-bucket,bucket,string,yes,,
+aws,s3-bucket,bucket_namespace,string,no,Bucket has no field for an account-regional bucket namespace,gap
+aws,s3-bucket,bucket_prefix,string,no,a bucket name with a random suffix (bucket_prefix) would change between renders: set bucket,gap
+aws,s3-bucket,control_object_ownership,bool,yes,,
+aws,s3-bucket,cors_rule,"list(object({allowed_headers, allowed_methods, allowed_origins, expose_headers, id, max_age_seconds}))",yes,,
+aws,s3-bucket,create_bucket,bool,yes,,
+aws,s3-bucket,create_file_system_security_group,bool,no,"S3 Files file systems are not ported yet (ACK's s3files-controller has FileSystem, MountTarget and AccessPoint)",not-ported
+aws,s3-bucket,create_metadata_configuration,bool,no,aws_s3_bucket_metadata_configuration has no kind,gap
+aws,s3-bucket,data_redundancy,string,no,"directory buckets (S3 Express One Zone, aws_s3_directory_bucket) have no kind",gap
+aws,s3-bucket,expected_bucket_owner,string,no,ACK's Bucket has no expected bucket owner field,gap
+aws,s3-bucket,file_system_security_group_egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,"S3 Files file systems are not ported yet (ACK's s3files-controller has FileSystem, MountTarget and AccessPoint)",not-ported
+aws,s3-bucket,file_system_security_group_ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,"S3 Files file systems are not ported yet (ACK's s3files-controller has FileSystem, MountTarget and AccessPoint)",not-ported
+aws,s3-bucket,file_system_security_group_tags,map(string),no,"S3 Files file systems are not ported yet (ACK's s3files-controller has FileSystem, MountTarget and AccessPoint)",not-ported
+aws,s3-bucket,file_system_security_group_vpc_id,string,no,"S3 Files file systems are not ported yet (ACK's s3files-controller has FileSystem, MountTarget and AccessPoint)",not-ported
+aws,s3-bucket,file_systems,"map(object({accept_bucket_warning, access_points, create, create_iam_role, create_policy, create_security_group, +31}))",no,"S3 Files file systems are not ported yet (ACK's s3files-controller has FileSystem, MountTarget and AccessPoint)",not-ported
+aws,s3-bucket,force_destroy,bool,no,ACK's Bucket has no field to delete a bucket's objects with it: deleting a bucket that holds objects fails,gap
+aws,s3-bucket,grant,"list(object({email, id, permission, type, uri}))",no,ACL grants are not ported yet (Bucket.grant*); a canned acl is,not-ported
+aws,s3-bucket,ignore_public_acls,bool,yes,,
+aws,s3-bucket,intelligent_tiering,"map(object({filter, status, tiering}))",no,Intelligent-Tiering configurations are not ported yet (Bucket.intelligentTiering),not-ported
+aws,s3-bucket,inventory_configuration,"map(object({bucket, destination, enabled, filter, frequency, included_object_versions, +1}))",no,inventory configurations are not ported yet (Bucket.inventory),not-ported
+aws,s3-bucket,inventory_self_source_destination,bool,no,inventory configurations are not ported yet (Bucket.inventory),not-ported
+aws,s3-bucket,inventory_source_account_id,string,no,inventory configurations are not ported yet (Bucket.inventory),not-ported
+aws,s3-bucket,inventory_source_bucket_arn,string,no,inventory configurations are not ported yet (Bucket.inventory),not-ported
+aws,s3-bucket,is_directory_bucket,bool,no,"directory buckets (S3 Express One Zone, aws_s3_directory_bucket) have no kind",gap
+aws,s3-bucket,lb_log_delivery_policy_source_organizations,list(string),no,"the log-delivery and destination bucket policies are not ported yet: they need the account, the Region's Elastic Load Balancing account and the source buckets; write them in policy (attach_policy)",not-ported
+aws,s3-bucket,lifecycle_rule,"list(object({abort_incomplete_multipart_upload_days, enabled, expiration, filter, id, noncurrent_version_expiration, +4}))",no,lifecycle rules are not ported yet (Bucket.lifecycle),not-ported
+aws,s3-bucket,location_type,string,no,"directory buckets (S3 Express One Zone, aws_s3_directory_bucket) have no kind",gap
+aws,s3-bucket,logging,"object({target_bucket, target_object_key_format, target_prefix})",yes,,
+aws,s3-bucket,metadata_encryption_configuration,"object({kms_key_arn, sse_algorithm})",no,aws_s3_bucket_metadata_configuration has no kind,gap
+aws,s3-bucket,metadata_inventory_table_configuration_state,string,no,aws_s3_bucket_metadata_configuration has no kind,gap
+aws,s3-bucket,metadata_journal_table_record_expiration,string,no,aws_s3_bucket_metadata_configuration has no kind,gap
+aws,s3-bucket,metadata_journal_table_record_expiration_days,number,no,aws_s3_bucket_metadata_configuration has no kind,gap
+aws,s3-bucket,metric_configuration,"list(object({filter, name}))",no,metrics configurations are not ported yet (Bucket.metrics),not-ported
+aws,s3-bucket,object_lock_configuration,"object({rule, token})",partial,"accepted, except token (Terraform's, for an existing bucket's lock)",gap
+aws,s3-bucket,object_lock_enabled,bool,yes,,
+aws,s3-bucket,object_ownership,string,yes,,
+aws,s3-bucket,owner,map(string),no,ACL grants are not ported yet (Bucket.grant*); a canned acl is,not-ported
+aws,s3-bucket,policy,string,yes,,
+aws,s3-bucket,putin_khuylo,bool,yes,,
+aws,s3-bucket,region,string,yes,,
+aws,s3-bucket,replication_configuration,"object({role, rule, rules})",no,replication is not ported yet (Bucket.replication),not-ported
+aws,s3-bucket,request_payer,string,yes,,
+aws,s3-bucket,restrict_public_buckets,bool,yes,,
+aws,s3-bucket,server_side_encryption_configuration,object({rule}),partial,"accepted, except blocked_encryption_types: ACK's encryption rule has no such field",gap
+aws,s3-bucket,skip_destroy_public_access_block,bool,partial,"accepted: the public access block is a field of the Bucket, so it is not destroyed apart from the bucket either way",gap
+aws,s3-bucket,tags,map(string),yes,,
+aws,s3-bucket,transition_default_minimum_object_size,string,no,Bucket.lifecycle has no field for the default minimum object size for transitions,gap
+aws,s3-bucket,type,string,no,"directory buckets (S3 Express One Zone, aws_s3_directory_bucket) have no kind",gap
+aws,s3-bucket,versioning,map(string),partial,"accepted, except mfa and mfa_delete: Bucket.versioning has only status",gap
+aws,s3-bucket,website,"object({error_document, index_document, redirect_all_requests_to, routing_rules})",yes,,
 aws,vpc,amazon_side_asn,string,no,"the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field",gap
 aws,vpc,azs,list(string),yes,,
 aws,vpc,cidr,string,yes,,
@@ -1899,47 +1899,47 @@ aws,eks,timeouts,"object({create, delete, update})",no,,no-chart
 aws,eks,upgrade_policy,object({support_type}),no,,no-chart
 aws,eks,vpc_id,string,no,,no-chart
 aws,eks,zonal_shift_config,object({enabled}),no,,no-chart
-aws,kms,aliases,list(string),no,,no-chart
-aws,kms,aliases_use_name_prefix,bool,no,,no-chart
-aws,kms,bypass_policy_lockout_safety_check,bool,no,,no-chart
-aws,kms,computed_aliases,map(object({name})),no,,no-chart
-aws,kms,create,bool,no,,no-chart
-aws,kms,create_external,bool,no,,no-chart
-aws,kms,create_replica,bool,no,,no-chart
-aws,kms,create_replica_external,bool,no,,no-chart
-aws,kms,custom_key_store_id,string,no,,no-chart
-aws,kms,customer_master_key_spec,string,no,,no-chart
-aws,kms,deletion_window_in_days,number,no,,no-chart
-aws,kms,description,string,no,,no-chart
-aws,kms,enable_default_policy,bool,no,,no-chart
-aws,kms,enable_key_rotation,bool,no,,no-chart
-aws,kms,enable_route53_dnssec,bool,no,,no-chart
-aws,kms,grants,"map(object({constraints, grant_creation_tokens, grantee_principal, name, operations, retire_on_delete, +1}))",no,,no-chart
-aws,kms,is_enabled,bool,no,,no-chart
-aws,kms,key_administrators,list(string),no,,no-chart
-aws,kms,key_asymmetric_public_encryption_users,list(string),no,,no-chart
-aws,kms,key_asymmetric_sign_verify_users,list(string),no,,no-chart
-aws,kms,key_hmac_users,list(string),no,,no-chart
-aws,kms,key_material_base64,string,no,,no-chart
-aws,kms,key_owners,list(string),no,,no-chart
-aws,kms,key_service_roles_for_autoscaling,list(string),no,,no-chart
-aws,kms,key_service_users,list(string),no,,no-chart
-aws,kms,key_spec,string,no,,no-chart
-aws,kms,key_statements,"list(object({actions, condition, effect, not_actions, not_principals, not_resources, +3}))",no,,no-chart
-aws,kms,key_symmetric_encryption_users,list(string),no,,no-chart
-aws,kms,key_usage,string,no,,no-chart
-aws,kms,key_users,list(string),no,,no-chart
-aws,kms,multi_region,bool,no,,no-chart
-aws,kms,override_policy_documents,list(string),no,,no-chart
-aws,kms,policy,string,no,,no-chart
-aws,kms,primary_external_key_arn,string,no,,no-chart
-aws,kms,primary_key_arn,string,no,,no-chart
-aws,kms,region,string,no,,no-chart
-aws,kms,rotation_period_in_days,number,no,,no-chart
-aws,kms,route53_dnssec_sources,"list(object({account_ids, hosted_zone_arn}))",no,,no-chart
-aws,kms,source_policy_documents,list(string),no,,no-chart
-aws,kms,tags,map(string),no,,no-chart
-aws,kms,valid_to,string,no,,no-chart
+aws,kms,aliases,list(string),yes,,
+aws,kms,aliases_use_name_prefix,bool,no,an alias name with a random suffix (name_prefix) would change between renders,gap
+aws,kms,bypass_policy_lockout_safety_check,bool,yes,,
+aws,kms,computed_aliases,map(object({name})),yes,,
+aws,kms,create,bool,yes,,
+aws,kms,create_external,bool,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,create_replica,bool,partial,ReplicaKey is an ack-extensions kind (outside ACK's releases): needs allow_alpha: true; region (the replica's) is then required,alpha
+aws,kms,create_replica_external,bool,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,custom_key_store_id,string,yes,,
+aws,kms,customer_master_key_spec,string,yes,,
+aws,kms,deletion_window_in_days,number,no,"ACK's Key has no field for the waiting period before deletion (KMS's default, 30 days, applies)",gap
+aws,kms,description,string,yes,,
+aws,kms,enable_default_policy,bool,yes,,
+aws,kms,enable_key_rotation,bool,yes,,
+aws,kms,enable_route53_dnssec,bool,yes,,
+aws,kms,grants,"map(object({constraints, grant_creation_tokens, grantee_principal, name, operations, retire_on_delete, +1}))",partial,"accepted, except retire_on_delete: true (ACK revokes a grant when it is deleted, as Terraform does by default; retiring instead has no ACK field)",gap
+aws,kms,is_enabled,bool,partial,accepted unset or true; false (a disabled key) is refused: ACK's Key has no field to disable a key,gap
+aws,kms,key_administrators,list(string),yes,,
+aws,kms,key_asymmetric_public_encryption_users,list(string),yes,,
+aws,kms,key_asymmetric_sign_verify_users,list(string),yes,,
+aws,kms,key_hmac_users,list(string),yes,,
+aws,kms,key_material_base64,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,key_owners,list(string),yes,,
+aws,kms,key_service_roles_for_autoscaling,list(string),yes,,
+aws,kms,key_service_users,list(string),yes,,
+aws,kms,key_spec,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material (key_spec is the external key's)",gap
+aws,kms,key_statements,"list(object({actions, condition, effect, not_actions, not_principals, not_resources, +3}))",yes,,
+aws,kms,key_symmetric_encryption_users,list(string),yes,,
+aws,kms,key_usage,string,yes,,
+aws,kms,key_users,list(string),yes,,
+aws,kms,multi_region,bool,yes,,
+aws,kms,override_policy_documents,list(string),no,"merging other policy documents into the key policy by statement sid is not ported yet; write the whole policy in policy, or the statements in key_statements",not-ported
+aws,kms,policy,string,yes,,
+aws,kms,primary_external_key_arn,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,primary_key_arn,string,yes,,
+aws,kms,region,string,yes,,
+aws,kms,rotation_period_in_days,number,no,"ACK's Key has no rotation period field (enable_key_rotation is supported, with KMS's default period, 365 days)",gap
+aws,kms,route53_dnssec_sources,"list(object({account_ids, hosted_zone_arn}))",yes,,
+aws,kms,source_policy_documents,list(string),no,"merging other policy documents into the key policy by statement sid is not ported yet; write the whole policy in policy, or the statements in key_statements",not-ported
+aws,kms,tags,map(string),yes,,
+aws,kms,valid_to,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
 aws,lambda,allowed_triggers,map(any),no,,no-chart
 aws,lambda,architectures,list(string),no,,no-chart
 aws,lambda,artifacts_dir,string,no,,no-chart
@@ -2081,20 +2081,20 @@ aws,lambda,trusted_entities,any,no,,no-chart
 aws,lambda,use_existing_cloudwatch_log_group,bool,no,,no-chart
 aws,lambda,vpc_security_group_ids,list(string),no,,no-chart
 aws,lambda,vpc_subnet_ids,list(string),no,,no-chart
-aws,security-group,create,bool,no,,no-chart
-aws,security-group,description,string,no,,no-chart
-aws,security-group,egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,security-group,enable_exclusive_rules,bool,no,,no-chart
-aws,security-group,ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,security-group,name,string,no,,no-chart
-aws,security-group,putin_khuylo,bool,no,,no-chart
-aws,security-group,region,string,no,,no-chart
-aws,security-group,revoke_rules_on_delete,bool,no,,no-chart
-aws,security-group,tags,map(string),no,,no-chart
-aws,security-group,timeouts,"object({create, delete})",no,,no-chart
-aws,security-group,use_name_prefix,bool,no,,no-chart
-aws,security-group,vpc_associations,map(object({vpc_id})),no,,no-chart
-aws,security-group,vpc_id,string,no,,no-chart
+aws,security-group,create,bool,yes,,
+aws,security-group,description,string,yes,,
+aws,security-group,egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",partial,"accepted, but each rule's name and tags (the Name tag of an aws_vpc_security_group_*_rule) are not carried: ACK keeps a group's rules inline in SecurityGroup, which has no per-rule tags",gap
+aws,security-group,enable_exclusive_rules,bool,no,"ACK keeps the group's rules inline and owns all of them, as enable_exclusive_rules: true does; letting rules added elsewhere stay has no ACK equivalent",gap
+aws,security-group,ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",partial,"accepted, but each rule's name and tags (the Name tag of an aws_vpc_security_group_*_rule) are not carried: ACK keeps a group's rules inline in SecurityGroup, which has no per-rule tags",gap
+aws,security-group,name,string,yes,,
+aws,security-group,putin_khuylo,bool,yes,,
+aws,security-group,region,string,yes,,
+aws,security-group,revoke_rules_on_delete,bool,no,ACK's SecurityGroup has no field to revoke its rules before it is deleted,gap
+aws,security-group,tags,map(string),yes,,
+aws,security-group,timeouts,"object({create, delete})",no,"Terraform's create and delete timeouts: ACK retries until the group is synced, and Bundt waits for it",by-design
+aws,security-group,use_name_prefix,bool,partial,"accepted: true (the default) names the group name as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' groups apart",gap
+aws,security-group,vpc_associations,map(object({vpc_id})),no,aws_vpc_security_group_vpc_association has no ACK or ack-extensions kind,gap
+aws,security-group,vpc_id,string,yes,,
 aws,rds,allocated_storage,number,no,,no-chart
 aws,rds,allow_major_version_upgrade,bool,no,,no-chart
 aws,rds,apply_immediately,bool,no,,no-chart
@@ -3822,103 +3822,103 @@ azure,avm-res-network-networksecuritygroup,role_assignments,"map(object({conditi
 azure,avm-res-network-networksecuritygroup,security_rules,"map(object({access, description, destination_address_prefix, destination_address_prefixes, destination_application_security_group_ids, destination_port_range, +11}))",no,,no-chart
 azure,avm-res-network-networksecuritygroup,tags,map(string),no,,no-chart
 azure,avm-res-network-networksecuritygroup,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-storage-storageaccount,access_tier,string,no,,no-chart
-azure,avm-res-storage-storageaccount,account_kind,string,no,,no-chart
-azure,avm-res-storage-storageaccount,account_replication_type,string,no,,no-chart
-azure,avm-res-storage-storageaccount,account_sku_name,string,no,,no-chart
-azure,avm-res-storage-storageaccount,account_tier,string,no,,no-chart
-azure,avm-res-storage-storageaccount,allow_nested_items_to_be_public,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,allowed_copy_scope,string,no,,no-chart
-azure,avm-res-storage-storageaccount,azure_files_authentication,"object({active_directory, default_share_level_permission, directory_type})",no,,no-chart
-azure,avm-res-storage-storageaccount,blob_properties,"object({automatic_snapshot_policy_enabled, change_feed, container_delete_retention_policy, cors_rules, default_service_version, delete_retention_policy, +3})",no,,no-chart
-azure,avm-res-storage-storageaccount,containers,"map(object({default_encryption_scope, deny_encryption_scope_override, enable_nfs_v3_all_squash, enable_nfs_v3_root_squash, immutable_storage_with_versioning, metadata, +4}))",no,,no-chart
-azure,avm-res-storage-storageaccount,cross_tenant_replication_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,custom_domain,"object({name, use_subdomain})",no,,no-chart
-azure,avm-res-storage-storageaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,,no-chart
-azure,avm-res-storage-storageaccount,default_to_oauth_authentication,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,diagnostic_settings_blob,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",no,,no-chart
-azure,avm-res-storage-storageaccount,diagnostic_settings_file,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",no,,no-chart
-azure,avm-res-storage-storageaccount,diagnostic_settings_queue,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",no,,no-chart
-azure,avm-res-storage-storageaccount,diagnostic_settings_storage_account,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",no,,no-chart
-azure,avm-res-storage-storageaccount,diagnostic_settings_table,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",no,,no-chart
-azure,avm-res-storage-storageaccount,edge_zone,string,no,,no-chart
-azure,avm-res-storage-storageaccount,enable_telemetry,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,file_service_properties,"object({cors_rules, share_retention_policy, smb})",no,,no-chart
-azure,avm-res-storage-storageaccount,https_traffic_only_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,immutability_policy,"object({allow_protected_append_writes, period_since_creation_in_days, state})",no,,no-chart
-azure,avm-res-storage-storageaccount,infrastructure_encryption_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,is_hns_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,large_file_share_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,local_user,"map(object({home_directory, name, permission_scope, ssh_authorized_key, ssh_key_enabled, ssh_password_enabled, +1}))",no,,no-chart
-azure,avm-res-storage-storageaccount,local_user_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,location,string,no,,no-chart
-azure,avm-res-storage-storageaccount,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-storage-storageaccount,managed_identities,"object({system_assigned, user_assigned_resource_ids})",no,,no-chart
-azure,avm-res-storage-storageaccount,min_tls_version,string,no,,no-chart
-azure,avm-res-storage-storageaccount,name,string,no,,no-chart
-azure,avm-res-storage-storageaccount,network_rules,"object({bypass, default_action, ip_rules, private_link_access, timeouts, virtual_network_subnet_ids})",no,,no-chart
-azure,avm-res-storage-storageaccount,nfsv3_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,parent_id,string,no,,no-chart
-azure,avm-res-storage-storageaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,,no-chart
-azure,avm-res-storage-storageaccount,private_endpoints_manage_dns_zone_group,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,provisioned_billing_model_version,string,no,,no-chart
-azure,avm-res-storage-storageaccount,public_network_access_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,queue_encryption_key_type,string,no,,no-chart
-azure,avm-res-storage-storageaccount,queue_properties,object({cors_rules}),no,,no-chart
-azure,avm-res-storage-storageaccount,queues,"map(object({metadata, name, role_assignments, timeouts}))",no,,no-chart
-azure,avm-res-storage-storageaccount,resource_types,"object({blob_container, blob_service, customer_managed_key_vault, file_service, local_user, lock, +10})",no,,no-chart
-azure,avm-res-storage-storageaccount,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,,no-chart
-azure,avm-res-storage-storageaccount,role_assignment_definition_lookup_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-storage-storageaccount,routing,"object({choice, publish_internet_endpoints, publish_microsoft_endpoints})",no,,no-chart
-azure,avm-res-storage-storageaccount,sas_policy,"object({expiration_action, expiration_period})",no,,no-chart
-azure,avm-res-storage-storageaccount,sftp_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,shared_access_key_enabled,bool,no,,no-chart
-azure,avm-res-storage-storageaccount,shares,"map(object({access_tier, enabled_protocol, metadata, name, provisioned_bandwidth_mibps, provisioned_iops, +5}))",no,,no-chart
-azure,avm-res-storage-storageaccount,static_website,"map(object({error_404_document, index_document}))",no,,no-chart
-azure,avm-res-storage-storageaccount,storage_data_lake_gen2_filesystems,"map(object({default_encryption_scope, name, properties, timeouts}))",no,,no-chart
-azure,avm-res-storage-storageaccount,storage_management_policy_rule,"map(object({actions, enabled, filters, name}))",no,,no-chart
-azure,avm-res-storage-storageaccount,storage_management_policy_timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-storage-storageaccount,table_encryption_key_type,string,no,,no-chart
-azure,avm-res-storage-storageaccount,table_properties,object({cors_rules}),no,,no-chart
-azure,avm-res-storage-storageaccount,table_service_cors_propagation_wait,string,no,,no-chart
-azure,avm-res-storage-storageaccount,tables,"map(object({name, role_assignments, signed_identifiers, timeouts}))",no,,no-chart
-azure,avm-res-storage-storageaccount,tags,map(string),no,,no-chart
-azure,avm-res-storage-storageaccount,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-keyvault-vault,contacts,"map(object({email, name, phone}))",no,,no-chart
-azure,avm-res-keyvault-vault,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-keyvault-vault,enable_telemetry,bool,no,,no-chart
-azure,avm-res-keyvault-vault,enabled_for_deployment,bool,no,,no-chart
-azure,avm-res-keyvault-vault,enabled_for_disk_encryption,bool,no,,no-chart
-azure,avm-res-keyvault-vault,enabled_for_template_deployment,bool,no,,no-chart
-azure,avm-res-keyvault-vault,ignore_body_changes,"object({authorization_locks, authorization_role_assignments, insights_diagnostic_settings, keyvault_vaults, network_private_endpoints, network_private_endpoints_private_dns_zone_groups})",no,,no-chart
-azure,avm-res-keyvault-vault,keys,"map(object({curve, expiration_date, key_opts, key_size, key_type, name, +5}))",no,,no-chart
-azure,avm-res-keyvault-vault,legacy_access_policies,"map(object({application_id, certificate_permissions, key_permissions, object_id, secret_permissions, storage_permissions}))",no,,no-chart
-azure,avm-res-keyvault-vault,legacy_access_policies_enabled,bool,no,,no-chart
-azure,avm-res-keyvault-vault,location,string,no,,no-chart
-azure,avm-res-keyvault-vault,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-keyvault-vault,name,string,no,,no-chart
-azure,avm-res-keyvault-vault,network_acls,"object({bypass, default_action, ip_rules, virtual_network_subnet_ids})",no,,no-chart
-azure,avm-res-keyvault-vault,parent_id,string,no,,no-chart
-azure,avm-res-keyvault-vault,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,,no-chart
-azure,avm-res-keyvault-vault,private_endpoints_manage_dns_zone_group,bool,no,,no-chart
-azure,avm-res-keyvault-vault,public_network_access_enabled,bool,no,,no-chart
-azure,avm-res-keyvault-vault,purge_protection_enabled,bool,no,,no-chart
-azure,avm-res-keyvault-vault,resource_types,"object({authorization_locks, authorization_role_assignments, insights_diagnostic_settings, keyvault_vaults, network_private_endpoints, network_private_endpoints_private_dns_zone_groups})",no,,no-chart
-azure,avm-res-keyvault-vault,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,,no-chart
-azure,avm-res-keyvault-vault,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-keyvault-vault,secrets,"map(object({content_type, expiration_date, name, not_before_date, role_assignments, tags}))",no,,no-chart
-azure,avm-res-keyvault-vault,secrets_value,map(string),no,,no-chart
-azure,avm-res-keyvault-vault,secrets_value_wo,map(string),no,,no-chart
-azure,avm-res-keyvault-vault,secrets_value_wo_version,map(number),no,,no-chart
-azure,avm-res-keyvault-vault,sku_name,string,no,,no-chart
-azure,avm-res-keyvault-vault,soft_delete_retention_days,number,no,,no-chart
-azure,avm-res-keyvault-vault,tags,map(string),no,,no-chart
-azure,avm-res-keyvault-vault,tenant_id,string,no,,no-chart
-azure,avm-res-keyvault-vault,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-keyvault-vault,wait_for_rbac_before_contact_operations,"object({create, destroy})",no,,no-chart
-azure,avm-res-keyvault-vault,wait_for_rbac_before_key_operations,"object({create, destroy})",no,,no-chart
-azure,avm-res-keyvault-vault,wait_for_rbac_before_secret_operations,"object({create, destroy})",no,,no-chart
+azure,avm-res-storage-storageaccount,access_tier,string,partial,"accepted, but Smart is refused: ASO's StorageAccount is at API version 2025-06-01, and Smart needs 2025-08-01",gap
+azure,avm-res-storage-storageaccount,account_kind,string,yes,,
+azure,avm-res-storage-storageaccount,account_replication_type,string,yes,,
+azure,avm-res-storage-storageaccount,account_sku_name,string,yes,,
+azure,avm-res-storage-storageaccount,account_tier,string,yes,,
+azure,avm-res-storage-storageaccount,allow_nested_items_to_be_public,bool,yes,,
+azure,avm-res-storage-storageaccount,allowed_copy_scope,string,yes,,
+azure,avm-res-storage-storageaccount,azure_files_authentication,"object({active_directory, default_share_level_permission, directory_type})",yes,,
+azure,avm-res-storage-storageaccount,blob_properties,"object({automatic_snapshot_policy_enabled, change_feed, container_delete_retention_policy, cors_rules, default_service_version, delete_retention_policy, +3})",no,ASO has StorageAccountsBlobService; this chart does not map the blob service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,containers,"map(object({default_encryption_scope, deny_encryption_scope_override, enable_nfs_v3_all_squash, enable_nfs_v3_root_squash, immutable_storage_with_versioning, metadata, +4}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
+azure,avm-res-storage-storageaccount,cross_tenant_replication_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,custom_domain,"object({name, use_subdomain})",yes,,
+azure,avm-res-storage-storageaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,ASO's StorageAccount has encryption.keyvaultproperties; this chart does not map the customer-managed key yet,not-ported
+azure,avm-res-storage-storageaccount,default_to_oauth_authentication,bool,yes,,
+azure,avm-res-storage-storageaccount,diagnostic_settings_blob,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
+azure,avm-res-storage-storageaccount,diagnostic_settings_file,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
+azure,avm-res-storage-storageaccount,diagnostic_settings_queue,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
+azure,avm-res-storage-storageaccount,diagnostic_settings_storage_account,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
+azure,avm-res-storage-storageaccount,diagnostic_settings_table,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
+azure,avm-res-storage-storageaccount,edge_zone,string,yes,,
+azure,avm-res-storage-storageaccount,enable_telemetry,bool,yes,,
+azure,avm-res-storage-storageaccount,file_service_properties,"object({cors_rules, share_retention_policy, smb})",no,ASO has StorageAccountsFileService; this chart does not map the file service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,https_traffic_only_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,immutability_policy,"object({allow_protected_append_writes, period_since_creation_in_days, state})",yes,,
+azure,avm-res-storage-storageaccount,infrastructure_encryption_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,is_hns_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,large_file_share_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,local_user,"map(object({home_directory, name, permission_scope, ssh_authorized_key, ssh_key_enabled, ssh_password_enabled, +1}))",no,Microsoft.Storage/storageAccounts/localUsers (SFTP and NFSv3 local users) has no ASO or aso-extensions kind,gap
+azure,avm-res-storage-storageaccount,local_user_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,location,string,yes,,
+azure,avm-res-storage-storageaccount,lock,"object({kind, name})",yes,,
+azure,avm-res-storage-storageaccount,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
+azure,avm-res-storage-storageaccount,min_tls_version,string,yes,,
+azure,avm-res-storage-storageaccount,name,string,yes,,
+azure,avm-res-storage-storageaccount,network_rules,"object({bypass, default_action, ip_rules, private_link_access, timeouts, virtual_network_subnet_ids})",partial,"accepted, but its timeouts are refused: ASO has no per-request timeouts",by-design
+azure,avm-res-storage-storageaccount,nfsv3_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,parent_id,string,yes,,
+azure,avm-res-storage-storageaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-storage-storageaccount,private_endpoints_manage_dns_zone_group,bool,yes,,
+azure,avm-res-storage-storageaccount,provisioned_billing_model_version,string,yes,,
+azure,avm-res-storage-storageaccount,public_network_access_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,queue_encryption_key_type,string,yes,,
+azure,avm-res-storage-storageaccount,queue_properties,object({cors_rules}),no,ASO has StorageAccountsQueueService; this chart does not map the queue service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,queues,"map(object({metadata, name, role_assignments, timeouts}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
+azure,avm-res-storage-storageaccount,resource_types,"object({blob_container, blob_service, customer_managed_key_vault, file_service, local_user, lock, +10})",no,ASO's kinds fix the API versions (StorageAccount 2025-06-01),by-design
+azure,avm-res-storage-storageaccount,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
+azure,avm-res-storage-storageaccount,role_assignment_definition_lookup_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-storage-storageaccount,routing,"object({choice, publish_internet_endpoints, publish_microsoft_endpoints})",yes,,
+azure,avm-res-storage-storageaccount,sas_policy,"object({expiration_action, expiration_period})",yes,,
+azure,avm-res-storage-storageaccount,sftp_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,shared_access_key_enabled,bool,yes,,
+azure,avm-res-storage-storageaccount,shares,"map(object({access_tier, enabled_protocol, metadata, name, provisioned_bandwidth_mibps, provisioned_iops, +5}))",partial,"accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)",gap
+azure,avm-res-storage-storageaccount,static_website,"map(object({error_404_document, index_document}))",no,"a static website is set on the blob service's data plane (Set Blob Service Properties), which ASO does not call",gap
+azure,avm-res-storage-storageaccount,storage_data_lake_gen2_filesystems,"map(object({default_encryption_scope, name, properties, timeouts}))",no,a Data Lake Gen2 filesystem is a blob container with its ACLs; this chart does not map them yet,not-ported
+azure,avm-res-storage-storageaccount,storage_management_policy_rule,"map(object({actions, enabled, filters, name}))",no,ASO has StorageAccountsManagementPolicy; this chart does not map the lifecycle rules yet,not-ported
+azure,avm-res-storage-storageaccount,storage_management_policy_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-storage-storageaccount,table_encryption_key_type,string,yes,,
+azure,avm-res-storage-storageaccount,table_properties,object({cors_rules}),no,ASO has StorageAccountsTableService; this chart does not map the table service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,table_service_cors_propagation_wait,string,yes,,
+azure,avm-res-storage-storageaccount,tables,"map(object({name, role_assignments, signed_identifiers, timeouts}))",partial,"accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)",gap
+azure,avm-res-storage-storageaccount,tags,map(string),yes,,
+azure,avm-res-storage-storageaccount,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-keyvault-vault,contacts,"map(object({email, name, phone}))",no,"certificate contacts are a Key Vault data-plane setting (/certificates/contacts), with no ASO or aso-extensions kind",gap
+azure,avm-res-keyvault-vault,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-keyvault-vault,enable_telemetry,bool,yes,,
+azure,avm-res-keyvault-vault,enabled_for_deployment,bool,yes,,
+azure,avm-res-keyvault-vault,enabled_for_disk_encryption,bool,yes,,
+azure,avm-res-keyvault-vault,enabled_for_template_deployment,bool,yes,,
+azure,avm-res-keyvault-vault,ignore_body_changes,"object({authorization_locks, authorization_role_assignments, insights_diagnostic_settings, keyvault_vaults, network_private_endpoints, network_private_endpoints_private_dns_zone_groups})",no,Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes),gap
+azure,avm-res-keyvault-vault,keys,"map(object({curve, expiration_date, key_opts, key_size, key_type, name, +5}))",partial,"accepted, but a release policy's immutable flag is refused: ASO's VaultKey release_policy has contentType and data only",gap
+azure,avm-res-keyvault-vault,legacy_access_policies,"map(object({application_id, certificate_permissions, key_permissions, object_id, secret_permissions, storage_permissions}))",yes,,
+azure,avm-res-keyvault-vault,legacy_access_policies_enabled,bool,yes,,
+azure,avm-res-keyvault-vault,location,string,yes,,
+azure,avm-res-keyvault-vault,lock,"object({kind, name})",yes,,
+azure,avm-res-keyvault-vault,name,string,yes,,
+azure,avm-res-keyvault-vault,network_acls,"object({bypass, default_action, ip_rules, virtual_network_subnet_ids})",yes,,
+azure,avm-res-keyvault-vault,parent_id,string,yes,,
+azure,avm-res-keyvault-vault,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-keyvault-vault,private_endpoints_manage_dns_zone_group,bool,yes,,
+azure,avm-res-keyvault-vault,public_network_access_enabled,bool,yes,,
+azure,avm-res-keyvault-vault,purge_protection_enabled,bool,yes,,
+azure,avm-res-keyvault-vault,resource_types,"object({authorization_locks, authorization_role_assignments, insights_diagnostic_settings, keyvault_vaults, network_private_endpoints, network_private_endpoints_private_dns_zone_groups})",no,ASO's kinds fix the API versions (Vault 2023-07-01),by-design
+azure,avm-res-keyvault-vault,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
+azure,avm-res-keyvault-vault,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-keyvault-vault,secrets,"map(object({content_type, expiration_date, name, not_before_date, role_assignments, tags}))",no,"aso-extensions has VaultSecret, whose value comes from a Kubernetes Secret; how a component supplies that Secret is not settled, so the chart does not map secrets yet",not-ported
+azure,avm-res-keyvault-vault,secrets_value,map(string),no,"the values of secrets, which the chart does not map yet (a secret's value belongs in a Kubernetes Secret, not in a component's inputs)",not-ported
+azure,avm-res-keyvault-vault,secrets_value_wo,map(string),no,"the write-only values of secrets, which the chart does not map yet",not-ported
+azure,avm-res-keyvault-vault,secrets_value_wo_version,map(number),no,"the write-only value versions of secrets, which the chart does not map yet",not-ported
+azure,avm-res-keyvault-vault,sku_name,string,yes,,
+azure,avm-res-keyvault-vault,soft_delete_retention_days,number,yes,,
+azure,avm-res-keyvault-vault,tags,map(string),yes,,
+azure,avm-res-keyvault-vault,tenant_id,string,yes,,
+azure,avm-res-keyvault-vault,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-keyvault-vault,wait_for_rbac_before_contact_operations,"object({create, destroy})",yes,,
+azure,avm-res-keyvault-vault,wait_for_rbac_before_key_operations,"object({create, destroy})",yes,,
+azure,avm-res-keyvault-vault,wait_for_rbac_before_secret_operations,"object({create, destroy})",yes,,
 azure,avm-res-compute-virtualmachine,account_credentials,"object({admin_credentials, key_vault_configuration, password_authentication_disabled})",no,,no-chart
 azure,avm-res-compute-virtualmachine,additional_unattend_contents,"list(object({content, setting}))",no,,no-chart
 azure,avm-res-compute-virtualmachine,admin_password,string,no,,no-chart

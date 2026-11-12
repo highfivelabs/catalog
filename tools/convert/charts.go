@@ -52,13 +52,26 @@ func OpenRepo(root string) (*Repo, error) {
 	return &Repo{Root: root, Modules: f}, nil
 }
 
-// ChartByName finds a ported chart by its directory name (gcs).
+// ChartByName finds a ported chart by its directory name (gcs), or by its
+// cloud and name (aws/kms) where two clouds have a chart of one name; a
+// bare name that two clouds share is ambiguous.
 func (r *Repo) ChartByName(name string) (*Chart, error) {
+	var found []*upstream.Module
 	for i := range r.Modules.Modules {
 		m := &r.Modules.Modules[i]
-		if m.Chart != "" && path.Base(m.Chart) == name {
-			return r.loadChart(m)
+		if m.Chart != "" && (path.Base(m.Chart) == name || m.Chart == "charts/"+name) {
+			found = append(found, m)
 		}
+	}
+	if len(found) == 1 {
+		return r.loadChart(found[0])
+	}
+	if len(found) > 1 {
+		var dirs []string
+		for _, m := range found {
+			dirs = append(dirs, strings.TrimPrefix(m.Chart, "charts/"))
+		}
+		return nil, fmt.Errorf("chart name %q is ambiguous: name one of %s", name, strings.Join(dirs, ", "))
 	}
 	return nil, fmt.Errorf("no chart named %q (charts: %s)", name, strings.Join(r.chartNames(), ", "))
 }

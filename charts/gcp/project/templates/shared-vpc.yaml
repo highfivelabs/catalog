@@ -2,10 +2,32 @@
 Copyright 2026 High Five Labs
 SPDX-License-Identifier: Apache-2.0
 Ported from cloud-foundation-fabric modules/project/shared-vpc.tf (v60.0.0),
-Copyright 2025 Google LLC, Apache-2.0: the service project side. Grants to
-service agents need the project number, known only after apply, and are
-not ported (README.md, "Not ported").
+Copyright 2025 Google LLC, Apache-2.0. The host side
+(shared_vpc_host_config): a ComputeSharedVPCHostProject and one
+ComputeSharedVPCServiceProject per service project. The service project
+side (shared_vpc_service_config): grants to service agents need the project
+number, known only after apply, and are not ported (README.md, "Not
+ported").
 */ -}}
+{{- $h := .Values.shared_vpc_host_config | default dict }}
+{{- if $h.enabled }}
+{{- $id := include "project.id" . }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCHostProject
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (printf "%s-shared-vpc-host" .Release.Name) "id" "shared_vpc_host" "project" $id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+{{- range $sp := ($h.service_projects | default list) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSharedVPCServiceProject
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "shared-vpc-service" $sp)) "id" (printf "shared_vpc_service_project:%s" $sp) "project" $id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ trimPrefix "projects/" $sp | quote }}
+{{- end }}
+{{- end }}
+---
 {{- $c := .Values.shared_vpc_service_config | default dict }}
 {{- if $c.host_project }}
 {{- range $f := list "service_agent_iam" "service_agent_subnet_iam" "service_iam_grants" "network_subnet_users" }}
