@@ -1,0 +1,93 @@
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBInstance
+metadata:
+  name: mock-db-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-instance"
+    services.k8s.aws/region: "us-east-1"
+    rds.services.k8s.aws/delete-automated-backups: "true"
+    rds.services.k8s.aws/skip-final-snapshot: "true"
+spec:
+  dbInstanceIdentifier: "catalog-db"
+  dbInstanceClass: "db.t4g.micro"
+  engine: "postgres"
+  engineVersion: "16.4"
+  allocatedStorage: 20
+  storageEncrypted: true
+  dbName: "catalog"
+  masterUsername: "catalog"
+  manageMasterUserPassword: true
+  enableIAMDatabaseAuthentication: false
+  dbSubnetGroupRef:
+    from:
+      name: mock-subnet-group
+  dbParameterGroupRef:
+    from:
+      name: mock-parameter-group
+  multiAZ: false
+  publiclyAccessible: false
+  autoMinorVersionUpgrade: true
+  copyTagsToSnapshot: true
+  performanceInsightsEnabled: false
+  monitoringInterval: 0
+  deletionProtection: false
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBParameterGroup
+metadata:
+  name: mock-parameter-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-parameter-group"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "catalog-db"
+  description: "catalog-db parameter group"
+  family: "postgres16"
+  parameterOverrides:
+    "log_min_duration_statement": "1000"
+  tags:
+    - key: "Name"
+      value: "catalog-db"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: mock-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-subnet-group"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "catalog-db"
+  description: "catalog-db subnet group"
+  subnetIDs:
+    - "subnet-set-by-mock-set-yaml-a"
+    - "subnet-set-by-mock-set-yaml-b"
+  tags:
+    - key: "Name"
+      value: "catalog-db"
+    - key: "catalog-test"
+      value: "true"
