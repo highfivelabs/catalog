@@ -99,6 +99,9 @@ kubectl -n "${ASO_NS}" create configmap fake-cloud-ca --from-file=ca.crt="${WORK
 # ASO's workload identity token names its service account; the fake Entra
 # puts that subject in the token, and fakearm trusts it for this client.
 ASO_SUBJECT="system:serviceaccount:${ASO_NS}:azureserviceoperator-default"
+# The fakes serve on 443 in the pod too: ASO's chart installs network
+# policies that let its controller reach TCP 443 only, and a policy sees the
+# pod's port, not the Service's.
 cat >"${WORK}/fake-cloud.yaml" <<EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -113,8 +116,8 @@ spec:
       - name: fakearm
         image: catalog.local/fakearm:mock
         imagePullPolicy: Never
-        args: [--listen=:8443, --audience=https://fakearm.fake-cloud.svc, "--trust=${CLIENT}=${ASO_SUBJECT}", "--resource=/subscriptions/${SUB},${RG}"]
-        ports: [{containerPort: 8443}]
+        args: [--listen=:443, --audience=https://fakearm.fake-cloud.svc, "--trust=${CLIENT}=${ASO_SUBJECT}", "--resource=/subscriptions/${SUB},${RG}"]
+        ports: [{containerPort: 443}]
         volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
       volumes: [{name: tls, secret: {secretName: fakearm-tls}}]
 ---
@@ -123,7 +126,7 @@ kind: Service
 metadata: {name: fakearm, namespace: fake-cloud}
 spec:
   selector: {app: fakearm}
-  ports: [{port: 443, targetPort: 8443}]
+  ports: [{port: 443, targetPort: 443}]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -138,8 +141,8 @@ spec:
       - name: fakeentra
         image: catalog.local/fakeentra:mock
         imagePullPolicy: Never
-        args: [--listen=:8443]
-        ports: [{containerPort: 8443}]
+        args: [--listen=:443]
+        ports: [{containerPort: 443}]
         volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
       volumes: [{name: tls, secret: {secretName: fakeentra-tls}}]
 ---
@@ -148,7 +151,7 @@ kind: Service
 metadata: {name: fakeentra, namespace: fake-cloud}
 spec:
   selector: {app: fakeentra}
-  ports: [{port: 443, targetPort: 8443}]
+  ports: [{port: 443, targetPort: 443}]
 EOF
 kubectl apply -f "${WORK}/fake-cloud.yaml" >/dev/null
 kubectl -n fake-cloud rollout status deploy/fakearm --timeout=180s
