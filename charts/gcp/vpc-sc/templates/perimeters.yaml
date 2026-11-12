@@ -1,0 +1,51 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/vpc-sc/perimeters.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_access_context_manager_service_perimeter.regular: one regular
+AccessContextManagerServicePerimeter per entry of factories_data.perimeters
+and perimeters (the variable's wins), named by its key, with its spec
+(dry run) and status (enforced) blocks; the ingress and egress policies a
+block names ("$ingress_policies:<NAME>") are copied into it, as fabric's
+dynamic blocks do, and an undefined one stops the render with fabric's
+precondition message. perimeters-additive.tf's perimeters
+(ignore_resource_changes) are refused: Config Connector cannot ignore
+changes to a field.
+*/ -}}
+{{- $data := include "vpcsc.data" . | fromJson }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $key := keys $data.perimeters | sortAlpha }}
+{{- $p := index $data.perimeters $key }}
+{{- include "kcc.unsupported" (list $ (printf "perimeters.%s.ignore_resource_changes" $key) $p.ignore_resource_changes "Config Connector cannot ignore changes to a perimeter's resources (fabric's perimeters-additive.tf); manage them in this perimeter") }}
+{{- $undefined := dict "ingress" list "egress" list }}
+{{- range $b := list $p.spec $p.status }}
+{{- range $k := (($b | default dict).ingress_policies | default list) }}{{ if not (hasKey $data.ingress $k) }}{{ $_ := set $undefined "ingress" (append $undefined.ingress $k) }}{{ end }}{{ end }}
+{{- range $k := (($b | default dict).egress_policies | default list) }}{{ if not (hasKey $data.egress $k) }}{{ $_ := set $undefined "egress" (append $undefined.egress $k) }}{{ end }}{{ end }}
+{{- end }}
+{{- with $undefined.ingress }}{{ fail (printf "%s: perimeters.%s: Undefined ingress policies: %s" $.Chart.Name $key (join ", " (uniq .))) }}{{ end }}
+{{- with $undefined.egress }}{{ fail (printf "%s: perimeters.%s: Undefined egress policies: %s" $.Chart.Name $key (join ", " (uniq .))) }}{{ end }}
+{{- $name := include "vpcsc.shortName" (list $ "perimeter" $key) }}
+---
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerServicePerimeter
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "perimeter" $key)) "id" (printf "perimeter:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  accessPolicyRef:
+    {{- include "vpcsc.policyRef" $ | nindent 4 }}
+  resourceID: {{ $name | quote }}
+  title: {{ $p.title | default $name | quote }}
+{{- with $p.description }}
+  description: {{ . | quote }}
+{{- end }}
+  perimeterType: PERIMETER_TYPE_REGULAR
+  useExplicitDryRunSpec: {{ $p.use_explicit_dry_run_spec | default false }}
+{{- range $block := list "spec" "status" }}
+{{- with (index $p $block) }}
+  {{ $block }}:
+    {{- include "vpcsc.perimeterBody" (dict "root" $ "where" (printf "perimeters.%s.%s" $key $block) "s" . "levels" $data.levels "ingress" $data.ingress "egress" $data.egress) | trim | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

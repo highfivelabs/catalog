@@ -253,13 +253,17 @@ spec:
   masterAuthorizedNetworksConfig:
     {{- toYaml $man | nindent 4 }}
   {{- end }}
-  {{- $autoTags := or $v.network_tags $v.resource_manager_tags }}
+  {{- /* The module adds the cluster's network tag to auto-provisioned (Standard: add_cluster_firewall_rules) and Autopilot (any firewall rules) nodes, so its firewall rules reach them. */}}
+  {{- $fwTag := ternary (or $v.add_cluster_firewall_rules $v.add_master_webhook_firewall_rules $v.add_shadow_firewall_rules) $v.add_cluster_firewall_rules (not (empty $auto)) }}
+  {{- $netTags := $v.network_tags | default list }}
+  {{- if $fwTag }}{{ $netTags = append $netTags (include "gke.networkTag" $) }}{{ end }}
+  {{- $autoTags := or $netTags $v.resource_manager_tags }}
   {{- if and $cgroupAll (or $auto $caOn) }}
   {{- include "kcc.unsupported" (list $ "node_pools_cgroup_mode" $cgroupAll (printf "ContainerCluster's nodePoolAutoConfig has no linuxNodeConfig, so the cgroup mode cannot reach %s nodes" (ternary "Autopilot" "auto-provisioned" (not (empty $auto))))) }}
   {{- end }}
   {{- if and $autoTags (or $auto $caOn) }}
   nodePoolAutoConfig:
-    {{- with $v.network_tags }}
+    {{- with $netTags }}
     networkTags:
       tags: {{ toJson . }}
     {{- end }}
