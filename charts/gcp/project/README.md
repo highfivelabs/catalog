@@ -110,9 +110,18 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=project`: five render cases, ten refusals.
-`tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
+`task test CHART=project`: seven render cases (`extras` carries the
+0.5.0 variables, `reuse-tags` tag bindings on a reused project), twelve
+refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
 neither) is applied to the fake cloud.
+
+On 2026-11-12 (`task test-mock MOCK_CHARTS=project`, offload VM), with the
+0.5.0 variables added to the case: the project, services, contacts, IAM,
+organization policy, `IAMCustomRole`, `IAMAuditConfig` and
+`LoggingLogExclusion` all Ready, the outputs evaluated, all deleted. A
+`TagsTagBinding` needs a tag value that exists, which the fake cloud's
+case cannot name (Google Cloud assigns its ID), so tag bindings are
+render-tested only and the case no longer sets one.
 
 ## Changes
 
