@@ -1,0 +1,63 @@
+# Every accepted input on the primary side: a zonal instance with public
+# IP, backups, maintenance, KMS, flags, pooling, observability, read pools,
+# IAM users, tag bindings and ABANDON.
+project_id: myproject
+project_number: "123456789012"
+prefix: prod
+cluster_name: db
+cluster_display_name: Orders database
+instance_name: db
+display_name: Orders primary
+location: europe-west8
+database_version: POSTGRES_16
+availability_type: ZONAL
+gce_zone: europe-west8-b
+annotations: {owner: orders-team}
+flags: {max_connections: "200", "alloydb.iam_authentication": "on"}
+connection_pool_flags: {pool_mode: transaction, max_pool_size: "50"}
+machine_config: {cpu_count: 4}
+encryption_config:
+  primary_kms_key_name: projects/myproject/locations/europe-west8/keyRings/ring/cryptoKeys/alloydb
+network_config:
+  psa_config:
+    network: projects/myproject/global/networks/my-network
+    allocated_ip_range: alloydb-range
+    authorized_external_networks: [203.0.113.0/24, 198.51.100.0/24]
+    enable_public_ip: true
+    enable_outbound_public_ip: true
+automated_backup_configuration:
+  enabled: true
+  backup_window: 3600s
+  location: europe-west8
+  weekly_schedule:
+    days_of_week: [MONDAY, THURSDAY]
+    start_times: [{hours: 2}, {hours: 14}]
+  retention_count: 14
+continuous_backup_configuration: {enabled: true, recovery_window_days: 7}
+maintenance_config:
+  enabled: true
+  day: SATURDAY
+  start_time: {hours: 3}
+observability_config:
+  enabled: true
+  track_active_queries: true
+read_pool:
+  ro:
+    display_name: Read pool
+    node_count: 2
+    flags: {max_connections: "100"}
+    machine_config: {cpu_count: 2}
+    network_config:
+      enable_public_ip: true
+      authorized_external_networks: [203.0.113.0/24]
+  analytics:
+    query_insights_config: {query_string_length: 2048}
+users:
+  "orders@example.com": {type: ALLOYDB_IAM_USER, roles: [alloydbiamuser]}
+  "dba@example.com": {type: ALLOYDB_IAM_GROUP}
+tag_bindings:
+  env: tagValues/281484836404786
+deletion_protection: true
+skip_await_major_version_upgrade: false
+deletion_policy: ABANDON
+labels: {team: orders}

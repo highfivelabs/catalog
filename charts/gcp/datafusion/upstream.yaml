@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/datafusion
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/datafusion
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/datafusion
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: ip_allocation_create
+    kind: gap
+    reason: "true (the default) is refused: DataFusionInstance's networkConfig.ipAllocation takes the range as a string, and the range Google allocates is known only after apply (gap 8); false, with the range in ip_allocation, is accepted"
+    partial: true
+    values: ["true"]
+  - variable: network_peering
+    kind: gap
+    reason: "true (the default) is refused: the peer network is in the instance's tenant project, known only after apply, and ComputeNetworkPeering takes it as a string (gap 8); false is accepted, and the net-vpc-peering chart can make the peering afterwards"
+    partial: true
+    values: ["true"]

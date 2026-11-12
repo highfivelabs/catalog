@@ -11,7 +11,7 @@ kind: Package
 metadata:
   name: gcp-project
 spec:
-  version: 0.6.0
+  version: 0.9.0
   engine: helm
   providers: [kcc]
   outputs:
@@ -29,3 +29,17 @@ spec:
           + '/policies/' + v.spec.resourceID})
     sink_writer_identities: >-
       resources.transformMapEntry(k, v, v.kind == 'LoggingLogSink', {k.substring(13): v.status.writerIdentity})
+    alert_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'MonitoringAlertPolicy', {k.substring(6): v.status.name})
+    notification_channel_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'MonitoringNotificationChannel', {k.substring(21): v.status.name})
+    tag_keys: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagKey' && k.startsWith('tag-key:'), {k.substring(8): v.status.name})
+    tag_values: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagValue' && k.startsWith('tag-value:'), {k.substring(10): v.status.name})
+    network_tag_keys: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagKey' && k.startsWith('network-tag-key:'), {k.substring(16): v.status.name})
+    network_tag_values: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagValue' && k.startsWith('network-tag-value:'), {k.substring(18): v.status.name})
+    kms_autokeys: >-
+      resources.transformMapEntry(k, v, v.kind == 'KMSKeyHandle', {k.substring(12): v.status.observedState.kmsKey})

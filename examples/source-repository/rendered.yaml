@@ -1,0 +1,61 @@
+# component source-repository-dev-repo
+---
+# Source: source-repository/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: source-repository-dev-repo-trigger-foo
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "source-repository-dev-repo"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "trigger:foo"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  location: global
+  filename: "ci/workflow-foo.yaml"
+  includedFiles: ["**/*yaml"]
+  triggerTemplate:
+    repoRef:
+      name: source-repository-dev-repo
+    branchName: "main"
+---
+# Source: source-repository/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: source-repository-dev-repo-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "source-repository-dev-repo"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: sourcerepo.cnrm.cloud.google.com/v1beta1
+    kind: SourceRepoRepository
+    name: source-repository-dev-repo
+  bindings:
+    - role: "roles/source.reader"
+      members:
+        - member: "user:foo@example.com"
+---
+# Source: source-repository/templates/main.yaml
+apiVersion: sourcerepo.cnrm.cloud.google.com/v1beta1
+kind: SourceRepoRepository
+metadata:
+  name: source-repository-dev-repo
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "source-repository-dev-repo"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "repository"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-repo"

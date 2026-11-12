@@ -1,0 +1,38 @@
+# fabric's tag keys and network tags with their values and IAM, an
+# existing key, conditional principal IAM, and a string tags entry (a
+# cloud label).
+name: tags-project
+parent: folders/1234567890
+tags:
+  team: shop
+  environment:
+    description: Environment.
+    iam:
+      roles/resourcemanager.tagUser: ["group:devs@example.com"]
+    values:
+      dev: {}
+      prod:
+        description: Production.
+        iam_bindings:
+          viewers: {role: roles/resourcemanager.tagViewer, members: ["group:auditors@example.com"]}
+        iam_bindings_additive:
+          user: {role: roles/resourcemanager.tagUser, member: "serviceAccount:ci@tags-project.iam.gserviceaccount.com"}
+  existing:
+    id: tagKeys/1234567890
+    values:
+      blue: {}
+      green: {id: tagValues/987654321, iam: {roles/resourcemanager.tagUser: ["group:green@example.com"]}}
+network_tags:
+  firewall:
+    network: tags-project/default
+    values: {web: {}}
+  everywhere:
+    network: ALL
+    description: Every network.
+iam_by_principals_conditional:
+  "group:admins@example.com":
+    roles: [roles/compute.admin, roles/storage.admin]
+    condition: {title: weekdays, expression: "request.time.getDayOfWeek() < 5"}
+  "group:ops@example.com":
+    roles: [roles/compute.admin]
+    condition: {title: weekdays, expression: "request.time.getDayOfWeek() < 5"}
