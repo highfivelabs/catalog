@@ -10,11 +10,28 @@ import (
 	"strings"
 )
 
+// iamBindingAPIVersion is IAMBinding's group and version
+// (config-connector-extensions; the catalog's
+// crds/config-connector-extensions/iam.gcp.hfl.dev_iambindings.yaml).
+const iamBindingAPIVersion = "iam.gcp.hfl.dev/v1beta1"
+
+// iamBindingKinds are the resource kinds IAMBinding takes
+// (config-connector-extensions pkg/iampolicy/registry.go), the same list as
+// the catalog's lib/_kcc.tpl, kcc.iam.
+var iamBindingKinds = map[string]bool{
+	"Project": true, "Folder": true, "Organization": true, "IAMServiceAccount": true,
+	"StorageBucket": true, "SecretManagerSecret": true, "ArtifactRegistryRepository": true,
+	"RunService": true, "PubSubTopic": true, "PubSubSubscription": true,
+	"KMSKeyRing": true, "KMSCryptoKey": true,
+}
+
 // convertIAM converts google_<x>_iam_member to an IAMPolicyMember and
-// google_<x>_iam_binding (authoritative for one role) to an
-// IAMPartialPolicy with one binding, the closest kind that does not own the
-// whole policy (the catalog's docs/design.md, "IAM"; IAMRoleBinding in
-// config-connector-extensions makes it exact).
+// google_<x>_iam_binding (authoritative for one role, and its condition) to
+// one IAMBinding (config-connector-extensions), exact as Terraform's, as
+// the catalog's charts render it (docs/design.md, "IAM"). On a resource
+// IAMBinding does not take (a subnet) the binding becomes an
+// IAMPartialPolicy with one binding, as the charts fall back to, the
+// closest kind that does not own the whole policy.
 func convertIAM(r *TFResource, k *KCC) (*Object, []Finding) {
 	base := k.IAMBase[r.Type]
 	if base == nil {
@@ -33,13 +50,21 @@ func convertIAM(r *TFResource, k *KCC) (*Object, []Finding) {
 	cond := condition(r.Attrs["condition"])
 	var findings []Finding
 	member := strings.HasSuffix(r.Type, "_iam_member")
+	exact := !member && iamBindingKinds[base.Kind]
 	kind := "IAMPartialPolicy"
-	if member {
+	switch {
+	case member:
 		kind = "IAMPolicyMember"
+	case exact:
+		kind = "IAMBinding"
 	}
-	crd := k.CRDs[kind]
-	if crd == nil {
-		return nil, []Finding{{r.Address, r.Type, "gap", "no " + kind + " kind loaded"}}
+	apiVersion := iamBindingAPIVersion
+	if !exact {
+		crd := k.CRDs[kind]
+		if crd == nil {
+			return nil, []Finding{{r.Address, r.Type, "gap", "no " + kind + " kind loaded"}}
+		}
+		apiVersion = crd.APIVersion()
 	}
 	spec := map[string]any{"resourceRef": resourceRef}
 	var who string
@@ -47,6 +72,21 @@ func convertIAM(r *TFResource, k *KCC) (*Object, []Finding) {
 		who = str(r.Attrs["member"])
 		spec["member"] = who
 		spec["role"] = role
+		if cond != nil {
+			spec["condition"] = cond
+		}
+	} else if exact {
+		raw, _ := r.Attrs["members"].([]any)
+		if len(raw) == 0 {
+			return nil, []Finding{{r.Address, r.Type, "refused", "an authoritative binding with no members empties the role; an IAMBinding needs at least one member"}}
+		}
+		var members []any
+		for _, m := range raw {
+			members = append(members, str(m))
+			who += str(m) + ","
+		}
+		spec["role"] = role
+		spec["members"] = members
 		if cond != nil {
 			spec["condition"] = cond
 		}
@@ -62,11 +102,11 @@ func convertIAM(r *TFResource, k *KCC) (*Object, []Finding) {
 			b["condition"] = cond
 		}
 		spec["bindings"] = []any{b}
-		findings = append(findings, Finding{r.Address, r.Type, "note", "an authoritative binding becomes IAMPartialPolicy: the listed members are kept, and members added outside it are no longer removed (IAMRoleBinding in config-connector-extensions makes it exact)"})
+		findings = append(findings, Finding{r.Address, r.Type, "note", "an authoritative binding on a " + base.Kind + ", which IAMBinding does not take, becomes IAMPartialPolicy: the listed members are kept, and members added outside it are no longer removed"})
 	}
 	name := sanitize(lastSegment(ref) + "-" + lastSegment(role) + "-" + shortHash(who+str(cond)))
 	obj := map[string]any{
-		"apiVersion": crd.APIVersion(),
+		"apiVersion": apiVersion,
 		"kind":       kind,
 		"metadata":   map[string]any{"name": name},
 		"spec":       spec,

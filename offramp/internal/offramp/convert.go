@@ -110,7 +110,7 @@ func convertResource(r *TFResource, k *KCC) ([]*Object, []Finding) {
 	t := r.Type
 	switch {
 	case strings.HasSuffix(t, "_iam_policy"):
-		return nil, []Finding{{r.Address, t, "refused", "an authoritative policy for the whole resource: Bundt never applies IAMPolicy (it would remove every grant made elsewhere). Convert it to members (IAMPolicyMember) or per-role bindings (IAMPartialPolicy), or leave it with Terraform"}}
+		return nil, []Finding{{r.Address, t, "refused", "an authoritative policy for the whole resource: Bundt never applies IAMPolicy (it would remove every grant made elsewhere). Convert it to members (IAMPolicyMember) or per-role bindings (IAMBinding), or leave it with Terraform"}}
 	case strings.HasSuffix(t, "_iam_audit_config"):
 		return nil, []Finding{{r.Address, t, "gap", "IAMAuditConfig is not converted yet"}}
 	case strings.HasSuffix(t, "_iam_member"), strings.HasSuffix(t, "_iam_binding"):
