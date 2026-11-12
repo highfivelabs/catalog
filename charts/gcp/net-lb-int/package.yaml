@@ -1,0 +1,52 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.backend_service, resources.health_check when the chart makes
+# it, resources["forwarding_rule:<key>"], resources["group:<key>"],
+# resources["service_attachment:<key>"]); the maps are keyed as fabric keys
+# them. Ids are built from the spec as Terraform's are
+# (projects/<project>/regions/<region>/...). forwarding_rule_addresses is
+# the address Config Connector writes back to spec.ipAddress.ip (null until
+# it does). Not outputs: fabric's whole objects (backend_service,
+# forwarding_rules, groups, health_check).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-lb-int
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    backend_service_id: >-
+      'projects/' + resources.backend_service.metadata.annotations['cnrm.cloud.google.com/project-id']
+      + '/regions/' + resources.backend_service.spec.location
+      + '/backendServices/' + resources.backend_service.spec.resourceID
+    backend_service_self_link: resources.backend_service.status.selfLink
+    forwarding_rule_addresses: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeForwardingRule',
+        {k.substring(16): has(v.spec.ipAddress) && has(v.spec.ipAddress.ip) ? dyn(v.spec.ipAddress.ip) : null})
+    forwarding_rule_self_links: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeForwardingRule',
+        {k.substring(16): v.status.selfLink})
+    id: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeForwardingRule',
+        {k.substring(16): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/regions/' + v.spec.location + '/forwardingRules/' + v.spec.resourceID})
+    group_self_links: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeInstanceGroup',
+        {k.substring(6): v.status.selfLink})
+    health_check_id: >-
+      'health_check' in resources
+      ? dyn('projects/' + resources.health_check.metadata.annotations['cnrm.cloud.google.com/project-id']
+        + (resources.health_check.spec.location == 'global' ? '/global' : '/regions/' + resources.health_check.spec.location)
+        + '/healthChecks/' + resources.health_check.spec.resourceID)
+      : null
+    health_check_self_link: >-
+      'health_check' in resources ? dyn(resources.health_check.status.selfLink) : null
+    service_attachment_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeServiceAttachment',
+        {k.substring(19): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/regions/' + v.spec.location + '/serviceAttachments/' + v.spec.resourceID})
