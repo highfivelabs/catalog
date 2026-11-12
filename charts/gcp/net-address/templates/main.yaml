@@ -1,0 +1,107 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-address/main.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_compute_global_address.global, google_compute_address.external and
+.internal, google_compute_global_address.psa and
+google_compute_address.ipsec_interconnect: one ComputeAddress each (a
+global one has location: global), named by its name, else its key, as
+fabric names them.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list)) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $api := "https://www.googleapis.com/compute/v1/" }}
+{{- range $key, $a := $v.global_addresses }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "global" $key)) "id" (printf "global:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "global address" ($a.name | default $key) 63 "letter") | quote }}
+  location: global
+  description: {{ ternary "Terraform managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  ipVersion: {{ ternary "IPV4" "IPV6" (kindIs "invalid" $a.ipv6) }}
+{{- end }}
+{{- range $key, $a := $v.external_addresses }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "external" $key)) "id" (printf "external:%s" $key) "project" $v.project_id "labels" $a.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "external address" ($a.name | default $key) 63 "letter") | quote }}
+  location: {{ $a.region | quote }}
+  addressType: EXTERNAL
+  description: {{ ternary "Terraform managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  ipVersion: {{ ternary "IPV4" "IPV6" (kindIs "invalid" $a.ipv6) }}
+  {{- with $a.ipv6 }}
+  ipv6EndpointType: {{ .endpoint_type | quote }}
+  {{- end }}
+  {{- with $a.tier }}
+  networkTier: {{ . | quote }}
+  {{- end }}
+  {{- with $a.subnetwork }}
+  subnetworkRef:
+    external: {{ trimPrefix $api . | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $a := $v.internal_addresses }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "internal" $key)) "id" (printf "internal:%s" $key) "project" $v.project_id "labels" $a.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "internal address" ($a.name | default $key) 63 "letter") | quote }}
+  location: {{ $a.region | quote }}
+  addressType: INTERNAL
+  {{- with $a.address }}
+  address: {{ . | quote }}
+  {{- end }}
+  description: {{ ternary "Terraform managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  ipVersion: {{ ternary "IPV4" "IPV6" (kindIs "invalid" $a.ipv6) }}
+  {{- with $a.purpose }}
+  purpose: {{ . | quote }}
+  {{- end }}
+  subnetworkRef:
+    external: {{ trimPrefix $api $a.subnetwork | quote }}
+{{- end }}
+{{- range $key, $a := $v.psa_addresses }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psa" $key)) "id" (printf "psa:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "PSA address" ($a.name | default $key) 63 "letter") | quote }}
+  location: global
+  address: {{ $a.address | quote }}
+  addressType: INTERNAL
+  description: {{ ternary "Terraform managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  networkRef:
+    external: {{ trimPrefix $api $a.network | quote }}
+  prefixLength: {{ $a.prefix_length }}
+  purpose: VPC_PEERING
+{{- end }}
+{{- range $key, $a := $v.ipsec_interconnect_addresses }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "ipsec" $key)) "id" (printf "ipsec_interconnect:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "IPsec interconnect address" ($a.name | default $key) 63 "letter") | quote }}
+  location: {{ $a.region | quote }}
+  address: {{ $a.address | quote }}
+  addressType: INTERNAL
+  description: {{ ternary "Terraform managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  networkRef:
+    external: {{ trimPrefix $api $a.network | quote }}
+  prefixLength: {{ $a.prefix_length }}
+  purpose: IPSEC_INTERCONNECT
+{{- end }}
