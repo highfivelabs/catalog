@@ -1,0 +1,809 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "artifact-registry values (fabric artifact-registry v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "location",
+    "name",
+    "project_id"
+  ],
+  "definitions": {
+    "stringOrNull": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "boolOrNull": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "condition": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "expression",
+        "title"
+      ],
+      "properties": {
+        "expression": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "upstreamCredentials": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "username",
+        "password_secret_version"
+      ],
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password_secret_version": {
+          "type": "string"
+        }
+      }
+    },
+    "virtual": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repository",
+          "priority"
+        ],
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "The repository ID in full (names.repository; not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([a-z0-9-]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the derived repository ID, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it). fabric's labels, on the repository.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "cleanup_policies": {
+      "description": "Cleanup policies by ID.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "DELETE",
+              "KEEP"
+            ]
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "tag_state": {
+                "enum": [
+                  "TAGGED",
+                  "UNTAGGED",
+                  "ANY",
+                  null
+                ]
+              },
+              "tag_prefixes": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "older_than": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "newer_than": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "package_name_prefixes": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "version_name_prefixes": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "most_recent_versions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "package_name_prefixes": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "keep_count": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "cleanup_policy_dry_run": {
+      "description": "If true, the cleanup pipeline is prevented from deleting versions.",
+      "$ref": "#/definitions/boolOrNull"
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "description": {
+      "description": "An optional description for the repository.",
+      "$ref": "#/definitions/stringOrNull"
+    },
+    "enable_vulnerability_scanning": {
+      "description": "Refused when set: ArtifactRegistryRepository has no vulnerability scanning field.",
+      "$ref": "#/definitions/boolOrNull"
+    },
+    "encryption_key": {
+      "description": "The KMS key name to use for encryption at rest.",
+      "$ref": "#/definitions/stringOrNull"
+    },
+    "format": {
+      "description": "Repository format: exactly one format, with exactly one of standard, remote or virtual.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apt": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "public_repository": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "public_repository"
+              ]
+            },
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "docker": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "public_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "common_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "custom_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "standard": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "immutable_tags": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "virtual": {
+              "$ref": "#/definitions/virtual"
+            }
+          }
+        },
+        "kfp": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "generic": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "go": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "common_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "googet": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "maven": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "public_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "common_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "custom_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "standard": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "allow_snapshot_overwrites": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "version_policy": {
+                  "enum": [
+                    "VERSION_POLICY_UNSPECIFIED",
+                    "RELEASE",
+                    "SNAPSHOT",
+                    null
+                  ]
+                }
+              }
+            },
+            "virtual": {
+              "$ref": "#/definitions/virtual"
+            }
+          }
+        },
+        "npm": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "public_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "common_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "custom_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "virtual": {
+              "$ref": "#/definitions/virtual"
+            }
+          }
+        },
+        "python": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "public_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "common_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "custom_repository": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "virtual": {
+              "$ref": "#/definitions/virtual"
+            }
+          }
+        },
+        "yum": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "remote": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "disable_upstream_validation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "upstream_credentials": {
+                  "$ref": "#/definitions/upstreamCredentials"
+                },
+                "public_repository": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "public_repository"
+              ]
+            },
+            "standard": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "location": {
+      "description": "Registry location.",
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "description": "Registry name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Registry project id.",
+      "type": "string",
+      "minLength": 1
+    },
+    "tag_bindings": {
+      "description": "Tag bindings for this repository, key => tag value id.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "universe": {
+      "description": "GCP universe ({package_domain, prefix}); read by the url output only.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "package_domain",
+        "prefix"
+      ],
+      "properties": {
+        "package_domain": {
+          "type": "string"
+        },
+        "prefix": {
+          "type": "string"
+        }
+      }
+    },
+    "iam": {
+      "description": "IAM bindings in {ROLE => [MEMBERS]} format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "iam_bindings": {
+      "description": "Authoritative IAM bindings in {KEY => {role, members, condition}}.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members",
+          "role"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        }
+      }
+    },
+    "iam_bindings_additive": {
+      "description": "Individual additive IAM bindings in {KEY => {member, role, condition}}.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "member",
+          "role"
+        ],
+        "properties": {
+          "member": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        }
+      }
+    },
+    "iam_by_principals": {
+      "description": "Authoritative IAM bindings in {PRINCIPAL => [ROLES]} format, merged with iam.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

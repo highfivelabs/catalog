@@ -21,6 +21,12 @@
 # resources, and any "cat-" leftovers older than two hours); at the end it
 # lists what is left in the project.
 #
+# LIVE_CHARTS picks the charts (default: the pilot's three,
+# "iam-service-account gcs net-vpc"); the others it knows are
+# artifact-registry. Each needs the runner's roles on its resources: the
+# pilot's are catalog-live-tests', artifact-registry needs
+# roles/artifactregistry.admin (cce-live-tests has it).
+#
 # Config Connector runs as config-connector-extensions' fake cloud does
 # (its manager on the host against a kind cluster holding the CRDs), but
 # against Google Cloud: hack/live/realcloud.go.txt, built in a scratch
@@ -55,6 +61,8 @@ RUN="cat-$(date -u +%m%d%H%M)-$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
 SA_ID="${RUN}-sa"
 BUCKET="${PROJECT}-${RUN}"
 NET="${RUN}-net"
+REPO="${RUN}-ar"
+LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
 
@@ -70,6 +78,7 @@ sweep_run() {
     "${G[@]}" compute networks subnets delete "$n" --region "$s" >/dev/null 2>&1 && echo "swept subnet $n"
   done || true
   "${G[@]}" compute networks delete "${r}-net" >/dev/null 2>&1 && echo "swept network ${r}-net" || true
+  "${G[@]}" artifacts repositories delete "${r}-ar" --location "${REGION}" >/dev/null 2>&1 && echo "swept repository ${r}-ar" || true
 }
 # sweep_old: every cat- run older than two hours.
 sweep_old() {
@@ -78,6 +87,7 @@ sweep_old() {
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
     "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-net$/\1/p'
+    "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
   done || true
@@ -88,6 +98,7 @@ list_left() {
   "${G[@]}" compute networks list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute routes list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute networks subnets list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | grep -E '^cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
@@ -117,7 +128,7 @@ KCC="${CCE_DIR}/third_party/k8s-config-connector"
 # Config Connector's own core CRDs (ConfigConnector, ConfigConnectorContext)
 # first: the manager's registration controller reads them and stops without.
 { for f in "${KCC}"/operator/config/crd/bases/core.cnrm.cloud.google.com_*.yaml; do printf -- '---\n'; cat "$f"; done
-  for g in iam storage compute; do
+  for g in iam storage compute artifactregistry; do
     for f in "${KCC}"/config/crds/resources/*."${g}".cnrm.cloud.google.com.yaml; do printf -- '---\n'; cat "$f"; done
   done; } | kubectl apply --server-side --force-conflicts -f - >/dev/null
 kubectl wait --for=condition=Established crd --all --timeout=180s >/dev/null
@@ -172,6 +183,22 @@ routes:
   appliance: {dest_range: 192.168.250.0/24, next_hop_type: ip, next_hop: 10.250.0.5}
 VALUES
 
+cat >"${OUT}/artifact-registry.values.yaml" <<VALUES
+project_id: ${PROJECT}
+location: ${REGION}
+name: ${REPO}
+description: catalog live test ${RUN}
+labels: {catalog-run: ${RUN}}
+format: {docker: {standard: {immutable_tags: false}}}
+cleanup_policy_dry_run: true
+cleanup_policies:
+  keep-3: {action: KEEP, most_recent_versions: {keep_count: 3}}
+iam:
+  roles/artifactregistry.reader: ["serviceAccount:${RUNNER}"]
+iam_bindings_additive:
+  writer: {member: "serviceAccount:${RUNNER}", role: roles/artifactregistry.writer}
+VALUES
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -182,7 +209,7 @@ summary="${OUT}/summary.md"
   echo "| --- | --- | --- | --- | --- | --- |"
 } >"${summary}"
 failed=0
-for chart in iam-service-account gcs net-vpc; do
+for chart in ${LIVE_CHARTS}; do
   echo "== ${chart}"
   dir="charts/gcp/${chart}"
   helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.rendered.yaml"
@@ -226,6 +253,8 @@ for chart in iam-service-account gcs net-vpc; do
       gone=yes
       "${G[@]}" compute networks describe "${NET}" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks subnets describe "${SUBNET}" --region "${REGION}" >/dev/null 2>&1 && gone=no ;;
+    artifact-registry) "${G[@]}" artifacts repositories describe "${REPO}" --location "${REGION}" >/dev/null 2>&1 && gone=no || gone=yes ;;
+    *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
     kubectl get -n "${NS}" "$o" >/dev/null 2>&1 && deleted=no || deleted=yes

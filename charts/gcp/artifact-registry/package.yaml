@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric computes them (names.repository
+# when it is set): name is the repository ID, id its full resource name,
+# url the package host path (<location>-<format>.pkg.dev/<project>/<name>,
+# or the universe's). fabric's repository output (a whole Terraform object)
+# is not an output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-artifact-registry
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: >-
+      ('repository' in inputs.names && inputs.names.repository != '' ? inputs.names.repository : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/repositories/' +
+      ('repository' in inputs.names && inputs.names.repository != '' ? inputs.names.repository : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    url: >-
+      (inputs.universe == null
+        ? inputs.location + '-' + inputs.format.filter(k, inputs.format[k] != null)[0] + '.pkg.dev/' + inputs.project_id
+        : inputs.format.filter(k, inputs.format[k] != null)[0] + '.' + inputs.universe.package_domain + '/' + inputs.universe.prefix + '/' + inputs.project_id.split(':')[1])
+      + '/' + ('repository' in inputs.names && inputs.names.repository != '' ? inputs.names.repository : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
