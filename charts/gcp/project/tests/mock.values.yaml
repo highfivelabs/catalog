@@ -28,3 +28,18 @@ logging_metrics:
   catalog-mock-metric:
     filter: severity>=ERROR
     metric_descriptor: {metric_kind: DELTA, value_type: INT64}
+notification_channels:
+  catalog-mock-email: {type: email, labels: {email_address: ops@example.com}}
+alerts:
+  catalog-mock-alert:
+    display_name: catalog mock alert
+    combiner: OR
+    notification_channels: [catalog-mock-email]
+    conditions:
+      - display_name: errors
+        condition_threshold:
+          comparison: COMPARISON_GT
+          duration: 60s
+          filter: metric.type="logging.googleapis.com/log_entry_count" resource.type="global"
+          threshold_value: 10
+          aggregations: [{alignment_period: 60s, per_series_aligner: ALIGN_RATE}]
