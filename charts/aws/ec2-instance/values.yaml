@@ -1,0 +1,351 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules'
+# ec2-instance module (v6.4.1): same names, types and defaults, so a module
+# block's arguments become a values file one to one. values.schema.json
+# carries the types. A variable the chart cannot carry stays here and stops
+# the render when set (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# The IAM role's name in full, {iamRole}; the instance profile takes the
+# same name, as in the module. A name set here takes no namePrefix. Unset,
+# the role is named iam_role_name, or name.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the instance's Name
+# tag and the IAM role's name (never one set under names). Empty (the
+# default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# DELETE (default): deleting the component terminates the instance and
+# deletes its role and instance profile. ABANDON keeps them
+# (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# ID of AMI to use for the instance
+ami: null
+# SSM parameter name for the AMI ID. For Amazon Linux AMI SSM parameters see
+# [reference](https://docs.aws.amazon.com/systems-
+# manager/latest/userguide/parameter-store-public-parameters-ami.html)
+ami_ssm_parameter: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+# Whether to associate a public IP address with an instance in a VPC
+# Not supported (gap): ACK's Instance takes it only on a network interface it
+# creates, and its network interface spec has no security groups (Groups), so
+# the instance's groups could not be set with it.
+associate_public_ip_address: null
+# AZ to start the instance in
+availability_zone: null
+# Describes an instance's Capacity Reservation targeting option
+capacity_reservation_specification: null
+# The credit option for CPU usage (unlimited or standard)
+cpu_credits: null
+# Defines CPU options to apply to the instance at launch time.
+# In part: accepted, except amd_sev_snp: ACK's CpuOptions has no field for it.
+cpu_options: null
+# Whether to create an instance
+create: true
+# Determines whether a public EIP will be created and associated with the
+# instance.
+# Not supported (gap): aws_eip with an instance: ACK's ElasticIPAddress has no
+# instance association (AssociateAddress) and no domain.
+create_eip: false
+# Determines whether an IAM instance profile is created or to use an existing
+# IAM instance profile
+create_iam_instance_profile: false
+# Determines whether a security group will be created
+# In part: accepted false; true (the default) is refused: ACK's Instance takes
+# security group IDs only, with no reference, so a group this component made
+# cannot be attached in one render. Set create_security_group: false and pass a
+# security-group component's id output in vpc_security_group_ids.
+create_security_group: true
+# Depicts if the instance is a spot instance
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+create_spot_instance: false
+# If true, enables EC2 Instance Stop Protection
+disable_api_stop: null
+# If true, enables EC2 Instance Termination Protection
+disable_api_termination: null
+# If true, the launched EC2 instance will be EBS-optimized
+ebs_optimized: null
+# Additional EBS volumes to attach to the instance
+# Not supported (gap): ack-extensions' VolumeAttachment takes the instance's ID
+# with no reference to an Instance, and a Volume needs the instance's
+# Availability Zone, which only its status has: they cannot be wired in one
+# render.
+ebs_volumes: null
+# Indicates if this EIP is for use in VPC
+# Not supported (gap): aws_eip with an instance: ACK's ElasticIPAddress has no
+# instance association (AssociateAddress) and no domain.
+eip_domain: "vpc"
+# A map of additional tags to add to the eip
+# Not supported (gap): aws_eip with an instance: ACK's ElasticIPAddress has no
+# instance association (AssociateAddress) and no domain.
+eip_tags: {}
+# Whether to assign a primary IPv6 Global Unicast Address (GUA) to the instance
+# when launched in a dual-stack or IPv6-only subnet
+# Not supported (gap): ACK's Instance has no field for a primary IPv6 address.
+enable_primary_ipv6: null
+# Whether to enable volume tags (if enabled it conflicts with root_block_device
+# tags)
+# In part: accepted: ACK tags the volumes an instance launches with the
+# instance's tags (tags, instance_tags and Name), so they are tagged either
+# way, without volume_tags.
+enable_volume_tags: true
+# Whether Nitro Enclaves will be enabled on the instance. Defaults to `false`
+enclave_options_enabled: null
+# Customize Ephemeral (also known as Instance Store) volumes on the instance
+ephemeral_block_device: null
+# Destroys instance even if `disable_api_termination` or `disable_api_stop` is
+# set to true. Once this parameter is set to true, a successful terraform apply
+# run before a destroy is required to update this value in the resource state.
+# Without a successful terraform apply after this parameter is set, this flag
+# will have no effect. If setting this field in the same operation that would
+# require replacing the instance or destroying the instance, this flag will not
+# work. Additionally when importing an instance, a successful terraform apply
+# is required to set this value in state before it will take effect on a
+# destroy operation.
+# Not supported (gap): ACK's Instance has no field to override disable_api_stop
+# and disable_api_termination on delete.
+force_destroy: null
+# If true, wait for password data to become available and retrieve it
+# Not supported (gap): ACK's Instance does not read a Windows instance's
+# password data.
+get_password_data: null
+# If true, the launched EC2 instance will support hibernation
+hibernation: null
+# ID of a dedicated host that the instance will be assigned to. Use when an
+# instance is to be launched on a specific dedicated host
+host_id: null
+# ARN of the host resource group in which to launch the instances. If you
+# specify an ARN, omit the `tenancy` parameter or set it to `host`
+host_resource_group_arn: null
+# IAM Instance Profile to launch the instance with. Specified as the name of
+# the Instance Profile
+iam_instance_profile: null
+# Description of the role
+iam_role_description: null
+# Name to use on IAM role created
+iam_role_name: null
+# IAM role path
+iam_role_path: null
+# ARN of the policy that is used to set the permissions boundary for the IAM
+# role
+iam_role_permissions_boundary: null
+# Policies attached to the IAM role
+iam_role_policies: {}
+# A map of additional tags to add to the IAM role/profile created
+iam_role_tags: {}
+# Determines whether the IAM role name (`iam_role_name` or `name`) is used as a
+# prefix
+# In part: accepted: true (the default) names the role and instance profile
+# iam_role_name (or name) as given, without Terraform's random suffix
+# (name_prefix), since a render must not change between plans; the namePrefix
+# value keeps two Instances' roles apart.
+iam_role_use_name_prefix: true
+# Whether changes to the AMI ID changes should be ignored by Terraform. Note -
+# changing this value will result in the replacement of the instance
+# In part: accepted: ACK never replaces an instance when ami changes, as
+# ignore_ami_changes: true does; false's replacement is not carried.
+ignore_ami_changes: false
+# Shutdown behavior for the instance. Amazon defaults this to stop for EBS-
+# backed instances and terminate for instance-store instances. Cannot be set on
+# instance-store instance
+instance_initiated_shutdown_behavior: null
+# The market (purchasing) option for the instance. If set, overrides the
+# `create_spot_instance` variable
+instance_market_options: null
+# Additional tags for the instance
+instance_tags: {}
+# The type of instance to start
+instance_type: "t3.micro"
+# A number of IPv6 addresses to associate with the primary network interface.
+# Amazon EC2 chooses the IPv6 addresses from the range of your subnet
+ipv6_address_count: null
+# Specify one or more IPv6 addresses from the range of the subnet to associate
+# with the primary network interface
+ipv6_addresses: null
+# Key name of the Key Pair to use for the instance; which can be managed using
+# the `aws_key_pair` resource
+key_name: null
+# Specifies a Launch Template to configure the instance. Parameters configured
+# on this resource will override the corresponding parameters in the Launch
+# Template
+launch_template: null
+# The maintenance options for the instance
+maintenance_options: null
+# Customize the metadata options of the instance
+metadata_options: 
+  http_endpoint: enabled
+  http_put_response_hop_limit: 1
+  http_tokens: required
+# If true, the launched EC2 instance will have detailed monitoring enabled
+monitoring: null
+# Name to be used on EC2 instance created
+name: ""
+# Customize network interfaces to be attached at instance boot time
+network_interface: null
+# The Placement Group to start the instance in
+placement_group: null
+# Placement Group ID to start the instance in
+# Not supported (gap): ACK's Instance places an instance by group name only
+# (placement_group).
+placement_group_id: null
+# Number of the partition the instance is in. Valid only if the
+# `aws_placement_group` resource's `strategy` argument is set to `partition`
+placement_partition_number: null
+# Customize the private DNS name options of the instance
+private_dns_name_options: null
+# Private IP address to associate with the instance in a VPC
+private_ip: null
+# Do you agree that Putin doesn't respect Ukrainian sovereignty and territorial
+# integrity? More info: https://en.wikipedia.org/wiki/Putin_khuylo!
+putin_khuylo: true
+# Region where the resource(s) will be managed. Defaults to the Region set in
+# the provider configuration
+region: null
+# Customize details about the root block device of the instance. See Block
+# Devices below for details
+# Not supported (gap): the root device's name depends on the AMI, which the
+# chart does not read, and ACK's blockDeviceMappings need the name.
+root_block_device: null
+# Customize secondary network interfaces to be attached to the EC2 instance
+# Not supported (gap): ACK's Instance has no secondary network interfaces.
+secondary_network_interface: null
+# A list of secondary private IPv4 addresses to assign to the instance's
+# primary network interface (eth0) in a VPC. Can only be assigned to the
+# primary network interface (eth0) attached at instance creation, not a pre-
+# existing network interface i.e. referenced in a `network_interface block`
+# Not supported (gap): ACK's Instance takes it only on a network interface it
+# creates, and its network interface spec has no security groups (Groups), so
+# the instance's groups could not be set with it.
+secondary_private_ips: null
+# Description of the security group
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_description: null
+# Egress rules to add to the security group
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_egress_rules: 
+  ipv4_default:
+    cidr_ipv4: 0.0.0.0/0
+    description: Allow all IPv4 traffic
+    ip_protocol: "-1"
+  ipv6_default:
+    cidr_ipv6: ::/0
+    description: Allow all IPv6 traffic
+    ip_protocol: "-1"
+# Ingress rules to add to the security group
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_ingress_rules: null
+# Name to use on security group created
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_name: null
+# A map of additional tags to add to the security group created
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_tags: {}
+# Determines whether the security group name (`security_group_name` or `name`)
+# is used as a prefix
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_use_name_prefix: true
+# VPC ID to create the security group in. If not set, the security group will
+# be created in the default VPC
+# Not supported (gap): used only by the security group create_security_group
+# makes, which is refused (ACK's Instance takes security group IDs, with no
+# reference).
+security_group_vpc_id: null
+# Controls if traffic is routed to the instance when the destination address
+# does not match the instance. Used for NAT or VPNs
+source_dest_check: null
+# Indicates Spot instance behavior when it is interrupted. Valid values are
+# `terminate`, `stop`, or `hibernate`
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_instance_interruption_behavior: null
+# A launch group is a group of spot instances that launch together and
+# terminate together. If left empty instances are launched and terminated
+# individually
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_launch_group: null
+# The maximum price to request on the spot market. Defaults to on-demand price
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_price: null
+# If set to one-time, after the instance is terminated, the spot request will
+# be closed. Default `persistent`
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_type: null
+# The start date and time of the request, in UTC RFC3339 format(for example,
+# YYYY-MM-DDTHH:MM:SSZ)
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_valid_from: null
+# The end date and time of the request, in UTC RFC3339 format(for example,
+# YYYY-MM-DDTHH:MM:SSZ)
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_valid_until: null
+# If set, Terraform will wait for the Spot Request to be fulfilled, and will
+# throw an error if the timeout of 10m is reached
+# Not supported (gap): aws_spot_instance_request has no ACK or ack-extensions
+# kind; instance_market_options (market_type spot) requests a Spot instance
+# through RunInstances.
+spot_wait_for_fulfillment: null
+# The VPC Subnet ID to launch in
+subnet_id: null
+# A mapping of tags to assign to the resource
+tags: {}
+# The tenancy of the instance (if the instance is running in a VPC). Available
+# values: default, dedicated, host
+tenancy: null
+# Define maximum timeout for creating, updating, and deleting EC2 instance
+# resources
+# Not supported (by-design): Terraform's create, update and delete timeouts:
+# ACK retries until the instance is synced, and Bundt waits for it.
+timeouts: null
+# The user data to provide when launching the instance. Do not pass gzip-
+# compressed data via this argument; see user_data_base64 instead
+user_data: null
+# Can be used instead of user_data to pass base64-encoded binary data directly.
+# Use this instead of user_data whenever the value is not a valid UTF-8 string.
+# For example, gzip-encoded user data must be base64-encoded and passed via
+# this argument to avoid corruption
+user_data_base64: null
+# When used in combination with user_data or user_data_base64 will trigger a
+# destroy and recreate when set to true. Defaults to false if not set
+# Not supported (gap): ACK updates an instance's user data in place; it never
+# replaces an instance.
+user_data_replace_on_change: null
+# A mapping of tags to assign to the devices created by the instance at launch
+# time
+# Not supported (gap): ACK tags the volumes an instance launches with the
+# instance's own tags; volume tags of their own have no field.
+volume_tags: {}
+# A list of security group IDs to associate with
+vpc_security_group_ids: []
