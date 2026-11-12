@@ -705,6 +705,12 @@ aso-extensions:
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `Microsoft.OperationalInsights/workspaces/linkedServices` (the module links a dedicated cluster with one) |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `Microsoft.OperationalInsights/workspaces/linkedStorageAccounts` |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `Microsoft.OperationalInsights/workspaces/tables` |
+| `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `Microsoft.Insights/privateLinkScopes`, `.../scopedResources` |
+| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `Microsoft.Network/networkSecurityPerimeters/resourceAssociations` |
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
@@ -713,6 +719,10 @@ Not a kind gap, but an ASO field gap: a table's or share's
 flag (`avm-res-keyvault-vault`'s `keys`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+
+`lib/_aso.tpl`'s `aso.diagnosticSettings` takes `selfWorkspace` for a Log
+Analytics workspace, whose module sends a setting with no destination to
+the workspace itself.
 
 The network security group (`avm-res-network-networksecuritygroup`)
 needs no gap: ASO's `NetworkSecurityGroup` has no `securityRules` field at
