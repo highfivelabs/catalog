@@ -1,0 +1,93 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-network-privatednszone (v0.6.0): same names, types and defaults,
+# so a module block's arguments become this file one to one (retry and
+# timeouts default to null here: the module's defaults are its own retry
+# and timeout settings, which ASO has no use for).
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-network-privatednszone
+# (variables.tf, v0.6.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# No name here takes a namePrefix: the zone's name is the domain it serves,
+# records and links are named inside it. names has no keys and namePrefix
+# changes nothing; both are kept so every Azure chart takes them.
+names: {}
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# A map of objects where each object contains information to create a A
+# record. Each: {name, ttl, records, ip_addresses}.
+a_records: {}
+# A map of objects where each object contains information to create a AAAA
+# record. Each: {name, ttl, records, ip_addresses}.
+aaaa_records: {}
+# A map of objects where each object contains information to create a
+# CNAME record. Each: {name, ttl, record, cname}.
+cname_records: {}
+# The name of the private dns zone.
+domain_name: null
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# The Azure region for this module's telemetry deployment. Accepted; a
+# private DNS zone is global.
+location: null
+# Controls the Resource Lock configuration for this resource.
+# {kind (CanNotDelete or ReadOnly), name (default lock-<domain_name>)}
+lock: null
+# A map of objects where each object contains information to create a MX
+# record. Each: {name ("@"), ttl, records: {<key>: {preference,
+# exchange}}}.
+mx_records: {}
+# The ID of the parent resource group:
+# /subscriptions/<id>/resourceGroups/<name>.
+parent_id: null
+# A map of objects where each object contains information to create a PTR
+# record. Each: {name, ttl, records, domain_names}.
+ptr_records: {}
+# Retry configuration for the resource operations. Refused when set: ASO
+# retries itself.
+retry: null
+# A control to use a random UUID for the role assignment name. false (the
+# legacy deterministic names) is refused: ASO names each assignment with a
+# stable UUID of its own.
+role_assignment_name_use_random_uuid: true
+# A map of role assignments to create on the zone.
+# Each: {role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+role_assignments: {}
+# Optional soa_record. Refused when set: ASO has no kind for a zone's SOA
+# record. {email, name ("@"), expire_time, minimum_ttl, refresh_time,
+# retry_time, ttl}
+soa_record: null
+# A map of objects where each object contains information to create a SRV
+# record. Each: {name, ttl, records: {<key>: {priority, weight, port,
+# target}}}.
+srv_records: {}
+# (Optional) Tags of the resource.
+tags: null
+# Timeouts per resource type. Refused when set: ASO has none; Bundt sets a
+# component's time limit.
+timeouts: null
+# A map of objects where each object contains information to create a TXT
+# record. Each: {name, ttl, records: {<key>: {value: [...]}}}.
+txt_records: {}
+# A map of objects where each object contains information to create a
+# virtual network link. Each: {name or vnetlinkname, virtual_network_id or
+# vnetid, registration_enabled (or autoregistration; false),
+# private_dns_zone_supports_private_link (false), resolution_policy
+# ("Default"), tags}.
+virtual_network_links: {}

@@ -1,0 +1,37 @@
+# What tests/mock.values.yaml needs in the fake cloud: the network, the
+# load balancer's subnet and a Private Service Connect subnet for the
+# service attachment. hack/mock-apply.sh applies them first, waits for
+# them, and deletes them after the chart's objects. Not part of the chart.
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: catalog-mock-ilb-net
+  annotations:
+    cnrm.cloud.google.com/project-id: mock-project
+spec:
+  autoCreateSubnetworks: false
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: catalog-mock-ilb-sn
+  annotations:
+    cnrm.cloud.google.com/project-id: mock-project
+spec:
+  region: us-central1
+  ipCidrRange: 10.10.0.0/24
+  networkRef:
+    name: catalog-mock-ilb-net
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: catalog-mock-ilb-psc
+  annotations:
+    cnrm.cloud.google.com/project-id: mock-project
+spec:
+  region: us-central1
+  ipCidrRange: 10.10.1.0/24
+  purpose: PRIVATE_SERVICE_CONNECT
+  networkRef:
+    name: catalog-mock-ilb-net

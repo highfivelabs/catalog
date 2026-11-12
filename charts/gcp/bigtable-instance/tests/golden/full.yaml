@@ -1,0 +1,157 @@
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableGCPolicy
+metadata:
+  name: full-gc-table-1-cf1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "gc-policy:table-1/cf1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  instanceRef:
+    name: full
+  tableRef:
+    name: full-table-table-1
+  columnFamily: "cf1"
+  deletionPolicy: "ABANDON"
+  maxAge:
+    - duration: "18h"
+  maxVersion:
+    - number: 7
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableGCPolicy
+metadata:
+  name: full-gc-table-1-cf2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "gc-policy:table-1/cf2"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  instanceRef:
+    name: full
+  tableRef:
+    name: full-table-table-1
+  columnFamily: "cf2"
+  gcRules: "{\"mode\":\"union\",\"rules\":[{\"max_age\":\"10h\"},{\"max_version\":2}]}"
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableInstance
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "instance"
+  displayName: "Bigtable analytics"
+  deletionProtection: false
+  cluster:
+    - clusterId: "replica-a"
+      zone: "europe-west1-b"
+      storageType: "SSD"
+      kmsKeyRef:
+        external: "projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/key"
+      autoscalingConfig:
+        minNodes: 2
+        maxNodes: 4
+        cpuTarget: 70
+    - clusterId: "replica-b"
+      zone: "europe-west1-c"
+      storageType: "HDD"
+      kmsKeyRef:
+        external: "projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/key"
+      autoscalingConfig:
+        minNodes: 1
+        maxNodes: 5
+        cpuTarget: 60
+        storageTarget: 4096
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableTable
+metadata:
+  name: full-table-table-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "table:table-1"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "table-1"
+  instanceRef:
+    name: full
+  columnFamily:
+    - family: "cf1"
+    - family: "cf2"
+  splitKeys:
+    - "a"
+    - "m"
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableTable
+metadata:
+  name: full-table-table-2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "table:table-2"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "table-2"
+  instanceRef:
+    name: full
+---
+# Source: bigtable-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+    kind: BigtableInstance
+    name: full
+  bindings:
+    - role: "roles/bigtable.user"
+      members:
+        - member: "user:me@example.com"
