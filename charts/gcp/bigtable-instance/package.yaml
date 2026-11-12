@@ -1,0 +1,25 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric's resource IDs are: id is the
+# instance's projects/<project>/instances/<id> (names.instance when it is
+# set), table_ids each table's id under it. fabric's instance and tables
+# outputs (whole Terraform objects) are not outputs.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-bigtable-instance
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id + '/instances/' +
+      ('instance' in inputs.names && inputs.names.instance != '' ? inputs.names.instance : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    table_ids: >-
+      inputs.tables.transformMapEntry(k, v, {k: 'projects/' + inputs.project_id + '/instances/' +
+      ('instance' in inputs.names && inputs.names.instance != '' ? inputs.names.instance : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
+      '/tables/' + k})
