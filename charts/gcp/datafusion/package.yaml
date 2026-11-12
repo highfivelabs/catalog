@@ -1,0 +1,31 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live instance
+# (resources.instance). fabric's service_account is the instance's
+# management service account, cloud-datafusion-management-sa@<tenant
+# project>; DataFusionInstance reports the tenant project, from which it is
+# built. Not an output: resource, the whole Terraform object
+# (docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-datafusion
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.region
+      + '/instances/' + resources.instance.spec.resourceID
+    ip_allocation: inputs.ip_allocation
+    service_account: >-
+      has(resources.instance.status.tenantProjectId)
+        ? dyn('cloud-datafusion-management-sa@' + resources.instance.status.tenantProjectId + '.iam.gserviceaccount.com')
+        : null
+    service_endpoint: >-
+      has(resources.instance.status.serviceEndpoint) ? dyn(resources.instance.status.serviceEndpoint) : null
+    version: >-
+      has(resources.instance.spec.version) ? dyn(resources.instance.spec.version) : null
