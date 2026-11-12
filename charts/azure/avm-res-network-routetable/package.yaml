@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is computed from inputs as the module
+# sets it; resource_id is the table's ARM ID from ASO's status; routes is
+# the route submodule's outputs per entry ({name, resource_id}), keyed
+# like routes, or in legacy mode by the routes' names (the module zips its
+# azurerm_route objects with the names; here each carries name, id and
+# resource_id). The module's resource output (the whole azurerm object) is
+# not an output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-routetable
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('routeTable' in inputs.names && inputs.names.routeTable != '' ? inputs.names.routeTable : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    resource_id: resources.route_table.status.id
+    routes: >-
+      inputs.routes == null ? {} :
+      inputs.routes_legacy_mode == true
+      ? inputs.routes.transformMapEntry(k, r, {r.name: {'name': r.name, 'id': resources['route:' + k].status.id, 'resource_id': resources['route:' + k].status.id}})
+      : inputs.routes.transformMap(k, r, {'name': r.name, 'resource_id': resources['route:' + k].status.id})
