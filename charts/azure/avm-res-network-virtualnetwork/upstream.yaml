@@ -1,0 +1,44 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-network-virtualnetwork
+repo: https://github.com/Azure/terraform-azurerm-avm-res-network-virtualnetwork
+path: .
+version: v0.23.0
+commit: 874b2d1ce38cd59ca0759d416cb3e174c2543ffb
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-network-virtualnetwork/tree/v0.23.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-network-virtualnetwork/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field), not-ported (one exists, the chart does not map it yet) or
+# by-design (Bundt replaces it). partial: the variable is accepted, the
+# reason says what is refused.
+refused:
+  - variable: ignore_body_changes
+    kind: gap
+    reason: "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: subnets
+    kind: gap
+    reason: "accepted, but an entry's ignore_body_changes is refused (gap: ASO cannot leave a path to another writer), and its retry and timeouts (by design, as the module's own)"
+    partial: true
+    fields: [ignore_body_changes, retry, timeouts]
+  - variable: peerings
+    kind: gap
+    reason: "accepted, but sync_remote_address_space_enabled and sync_remote_address_space_triggers are refused (gap: the sync is a PUT with ?syncRemoteAddressSpace=true, which ASO cannot send), and an entry's retry and timeouts (by design)"
+    partial: true
+    fields: [sync_remote_address_space_enabled, sync_remote_address_space_triggers, retry, timeouts]

@@ -253,6 +253,77 @@ spec:
 {{- end -}}
 
 {{/*
+aso.diagnosticSettings: the diagnostic_settings interface of an Azure
+Verified Module on one resource, as ASO DiagnosticSetting objects
+(insights.azure.com/v1api20210501preview, Azure's only API version): one
+log entry per log group (categoryGroup) and per log category, one metric
+entry per metric category, the destinations by ARM ID. An entry's name,
+else the module's default (defaultName), is its azureName.
+Arguments (a dict): root, base, idPrefix, owner, v (the map), defaultName.
+*/}}
+{{- define "aso.diagnosticSettings" -}}
+{{- $root := .root -}}
+{{- range $key, $d := (.v | default dict) }}
+{{- $dest := ($d.log_analytics_destination_type | default "Dedicated") }}
+{{- if not (has $dest (list "Dedicated" "AzureDiagnostics")) }}
+{{- fail (printf "%s: Log analytics destination type must be one of: 'Dedicated', 'AzureDiagnostics'." $root.Chart.Name) }}
+{{- end }}
+{{- if not (or $d.workspace_resource_id $d.storage_account_resource_id $d.event_hub_authorization_rule_resource_id $d.marketplace_partner_resource_id) }}
+{{- fail (printf "%s: At least one of `workspace_resource_id`, `storage_account_resource_id`, `marketplace_partner_resource_id`, or `event_hub_authorization_rule_resource_id`, must be set." $root.Chart.Name) }}
+{{- end }}
+{{- $groups := ternary (list "allLogs") $d.log_groups (kindIs "invalid" $d.log_groups) }}
+{{- $metrics := ternary (list "AllMetrics") $d.metric_categories (kindIs "invalid" $d.metric_categories) }}
+---
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+{{- include "aso.metadata" (dict "root" $root "name" (include "aso.name" (list $.base "diag" $key)) "id" (printf "%sdiagnostic-setting-%s" $.idPrefix $key) "abandon" (include "aso.abandon" $root)) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | default $.defaultName | quote }}
+  owner:
+{{- toYaml $.owner | nindent 4 }}
+  logAnalyticsDestinationType: {{ $dest | quote }}
+  {{- if or $groups $d.log_categories }}
+  logs:
+    {{- range $g := (uniq $groups | sortAlpha) }}
+    - categoryGroup: {{ $g | quote }}
+      enabled: true
+    {{- end }}
+    {{- range $c := (uniq ($d.log_categories | default list) | sortAlpha) }}
+    - category: {{ $c | quote }}
+      enabled: true
+    {{- end }}
+  {{- end }}
+  {{- with $metrics }}
+  metrics:
+    {{- range $c := (uniq . | sortAlpha) }}
+    - category: {{ $c | quote }}
+      enabled: true
+    {{- end }}
+  {{- end }}
+  {{- with $d.workspace_resource_id }}
+  workspaceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.storage_account_resource_id }}
+  storageAccountReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.event_hub_authorization_rule_resource_id }}
+  eventHubAuthorizationRuleReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.event_hub_name }}
+  eventHubName: {{ . | quote }}
+  {{- end }}
+  {{- with $d.marketplace_partner_resource_id }}
+  marketplacePartnerReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
 aso.names: stop the render when the chart's names value sets a key the
 chart does not have. Every chart lists its collision-prone cloud names
 once, in the template of its core resource.

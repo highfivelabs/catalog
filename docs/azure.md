@@ -681,7 +681,7 @@ of Config Connector's:
 | --- | --- |
 | `role_assignments` | `aso.roleAssignments`: ASO `RoleAssignment` (`authorization.azure.com/v20220401`), a role by ID (`armId`) or by name (`wellKnownName`) |
 | `lock` | `aso.lock`: aso-extensions `ManagementLock` (`authorization.azure.hfl.dev/v1`); ASO has none (#3756) |
-| `diagnostic_settings` | ASO `DiagnosticSetting` (`insights.azure.com`, preview ARM version): per chart, when a chart maps it |
+| `diagnostic_settings` | `aso.diagnosticSettings`: ASO `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`, Azure's only API version) |
 | `private_endpoints` | ASO `PrivateEndpoint` and `PrivateEndpointsPrivateDnsZoneGroup`: per chart, when a chart maps it |
 
 **What every AVM module has and the charts do not port.** Telemetry
