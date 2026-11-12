@@ -1,0 +1,64 @@
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Alias
+metadata:
+  name: mock-alias-catalog-test
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "alias-catalog-test"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "alias/catalog-test"
+  targetKeyRef:
+    from:
+      name: mock-key
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Grant
+metadata:
+  name: mock-grant-self
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-self"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "self"
+  granteePrincipal: "arn:aws:iam::123456789012:root"
+  operations:
+    - Encrypt
+    - Decrypt
+  keyRef:
+    from:
+      name: mock-key
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Key
+metadata:
+  name: mock-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  description: "catalog test key"
+  enableKeyRotation: true
+  multiRegion: false
+  policy: "{\"Statement\":[{\"Action\":[\"kms:*\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::123456789012:root\"]},\"Resource\":[\"*\"],\"Sid\":\"Default\"},{\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\",\"kms:ReEncrypt*\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::123456789012:root\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyUsage\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - tagKey: "catalog-test"
+      tagValue: "true"

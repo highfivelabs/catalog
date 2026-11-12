@@ -612,6 +612,7 @@ Config Connector. What differs:
 | Chart | Module | Notes |
 | --- | --- | --- |
 | `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, Block Public Access and the default resources are refused (the chart's README) |
+| `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 
@@ -623,3 +624,5 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | Adopting a VPC's default security group, network ACL and main route table by their VPC | vpc (`default_security_group_*`, `default_network_acl_*`, `default_route_table_*`) | kinds that take a `vpcRef` and manage the VPC's default object |
 | Redshift `ClusterSubnetGroup` | vpc (redshift subnets) | generated, or ACK's redshift-controller released |
 | VPC Block Public Access options and exclusions | vpc | generated |
+| KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |
+| `Key` fields: `pendingWindowInDays` (on delete), `rotationPeriodInDays`, `enabled` | kms (`deletion_window_in_days`, `rotation_period_in_days`, `is_enabled`) | fields on ACK's `Key` (upstream) or a patch |

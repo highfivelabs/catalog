@@ -1,0 +1,75 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/kms
+repo: https://github.com/terraform-aws-modules/terraform-aws-kms
+path: .
+version: v4.2.2
+commit: d25e459bd43d8d0bdff7c250ba6b237a12be7381
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/kms/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field), alpha (only an ack-extensions kind, behind
+# allow_alpha), not-ported (ACK has it, the chart does not map it yet).
+# partial: the variable is accepted, the reason says what is not carried.
+refused:
+- variable: aliases_use_name_prefix
+  kind: gap
+  reason: an alias name with a random suffix (name_prefix) would change between renders
+- variable: create_external
+  kind: gap
+  reason: "imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material"
+- variable: create_replica
+  kind: alpha
+  reason: "ReplicaKey is an ack-extensions kind (outside ACK's releases): needs allow_alpha: true; region (the replica's) is then required"
+  partial: true
+  needs_allow_alpha: true
+- variable: create_replica_external
+  kind: gap
+  reason: "imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material"
+- variable: deletion_window_in_days
+  kind: gap
+  reason: ACK's Key has no field for the waiting period before deletion (KMS's default, 30 days, applies)
+- variable: grants
+  kind: gap
+  reason: "accepted, except retire_on_delete: true (ACK revokes a grant when it is deleted, as Terraform does by default; retiring instead has no ACK field)"
+  partial: true
+  fields:
+  - retire_on_delete
+- variable: is_enabled
+  kind: gap
+  reason: "accepted unset or true; false (a disabled key) is refused: ACK's Key has no field to disable a key"
+  partial: true
+  values:
+  - 'false'
+- variable: key_material_base64
+  kind: gap
+  reason: "imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material"
+- variable: key_spec
+  kind: gap
+  reason: "imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material (key_spec is the external key's)"
+- variable: override_policy_documents
+  kind: not-ported
+  reason: merging other policy documents into the key policy by statement sid is not ported yet; write the whole policy in policy, or the statements in key_statements
+- variable: primary_external_key_arn
+  kind: gap
+  reason: "imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material"
+- variable: rotation_period_in_days
+  kind: gap
+  reason: ACK's Key has no rotation period field (enable_key_rotation is supported, with KMS's default period, 365 days)
+- variable: source_policy_documents
+  kind: not-ported
+  reason: merging other policy documents into the key policy by statement sid is not ported yet; write the whole policy in policy, or the statements in key_statements
+- variable: valid_to
+  kind: gap
+  reason: "imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material"

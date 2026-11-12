@@ -1,0 +1,213 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules' kms module
+# (v4.2.2): same names, types and defaults, so a module block's arguments
+# become a values file one to one. values.schema.json carries the types. A
+# variable the chart cannot carry stays here and stops the render when set
+# (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# This chart gives no singular name that can collide (a key is named by the
+# ID KMS assigns; aliases are named in aliases and computed_aliases), so
+# names takes no key.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every alias name
+# (alias/<namePrefix>-<name>). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# The AWS account and partition the key is in, which the module reads from
+# the provider (aws_caller_identity, aws_partition) for the key policy's
+# Default statement (arn:<partition>:iam::<account_id>:root) and the Route
+# 53 DNSSEC conditions. A chart cannot read them, so Bundt fills account_id
+# from the Environment. Needed only when the chart writes the policy itself
+# with the Default statement (enable_default_policy and any other statement)
+# or a DNSSEC source without account_ids; with the Default statement alone
+# the chart sets no policy and KMS applies its default key policy, which
+# grants the account the same.
+account_id: null
+partition: aws
+# The ack-extensions ReplicaKey (create_replica) renders only with
+# allow_alpha: true (docs/design.md, "Alpha kinds").
+allow_alpha: false
+# DELETE (default): deleting the component schedules the key's deletion
+# (KMS's waiting period) and deletes its aliases and grants. ABANDON keeps
+# them (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# A list of aliases to create. Note - due to the use of `toset()`, values must
+# be static strings and not computed values
+aliases: []
+# Determines whether the alias name is used as a prefix
+# Not supported (gap): an alias name with a random suffix (name_prefix) would
+# change between renders.
+aliases_use_name_prefix: false
+# A flag to indicate whether to bypass the key policy lockout safety check.
+# Setting this value to true increases the risk that the KMS key becomes
+# unmanageable
+bypass_policy_lockout_safety_check: null
+# A map of aliases to create. Values provided via the `name` key of the map
+# can be computed from upstream resources
+computed_aliases: {}
+# Determines whether resources will be created (affects all resources)
+create: true
+# Determines whether an external CMK (externally provided material) will be
+# created or a standard CMK (AWS provided material)
+# Not supported (gap): imported key material (aws_kms_external_key,
+# aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL,
+# but nothing imports the material.
+create_external: false
+# Determines whether a replica standard CMK will be created (AWS provided
+# material)
+# In part: ReplicaKey is an ack-extensions kind (outside ACK's releases):
+# needs allow_alpha: true; region (the replica's) is then required.
+create_replica: false
+# Determines whether a replica external CMK will be created (externally
+# provided material)
+# Not supported (gap): imported key material (aws_kms_external_key,
+# aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL,
+# but nothing imports the material.
+create_replica_external: false
+# ID of the KMS Custom Key Store where the key will be stored instead of KMS
+# (eg CloudHSM).
+custom_key_store_id: null
+# Specifies whether the key contains a symmetric key or an asymmetric key pair
+# and the encryption algorithms or signing algorithms that the key supports.
+# Valid values: `SYMMETRIC_DEFAULT`, `RSA_2048`, `RSA_3072`, `RSA_4096`,
+# `HMAC_256`, `ECC_NIST_P256`, `ECC_NIST_P384`, `ECC_NIST_P521`, or
+# `ECC_SECG_P256K1`. Defaults to `SYMMETRIC_DEFAULT`
+customer_master_key_spec: null
+# The waiting period, specified in number of days. After the waiting period
+# ends, AWS KMS deletes the KMS key. If you specify a value, it must be
+# between `7` and `30`, inclusive. If you do not specify a value, it defaults
+# to `30`
+# Not supported (gap): ACK's Key has no field for the waiting period before
+# deletion (KMS's default, 30 days, applies).
+deletion_window_in_days: null
+# The description of the key as viewed in AWS console
+description: null
+# Specifies whether to enable the default key policy. Defaults to `true`
+enable_default_policy: true
+# Specifies whether key rotation is enabled. Defaults to `true`
+enable_key_rotation: true
+# Determines whether the KMS policy used for Route53 DNSSEC signing is enabled
+enable_route53_dnssec: false
+# A map of grant definitions to create
+# In part: accepted, except retire_on_delete: true (ACK revokes a grant when
+# it is deleted, as Terraform does by default; retiring instead has no ACK
+# field).
+grants: null
+# Specifies whether the key is enabled. Defaults to `true`
+# In part: accepted unset or true; false (a disabled key) is refused: ACK's
+# Key has no field to disable a key.
+is_enabled: null
+# A list of IAM ARNs for [key
+# administrators](https://docs.aws.amazon.com/kms/latest/developerguide/key-
+# policy-default.html#key-policy-default-allow-administrators)
+key_administrators: []
+# A list of IAM ARNs for [key asymmetric public encryption
+# users](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-
+# default.html#key-policy-users-crypto)
+key_asymmetric_public_encryption_users: []
+# A list of IAM ARNs for [key asymmetric sign and verify
+# users](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-
+# default.html#key-policy-users-crypto)
+key_asymmetric_sign_verify_users: []
+# A list of IAM ARNs for [key HMAC
+# users](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-
+# default.html#key-policy-users-crypto)
+key_hmac_users: []
+# Base64 encoded 256-bit symmetric encryption key material to import. The CMK
+# is permanently associated with this key material. External key only
+# Not supported (gap): imported key material (aws_kms_external_key,
+# aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL,
+# but nothing imports the material.
+key_material_base64: null
+# A list of IAM ARNs for those who will have full key permissions (`kms:*`)
+key_owners: []
+# A list of IAM ARNs for [AWSServiceRoleForAutoScaling
+# roles](https://docs.aws.amazon.com/autoscaling/ec2/userguide/key-policy-
+# requirements-EBS-encryption.html#policy-example-cmk-access)
+key_service_roles_for_autoscaling: []
+# A list of IAM ARNs for [key service
+# users](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-
+# default.html#key-policy-service-integration)
+key_service_users: []
+# Specifies whether the key contains a symmetric key or an asymmetric key pair
+# and the encryption algorithms or signing algorithms that the key supports.
+# Valid values: SYMMETRIC_DEFAULT, RSA_2048, RSA_3072, RSA_4096, HMAC_224,
+# HMAC_256, HMAC_384, HMAC_512, ECC_NIST_P256, ECC_NIST_P384, ECC_NIST_P521,
+# ECC_SECG_P256K1, ML_DSA_44, ML_DSA_65, ML_DSA_87, or SM2 (China Regions
+# only). Defaults to SYMMETRIC_DEFAULT
+# Not supported (gap): imported key material (aws_kms_external_key,
+# aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL,
+# but nothing imports the material (key_spec is the external key's).
+key_spec: null
+# A map of IAM policy [statements](https://registry.terraform.io/providers/has
+# hicorp/aws/latest/docs/data-sources/iam_policy_document#statement) for
+# custom permission usage
+key_statements: null
+# A list of IAM ARNs for [key symmetric encryption
+# users](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-
+# default.html#key-policy-users-crypto)
+key_symmetric_encryption_users: []
+# Specifies the intended use of the key. Valid values: `ENCRYPT_DECRYPT` or
+# `SIGN_VERIFY`. Defaults to `ENCRYPT_DECRYPT`
+key_usage: null
+# A list of IAM ARNs for [key
+# users](https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-
+# default.html#key-policy-default-allow-users)
+key_users: []
+# Indicates whether the KMS key is a multi-Region (`true`) or regional
+# (`false`) key. Defaults to `false`
+multi_region: false
+# List of IAM policy documents that are merged together into the exported
+# document. In merging, statements with non-blank `sid`s will override
+# statements with the same `sid`
+# Not supported (not-ported): merging other policy documents into the key
+# policy by statement sid is not ported yet; write the whole policy in policy,
+# or the statements in key_statements.
+override_policy_documents: []
+# A valid policy JSON document. Although this is a key policy, not an IAM
+# policy, an `aws_iam_policy_document`, in the form that designates a
+# principal, can be used
+policy: null
+# The primary external key arn of a multi-region replica external key
+# Not supported (gap): imported key material (aws_kms_external_key,
+# aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL,
+# but nothing imports the material.
+primary_external_key_arn: null
+# The primary key arn of a multi-region replica key
+primary_key_arn: null
+# Region where the resource(s) will be managed. Defaults to the Region set in
+# the provider configuration
+region: null
+# Custom period of time between each rotation date. Must be a number between
+# 90 and 2560 (inclusive)
+# Not supported (gap): ACK's Key has no rotation period field
+# (enable_key_rotation is supported, with KMS's default period, 365 days).
+rotation_period_in_days: null
+# A list of maps containing `account_ids` and Route53 `hosted_zone_arn` that
+# will be allowed to sign DNSSEC records
+route53_dnssec_sources: null
+# List of IAM policy documents that are merged together into the exported
+# document. Statements must have unique `sid`s
+# Not supported (not-ported): merging other policy documents into the key
+# policy by statement sid is not ported yet; write the whole policy in policy,
+# or the statements in key_statements.
+source_policy_documents: []
+# A map of tags to add to all resources
+tags: {}
+# Time at which the imported key material expires. When the key material
+# expires, AWS KMS deletes the key material and the CMK becomes unusable. If
+# not specified, key material does not expire
+# Not supported (gap): imported key material (aws_kms_external_key,
+# aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL,
+# but nothing imports the material.
+valid_to: null

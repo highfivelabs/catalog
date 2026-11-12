@@ -1,0 +1,36 @@
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Alias
+metadata:
+  name: replica-alias-replica
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "replica"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "alias-replica"
+    services.k8s.aws/region: "eu-west-1"
+spec:
+  name: "alias/replica"
+  targetKeyID: "mrk-1234abcd12ab34cd56ef1234567890ab"
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.aws.hfl.dev/v1alpha1
+kind: ReplicaKey
+metadata:
+  name: replica-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "replica"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  keyID: "arn:aws:kms:us-east-1:111122223333:key/mrk-1234abcd12ab34cd56ef1234567890ab"
+  replicaRegion: "eu-west-1"
+  description: "Replica"
+  policy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"Default\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::111122223333:root\"},\"Action\":\"kms:*\",\"Resource\":\"*\"}]}"
