@@ -66,6 +66,12 @@ Every module variable is a value of the same name, type and default
 | `private_endpoints_inherit_lock`, `private_endpoints_manage_dns_zone_group` | accepted: they shape private endpoints, which are refused |
 | `enable_telemetry` | accepted; the chart sends no telemetry |
 
+Azure refuses a cache rule from Docker Hub without credentials ("Cannot
+create cache rule with source repository Docker without credentials",
+found live): with credential sets refused, such a rule needs
+`credential_set_resource_id` (a set made elsewhere); an anonymous source
+such as `mcr.microsoft.com` needs none.
+
 The module's preconditions and validations stop the render with its
 messages: Premium for zone redundancy and a network rule set, and one of a
 cache rule's credential set inputs.
