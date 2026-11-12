@@ -198,7 +198,12 @@ summary="${OUT}/summary.md"
   echo "| --- | --- | --- | --- | --- |"
 } >"${summary}"
 total=0; failed=0
-for dir in charts/azure/*/; do
+# The resource group chart last: its mock is the group every other mock is
+# in (catalog-rg), and deleting it takes the group from the fake.
+dirs=()
+for d in charts/azure/*/; do [[ "${d}" == */avm-res-resources-resourcegroup/ ]] || dirs+=("${d}"); done
+dirs+=(charts/azure/avm-res-resources-resourcegroup/)
+for dir in "${dirs[@]}"; do
   chart="$(basename "${dir}")"
   [[ -f "${dir}/tests/mock.values.yaml" ]] || continue
   if [[ -n "${MOCK_CHARTS:-}" && " ${MOCK_CHARTS} " != *" ${chart} "* ]]; then continue; fi
