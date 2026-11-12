@@ -1,0 +1,87 @@
+# Every field the chart carries.
+project_id: my-project
+cluster_name: cluster-0
+cluster_id: projects/my-project/locations/europe-west1/clusters/cluster-0
+location: europe-west1
+name: full
+gke_version: 1.31.1-gke.1678000
+max_pods_per_node: 64
+labels: {env: dev, hfl.dev/team: shop}
+tags: [gke-node, web]
+k8s_labels: {workload: web}
+node_locations: [europe-west1-b, europe-west1-c]
+node_count: {initial: 1, current: 2}
+sole_tenant_nodegroup: projects/my-project/zones/europe-west1-b/nodeGroups/ng
+resource_manager_tags: {tagKeys/123: tagValues/456}
+reservation_affinity: {consume_reservation_type: SPECIFIC_RESERVATION, key: compute.googleapis.com/reservation-name, values: [res-1]}
+taints:
+  dedicated: {value: web, effect: NO_SCHEDULE}
+service_account:
+  create: true
+  oauth_scopes: [https://www.googleapis.com/auth/cloud-platform]
+  display_name: Web nodes
+network_config:
+  enable_private_nodes: true
+  pod_range: {name: pods-web}
+  additional_node_network_configs:
+    - {network: projects/my-project/global/networks/extra, subnetwork: projects/my-project/regions/europe-west1/subnetworks/extra}
+  additional_pod_network_configs:
+    - {subnetwork: projects/my-project/regions/europe-west1/subnetworks/extra, secondary_pod_range: pods-extra, max_pods_per_node: "32"}
+  pod_cidr_overprovisioning_disabled: true
+nodepool_config:
+  autoscaling: {location_policy: BALANCED, min_node_count: 1, max_node_count: 5}
+  management: {auto_repair: true, auto_upgrade: true}
+  placement_policy: {type: COMPACT, policy_name: projects/my-project/regions/europe-west1/resourcePolicies/compact}
+  upgrade_settings:
+    max_surge: 0
+    max_unavailable: 0
+    strategy: BLUE_GREEN
+    blue_green_settings:
+      node_pool_soak_duration: 600s
+      standard_rollout_policy: {batch_percentage: 0.5, batch_soak_duration: 60s}
+node_config:
+  machine_type: n2-standard-4
+  image_type: COS_CONTAINERD
+  boot_disk: {kms_key: projects/kms/locations/europe-west1/keyRings/r/cryptoKeys/k, size_gb: 100, type: pd-ssd}
+  ephemeral_storage_local_ssd_count: 1
+  gcfs: true
+  gvnic: true
+  local_nvme_ssd_count: 1
+  min_cpu_platform: Intel Cascade Lake
+  metadata: {foo: bar}
+  spot: true
+  sandbox_config_gvisor: true
+  workload_metadata_config_mode: GKE_METADATA
+  shielded_instance_config: {enable_secure_boot: true, enable_integrity_monitoring: true}
+  advanced_machine_features: {enable_nested_virtualization: false, threads_per_core: 1}
+  guest_accelerator:
+    count: 1
+    type: nvidia-tesla-t4
+    gpu_driver: {version: LATEST, partition_size: 1g.5gb, max_shared_clients_per_gpu: 2}
+  kubelet_config:
+    cpu_manager_policy: static
+    cpu_cfs_quota: true
+    cpu_cfs_quota_period: 100ms
+    pod_pids_limit: 4096
+    image_gc_low_threshold_percent: 70
+    image_gc_high_threshold_percent: 85
+    image_minimum_gc_age: 2m
+    image_maximum_gc_age: 24h
+  linux_node_config: {sysctls: {net.core.somaxconn: "4096"}, cgroup_mode: CGROUP_MODE_V2}
+  containerd_config:
+    writable_cgroups: true
+    private_registry_access_config:
+      certificate_authority_domain_config:
+        - fqdns: [registry.example.com]
+          gcp_secret_manager_certificate_config_secret_uri: projects/my-project/secrets/ca/versions/1
+    registry_hosts:
+      registry.example.com:
+        hosts:
+          mirror.example.com:
+            capabilities: [pull, resolve]
+            override_path: true
+            dial_timeout: 5s
+            header: {X-Custom: [a, b]}
+            ca_gcp_secret_manager_secret_uri: projects/my-project/secrets/mirror-ca/versions/1
+            client: {cert_gcp_secret_manager_secret_uri: projects/my-project/secrets/cert/versions/1, key_gcp_secret_manager_secret_uri: projects/my-project/secrets/key/versions/1}
+deletion_policy: ABANDON
