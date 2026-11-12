@@ -159,6 +159,53 @@ func TestIAM(t *testing.T) {
 		  {"member": "group:gke-admins@example.com"}, {"member": "serviceAccount:ci@demo-project.iam.gserviceaccount.com"}]}]}`)
 }
 
+// An authoritative binding on a resource IAMBinding takes (a folder)
+// becomes one IAMBinding, exact as Terraform's, as the folders chart
+// renders owners_combined; its condition is carried.
+func TestIAMBinding(t *testing.T) {
+	k, err := LoadKCC("testdata/kcc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := ReadState("testdata/synthetic/folders/terraform.tfstate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := ConvertState(st, k, Options{})
+	b := find(t, res, `module.environments.google_folder_iam_binding.owners_combined["prod-roles/resourcemanager.folderViewer"]`)
+	if b.Kind != "IAMBinding" || b.Obj["apiVersion"] != "iam.gcp.hfl.dev/v1beta1" {
+		t.Fatalf("binding is %s %v", b.Kind, b.Obj["apiVersion"])
+	}
+	jsonEq(t, "binding", b.Obj["spec"], `{
+		"resourceRef": {"apiVersion": "resourcemanager.cnrm.cloud.google.com/v1beta1", "kind": "Folder",
+		  "external": "folders/100000000765"},
+		"role": "roles/resourcemanager.folderViewer",
+		"members": ["group:platform@example.com", "group:prod-admins@example.com"]}`)
+	for _, f := range res.Findings {
+		if f.Source == b.Source {
+			t.Errorf("an exact binding needs no finding: %+v", f)
+		}
+	}
+
+	cond := &TFResource{Address: "google_folder_iam_binding.c", Type: "google_folder_iam_binding", Attrs: map[string]any{
+		"folder": "folders/1", "role": "roles/viewer", "members": []any{"user:a@example.com"},
+		"condition": []any{map[string]any{"title": "t", "expression": "true"}}}}
+	o, fs := convertIAM(cond, k)
+	if o == nil {
+		t.Fatalf("not converted: %+v", fs)
+	}
+	jsonEq(t, "conditional", o.Obj["spec"], `{
+		"resourceRef": {"apiVersion": "resourcemanager.cnrm.cloud.google.com/v1beta1", "kind": "Folder", "external": "folders/1"},
+		"role": "roles/viewer", "members": ["user:a@example.com"], "condition": {"title": "t", "expression": "true"}}`)
+
+	// No members: Terraform empties the role; an IAMBinding cannot.
+	empty := &TFResource{Address: "google_folder_iam_binding.e", Type: "google_folder_iam_binding", Attrs: map[string]any{
+		"folder": "folders/1", "role": "roles/viewer", "members": []any{}}}
+	if o, fs := convertIAM(empty, k); o != nil || len(fs) != 1 || fs[0].Class != "refused" {
+		t.Errorf("empty binding: %v %+v, want refused", o, fs)
+	}
+}
+
 func TestHierarchy(t *testing.T) {
 	_, res := load(t)
 	f := find(t, res, `google_folder.root`)

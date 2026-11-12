@@ -97,6 +97,18 @@ The output (`--out`) holds:
 - `report.md`: what became what, the "Module calls and catalog charts"
   table, and every finding.
 
+IAM converts as the catalog's charts render it (`docs/design.md`, "IAM"):
+`google_<x>_iam_member` becomes an `IAMPolicyMember`;
+`google_<x>_iam_binding`, authoritative for its role (and condition),
+becomes one `IAMBinding` (config-connector-extensions,
+`iam.gcp.hfl.dev/v1beta1`), exact as Terraform's, on the 12 kinds that kind
+takes; on any other (a subnet) an `IAMPartialPolicy` with that one binding,
+with a note that members added out of band are no longer removed. A
+binding with no members is refused (an `IAMBinding` needs one). The
+comparison counts each binding as one grant per member and role, so a
+chart's `IAMPartialPolicy` and the state's `IAMBinding` for the same grants
+match.
+
 ### Graduation: the equivalence check
 
 For each call whose module a chart ports:

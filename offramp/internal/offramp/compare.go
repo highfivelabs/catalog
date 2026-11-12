@@ -22,6 +22,9 @@ func Identity(o map[string]any) string {
 		return fmt.Sprintf("%s %s %s %s", kind, normRef(dig(spec, "resourceRef", "external")), str(spec["role"]), str(spec["member"]))
 	case "IAMPartialPolicy":
 		return fmt.Sprintf("%s %s", kind, normRef(dig(spec, "resourceRef", "external")))
+	case "IAMBinding":
+		// One role, and its condition, on one resource.
+		return fmt.Sprintf("%s %s %s %s", kind, normRef(dig(spec, "resourceRef", "external")), str(spec["role"]), str(dig(spec, "condition", "title")))
 	}
 	if kind == "ComputeFirewallPolicyRule" {
 		// Named by its policy and priority; the policy by its number.
@@ -92,18 +95,34 @@ func Compare(a, b []map[string]any) []Difference {
 	return out
 }
 
-// index keys objects by identity. An IAMPartialPolicy counts as one
-// IAMPolicyMember per member and role, so a Terraform binding and an
-// export's members of the same grants match.
+// index keys objects by identity. An IAMPartialPolicy or an IAMBinding
+// counts as one IAMPolicyMember per member and role, so a Terraform
+// binding, a chart's render and an export's members of the same grants
+// match.
 func index(objs []map[string]any) map[string]map[string]any {
 	out := map[string]map[string]any{}
 	for _, o := range objs {
-		if str(o["kind"]) != "IAMPartialPolicy" {
+		ref := dig(o, "spec", "resourceRef")
+		var bs []any
+		switch str(o["kind"]) {
+		case "IAMPartialPolicy":
+			bs, _ = dig(o, "spec", "bindings").([]any)
+		case "IAMBinding":
+			// The same shape as one binding of an IAMPartialPolicy.
+			var ms []any
+			raw, _ := dig(o, "spec", "members").([]any)
+			for _, m := range raw {
+				ms = append(ms, map[string]any{"member": m})
+			}
+			b := map[string]any{"role": dig(o, "spec", "role"), "members": ms}
+			if c := dig(o, "spec", "condition"); c != nil {
+				b["condition"] = c
+			}
+			bs = []any{b}
+		default:
 			out[Identity(o)] = o
 			continue
 		}
-		ref := dig(o, "spec", "resourceRef")
-		bs, _ := dig(o, "spec", "bindings").([]any)
 		for _, b := range bs {
 			bm, _ := b.(map[string]any)
 			ms, _ := bm["members"].([]any)
