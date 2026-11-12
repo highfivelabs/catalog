@@ -45,7 +45,8 @@ IAM and tag bindings; no versions or regional secrets), and
 instance with its replicas, databases and IAM users. On AWS, ported from
 terraform-aws-modules to ACK objects: `vpc` (partial: no IPv6, flow logs
 or VPN gateway yet), a VPC with its subnets, route tables, gateways,
-network ACLs and subnet groups. On Azure, ported
+network ACLs and subnet groups, and `security-group` (partial: rules
+without per-rule tags). On Azure, ported
 from Azure Verified Modules to Azure Service Operator objects:
 `avm-res-resources-resourcegroup` (partial) and
 `avm-res-network-virtualnetwork` (partial: subnets, peerings) and
@@ -123,14 +124,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**175 modules tracked**: 3 ported, 22 partial, 64 blocked, 86 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**175 modules tracked**: 3 ported, 23 partial, 63 blocked, 86 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 382 of 1478 (25.8%) |
-| AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 109 of 2310 (4.7%) |
+| AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 119 of 2310 (5.2%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 99 of 1170 (8.5%) |
-| **All** | **175** | | **590 of 4958 (11.9%)** |
+| **All** | **175** | | **600 of 4958 (12.1%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -193,13 +194,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### AWS: terraform-aws-modules
 
-0 ported, 1 partial, 3 blocked, 36 not started.
+0 ported, 2 partial, 2 blocked, 36 not started.
 
 **Ported and partial**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 109 of 236 | 53 of 119 | 24 of 35 | partial |
+| [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) ([chart](charts/aws/security-group)) | ![security-group](docs/coverage/bars/aws-security-group.svg) 10 of 14 | 5 of 5 | 4 of 5 | partial |
 
 **Blocked: a resource type has no stable kind**
 
@@ -207,7 +209,6 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | --- | ---: | ---: | --- |
 | [`s3-bucket`](https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/tree/v5.17.0) | ![s3-bucket](docs/coverage/bars/aws-s3-bucket.svg) 0 of 78 | 0 of 21 | 38 of 45 | blocked |
 | [`kms`](https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2) | ![kms](docs/coverage/bars/aws-kms.svg) 0 of 41 | 0 of 9 | 3 of 6 | blocked |
-| [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) | ![security-group](docs/coverage/bars/aws-security-group.svg) 0 of 14 | 0 of 5 | 4 of 5 | blocked |
 
 **Not started (first 10 of 36, by rank)**
 

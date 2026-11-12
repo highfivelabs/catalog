@@ -2081,20 +2081,20 @@ aws,lambda,trusted_entities,any,no,,no-chart
 aws,lambda,use_existing_cloudwatch_log_group,bool,no,,no-chart
 aws,lambda,vpc_security_group_ids,list(string),no,,no-chart
 aws,lambda,vpc_subnet_ids,list(string),no,,no-chart
-aws,security-group,create,bool,no,,no-chart
-aws,security-group,description,string,no,,no-chart
-aws,security-group,egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,security-group,enable_exclusive_rules,bool,no,,no-chart
-aws,security-group,ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,security-group,name,string,no,,no-chart
-aws,security-group,putin_khuylo,bool,no,,no-chart
-aws,security-group,region,string,no,,no-chart
-aws,security-group,revoke_rules_on_delete,bool,no,,no-chart
-aws,security-group,tags,map(string),no,,no-chart
-aws,security-group,timeouts,"object({create, delete})",no,,no-chart
-aws,security-group,use_name_prefix,bool,no,,no-chart
-aws,security-group,vpc_associations,map(object({vpc_id})),no,,no-chart
-aws,security-group,vpc_id,string,no,,no-chart
+aws,security-group,create,bool,yes,,
+aws,security-group,description,string,yes,,
+aws,security-group,egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",partial,"accepted, but each rule's name and tags (the Name tag of an aws_vpc_security_group_*_rule) are not carried: ACK keeps a group's rules inline in SecurityGroup, which has no per-rule tags",gap
+aws,security-group,enable_exclusive_rules,bool,no,"ACK keeps the group's rules inline and owns all of them, as enable_exclusive_rules: true does; letting rules added elsewhere stay has no ACK equivalent",gap
+aws,security-group,ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",partial,"accepted, but each rule's name and tags (the Name tag of an aws_vpc_security_group_*_rule) are not carried: ACK keeps a group's rules inline in SecurityGroup, which has no per-rule tags",gap
+aws,security-group,name,string,yes,,
+aws,security-group,putin_khuylo,bool,yes,,
+aws,security-group,region,string,yes,,
+aws,security-group,revoke_rules_on_delete,bool,no,ACK's SecurityGroup has no field to revoke its rules before it is deleted,gap
+aws,security-group,tags,map(string),yes,,
+aws,security-group,timeouts,"object({create, delete})",no,"Terraform's create and delete timeouts: ACK retries until the group is synced, and Bundt waits for it",by-design
+aws,security-group,use_name_prefix,bool,partial,"accepted: true (the default) names the group name as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' groups apart",gap
+aws,security-group,vpc_associations,map(object({vpc_id})),no,aws_vpc_security_group_vpc_association has no ACK or ack-extensions kind,gap
+aws,security-group,vpc_id,string,yes,,
 aws,rds,allocated_storage,number,no,,no-chart
 aws,rds,allow_major_version_upgrade,bool,no,,no-chart
 aws,rds,apply_immediately,bool,no,,no-chart
