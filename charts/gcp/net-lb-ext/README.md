@@ -43,9 +43,10 @@ The module's variables, with the same names, types and defaults.
 ## Outputs
 
 `backend_service_id`, `backend_service_self_link`,
-`forwarding_rule_addresses`, `forwarding_rule_self_links`, `id` (the
-forwarding rules' ids), `group_self_links`, `health_check_id`,
-and `health_check_self_link` (null with an existing health check). Not outputs: fabric's whole objects
+`forwarding_rule_self_links`, `id` (the forwarding rules' ids),
+`group_self_links`, `health_check_id` and `health_check_self_link` (null with an existing health check). Not
+outputs: `forwarding_rule_addresses`, since `ComputeForwardingRule` reports
+no allocated address (a field gap), and fabric's whole objects
 (`backend_service`, `forwarding_rules`, `groups`, `health_check`;
 `docs/design.md`, "Outputs").
 
@@ -75,8 +76,6 @@ schemas, and the refusals in `tests/*.fail.yaml`.
 Fake cloud (`task test-mock MOCK_CHARTS=net-lb-ext`, 2026-11-12): an empty
 group the chart makes, the default health check and a forwarding rule on
 port 80: every object Ready, the outputs evaluated, every object deleted.
-mockgcp does not write the forwarding rule's allocated address back, so
-`forwarding_rule_addresses` was null there.
 
 ## Changes
 

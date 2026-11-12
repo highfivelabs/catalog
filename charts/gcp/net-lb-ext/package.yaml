@@ -6,10 +6,11 @@
 # (resources.backend_service, resources.health_check when the chart makes
 # it, resources["forwarding_rule:<key>"], resources["group:<key>"]); the maps are keyed as fabric keys
 # them. Ids are built from the spec as Terraform's are
-# (projects/<project>/regions/<region>/...). forwarding_rule_addresses is
-# the address Config Connector writes back to spec.ipAddress.ip (null until
-# it does). Not outputs: fabric's whole objects (backend_service,
-# forwarding_rules, groups, health_check).
+# (projects/<project>/regions/<region>/...). Not an output:
+# forwarding_rule_addresses, since ComputeForwardingRule reports no
+# allocated address (no status field, and spec.ipAddress is not written
+# back: a field gap, seen live on 2026-11-12); and fabric's whole objects
+# (backend_service, forwarding_rules, groups, health_check).
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
@@ -24,9 +25,6 @@ spec:
       + '/regions/' + resources.backend_service.spec.location
       + '/backendServices/' + resources.backend_service.spec.resourceID
     backend_service_self_link: resources.backend_service.status.selfLink
-    forwarding_rule_addresses: >-
-      resources.transformMapEntry(k, v, v.kind == 'ComputeForwardingRule',
-        {k.substring(16): has(v.spec.ipAddress) && has(v.spec.ipAddress.ip) ? dyn(v.spec.ipAddress.ip) : null})
     forwarding_rule_self_links: >-
       resources.transformMapEntry(k, v, v.kind == 'ComputeForwardingRule',
         {k.substring(16): v.status.selfLink})
