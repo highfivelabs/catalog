@@ -619,6 +619,7 @@ Config Connector. What differs:
 | `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
 | `charts/aws/acm` | `terraform-aws-acm` v6.3.1 | partial: the certificate, or (`create_route53_records_only`) its DNS validation records from a certificate component's outputs: DNS validation with Route 53 is two components, since the records exist only in the certificate's status; EMAIL validation and the wait for `ISSUED` are gaps |
 | `charts/aws/ec2-instance` | `terraform-aws-ec2-instance` v6.4.1 | partial: the instance (AMI by ID or by SSM parameter, resolved by EC2 at launch) with most launch options, and its IAM role and instance profile; the security group the module makes by default is refused (no reference from `Instance`), as are extra EBS volumes, the Elastic IP, the Spot request and the root block device |
+| `charts/aws/sns` | `terraform-aws-sns` v7.2.0 | partial: the topic with every attribute ACK's `Topic` has (feedback roles, delivery, data protection, KMS, tracing), the topic policy (the default statement, statements, source and override documents merged by `Sid`) inline, and the subscriptions (`topicRef`); `account_id` and `region` are needed for the default topic policy; the archive policy, subscriptions' replay policy and Terraform's confirmation wait, and `use_name_prefix` are refused |
 
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
