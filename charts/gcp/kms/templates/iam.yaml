@@ -1,0 +1,26 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/kms/iam.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+On the keyring (google_kms_key_ring_iam_*) and on each key
+(google_kms_crypto_key_iam_*): iam one IAMPartialPolicy, iam_bindings one
+IAMBinding each, iam_bindings_additive one IAMPolicyMember each
+(docs/design.md, "IAM"). With keyring_create false the keyring's IAM refers
+to the existing keyring by its id.
+*/ -}}
+{{- $v := .Values }}
+{{- $ringRef := dict "apiVersion" "kms.cnrm.cloud.google.com/v1beta1" "kind" "KMSKeyRing" }}
+{{- if $v.keyring_create }}
+{{- $_ := set $ringRef "name" .Release.Name }}
+{{- else }}
+{{- $_ := set $ringRef "external" (include "kms.keyringId" .) }}
+{{- end }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" $ringRef "v" (dict "iam" $v.iam "iam_bindings" $v.iam_bindings "iam_bindings_additive" $v.iam_bindings_additive)) }}
+{{- $keys := $v.keys | default dict }}
+{{- range $key := keys $keys | sortAlpha }}
+{{- $k := index $keys $key }}
+{{- $obj := include "kms.keyObject" (list $ $key) }}
+{{- include "kcc.iam" (dict "root" $ "base" $obj "idPrefix" (printf "key:%s:" $key) "resourceRef" (dict "apiVersion" "kms.cnrm.cloud.google.com/v1beta1" "kind" "KMSCryptoKey" "name" $obj) "v" (dict "iam" $k.iam "iam_bindings" $k.iam_bindings "iam_bindings_additive" $k.iam_bindings_additive)) }}
+{{- end }}
