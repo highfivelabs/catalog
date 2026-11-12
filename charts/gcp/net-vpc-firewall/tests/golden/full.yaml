@@ -1,0 +1,290 @@
+---
+# Source: net-vpc-firewall/templates/default-rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-default-admin
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default:admin"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-network-ingress-admins"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Access from the admin subnet to all subnets."
+  direction: INGRESS
+  sourceRanges: ["10.0.0.0/8"]
+  allow:
+    - protocol: "all"
+---
+# Source: net-vpc-firewall/templates/default-rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-default-http
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default:http"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-network-ingress-tag-http"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Allow http to machines with matching tags."
+  direction: INGRESS
+  sourceRanges: ["35.191.0.0/16","130.211.0.0/22","209.85.152.0/22","209.85.204.0/22"]
+  targetTags: ["http-server"]
+  allow:
+    - protocol: "tcp"
+      ports: ["80"]
+---
+# Source: net-vpc-firewall/templates/default-rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-default-https
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default:https"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-network-ingress-tag-https"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Allow http to machines with matching tags."
+  direction: INGRESS
+  sourceRanges: ["35.191.0.0/16","130.211.0.0/22","209.85.152.0/22","209.85.204.0/22"]
+  targetTags: ["https-server"]
+  allow:
+    - protocol: "tcp"
+      ports: ["443"]
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-allow-from-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-from-sa"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "allow-from-sa"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "INGRESS"
+  priority: 1000
+  disabled: false
+  sourceServiceAccounts:
+    - external: "client@my-project.iam.gserviceaccount.com"
+  targetServiceAccounts:
+    - external: "server@my-project.iam.gserviceaccount.com"
+  allow:
+    - protocol: "all"
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-allow-from-tags
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-from-tags"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "allow-from-tags"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "INGRESS"
+  priority: 1000
+  disabled: true
+  sourceTags: ["frontend"]
+  targetTags: ["backend"]
+  allow:
+    - protocol: "all"
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-allow-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "allow-googleapis"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "EGRESS"
+  priority: 1000
+  disabled: false
+  destinationRanges: ["199.36.153.8/30"]
+  deny:
+    - protocol: "tcp"
+      ports: ["443"]
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-allow-health-checks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-health-checks"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "allow-health-checks"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  description: "Health checks."
+  direction: "INGRESS"
+  priority: 900
+  disabled: false
+  sourceRanges: ["35.191.0.0/16","130.211.0.0/22","209.85.152.0/22","209.85.204.0/22"]
+  targetServiceAccounts:
+    - external: "app@my-project.iam.gserviceaccount.com"
+  logConfig:
+    metadata: INCLUDE_ALL_METADATA
+  allow:
+    - protocol: "tcp"
+      ports: ["80","443"]
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-allow-onprem
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-onprem"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "allow-onprem"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "INGRESS"
+  priority: 1000
+  disabled: false
+  sourceRanges: ["172.16.0.0/12"]
+  allow:
+    - protocol: "all"
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-allow-onprem-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:allow-onprem-egress"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "allow-onprem-egress"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "EGRESS"
+  priority: 1000
+  disabled: false
+  destinationRanges: ["172.16.0.0/12"]
+  allow:
+    - protocol: "all"
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-deny-all-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:deny-all-egress"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "deny-all-egress"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "EGRESS"
+  priority: 65000
+  disabled: false
+  destinationRanges: ["0.0.0.0/0"]
+  deny:
+    - protocol: "all"
+---
+# Source: net-vpc-firewall/templates/rules.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: full-rule-deny-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpc-firewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:deny-corp"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "deny-corp"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: "INGRESS"
+  priority: 1000
+  disabled: false
+  sourceRanges: ["10.10.0.0/16","10.20.0.0/16","192.168.0.0/24"]
+  destinationRanges: ["10.0.0.0/24"]
+  logConfig:
+    metadata: EXCLUDE_ALL_METADATA
+  deny:
+    - protocol: "all"

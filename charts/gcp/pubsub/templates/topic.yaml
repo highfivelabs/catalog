@@ -1,0 +1,54 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/pubsub/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_pubsub_schema.default (schema set): a PubSubSchema "<topic>-schema";
+google_pubsub_topic.default: the PubSubTopic.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "topic")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $topic := include "pubsub.topic" . }}
+{{- with $v.schema }}
+---
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSchema
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "schema")) "id" "schema" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ printf "%s-schema" $topic | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  type: {{ .schema_type | quote }}
+  definition: {{ .definition | quote }}
+{{- end }}
+---
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubTopic
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "topic" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $topic | quote }}
+  {{- with $v.kms_key }}
+  kmsKeyRef:
+    external: {{ . | quote }}
+  {{- end }}
+  {{- with $v.message_retention_duration }}
+  messageRetentionDuration: {{ . | quote }}
+  {{- end }}
+  {{- with $v.regions }}
+  messageStoragePolicy:
+    allowedPersistenceRegions: {{ toJson . }}
+    {{- if not (kindIs "invalid" $v.message_storage_enforce_in_transit) }}
+    enforceInTransit: {{ $v.message_storage_enforce_in_transit }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.schema }}
+  schemaSettings:
+    schemaRef:
+      name: {{ include "kcc.name" (list $.Release.Name "schema") }}
+    encoding: {{ .msg_encoding | default "ENCODING_UNSPECIFIED" | quote }}
+  {{- end }}

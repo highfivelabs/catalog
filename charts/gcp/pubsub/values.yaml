@@ -1,0 +1,62 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's pubsub module (v60.0.0):
+# same names, types and defaults, so a module block's arguments become this
+# file one to one (README.md, "From Terraform"). values.schema.json carries
+# the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.topic: the topic name in full. A name set here takes no prefix;
+# unset, the topic is named name, as fabric names it, and the schema
+# <topic>-schema. Subscriptions are named by their keys.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the derived topic
+# name and every subscription name (never a name set under names). Empty
+# (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object; fabric's "Labels" (on the topic, and
+# on a subscription without labels of its own). A prefixed key
+# (hfl.dev/team) stays in Kubernetes; an unprefixed one also becomes a
+# Google Cloud label, since Config Connector copies it.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels (Config
+# Connector carries them as unprefixed metadata.labels).
+tags: {}
+
+# Context-specific interpolations. Refused when set: Bundt's ${...}
+# expressions and valueFrom replace fabric's $context lookups.
+context: {}
+# KMS customer managed encryption key.
+kms_key: null
+# Minimum duration to retain a message after it is published to the topic.
+message_retention_duration: null
+# If true, regions is also used to enforce in-transit guarantees.
+message_storage_enforce_in_transit: null
+# PubSub topic name.
+name: ""
+# Project used for resources.
+project_id: ""
+# List of regions used to set persistence policy.
+regions: []
+# Topic schema: {definition, msg_encoding, schema_type}.
+schema: null
+# Topic subscriptions, {NAME: {...}} (README.md, "Values").
+subscriptions: {}
+
+# IAM bindings on the topic in {ROLE => [MEMBERS]} format.
+iam: {}
+# Authoritative IAM bindings in {KEY => {role, members, condition}}.
+iam_bindings: {}
+# Individual additive IAM bindings in {KEY => {member, role, condition}}.
+iam_bindings_additive: {}
+# Authoritative IAM bindings in {PRINCIPAL => [ROLES]} format, merged with iam.
+iam_by_principals: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# topic, schema and subscriptions when the component is deleted. PREVENT
+# has no Config Connector equivalent.
+deletion_policy: null

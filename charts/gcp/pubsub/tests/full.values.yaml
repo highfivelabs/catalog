@@ -1,0 +1,52 @@
+# Every field the chart carries.
+project_id: my-project
+name: full-topic
+labels: {env: dev}
+kms_key: projects/kms/locations/europe-west1/keyRings/r/cryptoKeys/k
+message_retention_duration: 86400s
+regions: [europe-west1, europe-west4]
+message_storage_enforce_in_transit: true
+schema:
+  schema_type: AVRO
+  definition: '{"type":"record","name":"Avro","fields":[{"name":"s","type":"string"}]}'
+  msg_encoding: JSON
+iam_by_principals:
+  "group:publishers@example.org": [roles/pubsub.publisher]
+iam_bindings:
+  viewers: {role: roles/pubsub.viewer, members: ["group:viewers@example.org"]}
+iam_bindings_additive:
+  admin: {member: "user:admin@example.org", role: roles/pubsub.admin}
+subscriptions:
+  pull:
+    ack_deadline_seconds: 20
+    message_retention_duration: 1200s
+    retain_acked_messages: true
+    filter: attributes.domain = "com"
+    enable_message_ordering: true
+    enable_exactly_once_delivery: true
+    expiration_policy_ttl: ""
+    labels: {team: data}
+    dead_letter_policy: {topic: projects/my-project/topics/dead-letter, max_delivery_attempts: 10}
+    retry_policy: {minimum_backoff: 10, maximum_backoff: 300}
+    iam:
+      roles/pubsub.subscriber: ["serviceAccount:reader@my-project.iam.gserviceaccount.com"]
+    iam_bindings_additive:
+      viewer: {member: "user:viewer@example.org", role: roles/pubsub.viewer}
+  push:
+    push:
+      endpoint: https://example.com/push
+      attributes: {x-goog-version: v1}
+      no_wrapper: {write_metadata: true}
+      oidc_token: {service_account_email: pusher@my-project.iam.gserviceaccount.com, audience: https://example.com}
+  bq-sub:
+    deletion_policy: ABANDON
+    bigquery: {table: "my-project:dataset.table", use_topic_schema: true, write_metadata: true, drop_unknown_fields: true}
+  gcs-sub:
+    cloud_storage:
+      bucket: my-bucket
+      filename_prefix: pre
+      filename_suffix: .avro
+      max_duration: 300s
+      max_bytes: 1000000
+      avro_config: {write_metadata: true}
+deletion_policy: ABANDON
