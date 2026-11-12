@@ -41,7 +41,7 @@ module at the same release.
 | platform-project | `project` | fabric `project` v60.0.0 | `project` | exists; the render lacks fabric's default service agents and their grants (not ported), so the call stays a frozen Package |
 | platform-project | `platform_deployer`, `platform_ci`, `checkout` | fabric `iam-service-account` v60.0.0 | `iam-service-account` | exists |
 | platform-project | `checkout_assets` | fabric `gcs` v60.0.0 | `gcs` | exists |
-| platform-project | `checkout_secrets` | fabric `secret-manager` v60.0.0 | none | gap: no chart, a frozen Package |
+| platform-project | `checkout_secrets` | fabric `secret-manager` v60.0.0 | `secret-manager` | exists (global secrets, no versions) |
 | gke | `network` | fabric `net-vpc` v60.0.0 | `net-vpc` | exists |
 | gke | `gke_standard` (`gke_autopilot` with `autopilot = true`) | tgm `kubernetes-engine//modules/beta-private-cluster` (`beta-autopilot-private-cluster`) 47.0.0 | `gke-cluster` (PR #16; `mode: autopilot`) | exists on its branch; its render sets `datapathProvider` and `initialNodeCount` where the planned state holds neither, so the call stays frozen until a live run settles it |
 
@@ -207,7 +207,7 @@ component, so it is reported. `dependency` and `dependencies` become
 | `network/firewall-rules` | tgm `firewall-rules` 18.3.1 over `tfr://`; `dependency.vpc.outputs.name` | module | graduates to `firewall-rules`, `network_name: ${components.vpc.outputs.name}` |
 | `network/network-firewall-policy` | tgm `network-firewall-policy` 18.3.1 over `git::`; `dependency.vpc.outputs.id` | module | graduates to `network-firewall-policy` |
 | `gke/gke-platform` | `modules//gke-platform`, a wrapper of fabric `net-vpc` and tgm `beta-private-cluster` 47.0.0, plus a firewall rule, a service account and a project grant of its own | wrapper | `network` graduates; `cluster` stays frozen (`datapathProvider`, as in `fixtures/gke`); the three own resources are `unmapped` |
-| `platform/project` | `fixtures//platform-project`, a wrapper of fabric `project`, `iam-service-account`, `gcs` and `secret-manager` | wrapper | as `fixtures/platform-project`: four calls graduate, `project` stays frozen (`ServiceIdentity`), `secret-manager` has no chart |
+| `platform/project` | `fixtures//platform-project`, a wrapper of fabric `project`, `iam-service-account`, `gcs` and `secret-manager` | wrapper | as `fixtures/platform-project`: five calls graduate, `project` stays frozen (`ServiceIdentity`) |
 
 The network units' states are the live shared-vpc run's, split per unit.
 The others are synthetic (`internal/offramp/testdata/terragrunt/README.md`).

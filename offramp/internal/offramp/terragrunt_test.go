@@ -165,7 +165,7 @@ var tgCases = []tgCase{
 			ModulesJSON: map[string]string{"project": "testdata/modules/platform-project/modules.json"},
 		},
 		// As fixtures/platform-project read as a Terraform root.
-		graduate: []string{"project-checkout", "project-checkout-assets", "project-platform-ci", "project-platform-deployer"},
+		graduate: []string{"project-checkout", "project-checkout-assets", "project-checkout-secrets", "project-platform-ci", "project-platform-deployer"},
 		frozen:   map[string]string{"project-project": "ServiceIdentity"},
 	},
 }

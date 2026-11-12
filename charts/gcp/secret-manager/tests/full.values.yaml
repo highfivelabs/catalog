@@ -1,0 +1,38 @@
+# Every input the chart carries.
+project_id: my-project
+project_number: "123456789012"
+deletion_policy: ABANDON
+labels: {hfl.dev/team: platform}
+tags: {env: dev}
+secrets:
+  test-auto:
+    annotations: {owner: platform}
+    deletion_protection: true
+    kms_key: projects/my-project/locations/global/keyRings/kr/cryptoKeys/k
+    labels: {app: checkout}
+    expiration_config: {ttl: 86400s}
+    version_config:
+      aliases: {current: 1}
+    rotation_config: {next_time: "2027-01-01T00:00:00Z", period: 2592000s}
+    topics: [projects/my-project/topics/rotation]
+    tag_bindings:
+      env: tagValues/1234567890
+    iam:
+      roles/secretmanager.secretAccessor: ["serviceAccount:app@my-project.iam.gserviceaccount.com"]
+    iam_bindings:
+      viewers:
+        role: roles/secretmanager.viewer
+        members: ["group:auditors@example.com"]
+        condition:
+          title: expires_after_2027
+          expression: request.time < timestamp("2028-01-01T00:00:00Z")
+          description: Expiring at the end of 2027
+    iam_bindings_additive:
+      ci:
+        member: serviceAccount:ci@my-project.iam.gserviceaccount.com
+        role: roles/secretmanager.secretVersionAdder
+  test-user:
+    expiration_config: {time: "2030-01-01T00:00:00Z"}
+    global_replica_locations:
+      europe-west1: projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k
+      europe-west3: null

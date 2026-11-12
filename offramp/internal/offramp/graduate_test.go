@@ -56,7 +56,7 @@ var equivalenceCases = []equivalenceCase{
 	},
 	{
 		shape: "platform-project", state: "testdata/synthetic/platform-project/terraform.tfstate", tfvars: "testdata/synthetic/platform-project/terraform.tfvars",
-		graduate: []string{"checkout", "checkout_assets", "platform_ci", "platform_deployer"},
+		graduate: []string{"checkout", "checkout_assets", "checkout_secrets", "platform_ci", "platform_deployer"},
 		frozen: map[string]string{
 			// fabric's project grants its service agents their roles by
 			// default; the project chart does not port service agents yet.

@@ -47,9 +47,8 @@ module "checkout_assets" {
   }
 }
 
-# No catalog chart ports fabric's secret-manager yet: the converter keeps
-# this call as a frozen Package of its Config Connector objects and lists
-# it as a gap.
+# The catalog's secret-manager chart ports fabric's secret-manager (global
+# secrets, no versions): the call graduates to an Instance of it.
 module "checkout_secrets" {
   source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/secret-manager?ref=v60.0.0"
 
