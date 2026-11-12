@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is computed from inputs as the module
+# sets it; resource_id is the account's ARM ID from ASO's status; fqdn maps
+# blob, queue and table (when the account has containers, queues or tables,
+# as the module lists them) to the host of the account's primary endpoint;
+# containers, queues, tables and shares map each entry's key to {id, name},
+# as the module does. Not outputs: resource (the whole azapi object), and
+# local_users, private_endpoints and data_lake_gen2_filesystems, which the
+# chart refuses.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-storage-storageaccount
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('storageAccount' in inputs.names && inputs.names.storageAccount != '' ? inputs.names.storageAccount : inputs.namePrefix.replace('-', '') + inputs.name)
+    resource_id: resources.storage_account.status.id
+    fqdn: >-
+      {'blob': size(inputs.containers), 'queue': size(inputs.queues), 'table': size(inputs.tables)}.transformMapEntry(k, v, v > 0, {k: resources.storage_account.status.primaryEndpoints[k].replace('https://', '').replace('/', '')})
+    containers: >-
+      resources.transformMapEntry(k, v, k.startsWith('container:') && !k.contains('/'), {k.substring(10): {'id': v.status.id, 'name': v.spec.azureName}})
+    queues: >-
+      resources.transformMapEntry(k, v, k.startsWith('queue:') && !k.contains('/'), {k.substring(6): {'id': v.status.id, 'name': v.spec.azureName}})
+    tables: >-
+      resources.transformMapEntry(k, v, k.startsWith('table:') && !k.contains('/'), {k.substring(6): {'id': v.status.id, 'name': v.spec.azureName}})
+    shares: >-
+      resources.transformMapEntry(k, v, k.startsWith('share:') && !k.contains('/'), {k.substring(6): {'id': v.status.id, 'name': v.spec.azureName}})

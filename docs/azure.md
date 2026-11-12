@@ -700,7 +700,13 @@ aso-extensions:
 
 | Chart | Variable | ARM type with no kind |
 | --- | --- | --- |
-| (none yet) | | |
+| `avm-res-storage-storageaccount` | `local_user` | `Microsoft.Storage/storageAccounts/localUsers` (SFTP and NFSv3 local users) |
+| `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
+
+Not a kind gap, but an ASO field gap: a table's or share's
+`signedIdentifiers[].id` is generated as an ARM reference
+(`reference.armId`), so stored access policies cannot be given
+(`avm-res-storage-storageaccount`'s `tables` and `shares`).
 
 **Testing.** Layer 1 (render, `task test`) as on Google Cloud: golden
 files, `kubeconform -strict` against ASO v2.22.0's CRDs and aso-extensions'
