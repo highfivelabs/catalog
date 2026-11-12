@@ -1,0 +1,58 @@
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: keyvault.azure.com/v1api20230701
+kind: Vault
+metadata:
+  name: mock-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "vault"
+spec:
+  azureName: "catalog-kv-001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  properties:
+    tenantId: "11111111-2222-3333-4444-555555555555"
+    sku:
+      family: A
+      name: standard
+    enabledForDeployment: false
+    enabledForDiskEncryption: false
+    enabledForTemplateDeployment: false
+    enableRbacAuthorization: true
+    networkAcls:
+      bypass: None
+      defaultAction: Deny
+      ipRules: []
+      virtualNetworkRules: []
+    publicNetworkAccess: Enabled
+  tags:
+    catalog: mock
+---
+# Source: avm-res-keyvault-vault/templates/keys.yaml
+apiVersion: keyvault.azure.com/v20230701
+kind: VaultKey
+metadata:
+  name: mock-key-k
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:k"
+spec:
+  azureName: "catalog-key"
+  owner:
+    name: mock-kv
+  properties:
+    kty: "RSA"
+    keyOps:
+      - "sign"
+      - "verify"
+    keySize: 2048

@@ -1,0 +1,83 @@
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSKeyRing
+    name: mock
+  bindings:
+    - role: "roles/cloudkms.viewer"
+      members:
+        - member: "user:dev@example.com"
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-key-catalog-mock-key-iam-encrypter
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "key:catalog-mock-key:iam-additive-encrypter"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSCryptoKey
+    name: mock-key-catalog-mock-key
+  role: "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member: "user:dev@example.com"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: mock-key-catalog-mock-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "key:catalog-mock-key"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-key"
+  keyRingRef:
+    name: mock
+  purpose: "ENCRYPT_DECRYPT"
+  rotationPeriod: "7776000s"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyRing
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "keyring"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-ring"
+  location: "us-central1"

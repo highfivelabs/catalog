@@ -1,0 +1,30 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric computes them (names.keyring
+# when it is set), so they have a value with keyring_create false too:
+# id is projects/<p>/locations/<l>/keyRings/<name>, key_ids each key's id
+# under it (by key, from the rendered keys). fabric's import_job, keyring
+# and keys (whole Terraform objects) are not outputs.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-kms
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: >-
+      ('keyring' in inputs.names && inputs.names.keyring != '' ? inputs.names.keyring : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.keyring.name)
+    location: inputs.keyring.location
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.keyring.location + '/keyRings/' +
+      ('keyring' in inputs.names && inputs.names.keyring != '' ? inputs.names.keyring : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.keyring.name)
+    key_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'KMSCryptoKey',
+        {k.substring(4): 'projects/' + inputs.project_id + '/locations/' + inputs.keyring.location + '/keyRings/' +
+          ('keyring' in inputs.names && inputs.names.keyring != '' ? inputs.names.keyring : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.keyring.name) +
+          '/cryptoKeys/' + v.spec.resourceID})
