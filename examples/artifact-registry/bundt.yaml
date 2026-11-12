@@ -1,0 +1,47 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: artifact-registry
+spec:
+  version: "1.0.0"
+  components:
+    - name: docker-artifact-registry
+      package:
+        name: gcp-artifact-registry
+        version: "0.1.0"
+      inputs:
+        location: europe-west1
+        name: docker-registry
+        format:
+          docker:
+            standard:
+              immutable_tags: true
+        cleanup_policies:
+          keep-5-versions:
+            action: KEEP
+            most_recent_versions:
+              keep_count: 5
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: artifact-registry
+  scope: my-team
+spec:
+  template: artifact-registry
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: artifact-registry-dev
+  scope: my-team/dev
+spec:
+  stack: artifact-registry
+  version: "1.0.0"
+  components:
+    docker-artifact-registry:
+      values:
+        project_id: myproject
+        iam:
+          roles/artifactregistry.writer:
+            - serviceAccount:ci@myproject.iam.gserviceaccount.com
