@@ -1,0 +1,70 @@
+# Every feature the chart carries: memberships with workload identity, every
+# feature, a template of each kind (the module README's examples combined).
+project_id: my-project
+location: europe-west1
+clusters:
+  mcp:
+    id: projects/my-project/locations/europe-west1/clusters/mcp
+    workload_identity: true
+    configmanagement: default
+    policycontroller: default
+    servicemesh: default
+  app:
+    id: projects/my-project/locations/europe-west4/clusters/app
+    workload_identity: true
+    servicemesh: default
+features:
+  appdevexperience: false
+  configmanagement: true
+  identityservice: true
+  multiclusteringress: mcp
+  multiclusterservicediscovery: true
+  policycontroller: true
+  servicemesh: true
+configmanagement_templates:
+  default:
+    version: 1.19.0
+    config_sync:
+      git:
+        sync_repo: https://github.com/example/configsync
+        policy_dir: configsync
+        gcp_service_account_email: sync@my-project.iam.gserviceaccount.com
+        https_proxy: http://proxy.example.com:3128
+        secret_type: gcpserviceaccount
+        sync_branch: main
+        sync_rev: HEAD
+        sync_wait_secs: 30
+      prevent_drift: true
+      source_format: unstructured
+    hierarchy_controller:
+      enable_hierarchical_resource_quota: true
+      enable_pod_tree_labels: false
+policycontroller_templates:
+  default:
+    version: 1.19.0
+    policy_controller_hub_config:
+      audit_interval_seconds: 60
+      constraint_violation_limit: 20
+      exemptable_namespaces: [kube-system]
+      install_spec: INSTALL_SPEC_ENABLED
+      log_denies_enabled: true
+      mutation_enabled: true
+      referential_rules_enabled: true
+      deployment_configs:
+        admission:
+          container_resources:
+            limits: {cpu: "1", memory: 1Gi}
+            requests: {cpu: 500m}
+          pod_affinity: ANTI_AFFINITY
+          pod_tolerations:
+            - {key: dedicated, operator: Equal, value: system, effect: NoSchedule}
+          replica_count: 2
+      monitoring:
+        backends: [PROMETHEUS, CLOUD_MONITORING]
+      policy_content:
+        template_library:
+          installation: ALL
+servicemesh_templates:
+  default:
+    management: MANAGEMENT_AUTOMATIC
+deletion_policy: ABANDON

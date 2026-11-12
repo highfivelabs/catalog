@@ -1,0 +1,48 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-privatednszone main.tf and
+modules/private_dns_virtual_network_link (v0.6.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+module.virtual_network_links (azapi_resource,
+Microsoft.Network/privateDnsZones/virtualNetworkLinks): one ASO
+PrivateDnsZonesVirtualNetworkLink per entry, location global, owned by the
+zone: named name (or vnetlinkname), linking virtual_network_id (or vnetid),
+registration as registration_enabled (or autoregistration), the resolution
+policy only for a zone that supports Private Link, and the entry's own
+tags (the module does not give a link the zone's).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $zone := include "aso.name" (list .Release.Name "zone") }}
+{{- range $key, $l := ($v.virtual_network_links | default dict) }}
+{{- $name := $l.name | default $l.vnetlinkname }}
+{{- $vnet := $l.virtual_network_id | default $l.vnetid }}
+{{- if not $name }}{{ fail "avm-res-network-privatednszone: Each virtual_network_link must have either vnetlinkname or name provided." }}{{ end }}
+{{- if not $vnet }}{{ fail "avm-res-network-privatednszone: Each virtual_network_link must have either vnetid or virtual_network_id provided." }}{{ end }}
+{{- if ge (len $name) 80 }}{{ fail "avm-res-network-privatednszone: Each virtual network link name must have less than 80 characters." }}{{ end }}
+{{- $reg := false }}
+{{- if not (kindIs "invalid" $l.registration_enabled) }}{{ $reg = $l.registration_enabled }}{{ else if not (kindIs "invalid" $l.autoregistration) }}{{ $reg = $l.autoregistration }}{{ end }}
+---
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesVirtualNetworkLink
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "link" $key)) "id" (printf "virtual_network_link:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $name | quote }}
+  location: global
+  owner:
+    name: {{ $zone }}
+  registrationEnabled: {{ $reg }}
+  {{- if eq $l.private_dns_zone_supports_private_link true }}
+  resolutionPolicy: {{ $l.resolution_policy | default "Default" | quote }}
+  {{- end }}
+  virtualNetwork:
+    reference:
+      armId: {{ $vnet | quote }}
+  {{- with $l.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
