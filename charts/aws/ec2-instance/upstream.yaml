@@ -1,0 +1,137 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/ec2-instance
+repo: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance
+path: .
+version: v6.4.1
+commit: 294fb8928bc0f7e0d9ba5bea41a8236c9a7a95d9
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/ec2-instance/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field), not-ported (ACK has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is not carried.
+refused:
+- variable: associate_public_ip_address
+  kind: gap
+  reason: "ACK's Instance takes it only on a network interface it creates, and its network interface spec has no security groups (Groups), so the instance's groups could not be set with it"
+- variable: cpu_options
+  kind: gap
+  reason: "accepted, except amd_sev_snp: ACK's CpuOptions has no field for it"
+  partial: true
+  fields:
+  - amd_sev_snp
+- variable: create_eip
+  kind: gap
+  reason: "aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain"
+- variable: create_security_group
+  kind: gap
+  reason: "accepted false; true (the default) is refused: ACK's Instance takes security group IDs only, with no reference, so a group this component made cannot be attached in one render. Set create_security_group: false and pass a security-group component's id output in vpc_security_group_ids"
+  partial: true
+- variable: create_spot_instance
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: ebs_volumes
+  kind: gap
+  reason: "ack-extensions' VolumeAttachment takes the instance's ID with no reference to an Instance, and a Volume needs the instance's Availability Zone, which only its status has: they cannot be wired in one render"
+- variable: eip_domain
+  kind: gap
+  reason: "aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain"
+- variable: eip_tags
+  kind: gap
+  reason: "aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain"
+- variable: enable_primary_ipv6
+  kind: gap
+  reason: "ACK's Instance has no field for a primary IPv6 address"
+- variable: enable_volume_tags
+  kind: gap
+  reason: "accepted: ACK tags the volumes an instance launches with the instance's tags (tags, instance_tags and Name), so they are tagged either way, without volume_tags"
+  partial: true
+- variable: force_destroy
+  kind: gap
+  reason: "ACK's Instance has no field to override disable_api_stop and disable_api_termination on delete"
+- variable: get_password_data
+  kind: gap
+  reason: "ACK's Instance does not read a Windows instance's password data"
+- variable: iam_role_use_name_prefix
+  kind: gap
+  reason: "accepted: true (the default) names the role and instance profile iam_role_name (or name) as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' roles apart"
+  partial: true
+- variable: ignore_ami_changes
+  kind: gap
+  reason: "accepted: ACK never replaces an instance when ami changes, as ignore_ami_changes: true does; false's replacement is not carried"
+  partial: true
+- variable: placement_group_id
+  kind: gap
+  reason: "ACK's Instance places an instance by group name only (placement_group)"
+- variable: root_block_device
+  kind: gap
+  reason: "the root device's name depends on the AMI, which the chart does not read, and ACK's blockDeviceMappings need the name"
+- variable: secondary_network_interface
+  kind: gap
+  reason: "ACK's Instance has no secondary network interfaces"
+- variable: secondary_private_ips
+  kind: gap
+  reason: "ACK's Instance takes it only on a network interface it creates, and its network interface spec has no security groups (Groups), so the instance's groups could not be set with it"
+- variable: security_group_description
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: security_group_egress_rules
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: security_group_ingress_rules
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: security_group_name
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: security_group_tags
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: security_group_use_name_prefix
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: security_group_vpc_id
+  kind: gap
+  reason: "used only by the security group create_security_group makes, which is refused (ACK's Instance takes security group IDs, with no reference)"
+- variable: spot_instance_interruption_behavior
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: spot_launch_group
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: spot_price
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: spot_type
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: spot_valid_from
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: spot_valid_until
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: spot_wait_for_fulfillment
+  kind: gap
+  reason: "aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances"
+- variable: timeouts
+  kind: by-design
+  reason: "Terraform's create, update and delete timeouts: ACK retries until the instance is synced, and Bundt waits for it"
+- variable: user_data_replace_on_change
+  kind: gap
+  reason: "ACK updates an instance's user data in place; it never replaces an instance"
+- variable: volume_tags
+  kind: gap
+  reason: "ACK tags the volumes an instance launches with the instance's own tags; volume tags of their own have no field"

@@ -703,12 +703,26 @@ aso-extensions:
 | `avm-res-storage-storageaccount` | `local_user` | `Microsoft.Storage/storageAccounts/localUsers` (SFTP and NFSv3 local users) |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
+| `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
 (`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
 flag (`avm-res-keyvault-vault`'s `keys`).
+
+The network security group (`avm-res-network-networksecuritygroup`)
+needs no gap: ASO's `NetworkSecurityGroup` has no `securityRules` field at
+all, so its rules are always `NetworkSecurityGroupsSecurityRule` objects,
+which is the arrangement the module forces by ignoring the group's
+`securityRules`. Its diagnostic settings send no metrics (the shared
+helper's `noMetrics`) and leave `Dedicated` to Azure (`dedicatedNull`), as
+the module does.
+
+A module whose parent is a resource group's name (azurerm's
+`resource_group_name`, as the route table module's) has a chart value
+`subscription_id` beside it, since ASO's owner is a resource ID;
+`resource_group_name` may instead be the group's ID.
 
 Open: the Key Vault module's `secrets` map onto aso-extensions'
 `VaultSecret`, whose value comes from a Kubernetes Secret. The chart does

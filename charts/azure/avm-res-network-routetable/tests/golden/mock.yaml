@@ -1,0 +1,60 @@
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  name: mock-rt
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_table"
+spec:
+  azureName: "catalog-rt"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  disableBgpRoutePropagation: false
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: mock-route-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:default"
+spec:
+  azureName: "to-nva"
+  owner:
+    name: mock-rt
+  addressPrefix: "0.0.0.0/0"
+  nextHopType: VirtualAppliance
+  nextHopIpAddress: "10.42.0.4"
+---
+# Source: avm-res-network-routetable/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: mock-route-local
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-routetable
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route:local"
+spec:
+  azureName: "local"
+  owner:
+    name: mock-rt
+  addressPrefix: "10.42.0.0/16"
+  nextHopType: VnetLocal
