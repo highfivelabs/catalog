@@ -1,0 +1,71 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-virtualnetwork
+main.peering.tf and modules/peering/main.tf and locals.tf (v0.23.0),
+Copyright (c) Microsoft Corporation, MIT.
+
+module.peering (azapi_resource.this, address_space_peering or
+subnet_peering, Microsoft.Network/virtualNetworks/virtualNetworkPeerings):
+one ASO VirtualNetworksVirtualNetworkPeering per entry, owned by the
+network; with create_reverse_peering, the reverse peering (reverse,
+reverse_address_space_peering or reverse_subnet_peering), owned by the
+remote network by ARM ID, naming this chart's network by reference. The sync of remote address spaces
+(azapi_update_resource with ?syncRemoteAddressSpace=true) is refused.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $vnet := include "aso.name" (list .Release.Name "vnet") }}
+{{- range $key, $p := $v.peerings }}
+{{- include "aso.unsupported" (list $ (printf "peerings.%s.sync_remote_address_space_enabled" $key) $p.sync_remote_address_space_enabled "the sync is a PUT with ?syncRemoteAddressSpace=true, which Azure Service Operator cannot send") }}
+{{- include "aso.unsupported" (list $ (printf "peerings.%s.sync_remote_address_space_triggers" $key) $p.sync_remote_address_space_triggers "the sync is a PUT with ?syncRemoteAddressSpace=true, which Azure Service Operator cannot send") }}
+{{- include "aso.unsupported" (list $ (printf "peerings.%s.retry" $key) $p.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ (printf "peerings.%s.timeouts" $key) $p.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- range $a := concat ($p.local_peered_address_spaces | default list) ($p.remote_peered_address_spaces | default list) ($p.reverse_local_peered_address_spaces | default list) ($p.reverse_remote_peered_address_spaces | default list) }}
+{{- if not (regexMatch "^[0-9a-fA-F:.]+/[0-9]{1,3}$" $a.address_prefix) }}
+{{- fail "avm-res-network-virtualnetwork: Each peering `address_prefix` (local/remote/reverse peered address spaces) must be a valid CIDR block, for example \"10.0.0.0/24\"." }}
+{{- end }}
+{{- end }}
+{{- $shape := include "vnet.peeringShape" (dict "p" $p "pre" "") }}
+{{- if not $shape }}
+{{- fail (printf "avm-res-network-virtualnetwork: peerings.%s: with peer_complete_vnets false, give both local_peered_address_spaces and remote_peered_address_spaces, or both local_peered_subnets and remote_peered_subnets (the module makes no peering otherwise)" $key) }}
+{{- end }}
+{{- $obj := include "aso.name" (list $.Release.Name "peering" $key) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "peering:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.name | quote }}
+  owner:
+    name: {{ $vnet }}
+  remoteVirtualNetwork:
+    reference:
+      armId: {{ $p.remote_virtual_network_resource_id | quote }}
+  {{- include "vnet.peering" (dict "p" $p "pre" "" "shape" $shape) | nindent 2 }}
+{{- if eq $p.create_reverse_peering true }}
+{{- if not $p.reverse_name }}
+{{- fail (printf "avm-res-network-virtualnetwork: peerings.%s: create_reverse_peering needs reverse_name" $key) }}
+{{- end }}
+{{- $rshape := include "vnet.peeringShape" (dict "p" $p "pre" "reverse_") }}
+{{- if not $rshape }}
+{{- fail (printf "avm-res-network-virtualnetwork: peerings.%s: with reverse_peer_complete_vnets false, give both reverse_local_peered_address_spaces and reverse_remote_peered_address_spaces, or both reverse_local_peered_subnets and reverse_remote_peered_subnets (the module makes no reverse peering otherwise)" $key) }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "peering" $key "reverse")) "id" (printf "reverse-peering:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.reverse_name | quote }}
+  owner:
+    armId: {{ $p.remote_virtual_network_resource_id | quote }}
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: {{ $vnet }}
+  {{- include "vnet.peering" (dict "p" $p "pre" "reverse_" "shape" $rshape) | nindent 2 }}
+{{- end }}
+{{- end }}

@@ -85,6 +85,7 @@ must carry.
 | `charts/gcp/project` | `modules/project` | see the chart's README | see the chart's README |
 | `charts/gcp/gke-cluster` | terraform-google-kubernetes-engine `modules/beta-private-cluster` and `modules/beta-autopilot-private-cluster` (v47.0.0) | the cluster (Standard or Autopilot, `mode`), node pools, the node service account and its grants; see the chart's README for the full mapping | see the chart's README |
 | `charts/azure/avm-res-resources-resourcegroup` | Azure Verified Module `avm-res-resources-resourcegroup` (v0.5.0) | the group, its lock (aso-extensions `ManagementLock`) and role assignments | `ignore_tag_changes`, `retry`, `timeouts` |
+| `charts/azure/avm-res-network-virtualnetwork` | Azure Verified Module `avm-res-network-virtualnetwork` (v0.23.0) | the network, subnets, peerings (and reverse peerings), lock, role assignments, diagnostic settings | `ignore_body_changes`, `retry`, `timeouts`, a peering's address space sync |
 
 ## Moving the pins
 

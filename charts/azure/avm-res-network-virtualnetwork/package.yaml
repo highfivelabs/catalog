@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is computed from inputs as the module
+# sets it; resource_id is the network's ARM ID from ASO's status;
+# address_spaces is address_space, or with IPAM the prefixes Azure
+# allocated. The module's subnets and peerings outputs are maps of whole
+# submodule objects: here they are maps of the same keys to each subnet's
+# and peering's ARM ID, the field consumers take (docs/design.md,
+# "Outputs"). The module's resource output (the whole azapi object) is not
+# an output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-virtualnetwork
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('virtualNetwork' in inputs.names && inputs.names.virtualNetwork != '' ? inputs.names.virtualNetwork : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    resource_id: resources.virtual_network.status.id
+    address_spaces: >-
+      inputs.ipam_pools == null
+      ? inputs.address_space
+      : resources.virtual_network.status.addressSpace.addressPrefixes
+    subnets: >-
+      resources.transformMapEntry(k, v, k.startsWith('subnet:') && !k.contains('/'), {k.substring(7): v.status.id})
+    peerings: >-
+      resources.transformMapEntry(k, v, k.startsWith('peering:'), {k.substring(8): v.status.id})
