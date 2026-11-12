@@ -1,0 +1,99 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-natgateway main.tf,
+main.public_ip.tf and locals.tf (v0.3.2), Copyright (c) Microsoft
+Corporation, MIT.
+
+azapi_resource.this (Microsoft.Network/natGateways): one ASO NatGateway,
+owned by the resource group parent_id names; the public IPs it creates by
+Kubernetes reference, the ones given by ARM ID. azapi_resource.public_ip:
+one ASO PublicIPAddress per public_ips entry, configured by its
+public_ip_configuration entry or the module's defaults, and
+azapi_resource.public_ip_lock its lock. azapi_resource.lock,
+role_assignment and diagnostic_setting: the AVM interfaces on the gateway
+(avm-utl-interfaces 0.5.0: the lock without notes, diagnostic settings v2).
+The telemetry is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "natGateway")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-natgateway: name is required" }}{{ end }}
+{{- $sku := $v.sku_name | default "StandardV2" }}
+{{- $pipDefault := dict "allocation_method" "Static" "ddos_protection_mode" "VirtualNetworkInherited" "idle_timeout_in_minutes" 30 "ip_version" "IPv4" "sku" "StandardV2" "sku_tier" "Regional" "zones" (list "1" "2" "3") }}
+{{- if and (eq $sku "StandardV2") $v.public_ips }}
+{{- range $_, $c := ($v.public_ip_configuration | default dict) }}
+{{- if ne ($c.sku | default "StandardV2") "StandardV2" }}
+{{- fail "avm-res-network-natgateway: When using StandardV2 SKU for NAT Gateway, all Public IP configurations must specify StandardV2 SKU." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if and (eq $sku "Standard") (not (kindIs "invalid" $v.zones)) (gt (len $v.zones) 1) }}
+{{- fail "avm-res-network-natgateway: Standard SKU NAT Gateway supports only a single zone (Zonal) or no zone (Regional)." }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "natgw") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $v4 := list }}{{- $v6 := list }}
+{{- range $key, $p := ($v.public_ips | default dict) }}
+{{- $c := deepCopy (index ($v.public_ip_configuration | default dict) $key | default dict) }}
+{{- range $k, $d := $pipDefault }}{{ if kindIs "invalid" (index $c $k) }}{{ $_ := set $c $k $d }}{{ end }}{{ end }}
+{{- $ref := dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" (include "aso.name" (list $.Release.Name "pip" $key)) }}
+{{- if eq (lower $c.ip_version) "ipv6" }}{{ $v6 = append $v6 $ref }}{{ else if eq (lower $c.ip_version) "ipv4" }}{{ $v4 = append $v4 $ref }}{{ end }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: NatGateway
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "nat_gateway" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "natGateway" "NAT gateway" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  {{- if not (kindIs "invalid" $v.idle_timeout_in_minutes) }}
+  idleTimeoutInMinutes: {{ $v.idle_timeout_in_minutes | int }}
+  {{- end }}
+  {{- $addrs := list }}
+  {{- range $v4 }}{{ $addrs = append $addrs (dict "reference" .) }}{{ end }}
+  {{- range (uniq ($v.public_ip_resource_ids | default list) | sortAlpha) }}{{ $addrs = append $addrs (dict "reference" (dict "armId" .)) }}{{ end }}
+  {{- with $addrs }}
+  publicIpAddresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- $addrs = list }}
+  {{- range $v6 }}{{ $addrs = append $addrs (dict "reference" .) }}{{ end }}
+  {{- range (uniq ($v.public_ip_v6_resource_ids | default list) | sortAlpha) }}{{ $addrs = append $addrs (dict "reference" (dict "armId" .)) }}{{ end }}
+  {{- with $addrs }}
+  publicIpAddressesV6:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.public_ip_prefix_resource_ids }}
+  publicIpPrefixes:
+    {{- range (uniq . | sortAlpha) }}
+    - reference:
+        armId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.public_ip_prefix_v6_resource_ids }}
+  publicIpPrefixesV6:
+    {{- range (uniq . | sortAlpha) }}
+    - reference:
+        armId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  sku:
+    name: {{ $sku }}
+  {{- $zones := ternary (list "1" "2" "3") (uniq ($v.zones | default list) | sortAlpha) (eq $sku "StandardV2") }}
+  {{- with $zones }}
+  zones:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "NatGateway" "name" $obj }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.lock) }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettingsV2" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "what" "diagnostic_settings") }}
