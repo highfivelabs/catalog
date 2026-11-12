@@ -1,0 +1,88 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "VPC" and "DHCP Options Set": the VPC (aws_vpc, its secondary
+CIDR blocks, aws_vpc_ipv4_cidr_block_association, as VPC.cidrBlocks) and
+the DHCP options set with its association (aws_vpc_dhcp_options,
+aws_vpc_dhcp_options_association, as DHCPOptions.vpcRefs).
+*/ -}}
+{{- include "ack.names" (list $ (list "vpc" "databaseSubnetGroup" "elasticacheSubnetGroup")) -}}
+{{- $p := include "vpc.plan" . | fromJson -}}
+{{- if $p.create }}
+{{- $v := .Values }}
+{{- $vpc := include "ack.name" (list .Release.Name "vpc") }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: VPC
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $vpc "id" "vpc" "region" $v.region) | nindent 2 }}
+spec:
+  cidrBlocks:
+    - {{ $v.cidr | quote }}
+{{- range $v.secondary_cidr_blocks }}
+    - {{ . | quote }}
+{{- end }}
+{{- with $v.ipv4_ipam_pool_id }}
+  ipv4IPAMPoolID: {{ . | quote }}
+{{- end }}
+  instanceTenancy: {{ $v.instance_tenancy | quote }}
+  enableDNSHostnames: {{ $v.enable_dns_hostnames }}
+  enableDNSSupport: {{ $v.enable_dns_support }}
+{{- if not (kindIs "invalid" $v.enable_network_address_usage_metrics) }}
+  enableNetworkAddressUsageMetrics: {{ $v.enable_network_address_usage_metrics }}
+{{- end }}
+{{- if $v.manage_default_security_group }}
+  # manage_default_security_group: the default security group without its
+  # rules, as the module's aws_default_security_group with none leaves it.
+  disallowSecurityGroupDefaultRules: true
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" $p.base) $v.tags $v.vpc_tags) | fromJson)) | nindent 4 }}
+{{- if $v.enable_dhcp_options }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: DHCPOptions
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "dhcp-options")) "id" "dhcp-options" "region" $v.region) | nindent 2 }}
+spec:
+  dhcpConfigurations:
+{{- with $v.dhcp_options_domain_name }}
+    - key: domain-name
+      values: [{{ . | quote }}]
+{{- end }}
+{{- with $v.dhcp_options_domain_name_servers }}
+    - key: domain-name-servers
+      values:
+{{- range . }}
+        - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.dhcp_options_ntp_servers }}
+    - key: ntp-servers
+      values:
+{{- range . }}
+        - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.dhcp_options_netbios_name_servers }}
+    - key: netbios-name-servers
+      values:
+{{- range . }}
+        - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.dhcp_options_netbios_node_type }}
+    - key: netbios-node-type
+      values: [{{ . | quote }}]
+{{- end }}
+{{- if not (kindIs "invalid" $v.dhcp_options_ipv6_address_preferred_lease_time) }}
+    - key: ipv6-address-preferred-lease-time
+      values: [{{ $v.dhcp_options_ipv6_address_preferred_lease_time | toString | quote }}]
+{{- end }}
+  vpcRefs:
+    - {{- include "vpc.ref" $vpc | nindent 6 }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" $p.base) $v.tags $v.dhcp_options_tags) | fromJson)) | nindent 4 }}
+{{- end }}
+{{- end }}

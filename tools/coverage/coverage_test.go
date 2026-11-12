@@ -167,3 +167,62 @@ func TestWriteCheck(t *testing.T) {
 		t.Fatalf("README outside the markers changed:\n%s", readme)
 	}
 }
+
+// An AWS module is classified when upstream/aws-kinds.yaml lists every
+// one of its resource types, and stays unclassified otherwise.
+func TestBuildClassifiesAWS(t *testing.T) {
+	o := fixture(t)
+	awsEntry := func(module string, rank int) string {
+		return `  - id: aws/` + module + `
+    cloud: aws
+    module: ` + module + `
+    rank: ` + string(rune('0'+rank)) + `
+    repo: https://github.com/example/terraform-aws-` + module + `
+    path: .
+    tag_pattern: "v*"
+    version: v1.0.0
+    commit: ` + sha + `
+    license: Apache-2.0
+    copyright: null
+    registry_url: null
+    url: https://github.com/example/terraform-aws-` + module + `/tree/v1.0.0
+    chart: null
+`
+	}
+	data, _ := os.ReadFile(filepath.Join(o.Root, "upstream/modules.yaml"))
+	body := strings.Replace(string(data), "excluded: []\n", awsEntry("d", 1)+awsEntry("e", 2)+"excluded: []\n", 1)
+	write(t, o.Root, "upstream/modules.yaml", body)
+	for _, m := range []string{"d", "e"} {
+		src := filepath.Join(o.CacheDir, "example", "terraform-aws-"+m, "v1.0.0")
+		write(t, src, ".fetched", ".")
+		write(t, src, "variables.tf", `variable "x" {}`)
+	}
+	write(t, filepath.Join(o.CacheDir, "example", "terraform-aws-d", "v1.0.0"), "main.tf", `resource "aws_a" "x" {}
+resource "aws_b" "y" {}
+`)
+	write(t, filepath.Join(o.CacheDir, "example", "terraform-aws-e", "v1.0.0"), "main.tf", `resource "aws_a" "x" {}
+resource "aws_unlisted" "y" {}
+`)
+	write(t, o.Root, "upstream/aws-kinds.yaml", `types:
+  aws_a: {class: stable, kind: ec2/A}
+  aws_b: {class: none}
+`)
+	res, err := Build(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]Row{}
+	for _, r := range res.Rows {
+		byName[r.Module] = r
+	}
+	if d := byName["d"]; !d.KindsKnown || d.Status != Blocked || d.TypesStable != 1 || d.TypesMissing != 1 || !strings.Contains(d.Notes, "aws_b (none)") {
+		t.Fatalf("d: %+v", d)
+	}
+	if e := byName["e"]; e.KindsKnown || e.Status != NotStarted || e.TypesMissing != 0 {
+		t.Fatalf("e: %+v", e)
+	}
+	write(t, o.Root, "upstream/aws-kinds.yaml", "types:\n  aws_a: {class: stable}\n")
+	if _, err := Build(o); err == nil || !strings.Contains(err.Error(), "names no kind") {
+		t.Fatalf("want an error for a stable type without a kind, got %v", err)
+	}
+}

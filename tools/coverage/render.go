@@ -261,7 +261,11 @@ func Readme(res *Result) string {
 				title += fmt.Sprintf(" (first %d of %d, by rank)", len(rows), total)
 			}
 			fmt.Fprintf(&b, "**%s**\n\n", title)
-			if c == "gcp" {
+			classified := false
+			for _, r := range rows {
+				classified = classified || r.KindsKnown
+			}
+			if c == "gcp" || classified {
 				b.WriteString("| Module | Variables covered | Outputs | Resource types with a stable kind | Status |\n| --- | --- | ---: | ---: | --- |\n")
 			} else {
 				b.WriteString("| Module | Variables covered | Outputs | Resource types | Status |\n| --- | --- | ---: | ---: | --- |\n")
