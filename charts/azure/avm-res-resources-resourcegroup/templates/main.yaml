@@ -1,0 +1,43 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-resources-resourcegroup main.tf
+(v0.5.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.Resources/resourceGroups): one ASO
+ResourceGroup. azapi_resource.lock (Microsoft.Authorization/locks): an
+aso-extensions ManagementLock on it. azapi_resource.role_assignments:
+one ASO RoleAssignment each. The module's telemetry deployment is not
+ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "ignore_tag_changes" $v.ignore_tag_changes "Azure Service Operator applies every tag it is given and cannot leave the tags to another writer") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "resourceGroup")) }}
+{{- if not $v.name }}{{ fail "avm-res-resources-resourcegroup: name is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-resources-resourcegroup: location is required" }}{{ end }}
+{{- if and $v.managed_by (not (regexMatch "^/.+/.+" $v.managed_by)) }}
+{{- fail "avm-res-resources-resourcegroup: `managed_by` must be a valid Azure resource ID starting with `/` and containing at least two `/` separated segments." }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "rg") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "resource_group" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "resourceGroup" "resource group" $v.name 90 "^[a-zA-Z0-9_().-]{0,89}[a-zA-Z0-9_()-]$") | quote }}
+  location: {{ $v.location | quote }}
+  {{- with $v.managed_by }}
+  managedBy: {{ . | quote }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "resources.azure.com" "kind" "ResourceGroup" "name" $obj }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.lock) }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}

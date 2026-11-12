@@ -1,0 +1,88 @@
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-rg-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg
+  level: CanNotDelete
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: full-rg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource_group"
+spec:
+  azureName: "rg-platform-prod"
+  location: "westeurope"
+  managedBy: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Solutions/applications/app1"
+  tags:
+    cost-center: "4711"
+    environment: prod
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-rg-role-blob
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-blob"
+spec:
+  azureName: "6f1c2b8e-1d2a-4b3c-9e8f-0a1b2c3d4e5f"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+  condition: "((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'})))"
+  conditionVersion: "2.0"
+---
+# Source: avm-res-resources-resourcegroup/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-rg-role-readers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-resources-resourcegroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-readers"
+spec:
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+  description: "platform readers"

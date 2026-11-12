@@ -9,13 +9,14 @@
 #      and every variable the latter lists as refused is refused (task coverage-verify);
 #   1. each chart's shared helpers are the canonical copy: templates/_kcc.tpl
 #      is lib/_kcc.tpl (charts/gcp), templates/_ack.tpl is lib/_ack.tpl
-#      (charts/aws);
+#      (charts/aws), templates/_aso.tpl is lib/_aso.tpl (charts/azure);
 #   2. helm lint;
 #   3. its Package document matches the chart and its outputs compile;
 #   4. each tests/<case>.values.yaml renders, matches
 #      tests/golden/<case>.yaml, and validates (kubeconform -strict)
 #      against Config Connector's CRD schemas at the release in UPSTREAM.md,
-#      or (charts/aws) the ACK controllers' at the releases there (hack/ack.sh);
+#      the ACK controllers' (hack/ack.sh) for an AWS chart, Azure Service
+#      Operator's (hack/aso.sh) for an Azure chart;
 #   4b. the namePrefix check (catalogtool nameprefix) and each case rendered with a
 #      namePrefix validates too;
 #   4c. every object of every case has an hfl.dev/id, and no two share one
@@ -42,18 +43,24 @@ SCHEMAS="${ROOT}/.cache/schemas-${VERSION}"
 CCE_SCHEMAS="${ROOT}/.cache/schemas-cce"
 rm -rf "${CCE_SCHEMAS}"
 bin/catalogtool schemas crds/config-connector-extensions "${CCE_SCHEMAS}" >/dev/null
-# ACK's kinds validate against the CRDs of the controllers UPSTREAM.md pins,
-# ack-extensions kinds against the CRDs copied in crds/ack-extensions.
+# ACK's kinds validate against the CRDs of the controllers UPSTREAM.md pins
+# (hack/ack.sh), ack-extensions kinds against the CRDs copied in
+# crds/ack-extensions.
 ACK_SCHEMAS="$(hack/ack.sh)"
-ACKX_SCHEMAS="${ROOT}/.cache/schemas-ackx"
+ACKX_SCHEMAS="${ROOT}/.cache/schemas-ack-extensions"
 rm -rf "${ACKX_SCHEMAS}"
 bin/catalogtool schemas crds/ack-extensions "${ACKX_SCHEMAS}" >/dev/null
-SCHEMA_ARGS=(
-  -schema-location "${SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
-  -schema-location "${CCE_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
-  -schema-location "${ACK_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
-  -schema-location "${ACKX_SCHEMAS}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
-)
+# Azure Service Operator kinds validate against its CRDs at the release in
+# UPSTREAM.md (hack/aso.sh), aso-extensions kinds (ManagementLock) against
+# the CRDs copied in crds/aso-extensions.
+ASO_SCHEMAS="$(hack/aso.sh)"
+ASOX_SCHEMAS="${ROOT}/.cache/schemas-aso-extensions"
+rm -rf "${ASOX_SCHEMAS}"
+bin/catalogtool schemas crds/aso-extensions "${ASOX_SCHEMAS}" >/dev/null
+SCHEMA_ARGS=()
+for s in "${SCHEMAS}" "${CCE_SCHEMAS}" "${ACK_SCHEMAS}" "${ACKX_SCHEMAS}" "${ASO_SCHEMAS}" "${ASOX_SCHEMAS}"; do
+  SCHEMA_ARGS+=(-schema-location "${s}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json")
+done
 
 fail=0; passed=0
 bad() { echo "FAIL $*"; fail=$((fail + 1)); }
@@ -86,6 +93,7 @@ for dir in "${dirs[@]}"; do
   # The shared helpers each cloud's charts carry (hack/sync-lib.sh).
   case "${name%%/*}" in
     aws) lib=_ack.tpl ;;
+    azure) lib=_aso.tpl ;;
     *) lib=_kcc.tpl ;;
   esac
   if cmp -s "lib/${lib}" "${dir}/templates/${lib}"; then ok; else bad "${name}: templates/${lib} differs from lib/${lib} (run hack/sync-lib.sh)"; fi

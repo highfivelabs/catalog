@@ -11,6 +11,7 @@ date. Nothing here is edited by hand except this page.
 | `variables.csv` | one row per variable of every tracked module: `cloud,module,variable,type,covered,refused_reason,gap_kind` |
 | `outputs.csv` | one row per output: `cloud,module,output,covered` |
 | `resource-types.csv` | one row per Terraform resource type each module creates, with its class: `cloud,module,resource_type,class,kind` |
+| `blocked-kinds.md` | the Config Connector kinds the blocked Google Cloud modules lack, ranked by how many modules each would unblock (for config-connector-extensions) |
 | `gcp-resource-kinds.csv` | the Google Cloud classification the inventory computes (`task inventory`); an input to this page |
 | `total.svg`, `gcp.svg`, `aws.svg`, `azure.svg`, `bars/*.svg` | the bars in the README |
 
@@ -53,9 +54,9 @@ supported". A variable the chart does not list at all counts as not covered
 
 | `gap_kind` | Meaning |
 | --- | --- |
-| `gap` | Config Connector (on AWS: ACK and ack-extensions) has no kind or field for it, or none a chart can wire in one render (a field that takes another resource's ID with no reference field) |
+| `gap` | Config Connector (on AWS: ACK or ack-extensions; on Azure: Azure Service Operator or aso-extensions) has no kind or field for it, or none a chart can wire in one render (a field that takes another resource's ID with no reference field) |
 | `alpha` | only a `v1alpha1` kind exists, or it needs `allow_alpha: true` (on AWS: only an ack-extensions kind or a preview controller's) |
-| `not-ported` | Config Connector (on AWS: ACK) has a stable kind; the chart does not map it yet |
+| `not-ported` | Config Connector (on AWS: ACK; on Azure: ASO or aso-extensions) has a stable kind; the chart does not map it yet |
 | `by-design` | Bundt replaces it (`$context` lookups, reusing a resource, `factories_config`) |
 | `no-chart` | the module has no chart yet |
 
