@@ -1,0 +1,69 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# outputs for what the chart ports, from the live Instance
+# (resources.instance), IAM Role (resources.iam-role) and InstanceProfile
+# (resources.iam-instance-profile), and the component's values (inputs).
+# EC2 reports no ARN for an instance, so arn is built as the Terraform
+# provider builds it, arn:<partition>:ec2:<region>:<owner>:instance/<id>.
+# Not provided: what the chart refuses (the Spot request's, the EBS
+# volumes', the security group's and the password data), the primary
+# network interface's ID, and the block devices, which ACK's Instance
+# status does not report.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-ec2-instance
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    id: >-
+      'instance' in resources && has(resources.instance.status.instanceID) ? resources.instance.status.instanceID : null
+    arn: >-
+      'instance' in resources && has(resources.instance.status.instanceID)
+      ? dyn('arn:'
+        + (resources.instance.status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn'
+          : (resources.instance.status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws'))
+        + ':ec2:' + resources.instance.status.ackResourceMetadata.region
+        + ':' + resources.instance.status.ackResourceMetadata.ownerAccountID
+        + ':instance/' + resources.instance.status.instanceID)
+      : null
+    capacity_reservation_specification: >-
+      'instance' in resources && has(resources.instance.spec.capacityReservationSpecification) ? resources.instance.spec.capacityReservationSpecification : null
+    instance_state: >-
+      'instance' in resources && has(resources.instance.status.state) && has(resources.instance.status.state.name) ? resources.instance.status.state.name : null
+    outpost_arn: >-
+      'instance' in resources && has(resources.instance.status.outpostARN) ? resources.instance.status.outpostARN : null
+    private_dns: >-
+      'instance' in resources && has(resources.instance.status.privateDNSName) ? resources.instance.status.privateDNSName : null
+    public_dns: >-
+      'instance' in resources && has(resources.instance.status.publicDNSName) ? resources.instance.status.publicDNSName : null
+    public_ip: >-
+      'instance' in resources && has(resources.instance.status.publicIPAddress) ? resources.instance.status.publicIPAddress : null
+    private_ip: >-
+      'instance' in resources && has(resources.instance.spec.privateIPAddress) ? resources.instance.spec.privateIPAddress : null
+    ipv6_addresses: >-
+      'instance' in resources && has(resources.instance.spec.ipv6Addresses) ? resources.instance.spec.ipv6Addresses.map(a, a.ipv6Address) : []
+    tags_all: >-
+      'instance' in resources && has(resources.instance.spec.tags) ? resources.instance.spec.tags.transformMapEntry(i, t, {t.key: t.value}) : {}
+    ami: >-
+      'instance' in resources ? resources.instance.spec.imageID : null
+    availability_zone: >-
+      'instance' in resources && has(resources.instance.spec.placement) && has(resources.instance.spec.placement.availabilityZone) ? resources.instance.spec.placement.availabilityZone : null
+    iam_role_name: >-
+      'iam-role' in resources ? resources['iam-role'].spec.name : null
+    iam_role_arn: >-
+      'iam-role' in resources ? resources['iam-role'].status.ackResourceMetadata.arn : null
+    iam_role_unique_id: >-
+      'iam-role' in resources ? resources['iam-role'].status.roleID : null
+    iam_instance_profile_arn: >-
+      'iam-instance-profile' in resources ? resources['iam-instance-profile'].status.ackResourceMetadata.arn : null
+    iam_instance_profile_id: >-
+      'iam-instance-profile' in resources ? resources['iam-instance-profile'].spec.name : null
+    iam_instance_profile_unique: >-
+      'iam-instance-profile' in resources ? resources['iam-instance-profile'].status.instanceProfileID : null
+    ephemeral_block_device: >-
+      inputs.ephemeral_block_device == null ? [] : inputs.ephemeral_block_device.map(k, inputs.ephemeral_block_device[k])

@@ -1,0 +1,48 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: bigtable-instance
+spec:
+  version: "1.0.0"
+  components:
+    - name: bigtable-instance
+      package:
+        name: gcp-bigtable-instance
+        version: "0.1.0"
+      inputs:
+        name: instance
+        clusters:
+          my-cluster:
+            zone: europe-west1-b
+        tables:
+          table-0: {}
+          table-1:
+            column_families:
+              cf1: {}
+              cf2:
+                gc_policy:
+                  max_version: "7"
+        iam:
+          roles/bigtable.user:
+            - user:me@example.com
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: bigtable-instance
+  scope: my-team
+spec:
+  template: bigtable-instance
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: bigtable-instance-dev
+  scope: my-team/dev
+spec:
+  stack: bigtable-instance
+  version: "1.0.0"
+  components:
+    bigtable-instance:
+      values:
+        project_id: my-project
