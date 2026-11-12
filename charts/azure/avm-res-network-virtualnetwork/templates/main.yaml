@@ -1,0 +1,103 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-virtualnetwork main.tf and
+main.interfaces.tf (v0.23.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.vnet (Microsoft.Network/virtualNetworks): one ASO
+VirtualNetwork, owned by the resource group parent_id names.
+azapi_resource.lock: an aso-extensions ManagementLock on it.
+azapi_resource.role_assignments: one ASO RoleAssignment each.
+azapi_resource.diagnostic_settings: one ASO DiagnosticSetting each. The
+module's telemetry deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" (include "vnet.anySet" $v.ignore_body_changes) "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "virtualNetwork")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-virtualnetwork: name is required" }}{{ end }}
+{{- if eq (kindIs "invalid" $v.address_space) (kindIs "invalid" $v.ipam_pools) }}
+{{- fail "avm-res-network-virtualnetwork: Either address_space or ipam_pools must be specified, but not both." }}
+{{- end }}
+{{- $v4 := 0 }}{{- $v6 := 0 }}
+{{- range $p := ($v.ipam_pools | default list) }}
+{{- if and (kindIs "invalid" $p.number_of_ip_addresses) (kindIs "invalid" $p.prefix_length) }}
+{{- fail "avm-res-network-virtualnetwork: Each IPAM pool entry must specify either number_of_ip_addresses or prefix_length." }}
+{{- end }}
+{{- if not (kindIs "invalid" $p.prefix_length) }}
+{{- $pl := int $p.prefix_length }}
+{{- if not (or (and (ge $pl 2) (le $pl 29)) (and (ge $pl 48) (le $pl 64))) }}
+{{- fail "avm-res-network-virtualnetwork: Prefix length must be between 2 and 29 for IPv4 and 48 and 64 for IPv6." }}
+{{- end }}
+{{- if ge $pl 48 }}{{ $v6 = add1 $v6 }}{{ else }}{{ $v4 = add1 $v4 }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if gt $v6 1 }}{{ fail "avm-res-network-virtualnetwork: Only one IPv6 pool can be specified." }}{{ end }}
+{{- if gt $v4 1 }}{{ fail "avm-res-network-virtualnetwork: Only one IPv4 pool can be specified." }}{{ end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "vnet") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "virtual_network" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "virtualNetwork" "virtual network" $v.name 64 "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}[a-zA-Z0-9_]$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  addressSpace:
+    {{- if $v.ipam_pools }}
+    ipamPoolPrefixAllocations:
+      {{- range $p := $v.ipam_pools }}
+      - numberOfIpAddresses: {{ ternary (include "vnet.pow2" (sub (ternary 128 32 (ge (int ($p.prefix_length | default 0)) 48)) (int ($p.prefix_length | default 0)))) $p.number_of_ip_addresses (kindIs "invalid" $p.number_of_ip_addresses) | quote }}
+        reference:
+          armId: {{ $p.id | quote }}
+      {{- end }}
+    {{- else }}
+    addressPrefixes:
+      {{- range (uniq $v.address_space | sortAlpha) }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- with $v.bgp_community }}
+  bgpCommunities:
+    virtualNetworkCommunity: {{ . | quote }}
+  {{- end }}
+  {{- with $v.dns_servers }}
+  dhcpOptions:
+    dnsServers:
+      {{- range .dns_servers }}
+      - {{ . | quote }}
+      {{- end }}
+  {{- end }}
+  {{- with $v.ddos_protection_plan }}
+  ddosProtectionPlan:
+    reference:
+      armId: {{ .id | quote }}
+  {{- end }}
+  enableDdosProtection: {{ if $v.ddos_protection_plan }}{{ eq $v.ddos_protection_plan.enable true }}{{ else }}false{{ end }}
+  enableVmProtection: {{ eq $v.enable_vm_protection true }}
+  {{- with $v.encryption }}
+  encryption:
+    enabled: {{ .enabled }}
+    enforcement: {{ .enforcement | quote }}
+  {{- end }}
+  {{- with $v.extended_location }}
+  extendedLocation:
+    name: {{ .name | quote }}
+    type: {{ .type | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.flow_timeout_in_minutes) }}
+  flowTimeoutInMinutes: {{ $v.flow_timeout_in_minutes | int }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "VirtualNetwork" "name" $obj }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.lock) }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}

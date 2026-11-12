@@ -59,6 +59,49 @@ spec:
   languageTag: en
   notificationCategorySubscriptions: ["SECURITY","TECHNICAL"]
 ---
+# Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: mock-audit-storage-googleapis-com-a0f5bee5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "data-access:storage.googleapis.com"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    name: mock
+  service: "storage.googleapis.com"
+  auditLogConfigs:
+    - logType: "DATA_READ"
+---
+# Source: project/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: mock-role-catalogmockrole-70da00a5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "custom-role:catalogMockRole"
+    cnrm.cloud.google.com/project-id: "catalog-mock-prj"
+spec:
+  resourceID: "catalogMockRole"
+  title: "Custom role catalogMockRole"
+  description: "Terraform-managed."
+  permissions:
+    - "compute.instances.get"
+---
 # Source: project/templates/iam.yaml
 apiVersion: iam.cnrm.cloud.google.com/v1beta1
 kind: IAMPartialPolicy
@@ -103,6 +146,26 @@ spec:
   role: "roles/logging.viewer"
   member: "user:dev@example.com"
 ---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: mock-exclusion-catalog-mock-exclusion
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-exclusion:catalog-mock-exclusion"
+spec:
+  resourceID: "catalog-mock-exclusion"
+  projectRef:
+    name: mock
+  description: "catalog-mock-exclusion (Terraform-managed)."
+  filter: "resource.type=gce_instance"
+---
 # Source: project/templates/org-policies.yaml
 apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
 kind: OrgPolicyPolicy
@@ -145,3 +208,23 @@ spec:
     external: "123456789"
   billingAccountRef:
     external: "010101-ABCDEF-010101"
+---
+# Source: project/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: mock-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.5.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "tag-binding:env"
+spec:
+  parentRef:
+    kind: Project
+    name: mock
+  tagValueRef:
+    external: "tagValues/1234567890"

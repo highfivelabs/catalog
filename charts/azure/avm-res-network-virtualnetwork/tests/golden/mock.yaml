@@ -1,0 +1,69 @@
+---
+# Source: avm-res-network-virtualnetwork/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: mock-vnet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network"
+spec:
+  azureName: "catalog-vnet"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  addressSpace:
+    addressPrefixes:
+      - "10.42.0.0/16"
+  enableDdosProtection: false
+  enableVmProtection: false
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-virtualnetwork/templates/subnets.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: mock-subnet-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:a"
+spec:
+  azureName: "snet-a"
+  owner:
+    name: mock-vnet
+  addressPrefix: "10.42.0.0/24"
+  defaultOutboundAccess: false
+  privateLinkServiceNetworkPolicies: Enabled
+  privateEndpointNetworkPolicies: "Enabled"
+---
+# Source: avm-res-network-virtualnetwork/templates/subnets.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: mock-subnet-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:b"
+spec:
+  azureName: "snet-b"
+  owner:
+    name: mock-vnet
+  addressPrefix: "10.42.1.0/24"
+  defaultOutboundAccess: false
+  privateLinkServiceNetworkPolicies: Enabled
+  privateEndpointNetworkPolicies: "Enabled"
+  serviceEndpoints:
+    - service: "Microsoft.Storage"
