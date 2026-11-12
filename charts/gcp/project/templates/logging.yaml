@@ -1,0 +1,49 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/logging.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_project_iam_audit_config.default: one IAMAuditConfig per service of
+logging_data_access, with a log config per type set.
+google_logging_project_exclusion.logging_exclusion: one LoggingLogExclusion
+per entry of logging_exclusions, described "<name> (Terraform-managed).".
+*/ -}}
+{{- $v := .Values }}
+{{- $access := $v.logging_data_access | default dict }}
+{{- range $service := keys $access | sortAlpha }}
+{{- $types := index $access $service | default dict }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "audit" $service)) "id" (printf "data-access:%s" $service)) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- include "project.iamRef" $ | nindent 4 }}
+  service: {{ $service | quote }}
+  auditLogConfigs:
+    {{- range $type := keys $types | sortAlpha }}
+    {{- $c := index $types $type }}
+    {{- if not (kindIs "invalid" $c) }}
+    - logType: {{ $type | quote }}
+      {{- with $c.exempted_members }}
+      exemptedMembers: {{ toJson . }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- $exclusions := $v.logging_exclusions | default dict }}
+{{- range $name := keys $exclusions | sortAlpha }}
+---
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "exclusion" $name)) "id" (printf "logging-exclusion:%s" $name) "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "logging exclusion" $name 100) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  description: {{ printf "%s (Terraform-managed)." $name | quote }}
+  filter: {{ index $exclusions $name | quote }}
+{{- end }}

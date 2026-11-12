@@ -1,0 +1,94 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dns/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_dns_record_set.dns_record_set: one DNSRecordSet per entry of
+recordsets, keyed "<type> <name>". A name ending in "." is used as given;
+"" is the zone's domain; any other is "<name>.<domain>". With zone_config
+null the chart cannot read the existing zone's domain, so a name must end
+in ".". geo and wrr records go in rrdatasRefs (each an external value).
+*/ -}}
+{{- $v := .Values }}
+{{- range $key := keys ($v.recordsets | default dict) | sortAlpha }}
+{{- $r := index $v.recordsets $key }}
+{{- $parts := splitList " " $key }}
+{{- if ne (len $parts) 2 }}
+{{- fail "dns: recordsets: Recordsets must have keys in the format \"type name\"." }}
+{{- end }}
+{{- $type := index $parts 0 }}{{- $name := index $parts 1 }}
+{{- $n := 0 }}
+{{- range $f := list "records" "wrr_routing" "geo_routing" }}{{ if and (hasKey $r $f) (not (kindIs "invalid" (index $r $f))) }}{{ $n = add1 $n }}{{ end }}{{ end }}
+{{- if ne (int $n) 1 }}
+{{- fail "dns: recordsets: Only one of records, wrr_routing or geo_routing can be defined for each recordset." }}
+{{- end }}
+{{- $fqdn := $name }}
+{{- if not (hasSuffix "." $name) }}
+{{- if not $v.zone_config }}
+{{- include "kcc.unsupported" (list $ (printf "recordsets.%s (a relative name with zone_config null)" $key) "set" "the chart cannot read an existing zone's domain, as fabric's data source does: give the name in full, ending in \".\"") }}
+{{- end }}
+{{- $fqdn = ternary $v.zone_config.domain (printf "%s.%s" $name $v.zone_config.domain) (eq $name "") }}
+{{- end }}
+---
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSRecordSet
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rs" $key)) "id" (printf "recordset:%s" $key) "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  name: {{ $fqdn | quote }}
+  type: {{ $type | quote }}
+  ttl: {{ $r.ttl | default 300 }}
+  managedZoneRef:
+    {{- include "dns.zoneRef" $ | nindent 4 }}
+  {{- with $r.records }}
+  rrdatas:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if or $r.geo_routing $r.wrr_routing }}
+  routingPolicy:
+    {{- with $r.geo_routing }}
+    geo:
+      {{- range $g := . }}
+      - location: {{ $g.location | quote }}
+        {{- with $g.records }}
+        rrdatasRefs:
+          {{- range . }}
+          - external: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with $g.health_checked_targets }}
+        healthCheckedTargets:
+          internalLoadBalancers:
+            {{- range $t := . }}
+            - loadBalancerType: {{ $t.load_balancer_type | quote }}
+              ipAddressRef:
+                external: {{ $t.ip_address | quote }}
+              port: {{ $t.port | quote }}
+              ipProtocol: {{ $t.ip_protocol | quote }}
+              networkRef:
+                external: {{ $t.network_url | quote }}
+              projectRef:
+                external: {{ $t.project | quote }}
+              {{- with $t.region }}
+              regionRef:
+                external: {{ . | quote }}
+              {{- end }}
+            {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- with $r.wrr_routing }}
+    wrr:
+      {{- range $w := . }}
+      - weight: {{ $w.weight }}
+        rrdatasRefs:
+          {{- range $w.records }}
+          - external: {{ . | quote }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

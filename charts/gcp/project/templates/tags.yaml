@@ -1,0 +1,40 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/tags.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_tags_tag_binding.binding: one TagsTagBinding per entry of
+tag_bindings on the project, which Google Cloud names by its number: the
+Project object this chart makes (Config Connector reads its number), or,
+with project_reuse, project_reuse.attributes.number.
+*/ -}}
+{{- $v := .Values }}
+{{- $bindings := $v.tag_bindings | default dict }}
+{{- if $bindings }}
+{{- $reuse := not (kindIs "invalid" $v.project_reuse) }}
+{{- $number := "" }}
+{{- if $reuse }}
+{{- $number = (($v.project_reuse | default dict).attributes | default dict).number | default "" | toString }}
+{{- if not $number }}
+{{- fail "project: tag_bindings on a reused project need project_reuse.attributes.number: a tag binding names the project by its number, which the chart cannot read" }}
+{{- end }}
+{{- end }}
+{{- range $key := keys $bindings | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tag" $key)) "id" (printf "tag-binding:%s" $key)) | nindent 2 }}
+spec:
+  parentRef:
+    {{- if $reuse }}
+    external: {{ printf "//cloudresourcemanager.googleapis.com/projects/%s" $number | quote }}
+    {{- else }}
+    kind: Project
+    name: {{ $.Release.Name }}
+    {{- end }}
+  tagValueRef:
+    external: {{ index $bindings $key | quote }}
+{{- end }}
+{{- end }}

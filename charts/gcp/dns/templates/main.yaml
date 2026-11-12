@@ -1,0 +1,95 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dns/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_dns_managed_zone.dns_managed_zone (zone_config set): one
+DNSManagedZone, public, private, forwarding or peering;
+google_dns_managed_zone_iam_binding.iam_bindings: one IAMPartialPolicy on
+it (or on the existing zone).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "zone")) }}
+{{- $z := $v.zone_config }}
+{{- if $z }}
+{{- $n := 0 }}
+{{- range $k := list "forwarding" "peering" "public" "private" }}{{ if and (hasKey $z $k) (not (kindIs "invalid" (index $z $k))) }}{{ $n = add1 $n }}{{ end }}{{ end }}
+{{- if gt (int $n) 1 }}
+{{- fail "dns: zone_config: Only one type of zone can be configured at a time." }}
+{{- end }}
+{{- $private := or $z.forwarding $z.peering $z.private }}
+{{- $networks := concat (($z.forwarding | default dict).client_networks | default list) (($z.peering | default dict).client_networks | default list) (($z.private | default dict).client_networks | default list) }}
+{{- $annotations := dict }}
+{{- if $v.force_destroy }}{{ $_ := set $annotations "cnrm.cloud.google.com/force-destroy" "true" }}{{ end }}
+---
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSManagedZone
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "zone" "project" $v.project_id "annotations" $annotations "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "dns.zoneName" . | quote }}
+  dnsName: {{ $z.domain | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  visibility: {{ ternary "private" "public" (not (empty $private)) | quote }}
+  {{- $reverse := false }}
+  {{- if and $z.private $z.private.reverse_managed }}{{ $reverse = true }}{{ end }}
+  reverseLookup: {{ $reverse }}
+  {{- $dnssec := ($z.public | default dict).dnssec_config }}
+  {{- with $dnssec }}
+  {{- $ksk := .key_signing_key | default (dict "algorithm" "rsasha256" "key_length" 2048) }}
+  {{- $zsk := .zone_signing_key | default (dict "algorithm" "rsasha256" "key_length" 1024) }}
+  dnssecConfig:
+    kind: dns#managedZoneDnsSecConfig
+    nonExistence: {{ .non_existence | default "nsec3" | quote }}
+    state: {{ .state | quote }}
+    defaultKeySpecs:
+      - algorithm: {{ $ksk.algorithm | quote }}
+        keyLength: {{ $ksk.key_length }}
+        keyType: keySigning
+        kind: dns#dnsKeySpec
+      - algorithm: {{ $zsk.algorithm | quote }}
+        keyLength: {{ $zsk.key_length }}
+        keyType: zoneSigning
+        kind: dns#dnsKeySpec
+  {{- end }}
+  {{- with ($z.forwarding | default dict).forwarders }}
+  forwardingConfig:
+    targetNameServers:
+      {{- range $ip := keys . | sortAlpha }}
+      - ipv4Address: {{ $ip | quote }}
+        {{- with index $z.forwarding.forwarders $ip }}
+        forwardingPath: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+  {{- with ($z.peering | default dict).peer_network }}
+  peeringConfig:
+    targetNetwork:
+      networkRef:
+        external: {{ . | quote }}
+  {{- end }}
+  {{- with $networks }}
+  privateVisibilityConfig:
+    networks:
+      {{- range $net := . }}
+      - networkRef:
+          external: {{ $net | quote }}
+      {{- end }}
+  {{- end }}
+  {{- with ($z.private | default dict).service_directory_namespace }}
+  serviceDirectoryConfig:
+    namespace:
+      namespaceUrl: {{ . | quote }}
+  {{- end }}
+  cloudLoggingConfig:
+    enableLogging: {{ ($z.public | default dict).enable_logging | default false }}
+{{- end }}
+{{- with $v.iam }}
+{{- $ref := dict "apiVersion" "dns.cnrm.cloud.google.com/v1beta1" "kind" "DNSManagedZone" }}
+{{- if $z }}{{ $_ := set $ref "name" $.Release.Name }}{{ else }}{{ $_ := set $ref "external" (printf "projects/%s/managedZones/%s" $v.project_id (include "dns.zoneName" $)) }}{{ end }}
+{{- include "kcc.iam" (dict "root" $ "base" $.Release.Name "idPrefix" "" "resourceRef" $ref "v" (dict "iam" .)) }}
+{{- end }}

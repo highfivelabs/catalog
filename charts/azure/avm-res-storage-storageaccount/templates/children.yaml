@@ -1,0 +1,117 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-storage-storageaccount
+main.containers.tf, main.queues.tf, main.tables.tf, main.shares.tf and
+modules/container, queue, table, share (v0.11.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+One ASO object per entry, owned, as the module parents it, by the
+account's blob, queue, table or file service (default) by ARM ID:
+StorageAccountsBlobServicesContainer, StorageAccountsQueueServicesQueue,
+StorageAccountsTableServicesTable, StorageAccountsFileServicesShare
+(storage.azure.com/v20250601). Each entry's role_assignments: one ASO
+RoleAssignment each, owned by the entry's object.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $id := include "storage.accountID" . }}
+{{- range $key, $e := $v.containers }}
+{{- include "aso.unsupported" (list $ (printf "containers.%s.timeouts" $key) $e.timeouts "Azure Service Operator has no per-request timeouts") }}
+{{- $obj := include "aso.name" (list $.Release.Name "container" $key) }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobServicesContainer
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "container:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $e.name | quote }}
+  owner:
+    armId: {{ printf "%s/blobServices/default" $id | quote }}
+  defaultEncryptionScope: {{ $e.default_encryption_scope | default "$account-encryption-key" | quote }}
+  denyEncryptionScopeOverride: {{ eq $e.deny_encryption_scope_override true }}
+  {{- if not (kindIs "invalid" $e.enable_nfs_v3_all_squash) }}
+  enableNfsV3AllSquash: {{ $e.enable_nfs_v3_all_squash }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $e.enable_nfs_v3_root_squash) }}
+  enableNfsV3RootSquash: {{ $e.enable_nfs_v3_root_squash }}
+  {{- end }}
+  {{- with $e.immutable_storage_with_versioning }}
+  immutableStorageWithVersioning:
+    enabled: {{ .enabled }}
+  {{- end }}
+  {{- with $e.metadata }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  publicAccess: {{ $e.public_access | default "None" }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "container:%s/" $key) "owner" (dict "group" "storage.azure.com" "kind" "StorageAccountsBlobServicesContainer" "name" $obj) "v" $e.role_assignments) }}
+{{- end }}
+{{- range $key, $e := $v.queues }}
+{{- include "aso.unsupported" (list $ (printf "queues.%s.timeouts" $key) $e.timeouts "Azure Service Operator has no per-request timeouts") }}
+{{- $obj := include "aso.name" (list $.Release.Name "queue" $key) }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsQueueServicesQueue
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "queue:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $e.name | quote }}
+  owner:
+    armId: {{ printf "%s/queueServices/default" $id | quote }}
+  {{- with $e.metadata }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "queue:%s/" $key) "owner" (dict "group" "storage.azure.com" "kind" "StorageAccountsQueueServicesQueue" "name" $obj) "v" $e.role_assignments) }}
+{{- end }}
+{{- range $key, $e := $v.tables }}
+{{- include "aso.unsupported" (list $ (printf "tables.%s.signed_identifiers" $key) $e.signed_identifiers "ASO renders a signed identifier's id as an ARM reference, so a table's access policies cannot be given") }}
+{{- include "aso.unsupported" (list $ (printf "tables.%s.timeouts" $key) $e.timeouts "Azure Service Operator has no per-request timeouts") }}
+{{- $obj := include "aso.name" (list $.Release.Name "table" $key) }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsTableServicesTable
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "table:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $e.name | quote }}
+  owner:
+    armId: {{ printf "%s/tableServices/default" $id | quote }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "table:%s/" $key) "owner" (dict "group" "storage.azure.com" "kind" "StorageAccountsTableServicesTable" "name" $obj) "v" $e.role_assignments) }}
+{{- end }}
+{{- range $key, $e := $v.shares }}
+{{- include "aso.unsupported" (list $ (printf "shares.%s.signed_identifiers" $key) $e.signed_identifiers "ASO renders a signed identifier's id as an ARM reference, so a share's access policies cannot be given") }}
+{{- include "aso.unsupported" (list $ (printf "shares.%s.timeouts" $key) $e.timeouts "Azure Service Operator has no per-request timeouts") }}
+{{- $obj := include "aso.name" (list $.Release.Name "share" $key) }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsFileServicesShare
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "share:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $e.name | quote }}
+  owner:
+    armId: {{ printf "%s/fileServices/default" $id | quote }}
+  shareQuota: {{ $e.quota | int }}
+  {{- with $e.access_tier }}
+  accessTier: {{ . }}
+  {{- end }}
+  {{- with $e.enabled_protocol }}
+  enabledProtocols: {{ . }}
+  {{- end }}
+  {{- with $e.metadata }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $e.provisioned_bandwidth_mibps) }}
+  provisionedBandwidthMibps: {{ $e.provisioned_bandwidth_mibps | int }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $e.provisioned_iops) }}
+  provisionedIops: {{ $e.provisioned_iops | int }}
+  {{- end }}
+  {{- with $e.root_squash }}
+  rootSquash: {{ . }}
+  {{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "share:%s/" $key) "owner" (dict "group" "storage.azure.com" "kind" "StorageAccountsFileServicesShare" "name" $obj) "v" $e.role_assignments) }}
+{{- end }}
