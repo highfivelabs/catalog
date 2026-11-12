@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "service:compute.googleapis.com"
@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "service:storage.googleapis.com"
@@ -48,7 +48,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "contact:ops@example.com"
@@ -68,7 +68,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "data-access:storage.googleapis.com"
@@ -90,7 +90,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "custom-role:catalogMockRole"
@@ -111,7 +111,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "iam"
@@ -134,7 +134,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "iam-additive-logs"
@@ -147,6 +147,33 @@ spec:
   member: "user:dev@example.com"
 ---
 # Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-sink-writer-catalog-mock-sink
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:catalog-mock-sink"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: mock-sink-catalog-mock-sink
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/catalog-mock-prj"
+  condition:
+    title: "catalog-mock-sink bucket writer"
+    description: "Grants bucketWriter to the writer identity used by log sink catalog-mock-sink on catalog-mock-prj"
+    expression: "resource.name.endsWith('locations/global/buckets/_Default')"
+---
+# Source: project/templates/logging.yaml
 apiVersion: logging.cnrm.cloud.google.com/v1beta1
 kind: LoggingLogExclusion
 metadata:
@@ -155,7 +182,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "logging-exclusion:catalog-mock-exclusion"
@@ -166,6 +193,53 @@ spec:
   description: "catalog-mock-exclusion (Terraform-managed)."
   filter: "resource.type=gce_instance"
 ---
+# Source: project/templates/logging-metrics.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  name: mock-metric-catalog-mock-metric
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-metric:catalog-mock-metric"
+spec:
+  resourceID: "catalog-mock-metric"
+  projectRef:
+    name: mock
+  filter: "severity>=ERROR"
+  metricDescriptor:
+    metricKind: "DELTA"
+    valueType: "INT64"
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: mock-sink-catalog-mock-sink
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.6.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-sink:catalog-mock-sink"
+spec:
+  resourceID: "catalog-mock-sink"
+  projectRef:
+    name: mock
+  description: "catalog-mock-sink (Terraform-managed)."
+  destination:
+    loggingLogBucketRef:
+      external: "projects/catalog-mock-prj/locations/global/buckets/_Default"
+  filter: "severity>=ERROR"
+  uniqueWriterIdentity: true
+  disabled: false
+---
 # Source: project/templates/org-policies.yaml
 apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
 kind: OrgPolicyPolicy
@@ -175,7 +249,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "org_policy:compute.disableSerialPortAccess"
@@ -196,7 +270,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.6.0"
     env: "test"
   annotations:
     hfl.dev/id: "project"
