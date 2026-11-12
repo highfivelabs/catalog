@@ -1,0 +1,357 @@
+---
+# Source: avm-res-network-virtualnetwork/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-vnet-diag-archive
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-archive"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: network.azure.com
+    kind: VirtualNetwork
+    name: full-vnet
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - category: "VMProtectionAlerts"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag"
+---
+# Source: avm-res-network-virtualnetwork/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-vnet-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-vnet-hub"
+  owner:
+    group: network.azure.com
+    kind: VirtualNetwork
+    name: full-vnet
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-network-virtualnetwork/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-vnet-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "vnet-lock"
+  owner:
+    group: network.azure.com
+    kind: VirtualNetwork
+    name: full-vnet
+  level: CanNotDelete
+---
+# Source: avm-res-network-virtualnetwork/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-vnet-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: VirtualNetwork
+    name: full-vnet
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
+---
+# Source: avm-res-network-virtualnetwork/templates/subnets.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-subnet-apps-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:apps/role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: VirtualNetworksSubnet
+    name: full-subnet-apps
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-res-network-virtualnetwork/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: full-vnet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network"
+spec:
+  azureName: "vnet-hub"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  addressSpace:
+    addressPrefixes:
+      - "10.0.0.0/16"
+      - "10.1.0.0/16"
+  bgpCommunities:
+    virtualNetworkCommunity: "12076:20000"
+  dhcpOptions:
+    dnsServers:
+      - "10.0.0.4"
+      - "10.0.0.5"
+  ddosProtectionPlan:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ddosProtectionPlans/ddos"
+  enableDdosProtection: true
+  enableVmProtection: true
+  encryption:
+    enabled: true
+    enforcement: "AllowUnencrypted"
+  flowTimeoutInMinutes: 10
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-virtualnetwork/templates/subnets.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: full-subnet-apps
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:apps"
+spec:
+  azureName: "snet-apps"
+  owner:
+    name: full-vnet
+  addressPrefix: "10.0.1.0/24"
+  defaultOutboundAccess: true
+  natGateway:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/natGateways/ng"
+  networkSecurityGroup:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/networkSecurityGroups/nsg-apps"
+  privateLinkServiceNetworkPolicies: Disabled
+  privateEndpointNetworkPolicies: "NetworkSecurityGroupEnabled"
+  routeTable:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/routeTables/rt-apps"
+  serviceEndpoints:
+    - service: "Microsoft.KeyVault"
+    - service: "Microsoft.Storage"
+  serviceEndpointPolicies:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/serviceEndpointPolicies/sep"
+---
+# Source: avm-res-network-virtualnetwork/templates/subnets.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: full-subnet-delegated
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:delegated"
+spec:
+  azureName: "snet-aci"
+  owner:
+    name: full-vnet
+  addressPrefixes:
+    - "10.0.2.0/24"
+  delegations:
+    - name: "aci"
+      serviceName: "Microsoft.ContainerInstance/containerGroups"
+  defaultOutboundAccess: false
+  privateLinkServiceNetworkPolicies: Enabled
+  sharingScope: "Tenant"
+---
+# Source: avm-res-network-virtualnetwork/templates/subnets.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: full-subnet-gateway
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subnet:gateway"
+spec:
+  azureName: "GatewaySubnet"
+  owner:
+    name: full-vnet
+  addressPrefix: "10.0.255.0/27"
+  defaultOutboundAccess: false
+  privateLinkServiceNetworkPolicies: Enabled
+  privateEndpointNetworkPolicies: "Enabled"
+---
+# Source: avm-res-network-virtualnetwork/templates/peerings.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-peering-spoke1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peering:spoke1"
+spec:
+  azureName: "hub-to-spoke1"
+  owner:
+    name: full-vnet
+  remoteVirtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke1/providers/Microsoft.Network/virtualNetworks/vnet-spoke1"
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: true
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-res-network-virtualnetwork/templates/peerings.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-peering-spoke1-reverse
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "reverse-peering:spoke1"
+spec:
+  azureName: "spoke1-to-hub"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke1/providers/Microsoft.Network/virtualNetworks/vnet-spoke1"
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: full-vnet
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: false
+  useRemoteGateways: true
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-res-network-virtualnetwork/templates/peerings.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-peering-spoke2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peering:spoke2"
+spec:
+  azureName: "hub-to-spoke2"
+  owner:
+    name: full-vnet
+  remoteVirtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke2/providers/Microsoft.Network/virtualNetworks/vnet-spoke2"
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: false
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: false
+  localAddressSpace:
+    addressPrefixes:
+      - "10.0.0.0/16"
+  remoteAddressSpace:
+    addressPrefixes:
+      - "10.2.0.0/16"
+---
+# Source: avm-res-network-virtualnetwork/templates/peerings.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-peering-spoke3
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-virtualnetwork
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peering:spoke3"
+spec:
+  azureName: "hub-to-spoke3"
+  owner:
+    name: full-vnet
+  remoteVirtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke3/providers/Microsoft.Network/virtualNetworks/vnet-spoke3"
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: false
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: false
+  localSubnetNames:
+    - "snet-apps"
+  remoteSubnetNames:
+    - "snet-db"
