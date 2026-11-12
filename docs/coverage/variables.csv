@@ -204,15 +204,15 @@ gcp,net-cloudnat,router_name,string,yes,,
 gcp,net-cloudnat,router_network,string,yes,,
 gcp,net-cloudnat,rules,"list(object({description, match, rule_number, source_ips, source_ranges}))",yes,,
 gcp,net-cloudnat,type,string,yes,,
-gcp,dns,context,"object({custom_roles, iam_principals, networks, project_ids})",no,,no-chart
-gcp,dns,description,string,no,,no-chart
-gcp,dns,force_destroy,bool,no,,no-chart
-gcp,dns,iam,map(list(string)),no,,no-chart
-gcp,dns,labels,map(string),no,,no-chart
-gcp,dns,name,string,no,,no-chart
-gcp,dns,project_id,string,no,,no-chart
-gcp,dns,recordsets,"map(object({geo_routing, records, ttl, wrr_routing}))",no,,no-chart
-gcp,dns,zone_config,"object({domain, forwarding, peering, private, public})",no,,no-chart
+gcp,dns,context,"object({custom_roles, iam_principals, networks, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,dns,description,string,yes,,
+gcp,dns,force_destroy,bool,yes,,
+gcp,dns,iam,map(list(string)),yes,,
+gcp,dns,labels,map(string),yes,,
+gcp,dns,name,string,yes,,
+gcp,dns,project_id,string,yes,,
+gcp,dns,recordsets,"map(object({geo_routing, records, ttl, wrr_routing}))",partial,"with zone_config null (an existing zone) the chart cannot read the zone's domain, as fabric's data source does, so a record name must be absolute (ending in .); the apex and relative names are refused",by-design
+gcp,dns,zone_config,"object({domain, forwarding, peering, private, public})",yes,,
 gcp,kms,context,"object({condition_vars, custom_roles, iam_principals, kms_keys, locations, project_ids, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
 gcp,kms,iam,map(list(string)),yes,,
 gcp,kms,iam_bindings,"map(object({condition, members, role}))",yes,,
@@ -381,20 +381,20 @@ gcp,gke-nodepool,service_account,"object({create, display_name, email, oauth_sco
 gcp,gke-nodepool,sole_tenant_nodegroup,string,no,,no-chart
 gcp,gke-nodepool,tags,list(string),no,,no-chart
 gcp,gke-nodepool,taints,"map(object({effect, value}))",no,,no-chart
-gcp,pubsub,context,"object({custom_roles, iam_principals, kms_keys, locations, project_ids})",no,,no-chart
-gcp,pubsub,iam,map(list(string)),no,,no-chart
-gcp,pubsub,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,pubsub,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,pubsub,iam_by_principals,map(list(string)),no,,no-chart
-gcp,pubsub,kms_key,string,no,,no-chart
-gcp,pubsub,labels,map(string),no,,no-chart
-gcp,pubsub,message_retention_duration,string,no,,no-chart
-gcp,pubsub,message_storage_enforce_in_transit,bool,no,,no-chart
-gcp,pubsub,name,string,no,,no-chart
-gcp,pubsub,project_id,string,no,,no-chart
-gcp,pubsub,regions,list(string),no,,no-chart
-gcp,pubsub,schema,"object({definition, msg_encoding, schema_type})",no,,no-chart
-gcp,pubsub,subscriptions,"map(object({ack_deadline_seconds, bigquery, cloud_storage, dead_letter_policy, deletion_policy, enable_exactly_once_delivery, +11}))",no,,no-chart
+gcp,pubsub,context,"object({custom_roles, iam_principals, kms_keys, locations, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,pubsub,iam,map(list(string)),yes,,
+gcp,pubsub,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,pubsub,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,pubsub,iam_by_principals,map(list(string)),yes,,
+gcp,pubsub,kms_key,string,yes,,
+gcp,pubsub,labels,map(string),yes,,
+gcp,pubsub,message_retention_duration,string,yes,,
+gcp,pubsub,message_storage_enforce_in_transit,bool,yes,,
+gcp,pubsub,name,string,yes,,
+gcp,pubsub,project_id,string,yes,,
+gcp,pubsub,regions,list(string),yes,,
+gcp,pubsub,schema,"object({definition, msg_encoding, schema_type})",yes,,
+gcp,pubsub,subscriptions,"map(object({ack_deadline_seconds, bigquery, cloud_storage, dead_letter_policy, deletion_policy, enable_exactly_once_delivery, +11}))",partial,PubSubSubscription's bigqueryConfig has no useTableSchema or serviceAccountEmail; a subscription's deletion_policy PREVENT has no Config Connector equivalent (ABANDON is the deletion-policy annotation),gap
 gcp,bigquery-dataset,access,"map(object({role, type}))",no,,no-chart
 gcp,bigquery-dataset,access_identities,map(string),no,,no-chart
 gcp,bigquery-dataset,authorized_datasets,"list(object({dataset_id, project_id}))",no,,no-chart

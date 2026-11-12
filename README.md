@@ -124,18 +124,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**175 modules tracked**: 2 ported, 20 partial, 63 blocked, 90 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**175 modules tracked**: 2 ported, 22 partial, 63 blocked, 88 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 342 of 1478 (23.1%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 363 of 1478 (24.6%) |
 | AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 119 of 2310 (5.2%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 99 of 1170 (8.5%) |
-| **All** | **175** | | **560 of 4958 (11.3%)** |
+| **All** | **175** | | **581 of 4958 (11.7%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-2 ported, 14 partial, 61 blocked, 21 not started.
+2 ported, 16 partial, 61 blocked, 19 not started.
 
 **Ported and partial**
 
@@ -145,11 +145,13 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account) ([chart](charts/gcp/iam-service-account)) | ![iam-service-account](docs/coverage/bars/gcp-iam-service-account.svg) 24 of 28 | 5 of 6 | 9 of 9 | partial |
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`net-cloudnat`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloudnat) ([chart](charts/gcp/net-cloudnat)) | ![net-cloudnat](docs/coverage/bars/gcp-net-cloudnat.svg) 15 of 16 | 5 of 6 | 2 of 2 | partial |
+| [`dns`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dns) ([chart](charts/gcp/dns)) | ![dns](docs/coverage/bars/gcp-dns.svg) 8 of 9 | 4 of 6 | 3 of 3 | partial |
 | [`kms`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/kms) ([chart](charts/gcp/kms)) | ![kms](docs/coverage/bars/gcp-kms.svg) 9 of 10 | 4 of 7 | 8 of 8 | partial |
 | [`gcs`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gcs) ([chart](charts/gcp/gcs)) | ![gcs](docs/coverage/bars/gcp-gcs.svg) 30 of 36 | 5 of 7 | 8 of 12 | partial |
 | [`artifact-registry`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/artifact-registry) ([chart](charts/gcp/artifact-registry)) | ![artifact-registry](docs/coverage/bars/gcp-artifact-registry.svg) 15 of 17 | 3 of 4 | 4 of 4 | partial |
 | [`secret-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secret-manager) ([chart](charts/gcp/secret-manager)) | ![secret-manager](docs/coverage/bars/gcp-secret-manager.svg) 3 of 4 | 1 of 5 | 6 of 10 | partial |
 | [`cloudsql-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance) ([chart](charts/gcp/cloudsql-instance)) | ![cloudsql-instance](docs/coverage/bars/gcp-cloudsql-instance.svg) 31 of 35 | 14 of 17 | 4 of 4 | partial |
+| [`pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub) ([chart](charts/gcp/pubsub)) | ![pubsub](docs/coverage/bars/gcp-pubsub.svg) 13 of 14 | 3 of 6 | 7 of 7 | partial |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 133 of 162 | 30 of 36 | 0 of 0 | partial |
 | [`network-firewall-rules`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/firewall-rules) ([chart](charts/gcp/firewall-rules)) | ![network-firewall-rules](docs/coverage/bars/gcp-network-firewall-rules.svg) 5 of 5 | 2 of 2 | 0 of 0 | ported |
 | [`network-network-firewall-policy`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/network-firewall-policy) ([chart](charts/gcp/network-firewall-policy)) | ![network-network-firewall-policy](docs/coverage/bars/gcp-network-network-firewall-policy.svg) 6 of 8 | 3 of 3 | 0 of 0 | partial |
@@ -173,20 +175,20 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 0 of 13 | 0 of 1 | 6 of 11 | blocked |
 | [`project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory) | ![project-factory](docs/coverage/bars/gcp-project-factory.svg) 0 of 8 | 0 of 16 | 0 of 1 | blocked |
 
-**Not started (first 10 of 21, by rank)**
+**Not started (first 10 of 19, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`net-vpc-firewall`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-firewall) | ![net-vpc-firewall](docs/coverage/bars/gcp-net-vpc-firewall.svg) 0 of 8 | 0 of 2 | 1 of 1 | not started |
-| [`dns`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dns) | ![dns](docs/coverage/bars/gcp-dns.svg) 0 of 9 | 0 of 6 | 3 of 3 | not started |
 | [`gke-nodepool`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool) | ![gke-nodepool](docs/coverage/bars/gcp-gke-nodepool.svg) 0 of 20 | 0 of 4 | 2 of 2 | not started |
-| [`pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub) | ![pubsub](docs/coverage/bars/gcp-pubsub.svg) 0 of 14 | 0 of 6 | 7 of 7 | not started |
 | [`vpc-sc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/vpc-sc) | ![vpc-sc](docs/coverage/bars/gcp-vpc-sc.svg) 0 of 12 | 0 of 6 | 5 of 5 | not started |
 | [`net-vpc-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-factory) | ![net-vpc-factory](docs/coverage/bars/gcp-net-vpc-factory.svg) 0 of 4 | 0 of 3 | 0 of 0 | not started |
 | [`net-vpc-peering`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-peering) | ![net-vpc-peering](docs/coverage/bars/gcp-net-vpc-peering.svg) 0 of 7 | 0 of 2 | 1 of 1 | not started |
 | [`cloud-identity-group`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-identity-group) | ![cloud-identity-group](docs/coverage/bars/gcp-cloud-identity-group.svg) 0 of 6 | 0 of 2 | 2 of 2 | not started |
 | [`net-lb-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-int) | ![net-lb-int](docs/coverage/bars/gcp-net-lb-int.svg) 0 of 15 | 0 of 13 | 6 of 6 | not started |
 | [`net-lb-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-ext) | ![net-lb-ext](docs/coverage/bars/gcp-net-lb-ext.svg) 0 of 11 | 0 of 12 | 4 of 4 | not started |
+| [`service-directory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/service-directory) | ![service-directory](docs/coverage/bars/gcp-service-directory.svg) 0 of 8 | 0 of 7 | 5 of 5 | not started |
+| [`alloydb`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/alloydb) | ![alloydb](docs/coverage/bars/gcp-alloydb.svg) 0 of 33 | 0 of 30 | 4 of 4 | not started |
 
 ### AWS: terraform-aws-modules
 

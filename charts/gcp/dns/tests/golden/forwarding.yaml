@@ -1,0 +1,31 @@
+---
+# Source: dns/templates/main.yaml
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSManagedZone
+metadata:
+  name: forwarding
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "forwarding"
+    app.kubernetes.io/name: dns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "forwarding"
+  dnsName: "corp.example."
+  description: "Terraform managed."
+  visibility: "private"
+  reverseLookup: false
+  forwardingConfig:
+    targetNameServers:
+      - ipv4Address: "10.0.0.10"
+        forwardingPath: "private"
+      - ipv4Address: "10.0.0.11"
+  privateVisibilityConfig:
+    networks:
+      - networkRef:
+          external: "projects/my-project/global/networks/default"
+  cloudLoggingConfig:
+    enableLogging: false

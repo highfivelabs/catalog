@@ -1,0 +1,26 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"): name, id and domain computed from inputs as fabric computes
+# them (names.zone when it is set; domain only when the chart makes the
+# zone), name_servers from the zone's status. Not outputs: zone (a whole
+# Terraform object) and dns_keys (a data source; Config Connector has no
+# kind that reads a zone's DNSKEY records).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-dns
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: >-
+      ('zone' in inputs.names && inputs.names.zone != '' ? inputs.names.zone : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    id: >-
+      'projects/' + inputs.project_id + '/managedZones/' +
+      ('zone' in inputs.names && inputs.names.zone != '' ? inputs.names.zone : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    domain: "inputs.zone_config != null ? inputs.zone_config.domain : null"
+    name_servers: "'zone' in resources ? resources.zone.status.nameServers : null"

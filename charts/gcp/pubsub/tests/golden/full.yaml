@@ -1,0 +1,277 @@
+---
+# Source: pubsub/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-viewers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam-binding-viewers"
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    name: full
+  role: "roles/pubsub.viewer"
+  members:
+    - "group:viewers@example.org"
+---
+# Source: pubsub/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    name: full
+  bindings:
+    - role: "roles/pubsub.publisher"
+      members:
+        - member: "group:publishers@example.org"
+---
+# Source: pubsub/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-sub-pull-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "subscription:pull:iam"
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubSubscription
+    name: full-sub-pull
+  bindings:
+    - role: "roles/pubsub.subscriber"
+      members:
+        - member: "serviceAccount:reader@my-project.iam.gserviceaccount.com"
+---
+# Source: pubsub/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-admin
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam-additive-admin"
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    name: full
+  role: "roles/pubsub.admin"
+  member: "user:admin@example.org"
+---
+# Source: pubsub/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sub-pull-iam-viewer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "subscription:pull:iam-additive-viewer"
+spec:
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubSubscription
+    name: full-sub-pull
+  role: "roles/pubsub.viewer"
+  member: "user:viewer@example.org"
+---
+# Source: pubsub/templates/topic.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSchema
+metadata:
+  name: full-schema
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "schema"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "full-topic-schema"
+  projectRef:
+    external: "my-project"
+  type: "AVRO"
+  definition: "{\"type\":\"record\",\"name\":\"Avro\",\"fields\":[{\"name\":\"s\",\"type\":\"string\"}]}"
+---
+# Source: pubsub/templates/subscriptions.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  name: full-sub-bq-sub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "subscription:bq-sub"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "bq-sub"
+  topicRef:
+    name: full
+  bigqueryConfig:
+    tableRef:
+      external: "projects/my-project/datasets/dataset/tables/table"
+    useTopicSchema: true
+    writeMetadata: true
+    dropUnknownFields: true
+---
+# Source: pubsub/templates/subscriptions.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  name: full-sub-gcs-sub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "subscription:gcs-sub"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "gcs-sub"
+  topicRef:
+    name: full
+  cloudStorageConfig:
+    bucketRef:
+      external: "my-bucket"
+    filenamePrefix: "pre"
+    filenameSuffix: ".avro"
+    maxDuration: "300s"
+    maxBytes: 1e+06
+    avroConfig:
+      writeMetadata: true
+---
+# Source: pubsub/templates/subscriptions.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  name: full-sub-pull
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    team: "data"
+  annotations:
+    hfl.dev/id: "subscription:pull"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "pull"
+  topicRef:
+    name: full
+  ackDeadlineSeconds: 20
+  messageRetentionDuration: "1200s"
+  retainAckedMessages: true
+  filter: "attributes.domain = \"com\""
+  enableMessageOrdering: true
+  enableExactlyOnceDelivery: true
+  deadLetterPolicy:
+    deadLetterTopicRef:
+      external: "projects/my-project/topics/dead-letter"
+    maxDeliveryAttempts: 10
+  retryPolicy:
+    maximumBackoff: "300s"
+    minimumBackoff: "10s"
+---
+# Source: pubsub/templates/subscriptions.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  name: full-sub-push
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "subscription:push"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "push"
+  topicRef:
+    name: full
+  pushConfig:
+    pushEndpoint: "https://example.com/push"
+    attributes: {"x-goog-version":"v1"}
+    noWrapper:
+      writeMetadata: true
+    oidcToken:
+      serviceAccountEmail: "pusher@my-project.iam.gserviceaccount.com"
+      audience: "https://example.com"
+---
+# Source: pubsub/templates/topic.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubTopic
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: pubsub
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "topic"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "full-topic"
+  kmsKeyRef:
+    external: "projects/kms/locations/europe-west1/keyRings/r/cryptoKeys/k"
+  messageRetentionDuration: "86400s"
+  messageStoragePolicy:
+    allowedPersistenceRegions: ["europe-west1","europe-west4"]
+    enforceInTransit: true
+  schemaSettings:
+    schemaRef:
+      name: full-schema
+    encoding: "JSON"

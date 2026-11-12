@@ -1,0 +1,50 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: dns
+spec:
+  version: "1.0.0"
+  components:
+    - name: private-dns
+      package:
+        name: gcp-dns
+        version: "0.1.0"
+      inputs:
+        name: test-example
+        recordsets:
+          A localhost:
+            records:
+              - 127.0.0.1
+          A myhost:
+            records:
+              - 10.0.0.120
+            ttl: 600
+        iam:
+          roles/dns.admin:
+            - group:dns-administrators@example.org
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: dns
+  scope: my-team
+spec:
+  template: dns
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: dns-dev
+  scope: my-team/dev
+spec:
+  stack: dns
+  version: "1.0.0"
+  components:
+    private-dns:
+      values:
+        project_id: myproject
+        zone_config:
+          domain: test.example.
+          private:
+            client_networks:
+              - projects/myproject/global/networks/default
