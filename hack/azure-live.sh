@@ -217,8 +217,11 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   echo "-- outputs (${outputs_ok})"; cat "${OUT}/${chart}/outputs.json" "${OUT}/${chart}/outputs.err"
   kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
   deadline=$(( $(date +%s) + TIMEOUT ))
+  # Until every object is gone (kubectl get -f fails as soon as one is).
   while (( $(date +%s) < deadline )); do
-    kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >/dev/null 2>&1 || break
+    left=0
+    for o in "${objects[@]}"; do kubectl get -n "${NS}" "${o}" >/dev/null 2>&1 && left=$((left + 1)); done
+    (( left == 0 )) && break
     sleep 10
   done
   for o in "${objects[@]}"; do
