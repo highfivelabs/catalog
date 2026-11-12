@@ -1,0 +1,39 @@
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: existing-iam-user
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-user"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    external: projects/my-project/locations/europe-west1/keyRings/shared
+    kind: KMSKeyRing
+  role: "roles/cloudkms.viewer"
+  member: "user:user1@example.com"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: existing-key-app-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:app-key"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "app-key"
+  keyRingRef:
+    external: "projects/my-project/locations/europe-west1/keyRings/shared"
+  purpose: "ENCRYPT_DECRYPT"

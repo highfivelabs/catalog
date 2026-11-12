@@ -146,14 +146,14 @@ func TestSourceWithoutAChart(t *testing.T) {
   source = "terraform-aws-modules/eks/aws"
 }
 module "k" {
-  source = "./modules/kms"
+  source = "./modules/looker-core"
 }`)
 	res, err := Convert(f, Options{Repo: repo(t)})
 	if err == nil {
 		t.Fatal("nothing converts, so Convert should fail")
 	}
 	m := messages(res)
-	if !strings.Contains(m, "aws/eks") || !strings.Contains(m, "gcp/kms") || !strings.Contains(m, "has no chart yet") {
+	if !strings.Contains(m, "aws/eks") || !strings.Contains(m, "gcp/looker-core") || !strings.Contains(m, "has no chart yet") {
 		t.Fatalf("got:\n%s", m)
 	}
 }

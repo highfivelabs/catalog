@@ -1,0 +1,24 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/kms/tags.tf (v60.0.0),
+Copyright 2023 Google LLC, Apache-2.0.
+
+google_tags_location_tag_binding.binding: one TagsLocationTagBinding per
+tag binding, its parent the keyring as fabric writes it
+(//cloudkms.googleapis.com/projects/<p>/locations/<l>/keyRings/<name>).
+*/ -}}
+{{- $v := .Values }}
+{{- range $key := keys ($v.tag_bindings | default dict) | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tag" $key)) "id" (printf "tag-%s" $key)) | nindent 2 }}
+spec:
+  location: {{ $v.keyring.location | quote }}
+  parentRef:
+    external: {{ printf "//cloudkms.googleapis.com/%s" (include "kms.keyringId" $) | quote }}
+  tagValueRef:
+    external: {{ index $v.tag_bindings $key | quote }}
+{{- end }}

@@ -22,7 +22,10 @@
 // spec.resourceID is the number Google assigns; its collision-prone name is
 // spec.displayName). noCloudNames, with a reason, says the chart renders no
 // object with a cloud name of its own (an IAM-only chart), so a chart that
-// checks nothing is not reported.
+// checks nothing is not reported. compactNames, each with a reason, lists
+// kinds whose cloud name cannot hold a hyphen (an Azure storage account's
+// is lower-case letters and digits): their name must start with the prefix
+// itself, joined without one.
 package nameprefix
 
 import (
@@ -53,6 +56,10 @@ type exemptFile struct {
 	// resourceID the cloud assigns (a hierarchical firewall policy's number)
 	// and whose caller-given name is another field (shortName).
 	NameFields map[string]string `yaml:"nameFields"`
+	// CompactNames, each with its reason, lists kinds whose cloud name
+	// cannot hold a hyphen, so the namePrefix is joined without one: their
+	// name must start with Prefix ("zz9name", not "zz9-name").
+	CompactNames map[string]string `yaml:"compactNames"`
 }
 
 type object struct {
@@ -180,6 +187,11 @@ func Check(chartDir string) ([]string, error) {
 			bad("name-prefix.yaml exempts %s without a reason", k)
 		}
 	}
+	for k, why := range ex.CompactNames {
+		if strings.TrimSpace(why) == "" {
+			bad("name-prefix.yaml lists %s under compactNames without a reason", k)
+		}
+	}
 	cases, _ := filepath.Glob(filepath.Join(chartDir, "tests", "*.values.yaml"))
 	if len(cases) == 0 {
 		return nil, fmt.Errorf("%s has no tests/*.values.yaml", chart)
@@ -236,16 +248,21 @@ func Check(chartDir string) ([]string, error) {
 			}
 			prefixed++
 			field, cloud := o.cloudName(ex.NameFields)
+			_, compact := ex.CompactNames[o.Kind]
 			switch {
 			case cloud == "":
 				bad("%s: %s %q has no spec.%s, so its cloud name cannot carry the namePrefix: give it one built with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, field, o.Kind)
-			case !strings.Contains(cloud, Prefix+"-") && !setInFull(cloud):
+			case compact && !strings.HasPrefix(cloud, Prefix) && !setInFull(cloud):
+				bad("%s: %s %q has cloud name %q without the namePrefix at its start (a compact name, joined without a hyphen)", name, o.Kind, o.Metadata.Name, cloud)
+			case !compact && !strings.Contains(cloud, Prefix+"-") && !setInFull(cloud):
 				bad("%s: %s %q has cloud name %q without the namePrefix: build it with kcc.cloudName, or list %s in tests/name-prefix.yaml with the reason", name, o.Kind, o.Metadata.Name, cloud, o.Kind)
 			}
 		}
 		// The same render without the prefix has none of it.
 		if bytes.Contains(plain, []byte(Prefix+"-")) {
 			bad("%s: the render without a namePrefix contains %q", name, Prefix+"-")
+		} else if len(ex.CompactNames) > 0 && bytes.Contains(plain, []byte(Prefix)) {
+			bad("%s: the render without a namePrefix contains %q", name, Prefix)
 		}
 	}
 	if prefixed == 0 && strings.TrimSpace(ex.NoCloudNames) == "" {

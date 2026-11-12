@@ -1,0 +1,203 @@
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam-binding-admins"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSKeyRing
+    name: full
+  role: "roles/cloudkms.admin"
+  members:
+    - "group:kms-admins@example.org"
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-key-hsm-key-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "key:hsm-key:iam"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSCryptoKey
+    name: full-key-hsm-key
+  bindings:
+    - role: "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+      members:
+        - member: "serviceAccount:app@my-project.iam.gserviceaccount.com"
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-viewer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam-additive-viewer"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSKeyRing
+    name: full
+  role: "roles/cloudkms.viewer"
+  member: "user:viewer@example.org"
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-key-hsm-key-iam-viewer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "key:hsm-key:iam-additive-viewer"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSCryptoKey
+    name: full-key-hsm-key
+  role: "roles/cloudkms.viewer"
+  member: "user:viewer@example.org"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp(\"2030-01-01T00:00:00Z\")"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: full-key-hsm-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    app: "payments"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "key:hsm-key"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "hsm-key"
+  keyRingRef:
+    name: full
+  purpose: "ENCRYPT_DECRYPT"
+  destroyScheduledDuration: "86400s"
+  rotationPeriod: "2592000s"
+  versionTemplate:
+    algorithm: "GOOGLE_SYMMETRIC_ENCRYPTION"
+    protectionLevel: "HSM"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: full-key-signer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "key:signer"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "signer"
+  keyRingRef:
+    name: full
+  purpose: "ASYMMETRIC_SIGN"
+  skipInitialVersionCreation: true
+  versionTemplate:
+    algorithm: "EC_SIGN_P256_SHA256"
+    protectionLevel: "SOFTWARE"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSImportJob
+metadata:
+  name: full-import-job
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "import-job"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "import-1"
+  kmsKeyRingRef:
+    name: full
+  importMethod: "RSA_OAEP_3072_SHA1_AES_256"
+  protectionLevel: "SOFTWARE"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyRing
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "keyring"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "full"
+  location: "europe-west1"
+---
+# Source: kms/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  name: full-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "tag-env"
+spec:
+  location: "europe-west1"
+  parentRef:
+    external: "//cloudkms.googleapis.com/projects/my-project/locations/europe-west1/keyRings/full"
+  tagValueRef:
+    external: "tagValues/1234567890"

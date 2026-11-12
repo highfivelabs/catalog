@@ -1,0 +1,73 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's artifact-registry module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.repository: the repository ID in full. A name set here takes no
+# prefix; unset, the repository is named name, as fabric names it.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the derived
+# repository ID (never one set under names). Empty (the default) changes
+# nothing.
+namePrefix: ""
+# Kubernetes labels on every object; fabric's "Labels to be attached to the
+# registry". A prefixed key (hfl.dev/team) stays in Kubernetes; an
+# unprefixed one also becomes a Google Cloud label, since Config Connector
+# copies it to the resource.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels (Config
+# Connector carries them as unprefixed metadata.labels).
+tags: {}
+
+# Object containing details about the cleanup policies for an Artifact
+# Registry repository, {ID: {action, condition, most_recent_versions}}.
+cleanup_policies: null
+# If true, the cleanup pipeline is prevented from deleting versions in this
+# repository.
+cleanup_policy_dry_run: null
+# Context-specific interpolations. Refused when set: Bundt's ${...}
+# expressions and valueFrom replace fabric's $context lookups.
+context: {}
+# An optional description for the repository.
+description: Terraform-managed registry
+# Whether vulnerability scanning should be enabled in the repository.
+# Refused when set: ArtifactRegistryRepository has no field for it.
+enable_vulnerability_scanning: null
+# The KMS key name to use for encryption at rest.
+encryption_key: null
+# Repository format: exactly one of apt, docker, generic, go, googet, kfp,
+# maven, npm, python, yum, each with exactly one of standard, remote or
+# virtual (README.md, "Values").
+format: {}
+# Registry location.
+location: ""
+# Registry name.
+name: ""
+# Registry project id.
+project_id: ""
+# Tag bindings for this repository, in key => tag value id format.
+tag_bindings: {}
+# GCP universe where to deploy the project ({package_domain, prefix}); only
+# the url output reads it.
+universe: null
+
+# IAM bindings in {ROLE => [MEMBERS]} format.
+iam: {}
+# Authoritative IAM bindings in {KEY => {role, members, condition}}.
+iam_bindings: {}
+# Individual additive IAM bindings in {KEY => {member, role, condition}}.
+iam_bindings_additive: {}
+# Authoritative IAM bindings in {PRINCIPAL => [ROLES]} format, merged with iam.
+iam_by_principals: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# repository when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null

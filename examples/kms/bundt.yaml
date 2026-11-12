@@ -1,0 +1,46 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: kms
+spec:
+  version: "1.0.0"
+  components:
+    - name: kms
+      package:
+        name: gcp-kms
+        version: "0.1.0"
+      inputs:
+        keyring:
+          location: europe-west1
+          name: app
+        iam:
+          roles/cloudkms.admin:
+            - group:kms-admins@example.org
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: kms
+  scope: my-team
+spec:
+  template: kms
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: kms-dev
+  scope: my-team/dev
+spec:
+  stack: kms
+  version: "1.0.0"
+  components:
+    kms:
+      values:
+        project_id: myproject
+        keys:
+          data:
+            iam_bindings_additive:
+              app:
+                member: serviceAccount:app@myproject.iam.gserviceaccount.com
+                role: roles/cloudkms.cryptoKeyEncrypterDecrypter
+            rotation_period: 7776000s
