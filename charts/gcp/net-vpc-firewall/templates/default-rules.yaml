@@ -1,0 +1,46 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc-firewall/default-rules.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+fabric's optional convenience rules, each a ComputeFirewall named
+<network>-ingress-admins, -tag-http, -tag-https and -tag-ssh: admin
+ranges to everything, and HTTP, HTTPS and SSH from their ranges to their
+tags. disabled, or an empty list, turns one off.
+*/ -}}
+{{- $v := .Values }}
+{{- $c := $v.default_rules_config }}
+{{- $off := $c.disabled | default false }}
+{{- $net := include "firewall.network" . }}
+{{- $netName := splitList "/" $net | last }}
+{{- $defs := list
+  (list "admins" "admin" "ingress-admins" "Access from the admin subnet to all subnets." $c.admin_ranges list "all" list)
+  (list "http" "http" "ingress-tag-http" "Allow http to machines with matching tags." $c.http_ranges $c.http_tags "tcp" (list "80"))
+  (list "https" "https" "ingress-tag-https" "Allow http to machines with matching tags." $c.https_ranges $c.https_tags "tcp" (list "443"))
+  (list "ssh" "ssh" "ingress-tag-ssh" "Allow SSH to machines with matching tags." $c.ssh_ranges $c.ssh_tags "tcp" (list "22")) }}
+{{- range $d := $defs }}
+{{- $key := index $d 0 }}{{ $ranges := index $d 4 | default list }}{{ $tags := index $d 5 | default list }}
+{{- if and (not $off) $ranges (or (eq $key "admins") $tags) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "default" (index $d 1))) "id" (printf "default:%s" (index $d 1)) "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ $key (printf "%s rule" $key) (printf "%s-%s" $netName (index $d 2)) 63 "letter") | quote }}
+  networkRef:
+    external: {{ $net | quote }}
+  description: {{ index $d 3 | quote }}
+  direction: INGRESS
+  sourceRanges: {{ toJson $ranges }}
+  {{- with $tags }}
+  targetTags: {{ toJson . }}
+  {{- end }}
+  allow:
+    - protocol: {{ index $d 6 | quote }}
+      {{- with index $d 7 }}
+      ports: {{ toJson . }}
+      {{- end }}
+{{- end }}
+{{- end }}

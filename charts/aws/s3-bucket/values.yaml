@@ -1,0 +1,369 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules' s3-bucket
+# module (v5.17.0): same names, types and defaults, so a module block's
+# arguments become a values file one to one. values.schema.json carries the
+# types. A variable the chart cannot carry stays here and stops the render
+# when set (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# The bucket's name in full, {bucket}. A name set here takes no namePrefix.
+# Unset, the bucket is named bucket.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the bucket's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# The partition and account the bucket is in, which the module reads from
+# the provider: the partition for the bucket's ARN in the policies, the
+# account for _AWS_ACCOUNT_ID_ in policy. A chart cannot look them up, so
+# Bundt fills account_id from the Environment; it is needed only when
+# policy uses _AWS_ACCOUNT_ID_.
+account_id: null
+partition: aws
+# DELETE (default): deleting the component deletes the bucket (which fails
+# while it holds objects). ABANDON keeps it
+# (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# Sets the accelerate configuration of an existing bucket. Can be Enabled or
+# Suspended
+acceleration_status: null
+# List of AWS Account IDs should be allowed to deliver access logs to this
+# bucket
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+access_log_delivery_policy_source_accounts: []
+# List of S3 bucket ARNs which should be allowed to deliver access logs to
+# this bucket
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+access_log_delivery_policy_source_buckets: []
+# List of AWS Organization IDs should be allowed to deliver access logs to
+# this bucket
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+access_log_delivery_policy_source_organizations: []
+# The canned ACL to apply. Conflicts with `grant`
+acl: null
+# The ARN of KMS key which should be allowed in PutObject
+# Not supported (not-ported): the encryption-header deny policies are not
+# ported yet; write them in policy (attach_policy).
+allowed_kms_key_arn: null
+# Analytics configurations for the bucket, keyed by configuration name
+# Not supported (not-ported): analytics configurations are not ported yet
+# (Bucket.analytics).
+analytics_configuration: {}
+# Whether or not the analytics source bucket is also the destination bucket
+# Not supported (not-ported): analytics configurations are not ported yet
+# (Bucket.analytics).
+analytics_self_source_destination: false
+# The analytics source account id
+# Not supported (not-ported): analytics configurations are not ported yet
+# (Bucket.analytics).
+analytics_source_account_id: null
+# The analytics source bucket ARN
+# Not supported (not-ported): analytics configurations are not ported yet
+# (Bucket.analytics).
+analytics_source_bucket_arn: null
+# Controls if S3 bucket should have S3 access log delivery policy attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_access_log_delivery_policy: false
+# Controls if S3 bucket should have bucket analytics destination policy
+# attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_analytics_destination_policy: false
+# Controls if S3 bucket should have CloudTrail log delivery policy attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_cloudtrail_log_delivery_policy: false
+# Controls if S3 bucket should deny incorrect encryption headers policy
+# attached
+# Not supported (not-ported): the encryption-header deny policies are not
+# ported yet; write them in policy (attach_policy).
+attach_deny_incorrect_encryption_headers: false
+# Controls if S3 bucket policy should deny usage of incorrect KMS key SSE
+# Not supported (not-ported): the encryption-header deny policies are not
+# ported yet; write them in policy (attach_policy).
+attach_deny_incorrect_kms_key_sse: false
+# Controls if S3 bucket should have deny non-SSL transport policy attached
+attach_deny_insecure_transport_policy: false
+# Controls if S3 bucket should deny SSEC encrypted object uploads
+# Not supported (not-ported): the encryption-header deny policies are not
+# ported yet; write them in policy (attach_policy).
+attach_deny_ssec_encrypted_object_uploads: false
+# Controls if S3 bucket should deny unencrypted object uploads policy attached
+# Not supported (not-ported): the encryption-header deny policies are not
+# ported yet; write them in policy (attach_policy).
+attach_deny_unencrypted_object_uploads: false
+# Controls if S3 bucket should have the log delivery policy for Application
+# and Classic Load Balancer access logs attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_elb_log_delivery_policy: false
+# Controls if S3 bucket should have bucket inventory destination policy
+# attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_inventory_destination_policy: false
+# Controls if S3 bucket should have the log delivery policy for Network Load
+# Balancer access logs attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_lb_log_delivery_policy: false
+# Controls if S3 bucket should have bucket policy attached (set to `true` to
+# use value of `policy` as bucket policy)
+attach_policy: false
+# Controls if the S3 Bucket Public Access Block is created (set to `false` to
+# allow upstream to apply defaults to the bucket)
+attach_public_policy: true
+# Controls if S3 bucket should require the latest version of TLS
+attach_require_latest_tls_policy: false
+# Controls if S3 bucket should have WAF log delivery policy attached
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+attach_waf_log_delivery_policy: false
+# Availability Zone ID or Local Zone ID
+# Not supported (gap): directory buckets (S3 Express One Zone,
+# aws_s3_directory_bucket) have no kind.
+availability_zone_id: null
+# Whether Amazon S3 should block public ACLs for this bucket
+block_public_acls: true
+# Whether Amazon S3 should block public bucket policies for this bucket
+block_public_policy: true
+# The name of the bucket. If omitted, Terraform will assign a random, unique
+# name
+bucket: null
+# Namespace for the bucket. Determines bucket naming scope. Valid values:
+# `account-regional`, `global`. Defaults to `global` (AWS)
+# Not supported (gap): Bucket has no field for an account-regional bucket
+# namespace.
+bucket_namespace: null
+# Creates a unique bucket name beginning with the specified prefix. Conflicts
+# with bucket
+# Not supported (gap): a bucket name with a random suffix (bucket_prefix)
+# would change between renders: set bucket.
+bucket_prefix: null
+# Whether to manage S3 Bucket Ownership Controls on this bucket
+control_object_ownership: false
+# Rules for Cross-Origin Resource Sharing on the bucket
+cors_rule: []
+# Controls if S3 bucket should be created
+create_bucket: true
+# Whether each file system creates a security group for its mount targets. A
+# file system can override it with its own `create_security_group`, and
+# setting `security_groups` does not turn it off
+# Not supported (not-ported): S3 Files file systems are not ported yet (ACK's
+# s3files-controller has FileSystem, MountTarget and AccessPoint).
+create_file_system_security_group: true
+# Whether to create metadata configuration resource
+# Not supported (gap): aws_s3_bucket_metadata_configuration has no kind.
+create_metadata_configuration: false
+# Data redundancy. Valid values: `SingleAvailabilityZone`
+# Not supported (gap): directory buckets (S3 Express One Zone,
+# aws_s3_directory_bucket) have no kind.
+data_redundancy: null
+# The account ID of the expected bucket owner
+# Not supported (gap): ACK's Bucket has no expected bucket owner field.
+expected_bucket_owner: null
+# Map of egress rules added to every file system security group this module
+# creates. A file system can replace them with its own
+# `security_group_egress_rules`
+# Not supported (not-ported): S3 Files file systems are not ported yet (ACK's
+# s3files-controller has FileSystem, MountTarget and AccessPoint).
+file_system_security_group_egress_rules: {}
+# Map of ingress rules added to every file system security group this module
+# creates. A file system can replace them with its own
+# `security_group_ingress_rules`
+# Not supported (not-ported): S3 Files file systems are not ported yet (ACK's
+# s3files-controller has FileSystem, MountTarget and AccessPoint).
+file_system_security_group_ingress_rules: {}
+# A map of additional tags added to every file system security group this
+# module creates
+# Not supported (not-ported): S3 Files file systems are not ported yet (ACK's
+# s3files-controller has FileSystem, MountTarget and AccessPoint).
+file_system_security_group_tags: null
+# ID of the VPC where the file system security groups are created. Must be the
+# VPC of the mount target subnets
+# Not supported (not-ported): S3 Files file systems are not ported yet (ACK's
+# s3files-controller has FileSystem, MountTarget and AccessPoint).
+file_system_security_group_vpc_id: null
+# Map of Amazon S3 Files file system definitions to create on the bucket.
+# Requires versioning enabled through `versioning`, even when it is already
+# enabled outside this module, and is not supported on a directory bucket
+# Not supported (not-ported): S3 Files file systems are not ported yet (ACK's
+# s3files-controller has FileSystem, MountTarget and AccessPoint).
+file_systems: {}
+# A boolean that indicates all objects should be deleted from the bucket so
+# that the bucket can be destroyed without error. These objects are not
+# recoverable
+# Not supported (gap): ACK's Bucket has no field to delete a bucket's objects
+# with it: deleting a bucket that holds objects fails.
+force_destroy: false
+# ACL policy grants for the bucket. Conflicts with `acl`
+# Not supported (not-ported): ACL grants are not ported yet (Bucket.grant*); a
+# canned acl is.
+grant: []
+# Whether Amazon S3 should ignore public ACLs for this bucket
+ignore_public_acls: true
+# Intelligent tiering configurations for the bucket, keyed by configuration
+# name
+# Not supported (not-ported): Intelligent-Tiering configurations are not
+# ported yet (Bucket.intelligentTiering).
+intelligent_tiering: {}
+# Inventory configurations for the bucket, keyed by configuration name
+# Not supported (not-ported): inventory configurations are not ported yet
+# (Bucket.inventory).
+inventory_configuration: {}
+# Whether or not the inventory source bucket is also the destination bucket
+# Not supported (not-ported): inventory configurations are not ported yet
+# (Bucket.inventory).
+inventory_self_source_destination: false
+# The inventory source account id
+# Not supported (not-ported): inventory configurations are not ported yet
+# (Bucket.inventory).
+inventory_source_account_id: null
+# The inventory source bucket ARN
+# Not supported (not-ported): inventory configurations are not ported yet
+# (Bucket.inventory).
+inventory_source_bucket_arn: null
+# If the s3 bucket created is a directory bucket
+# Not supported (gap): directory buckets (S3 Express One Zone,
+# aws_s3_directory_bucket) have no kind.
+is_directory_bucket: false
+# List of AWS Organization IDs should be allowed to deliver ALB/NLB logs to
+# this bucket
+# Not supported (not-ported): the log-delivery and destination bucket policies
+# are not ported yet: they need the account, the Region's Elastic Load
+# Balancing account and the source buckets; write them in policy
+# (attach_policy).
+lb_log_delivery_policy_source_organizations: []
+# Object lifecycle management rules for the bucket
+# Not supported (not-ported): lifecycle rules are not ported yet
+# (Bucket.lifecycle).
+lifecycle_rule: []
+# Location type. Valid values: `AvailabilityZone` or `LocalZone`
+# Not supported (gap): directory buckets (S3 Express One Zone,
+# aws_s3_directory_bucket) have no kind.
+location_type: null
+# Access log delivery configuration for the bucket
+logging: null
+# Encryption configuration for the metadata inventory table
+# Not supported (gap): aws_s3_bucket_metadata_configuration has no kind.
+metadata_encryption_configuration: null
+# Configuration state of the inventory table, indicating whether the inventory
+# table is enabled or disabled. Valid values: `ENABLED`, `DISABLED`
+# Not supported (gap): aws_s3_bucket_metadata_configuration has no kind.
+metadata_inventory_table_configuration_state: null
+# Whether journal table record expiration is enabled or disabled. Valid
+# values: `ENABLED`, `DISABLED`
+# Not supported (gap): aws_s3_bucket_metadata_configuration has no kind.
+metadata_journal_table_record_expiration: null
+# Number of days to retain journal table records
+# Not supported (gap): aws_s3_bucket_metadata_configuration has no kind.
+metadata_journal_table_record_expiration_days: null
+# Metric configurations for the bucket
+# Not supported (not-ported): metrics configurations are not ported yet
+# (Bucket.metrics).
+metric_configuration: []
+# Object lock configuration for the bucket
+# In part: accepted, except token (Terraform's, for an existing bucket's
+# lock).
+object_lock_configuration: {}
+# Whether S3 bucket should have an Object Lock configuration enabled
+object_lock_enabled: false
+# Object ownership. Valid values: `BucketOwnerEnforced`,
+# `BucketOwnerPreferred` or `ObjectWriter`. `BucketOwnerEnforced`: ACLs are
+# disabled, and the bucket owner automatically owns and has full control over
+# every object in the bucket. `BucketOwnerPreferred`: Objects uploaded to the
+# bucket change ownership to the bucket owner if the objects are uploaded with
+# the `bucket-owner-full-control` canned ACL. `ObjectWriter`: The uploading
+# account will own the object if the object is uploaded with the `bucket-
+# owner-full-control` canned ACL
+object_ownership: "BucketOwnerEnforced"
+# Bucket owner's display name and ID. Conflicts with `acl`
+# Not supported (not-ported): ACL grants are not ported yet (Bucket.grant*); a
+# canned acl is.
+owner: {}
+# A valid bucket policy JSON document. Note that if the policy document is not
+# specific enough (but still valid), Terraform may view the policy as
+# constantly changing in a terraform plan. In this case, please make sure you
+# use the verbose/specific version of the policy. For more information about
+# building AWS IAM policy documents with Terraform, see the AWS IAM Policy
+# Document Guide
+policy: null
+# Do you agree that Putin doesn't respect Ukrainian sovereignty and
+# territorial integrity? More info:
+# https://en.wikipedia.org/wiki/Putin_khuylo!
+putin_khuylo: true
+# Region where the resource(s) will be managed. Defaults to the Region set in
+# the provider configuration
+region: null
+# Cross-region replication configuration for the bucket
+# Not supported (not-ported): replication is not ported yet
+# (Bucket.replication).
+replication_configuration: {}
+# Specifies who should bear the cost of Amazon S3 data transfer. Can be either
+# `BucketOwner` or `Requester`. By default, the owner of the S3 bucket would
+# incur the costs of any data transfer. See Requester Pays Buckets developer
+# guide for more information
+request_payer: null
+# Whether Amazon S3 should restrict public bucket policies for this bucket
+restrict_public_buckets: true
+# Server-side encryption configuration for the bucket
+# In part: accepted, except blocked_encryption_types: ACK's encryption rule
+# has no such field.
+server_side_encryption_configuration: {}
+# Whether to skip destroying the S3 Bucket Public Access Block configuration
+# when destroying the bucket. Only used if `public_access_block` is set to
+# true
+# In part: accepted: the public access block is a field of the Bucket, so it
+# is not destroyed apart from the bucket either way.
+skip_destroy_public_access_block: true
+# A mapping of tags to assign to the bucket
+tags: {}
+# The default minimum object size behavior applied to the lifecycle
+# configuration. Valid values: `all_storage_classes_128K` (default) or
+# `varies_by_storage_class`
+# Not supported (gap): Bucket.lifecycle has no field for the default minimum
+# object size for transitions.
+transition_default_minimum_object_size: null
+# Bucket type. Valid values: `Directory`
+# Not supported (gap): directory buckets (S3 Express One Zone,
+# aws_s3_directory_bucket) have no kind.
+type: "Directory"
+# Versioning configuration for the bucket
+# In part: accepted, except mfa and mfa_delete: Bucket.versioning has only
+# status.
+versioning: {}
+# Static website hosting or redirect configuration for the bucket
+website: {}

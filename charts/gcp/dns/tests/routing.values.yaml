@@ -1,0 +1,29 @@
+# Geo and weighted round robin routing policies, and a reverse managed
+# private zone with a Service Directory namespace.
+project_id: my-project
+name: routing
+zone_config:
+  domain: routing.example.
+  private:
+    client_networks: [projects/my-project/global/networks/default]
+    service_directory_namespace: https://servicedirectory.googleapis.com/v1/projects/my-project/locations/europe-west1/namespaces/ns
+    reverse_managed: true
+recordsets:
+  "A geo":
+    geo_routing:
+      - location: europe-west1
+        records: [10.0.0.1]
+      - location: europe-west8
+        health_checked_targets:
+          - load_balancer_type: regionalL4ilb
+            ip_address: 10.0.1.1
+            port: "80"
+            ip_protocol: tcp
+            network_url: projects/my-project/global/networks/default
+            project: my-project
+            region: europe-west8
+  "A wrr":
+    ttl: 600
+    wrr_routing:
+      - {weight: 0.6, records: [10.0.0.2]}
+      - {weight: 0.2, records: [10.0.0.3]}

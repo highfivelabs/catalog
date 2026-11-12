@@ -1,0 +1,19 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/pubsub/iam.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+On the topic (google_pubsub_topic_iam_*) and on each subscription
+(google_pubsub_subscription_iam_*): iam (and, on the topic,
+iam_by_principals) one IAMPartialPolicy, iam_bindings one IAMBinding each,
+iam_bindings_additive one IAMPolicyMember each (docs/design.md, "IAM").
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (dict "apiVersion" "pubsub.cnrm.cloud.google.com/v1beta1" "kind" "PubSubTopic" "name" .Release.Name) "v" (dict "iam" $v.iam "iam_by_principals" $v.iam_by_principals "iam_bindings" $v.iam_bindings "iam_bindings_additive" $v.iam_bindings_additive)) }}
+{{- $subs := $v.subscriptions | default dict }}
+{{- range $key := keys $subs | sortAlpha }}
+{{- $s := index $subs $key }}
+{{- $obj := include "pubsub.subObject" (list $ $key) }}
+{{- include "kcc.iam" (dict "root" $ "base" $obj "idPrefix" (printf "subscription:%s:" $key) "resourceRef" (dict "apiVersion" "pubsub.cnrm.cloud.google.com/v1beta1" "kind" "PubSubSubscription" "name" $obj) "v" (dict "iam" $s.iam "iam_bindings" $s.iam_bindings "iam_bindings_additive" $s.iam_bindings_additive)) }}
+{{- end }}

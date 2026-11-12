@@ -1,0 +1,47 @@
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Alias
+metadata:
+  name: full-alias-dnssec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "alias-dnssec"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "alias/dnssec/zone"
+  targetKeyRef:
+    from:
+      name: full-key
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Key
+metadata:
+  name: full-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "key"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  description: "DNSSEC signing key"
+  keySpec: "ECC_NIST_P256"
+  keyUsage: "SIGN_VERIFY"
+  enableKeyRotation: false
+  multiRegion: true
+  policy: "{\"Statement\":[{\"Action\":[\"kms:*\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:root\"]},\"Resource\":[\"*\"],\"Sid\":\"Default\"},{\"Action\":[\"kms:DescribeKey\",\"kms:GetPublicKey\",\"kms:Sign\",\"kms:Verify\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/signer\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyAsymmetricSignVerify\"},{\"Action\":[\"kms:DescribeKey\",\"kms:GetPublicKey\",\"kms:Sign\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"dnssec-route53.amazonaws.com\"]},\"Resource\":[\"*\"],\"Sid\":\"Route53DnssecService\"},{\"Action\":[\"kms:CreateGrant\"],\"Condition\":{\"ArnLike\":{\"aws:SourceArn\":[\"arn:aws:route53:::hostedzone/Z123\",\"arn:aws:route53:::hostedzone/*\"]},\"Bool\":{\"kms:GrantIsForAWSResource\":[\"true\"]},\"StringEquals\":{\"aws:SourceAccount\":[\"111122223333\",\"444455556666\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"dnssec-route53.amazonaws.com\"]},\"Resource\":[\"*\"],\"Sid\":\"Route53DnssecGrant\"},{\"Action\":[\"kms:Encrypt*\",\"kms:Decrypt*\"],\"Condition\":{\"ArnLike\":{\"kms:EncryptionContext:aws:logs:arn\":[\"arn:aws:logs:us-east-1:111122223333:log-group:*\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"logs.us-east-1.amazonaws.com\"]},\"Resource\":[\"*\"],\"Sid\":\"CloudWatchLogs\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - tagKey: "Owner"
+      tagValue: "platform"

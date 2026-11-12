@@ -1,0 +1,207 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the bucket (aws_s3_bucket) and the configurations ACK keeps
+inline in s3/Bucket: ownership controls, public access block, canned ACL,
+versioning, server-side encryption, CORS, logging, website, acceleration,
+request payment, object lock, and the bucket policy (aws_s3_bucket_policy,
+from the module's combined policy document). What is not ported is
+refused (refusals.yaml).
+*/ -}}
+{{- include "ack.names" (list $ (list "bucket")) -}}
+{{- $v := .Values -}}
+{{- if and $v.create_bucket $v.putin_khuylo }}
+{{- $set := index ($v.names | default dict) "bucket" }}
+{{- if and (not $v.bucket) (not $set) }}
+{{- fail "s3-bucket: bucket is required: the module would name it with a random suffix, which would change between renders (or set names.bucket)" }}
+{{- end }}
+{{- $name := include "ack.resourceName" (list $ "bucket" "bucket" ($v.bucket | default "") 63) }}
+{{- $arn := printf "arn:%s:s3:::%s" $v.partition $name }}
+{{- /* The bucket policy: the module's combined document, in its order. */}}
+{{- $st := list }}
+{{- range $p := list (list $v.attach_require_latest_tls_policy "denyOutdatedTLS" "NumericLessThan" "s3:TlsVersion" "1.2") (list $v.attach_deny_insecure_transport_policy "denyInsecureTransport" "Bool" "aws:SecureTransport" "false") }}
+{{- if index $p 0 }}
+{{- $st = append $st (dict "Sid" (index $p 1) "Effect" "Deny" "Action" (list "s3:*") "Resource" (list $arn (printf "%s/*" $arn)) "Principal" "*" "Condition" (dict (index $p 2) (dict (index $p 3) (list (index $p 4))))) }}
+{{- end }}
+{{- end }}
+{{- if and $v.attach_policy $v.policy }}
+{{- $doc := $v.policy | replace "_S3_BUCKET_ID_" $name | replace "_S3_BUCKET_ARN_" $arn }}
+{{- if contains "_AWS_ACCOUNT_ID_" $doc }}
+{{- if not $v.account_id }}
+{{- fail "s3-bucket: policy uses _AWS_ACCOUNT_ID_, and account_id is unset: a chart cannot look the account up (values.yaml, account_id)" }}
+{{- end }}
+{{- $doc = $doc | replace "_AWS_ACCOUNT_ID_" $v.account_id }}
+{{- end }}
+{{- $parsed := $doc | fromJson }}
+{{- if hasKey $parsed "Error" }}
+{{- fail (printf "s3-bucket: policy is not a JSON policy document: %s" $parsed.Error) }}
+{{- end }}
+{{- $ps := $parsed.Statement }}
+{{- if kindIs "map" $ps }}{{ $ps = list $ps }}{{ end }}
+{{- $st = concat $st ($ps | default list) }}
+{{- end }}
+---
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "bucket")) "id" "bucket" "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+{{- if and $v.region (ne $v.region "us-east-1") }}
+  {{- /* us-east-1 takes no location constraint, as the Terraform provider sends none */}}
+  createBucketConfiguration:
+    locationConstraint: {{ $v.region | quote }}
+{{- end }}
+{{- if $v.object_lock_enabled }}
+  objectLockEnabledForBucket: true
+{{- end }}
+{{- if $v.control_object_ownership }}
+  ownershipControls:
+    rules:
+      - objectOwnership: {{ $v.object_ownership | quote }}
+{{- end }}
+{{- if $v.attach_public_policy }}
+  publicAccessBlock:
+    blockPublicACLs: {{ $v.block_public_acls }}
+    blockPublicPolicy: {{ $v.block_public_policy }}
+    ignorePublicACLs: {{ $v.ignore_public_acls }}
+    restrictPublicBuckets: {{ $v.restrict_public_buckets }}
+{{- end }}
+{{- if and $v.acl (ne $v.acl "null") }}
+  acl: {{ $v.acl | quote }}
+{{- end }}
+{{- with $v.versioning }}
+{{- $s := "Enabled" }}
+{{- if hasKey . "enabled" }}{{ $s = ternary "Enabled" "Suspended" (eq (toString .enabled) "true") }}
+{{- else if hasKey . "status" }}
+{{- $raw := toString .status }}
+{{- if eq $raw "true" }}{{ $s = "Enabled" }}{{ else if eq $raw "false" }}{{ $s = "Suspended" }}{{ else }}{{ $s = title (lower $raw) }}{{ end }}
+{{- end }}
+{{- if or (hasKey . "mfa") (hasKey . "mfa_delete") }}
+{{- fail "s3-bucket: versioning.mfa and versioning.mfa_delete are not supported: Bucket.versioning has only status (docs/aws.md)" }}
+{{- end }}
+  versioning:
+    status: {{ $s | quote }}
+{{- end }}
+{{- with ($v.server_side_encryption_configuration | default dict).rule }}
+{{- if .blocked_encryption_types }}
+{{- fail "s3-bucket: server_side_encryption_configuration.rule.blocked_encryption_types is not supported: ACK's encryption rule has no such field (docs/aws.md)" }}
+{{- end }}
+  encryption:
+    rules:
+      - {{- if not (kindIs "invalid" .bucket_key_enabled) }}
+        bucketKeyEnabled: {{ .bucket_key_enabled }}
+        {{- end }}
+        {{- with .apply_server_side_encryption_by_default }}
+        applyServerSideEncryptionByDefault:
+          sseAlgorithm: {{ .sse_algorithm | quote }}
+          {{- with .kms_master_key_id }}
+          kmsMasterKeyID: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+{{- end }}
+{{- with $v.cors_rule }}
+  cors:
+    corsRules:
+{{- range $r := . }}
+      - allowedMethods: {{ toJson $r.allowed_methods }}
+        allowedOrigins: {{ toJson $r.allowed_origins }}
+{{- with $r.allowed_headers }}
+        allowedHeaders: {{ toJson . }}
+{{- end }}
+{{- with $r.expose_headers }}
+        exposeHeaders: {{ toJson . }}
+{{- end }}
+{{- if not (kindIs "invalid" $r.max_age_seconds) }}
+        maxAgeSeconds: {{ int64 $r.max_age_seconds }}
+{{- end }}
+{{- with $r.id }}
+        id: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.logging }}
+  logging:
+    loggingEnabled:
+      targetBucket: {{ .target_bucket | quote }}
+      targetPrefix: {{ .target_prefix | default "" | quote }}
+{{- with .target_object_key_format }}
+{{- with .partitioned_prefix }}
+      targetObjectKeyFormat:
+        partitionedPrefix:
+{{- with .partition_date_source }}
+          partitionDateSource: {{ . | quote }}
+{{- else }}
+          {}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $w := $v.website | default dict }}
+{{- if or $w.index_document $w.error_document $w.redirect_all_requests_to $w.routing_rules }}
+  website:
+{{- with $w.index_document }}
+    indexDocument: {suffix: {{ . | quote }}}
+{{- end }}
+{{- with $w.error_document }}
+    errorDocument: {key: {{ . | quote }}}
+{{- end }}
+{{- with $w.redirect_all_requests_to }}
+    redirectAllRequestsTo:
+      hostName: {{ .host_name | quote }}
+{{- with .protocol }}
+      protocol: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $w.routing_rules }}
+    routingRules:
+{{- range $r := . }}
+{{- $o := dict "redirect" dict }}
+{{- with $r.condition }}
+{{- $c := dict }}
+{{- with .http_error_code_returned_equals }}{{ $_ := set $c "httpErrorCodeReturnedEquals" (toString .) }}{{ end }}
+{{- with .key_prefix_equals }}{{ $_ := set $c "keyPrefixEquals" . }}{{ end }}
+{{- $_ := set $o "condition" $c }}
+{{- end }}
+{{- with $r.redirect }}
+{{- range $k, $f := dict "host_name" "hostName" "http_redirect_code" "httpRedirectCode" "protocol" "protocol" "replace_key_prefix_with" "replaceKeyPrefixWith" "replace_key_with" "replaceKeyWith" }}
+{{- with index $r.redirect $k }}{{ $_ := set $o.redirect $f (toString .) }}{{ end }}
+{{- end }}
+{{- end }}
+      - {{ toJson $o }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.acceleration_status }}
+  accelerate:
+    status: {{ title (lower .) | quote }}
+{{- end }}
+{{- with $v.request_payer }}
+  requestPayment:
+    payer: {{ ternary "Requester" "BucketOwner" (eq (lower .) "requester") | quote }}
+{{- end }}
+{{- $lock := ($v.object_lock_configuration | default dict) }}
+{{- if and $v.object_lock_enabled $lock.rule }}
+{{- with $lock.rule.default_retention }}
+  objectLockConfiguration:
+    rule:
+      defaultRetention:
+        mode: {{ .mode | quote }}
+{{- if not (kindIs "invalid" .days) }}
+        days: {{ int64 .days }}
+{{- end }}
+{{- if not (kindIs "invalid" .years) }}
+        years: {{ int64 .years }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $st }}
+  policy: {{ toJson (dict "Version" "2012-10-17" "Statement" $st) | quote }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tagging:
+    tagSet:
+{{- include "ack.tagList" (list .) | nindent 6 }}
+{{- end }}
+{{- end }}

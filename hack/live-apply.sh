@@ -23,9 +23,12 @@
 #
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
-# artifact-registry. Each needs the runner's roles on its resources: the
-# pilot's are catalog-live-tests', artifact-registry needs
-# roles/artifactregistry.admin (cce-live-tests has it).
+# artifact-registry, net-vpc-firewall and net-vpc-peering. Each needs the
+# runner's roles on its resources: the pilot's are catalog-live-tests',
+# artifact-registry needs roles/artifactregistry.admin, net-vpc-firewall
+# roles/compute.securityAdmin (cce-live-tests has both). A chart whose case
+# needs objects it does not make (a network for the firewall rules, two for
+# the peering) has them applied with its render and deleted with it.
 #
 # Config Connector runs as config-connector-extensions' fake cloud does
 # (its manager on the host against a kind cluster holding the CRDs), but
@@ -62,6 +65,9 @@ SA_ID="${RUN}-sa"
 BUCKET="${PROJECT}-${RUN}"
 NET="${RUN}-net"
 REPO="${RUN}-ar"
+FWNET="${RUN}-fwnet"
+PEER_A="${RUN}-pa"
+PEER_B="${RUN}-pb"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
@@ -79,6 +85,17 @@ sweep_run() {
   done || true
   "${G[@]}" compute networks delete "${r}-net" >/dev/null 2>&1 && echo "swept network ${r}-net" || true
   "${G[@]}" artifacts repositories delete "${r}-ar" --location "${REGION}" >/dev/null 2>&1 && echo "swept repository ${r}-ar" || true
+  "${G[@]}" compute firewall-rules list --filter="name~^${r}-" --format='value(name)' 2>/dev/null | while read -r n; do
+    "${G[@]}" compute firewall-rules delete "$n" >/dev/null 2>&1 && echo "swept firewall rule $n"
+  done || true
+  for n in "${r}-pa" "${r}-pb"; do
+    "${G[@]}" compute networks peerings list --network "$n" --format='value(peerings[].name)' 2>/dev/null | tr ';' '\n' | while read -r s; do
+      [[ -n "$s" ]] && "${G[@]}" compute networks peerings delete "$s" --network "$n" >/dev/null 2>&1 && echo "swept peering $s"
+    done || true
+  done
+  for n in "${r}-fwnet" "${r}-pa" "${r}-pb"; do
+    "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
+  done
 }
 # sweep_old: every cat- run older than two hours.
 sweep_old() {
@@ -86,7 +103,7 @@ sweep_old() {
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-net$/\1/p'
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
@@ -99,6 +116,7 @@ list_left() {
   "${G[@]}" compute routes list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute networks subnets list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | grep -E '^cat-' || true
+  "${G[@]}" compute firewall-rules list --format='value(name)' | grep -E '^cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
@@ -199,6 +217,58 @@ iam_bindings_additive:
   writer: {member: "serviceAccount:${RUNNER}", role: roles/artifactregistry.writer}
 VALUES
 
+cat >"${OUT}/net-vpc-firewall.values.yaml" <<VALUES
+project_id: ${PROJECT}
+network: ${FWNET}
+default_rules_config: {http_ranges: [], https_ranges: []}
+ingress_rules:
+  ${RUN}-allow-ntp:
+    description: catalog live test ${RUN}
+    targets: [ntp-svc]
+    source_ranges: [rfc1918]
+    rules: [{protocol: udp, ports: ["123"]}]
+egress_rules:
+  ${RUN}-deny-egress: {priority: 65000, enable_logging: {include_metadata: false}}
+VALUES
+cat >"${OUT}/net-vpc-firewall.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-fwnet
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${FWNET}
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+NEEDS
+cat >"${OUT}/net-vpc-peering.values.yaml" <<VALUES
+local_network: projects/${PROJECT}/global/networks/${PEER_A}
+peer_network: projects/${PROJECT}/global/networks/${PEER_B}
+routes_config:
+  local: {import: false}
+VALUES
+cat >"${OUT}/net-vpc-peering.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-pa
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${PEER_A}
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-pb
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${PEER_B}
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+NEEDS
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -213,6 +283,11 @@ for chart in ${LIVE_CHARTS}; do
   echo "== ${chart}"
   dir="charts/gcp/${chart}"
   helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.rendered.yaml"
+  # What the case needs and the chart does not make, applied and deleted with it.
+  if [[ -f "${OUT}/${chart}.needs.yaml" ]]; then
+    { cat "${OUT}/${chart}.needs.yaml"; echo "---"; cat "${OUT}/${chart}.rendered.yaml"; } >"${OUT}/${chart}.with-needs.yaml"
+    mv "${OUT}/${chart}.with-needs.yaml" "${OUT}/${chart}.rendered.yaml"
+  fi
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}.rendered.yaml"
   # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" -o json \
@@ -254,6 +329,14 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute networks describe "${NET}" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks subnets describe "${SUBNET}" --region "${REGION}" >/dev/null 2>&1 && gone=no ;;
     artifact-registry) "${G[@]}" artifacts repositories describe "${REPO}" --location "${REGION}" >/dev/null 2>&1 && gone=no || gone=yes ;;
+    net-vpc-firewall)
+      gone=yes
+      "${G[@]}" compute networks describe "${FWNET}" >/dev/null 2>&1 && gone=no
+      [[ -z "$("${G[@]}" compute firewall-rules list --filter="network~/${FWNET}\$" --format='value(name)' 2>/dev/null)" ]] || gone=no ;;
+    net-vpc-peering)
+      gone=yes
+      "${G[@]}" compute networks describe "${PEER_A}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${PEER_B}" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do

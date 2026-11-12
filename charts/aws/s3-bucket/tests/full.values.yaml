@@ -1,0 +1,38 @@
+# Every ported configuration: encryption with a KMS key, CORS, logging with
+# partitioned prefixes, a website with routing rules, acceleration,
+# requester pays, object lock, and a policy merged with the TLS and
+# transport deny statements.
+bucket: full-bucket
+region: eu-west-1
+account_id: "111122223333"
+control_object_ownership: true
+versioning: {status: enabled}
+server_side_encryption_configuration:
+  rule:
+    bucket_key_enabled: true
+    apply_server_side_encryption_by_default: {sse_algorithm: "aws:kms", kms_master_key_id: alias/s3}
+cors_rule:
+  - {allowed_methods: [PUT, POST], allowed_origins: ["https://example.com"], allowed_headers: ["*"], expose_headers: [ETag], max_age_seconds: 3000, id: web}
+logging:
+  target_bucket: logs-bucket
+  target_prefix: log/
+  target_object_key_format: {partitioned_prefix: {partition_date_source: EventTime}}
+website:
+  index_document: index.html
+  error_document: error.html
+  routing_rules:
+    - condition: {key_prefix_equals: docs/}
+      redirect: {replace_key_prefix_with: documents/}
+acceleration_status: Enabled
+request_payer: requester
+object_lock_enabled: true
+object_lock_configuration:
+  rule:
+    default_retention: {mode: GOVERNANCE, days: 1}
+attach_policy: true
+policy: '{"Version":"2012-10-17","Statement":[{"Sid":"read","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::_AWS_ACCOUNT_ID_:root"},"Action":"s3:GetObject","Resource":"_S3_BUCKET_ARN_/*"}]}'
+attach_deny_insecure_transport_policy: true
+attach_require_latest_tls_policy: true
+tags: {Owner: platform}
+deletion_policy: ABANDON
+labels: {hfl.dev/team: platform}
