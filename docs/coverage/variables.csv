@@ -476,18 +476,18 @@ gcp,net-firewall-policy,parent_id,string,no,,no-chart
 gcp,net-firewall-policy,region,string,no,,no-chart
 gcp,net-firewall-policy,security_profile_group_ids,map(string),no,,no-chart
 gcp,net-firewall-policy,tag_bindings,map(string),no,,no-chart
-gcp,vpc-sc,access_levels,"map(object({combining_function, conditions, description, title}))",no,,no-chart
-gcp,vpc-sc,access_policy,string,no,,no-chart
-gcp,vpc-sc,access_policy_create,"object({parent, scopes, title})",no,,no-chart
-gcp,vpc-sc,context,"object({access_levels, condition_vars, folder_ids, iam_principals, identity_sets, organization_ids, +4})",no,,no-chart
-gcp,vpc-sc,egress_policies,"map(object({from, title, to}))",no,,no-chart
-gcp,vpc-sc,factories_config,"object({access_levels, egress_policies, ingress_policies, perimeters})",no,,no-chart
-gcp,vpc-sc,iam,map(list(string)),no,,no-chart
-gcp,vpc-sc,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,vpc-sc,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,vpc-sc,ingress_policies,"map(object({from, title, to}))",no,,no-chart
-gcp,vpc-sc,perimeters,"map(object({description, ignore_resource_changes, spec, status, title, use_explicit_dry_run_spec}))",no,,no-chart
-gcp,vpc-sc,project_id_search_scope,string,no,,no-chart
+gcp,vpc-sc,access_levels,"map(object({combining_function, conditions, description, title}))",partial,"AccessContextManagerAccessLevel has no vpcNetworkSources, and its members are users and service accounts only",gap
+gcp,vpc-sc,access_policy,string,yes,,
+gcp,vpc-sc,access_policy_create,"object({parent, scopes, title})",partial,AccessContextManagerAccessPolicy has no scopes field (Config Connector ignores it),gap
+gcp,vpc-sc,context,"object({access_levels, condition_vars, folder_ids, iam_principals, identity_sets, organization_ids, +4})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,vpc-sc,egress_policies,"map(object({from, title, to}))",partial,"AccessContextManagerServicePerimeter's egress policies have no title, no roles, no sources (access levels, resources, PSC endpoints), and identities that are users and service accounts only",gap
+gcp,vpc-sc,factories_config,"object({access_levels, egress_policies, ingress_policies, perimeters})",partial,a chart cannot read the caller's files: accepted and ignored; the files' contents go under factories_data,by-design
+gcp,vpc-sc,iam,map(list(string)),yes,,
+gcp,vpc-sc,iam_bindings,"map(object({condition, members, role}))",partial,Config Connector's IAM on AccessContextManagerAccessPolicy takes no conditions,gap
+gcp,vpc-sc,iam_bindings_additive,"map(object({condition, member, role}))",partial,Config Connector's IAM on AccessContextManagerAccessPolicy takes no conditions,gap
+gcp,vpc-sc,ingress_policies,"map(object({from, title, to}))",partial,"AccessContextManagerServicePerimeter's ingress policies have no title, no roles, no PSC endpoint sources, and identities that are users and service accounts only",gap
+gcp,vpc-sc,perimeters,"map(object({description, ignore_resource_changes, spec, status, title, use_explicit_dry_run_spec}))",partial,"AccessContextManagerServicePerimeter has no allowedServicePatterns in vpcAccessibleServices, and Config Connector cannot ignore changes to a perimeter's resources (ignore_resource_changes)",gap
+gcp,vpc-sc,project_id_search_scope,string,no,"a search is a read, not a resource: give project numbers (projects/123) in the inputs, from another component's output",by-design
 gcp,project-factory,context,"object({condition_vars, custom_roles, email_addresses, folder_ids, iam_principals, kms_keys, +14})",no,,no-chart
 gcp,project-factory,data_defaults,"object({billing_account, bucket, contacts, deletion_policy, factories_config, labels, +13})",no,,no-chart
 gcp,project-factory,data_merges,"object({contacts, labels, metric_scopes, service_accounts, service_encryption_key_ids, services, +1})",no,,no-chart
