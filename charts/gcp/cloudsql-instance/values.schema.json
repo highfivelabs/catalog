@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "cloudsql-instance values (fabric cloudsql-instance v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "project_id", "region", "database_version", "tier", "network_config"],
+  "definitions": {
+    "stringOrNull": {"type": ["string", "null"]},
+    "boolOrNull": {"type": ["boolean", "null"]},
+    "numberOrNull": {"type": ["number", "null"]},
+    "stringList": {"type": ["array", "null"], "items": {"type": "string"}}
+  },
+  "properties": {
+    "names": {
+      "description": "Collision-prone cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set derives from name.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "instance": {"description": "The primary instance's name in full: lower-case letters, digits and hyphens, starting with a letter.", "type": "string", "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$", "maxLength": 98}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived cloud name, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it to the instances' user labels).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "name": {"description": "Name of the primary instance.", "type": "string", "minLength": 1},
+    "prefix": {"description": "Optional prefix used to generate instance names. Prefix cannot be empty: use null.", "type": ["string", "null"], "minLength": 1},
+    "project_id": {"description": "The project the instances are created in.", "type": "string", "minLength": 1},
+    "region": {"description": "Region of the primary instance.", "type": "string", "minLength": 1},
+    "database_version": {"description": "Database type and version to create.", "type": "string", "minLength": 1},
+    "tier": {"description": "The machine type of the instances.", "type": "string", "minLength": 1},
+    "edition": {"type": "string", "enum": ["ENTERPRISE", "ENTERPRISE_PLUS"]},
+    "availability_type": {"type": "string", "enum": ["ZONAL", "REGIONAL"]},
+    "activation_policy": {"description": "The variable activation_policy must be ALWAYS, NEVER or ON_DEMAND.", "type": "string", "enum": ["ALWAYS", "NEVER", "ON_DEMAND"]},
+    "collation": {"$ref": "#/definitions/stringOrNull"},
+    "connector_enforcement": {"$ref": "#/definitions/stringOrNull"},
+    "data_cache": {"type": "boolean"},
+    "disk_size": {"$ref": "#/definitions/numberOrNull"},
+    "disk_autoresize_limit": {"type": ["number", "null"], "minimum": 0},
+    "disk_type": {"type": "string", "enum": ["PD_SSD", "PD_HDD"]},
+    "encryption_key_name": {"$ref": "#/definitions/stringOrNull"},
+    "flags": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+    "gcp_deletion_protection": {"type": "boolean"},
+    "terraform_deletion_protection": {"description": "Terraform's own guard: accepted and ignored.", "type": "boolean"},
+    "time_zone": {"$ref": "#/definitions/stringOrNull"},
+    "network_config": {
+      "description": "Network configuration for the instance. Only one between private_network and psc_config can be used.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connectivity"],
+      "properties": {
+        "authorized_networks": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+        "connectivity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "public_ipv4": {"type": ["boolean", "null"]},
+            "psa_config": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["private_network"],
+              "properties": {
+                "private_network": {"type": "string"},
+                "allocated_ip_ranges": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "properties": {"primary": {"$ref": "#/definitions/stringOrNull"}, "replica": {"$ref": "#/definitions/stringOrNull"}}
+                }
+              }
+            },
+            "psc_allowed_consumer_projects": {"description": "Obsolete: use psc_config.allowed_consumer_projects.", "type": ["array", "null"], "maxItems": 0},
+            "psc_config": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "allowed_consumer_projects": {"$ref": "#/definitions/stringList"},
+                "network_attachment_uri": {"description": "Not supported: SQLInstance's pscConfig has no such field.", "$ref": "#/definitions/stringOrNull"},
+                "psc_auto_connection_policy_enabled": {"description": "Not supported.", "$ref": "#/definitions/boolOrNull"},
+                "psc_auto_connections": {
+                  "description": "Not supported.",
+                  "type": ["array", "null"],
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["consumer_network"],
+                    "properties": {"consumer_network": {"type": "string"}, "consumer_service_project_id": {"$ref": "#/definitions/stringOrNull"}}
+                  }
+                },
+                "psc_auto_dns_enabled": {"description": "Not supported.", "$ref": "#/definitions/boolOrNull"},
+                "psc_write_endpoint_dns_enabled": {"description": "Not supported.", "$ref": "#/definitions/boolOrNull"}
+              }
+            },
+            "enable_private_path_for_services": {"type": ["boolean", "null"]}
+          }
+        }
+      }
+    },
+    "backup_configuration": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"$ref": "#/definitions/boolOrNull"},
+        "binary_log_enabled": {"$ref": "#/definitions/boolOrNull"},
+        "start_time": {"$ref": "#/definitions/stringOrNull"},
+        "location": {"$ref": "#/definitions/stringOrNull"},
+        "log_retention_days": {"$ref": "#/definitions/numberOrNull"},
+        "point_in_time_recovery_enabled": {"$ref": "#/definitions/boolOrNull"},
+        "retention_count": {"$ref": "#/definitions/numberOrNull"},
+        "retain_backups_on_delete": {"description": "Not supported: SQLInstance has no such field.", "$ref": "#/definitions/boolOrNull"},
+        "final_backup": {
+          "description": "Not supported: SQLInstance has no final backup field.",
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {"enabled": {"$ref": "#/definitions/boolOrNull"}, "retention_days": {"$ref": "#/definitions/numberOrNull"}}
+        }
+      }
+    },
+    "insights_config": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "query_string_length": {"$ref": "#/definitions/numberOrNull"},
+        "record_application_tags": {"$ref": "#/definitions/boolOrNull"},
+        "record_client_address": {"$ref": "#/definitions/boolOrNull"},
+        "query_plans_per_minute": {"$ref": "#/definitions/numberOrNull"},
+        "enhanced_query_insights_enabled": {"description": "true is not supported: SQLInstance has no such field.", "$ref": "#/definitions/boolOrNull"}
+      }
+    },
+    "maintenance_config": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "maintenance_window": {
+          "description": "Maintenance window day must be between 1 and 7 or null, hour between 0 and 23, update_track 'stable', 'canary' or 'week5'.",
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["hour"],
+          "properties": {
+            "day": {"type": ["integer", "null"], "minimum": 1, "maximum": 7},
+            "hour": {"type": "integer", "minimum": 0, "maximum": 23},
+            "update_track": {"type": ["string", "null"], "enum": ["canary", "stable", "week5", null]}
+          }
+        },
+        "deny_maintenance_period": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["start_date", "end_date"],
+          "properties": {
+            "start_date": {"type": "string"},
+            "end_date": {"type": "string"},
+            "start_time": {"$ref": "#/definitions/stringOrNull"}
+          }
+        }
+      }
+    },
+    "managed_connection_pooling_config": {
+      "description": "enabled: true is not supported where fabric applies it (PostgreSQL, ENTERPRISE_PLUS).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"$ref": "#/definitions/boolOrNull"},
+        "flags": {"type": ["object", "null"], "additionalProperties": {"type": "string"}}
+      }
+    },
+    "password_validation_policy": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"$ref": "#/definitions/boolOrNull"},
+        "change_interval": {"$ref": "#/definitions/numberOrNull"},
+        "default_complexity": {"$ref": "#/definitions/boolOrNull"},
+        "disallow_username_substring": {"$ref": "#/definitions/boolOrNull"},
+        "min_length": {"$ref": "#/definitions/numberOrNull"},
+        "reuse_interval": {"$ref": "#/definitions/numberOrNull"}
+      }
+    },
+    "ssl": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client_certificates": {"$ref": "#/definitions/stringList"},
+        "mode": {"description": "ALLOW_UNENCRYPTED_AND_ENCRYPTED, ENCRYPTED_ONLY or TRUSTED_CLIENT_CERTIFICATE_REQUIRED.", "type": ["string", "null"], "enum": ["ALLOW_UNENCRYPTED_AND_ENCRYPTED", "ENCRYPTED_ONLY", "TRUSTED_CLIENT_CERTIFICATE_REQUIRED", null]}
+      }
+    },
+    "replicas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["region"],
+        "properties": {
+          "region": {"type": "string"},
+          "encryption_key_name": {"$ref": "#/definitions/stringOrNull"},
+          "availability_type": {"type": ["string", "null"], "enum": ["ZONAL", "REGIONAL", null]},
+          "tier": {"$ref": "#/definitions/stringOrNull"}
+        }
+      }
+    },
+    "databases": {"$ref": "#/definitions/stringList"},
+    "users": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "password": {"description": "Not supported (README.md, \"Values\").", "$ref": "#/definitions/stringOrNull"},
+          "password_version": {"description": "Not supported.", "$ref": "#/definitions/numberOrNull"},
+          "type": {"type": ["string", "null"], "enum": ["BUILT_IN", "CLOUD_IAM_USER", "CLOUD_IAM_SERVICE_ACCOUNT", null]},
+          "database_roles": {"description": "Not supported: SQLUser has no database roles.", "$ref": "#/definitions/stringList"}
+        }
+      }
+    },
+    "root_password": {
+      "description": "Not supported (README.md, \"Values\"): {password, random_password}.",
+      "type": "object"
+    },
+    "data_api_access": {"description": "Not supported: SQLInstance has no Data API access field.", "type": ["string", "null"], "enum": ["ALLOW_DATA_API", "DISALLOW_DATA_API", null]},
+    "enable_dataplex_integration": {"description": "Not supported: SQLInstance has no Dataplex integration field.", "$ref": "#/definitions/boolOrNull"},
+    "context": {"description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.", "type": "object"},
+    "deletion_policy": {"type": ["string", "null"], "enum": ["DELETE", "ABANDON", "PREVENT", null]}
+  }
+}

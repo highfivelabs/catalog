@@ -1,0 +1,70 @@
+# Every accepted input: a regional MySQL primary with backups, insights,
+# maintenance, a password policy, two read replicas, databases, IAM users
+# and a client certificate; ABANDON.
+project_id: myproject
+prefix: shop
+name: orders
+region: europe-west1
+database_version: MYSQL_8_0
+tier: db-n1-standard-2
+edition: ENTERPRISE_PLUS
+data_cache: true
+availability_type: REGIONAL
+activation_policy: ALWAYS
+collation: utf8mb4_general_ci
+connector_enforcement: REQUIRED
+disk_size: 100
+disk_autoresize_limit: 0
+disk_type: PD_SSD
+encryption_key_name: projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/sql
+flags:
+  max_connections: "500"
+  cloudsql_iam_authentication: "on"
+gcp_deletion_protection: false
+terraform_deletion_protection: false
+labels: {cost-center: devops}
+network_config:
+  authorized_networks:
+    office: 203.0.113.0/24
+    vpn: 198.51.100.0/24
+  connectivity:
+    public_ipv4: true
+    psa_config:
+      private_network: projects/myproject/global/networks/my-network
+      allocated_ip_ranges:
+        primary: sql-primary
+        replica: sql-replica
+    enable_private_path_for_services: true
+backup_configuration:
+  enabled: true
+  binary_log_enabled: false
+  start_time: "02:00"
+  location: eu
+  log_retention_days: 5
+  point_in_time_recovery_enabled: true
+  retention_count: 14
+insights_config:
+  query_string_length: 2048
+  record_application_tags: true
+  record_client_address: true
+  query_plans_per_minute: 10
+maintenance_config:
+  maintenance_window: {day: 7, hour: 3, update_track: stable}
+  deny_maintenance_period: {start_date: "2026-12-20", end_date: "2027-01-05"}
+password_validation_policy:
+  enabled: true
+  default_complexity: true
+  disallow_username_substring: true
+  min_length: 12
+  reuse_interval: 5
+ssl:
+  mode: ENCRYPTED_ONLY
+  client_certificates: [app-client]
+replicas:
+  orders-replica-1: {region: europe-west1, availability_type: ZONAL}
+  orders-replica-2: {region: europe-west4, tier: db-n1-standard-4, encryption_key_name: projects/kms-project/locations/europe-west4/keyRings/ring/cryptoKeys/sql}
+databases: [orders, payments]
+users:
+  dev@example.com: {type: CLOUD_IAM_USER}
+  app@myproject.iam.gserviceaccount.com: {type: CLOUD_IAM_SERVICE_ACCOUNT}
+deletion_policy: ABANDON

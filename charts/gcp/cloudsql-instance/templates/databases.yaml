@@ -1,0 +1,60 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloudsql-instance/main.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_sql_database.databases: one SQLDatabase per entry of databases;
+google_sql_user.users: one SQLUser per entry of users (IAM users only:
+README.md, "Values"); google_sql_ssl_cert.client_certificates: one
+SQLSSLCert per common name. All on the primary.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $isPostgres := hasPrefix "POSTGRES" $v.database_version }}
+{{- range $db := ($v.databases | default list) | uniq | sortAlpha }}
+---
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLDatabase
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "db" $db)) "id" (printf "database:%s" $db) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $db | quote }}
+  instanceRef:
+    name: {{ $.Release.Name }}
+{{- end }}
+{{- range $key := keys ($v.users | default dict) | sortAlpha }}
+{{- $u := index $v.users $key | default dict }}
+{{- $type := $u.type | default "BUILT_IN" }}
+{{- if eq $type "BUILT_IN" }}
+{{- fail (printf "cloudsql-instance: users.%s is a BUILT_IN user, which is not supported: its password would be in the rendered manifest, or made by Terraform's random_password, which has no Config Connector equivalent; use a CLOUD_IAM_USER or CLOUD_IAM_SERVICE_ACCOUNT user (README.md, \"Values\")" $key) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "users.%s.database_roles" $key) $u.database_roles "SQLUser has no database roles") }}
+{{- include "kcc.unsupported" (list $ (printf "users.%s.password" $key) $u.password "an IAM user has no password") }}
+{{- include "kcc.unsupported" (list $ (printf "users.%s.password_version" $key) $u.password_version "SQLUser has no password version") }}
+{{- /* fabric: on PostgreSQL a service account's user drops
+".gserviceaccount.com"; elsewhere the key is the name. */}}
+{{- $name := $key }}
+{{- if $isPostgres }}{{ $name = trimSuffix ".gserviceaccount.com" $key }}{{ end }}
+---
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLUser
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "user" $key)) "id" (printf "user:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  instanceRef:
+    name: {{ $.Release.Name }}
+  type: {{ $type }}
+{{- end }}
+{{- range $cn := ($v.ssl.client_certificates | default list) | uniq | sortAlpha }}
+---
+apiVersion: sql.cnrm.cloud.google.com/v1beta1
+kind: SQLSSLCert
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "cert" $cn)) "id" (printf "client-certificate:%s" $cn) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  commonName: {{ $cn | quote }}
+  instanceRef:
+    name: {{ $.Release.Name }}
+{{- end }}

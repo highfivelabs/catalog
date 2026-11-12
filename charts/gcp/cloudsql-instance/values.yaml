@@ -1,0 +1,107 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's cloudsql-instance module
+# (v60.0.0): same names, types and defaults. values.schema.json carries the
+# types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# The primary instance's name in full, {instance}. A name set here takes no
+# prefix. Not set, it derives from name, as fabric names it. Read replicas
+# are named by their keys in replicas.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every derived cloud
+# name (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object (fabric's labels, on the instances, are
+# these: here every object carries them). A prefixed key (hfl.dev/team)
+# stays in Kubernetes; an unprefixed one also becomes a Google Cloud label
+# (the instances' user labels), since Config Connector copies it.
+labels: {}
+# Cloud labels on every resource (Config Connector carries them as
+# unprefixed metadata.labels).
+tags: {}
+
+# Name of the primary instance; it is named "<prefix>-<name>".
+name: ""
+# Optional prefix used to generate instance names (null, never "").
+prefix: null
+# The project the instances are created in.
+project_id: ""
+# Region of the primary instance.
+region: ""
+# Database type and version, such as POSTGRES_16 or MYSQL_8_0.
+database_version: ""
+# The machine type of the instances.
+tier: ""
+# ENTERPRISE or ENTERPRISE_PLUS.
+edition: ENTERPRISE
+# ZONAL or REGIONAL, for the primary.
+availability_type: ZONAL
+# ALWAYS, NEVER or ON_DEMAND.
+activation_policy: ALWAYS
+collation: null
+# Whether connections must use Cloud SQL connectors (REQUIRED or NOT_REQUIRED).
+connector_enforcement: null
+# Enable the data cache (ENTERPRISE_PLUS only, as fabric applies it).
+data_cache: false
+# Disk size in GB; null enables autoresize.
+disk_size: null
+# The maximum autoresize size in GB; 0 is no limit.
+disk_autoresize_limit: 0
+# PD_SSD or PD_HDD.
+disk_type: PD_SSD
+# KMS key for CMEK disk encryption of the primary
+# (projects/.../cryptoKeys/...).
+encryption_key_name: null
+# Database flags, {FLAG_NAME: VALUE}.
+flags: null
+# Google's deletion protection, which applies across all surfaces.
+gcp_deletion_protection: true
+# Terraform's own guard: accepted and ignored (README.md, "Differences from
+# the module").
+terraform_deletion_protection: true
+# The SQL Server time zone.
+time_zone: null
+# {connectivity: {public_ipv4, psa_config: {private_network,
+#  allocated_ip_ranges: {primary, replica}}, psc_config:
+#  {allowed_consumer_projects}, enable_private_path_for_services},
+#  authorized_networks: {NAME: CIDR}}. Required.
+network_config: null
+# {enabled, binary_log_enabled, start_time, location, log_retention_days,
+#  point_in_time_recovery_enabled, retention_count}; null leaves the
+# instance's backup settings to the cloud.
+backup_configuration: null
+# {query_string_length, record_application_tags, record_client_address,
+#  query_plans_per_minute}; null disables Query Insights.
+insights_config: null
+# {maintenance_window: {day, hour, update_track},
+#  deny_maintenance_period: {start_date, end_date, start_time}}
+maintenance_config: {}
+# {enabled, change_interval, default_complexity,
+#  disallow_username_substring, min_length, reuse_interval}
+password_validation_policy: null
+# {client_certificates: [COMMON_NAME], mode}
+ssl: {}
+# Read replicas, {NAME: {region, encryption_key_name, availability_type, tier}}.
+replicas: {}
+# Databases to create on the primary.
+databases: null
+# Users, {NAME: {type}}: CLOUD_IAM_USER or CLOUD_IAM_SERVICE_ACCOUNT
+# (BUILT_IN users are refused: README.md, "Values").
+users: {}
+
+# Refused when set (README.md, "Values").
+root_password: {}
+managed_connection_pooling_config: {}
+data_api_access: null
+enable_dataplex_integration: null
+context: {}
+
+# DELETE (the default) or ABANDON. Not a fabric variable: every chart
+# takes it (docs/design.md, "Deletion"). ABANDON keeps the instances and
+# their databases and users when the component is deleted.
+deletion_policy: DELETE

@@ -1,0 +1,55 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.<id>): the primary instance is resources.instance, each read
+# replica resources["replica:<key>"]. The maps are keyed as fabric keys
+# them: "primary", then each replica's key. A value the instance does not
+# report (no private IP, no Private Service Connect) is null, as in
+# Terraform. Not outputs: client_certificates, instances and
+# user_passwords, whole or sensitive Terraform objects (docs/design.md,
+# "Outputs"); the chart makes no passwords.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-cloudsql-instance
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.instance.spec.resourceID
+    names: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): v.spec.resourceID})
+    id: >-
+      'projects/' + resources.instance.metadata.annotations['cnrm.cloud.google.com/project-id']
+      + '/instances/' + resources.instance.spec.resourceID
+    ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/instances/' + v.spec.resourceID})
+    connection_name: resources.instance.status.connectionName
+    connection_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): v.status.connectionName})
+    dns_name: >-
+      has(resources.instance.status.dnsName) ? dyn(resources.instance.status.dnsName) : null
+    dns_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): has(v.status.dnsName) ? dyn(v.status.dnsName) : null})
+    ip: >-
+      has(resources.instance.status.privateIpAddress) ? dyn(resources.instance.status.privateIpAddress) : null
+    ips: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): has(v.status.privateIpAddress) ? dyn(v.status.privateIpAddress) : null})
+    psc_service_attachment_link: >-
+      has(resources.instance.status.pscServiceAttachmentLink) ? dyn(resources.instance.status.pscServiceAttachmentLink) : null
+    psc_service_attachment_links: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): has(v.status.pscServiceAttachmentLink) ? dyn(v.status.pscServiceAttachmentLink) : null})
+    self_link: resources.instance.status.selfLink
+    self_links: >-
+      resources.transformMapEntry(k, v, v.kind == 'SQLInstance',
+        {k == 'instance' ? 'primary' : k.substring(8): v.status.selfLink})
