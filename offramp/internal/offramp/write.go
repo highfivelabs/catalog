@@ -98,7 +98,7 @@ func Adopt(b *Bundle) []map[string]any {
 			}
 			ann[AnnDeletionPolicy] = "abandon"
 			ann[AnnStateIntoSpec] = "absent"
-			ann[AnnAddress] = "module." + c.Graduated.Call + " (" + c.Graduated.Chart.Package + " " + c.Graduated.Chart.Version + ")"
+			ann[AnnAddress] = c.Graduated.Where() + " (" + c.Graduated.Chart.Package + " " + c.Graduated.Chart.Version + ")"
 			md["annotations"] = ann
 			out = append(out, o)
 		}
@@ -195,7 +195,7 @@ func Report(res *Result, b *Bundle, header string) string {
 			for _, p := range g.Import {
 				adds = append(adds, fmt.Sprintf("`%s`", p.Key))
 			}
-			fmt.Fprintf(&s, "| `module.%s` | `%s` %s | %s | %d / %d | %s |\n", call, g.Chart.Package, g.Chart.Version, res, len(g.Rendered), len(g.State), strings.Join(adds, ", "))
+			fmt.Fprintf(&s, "| `%s` | `%s` %s | %s | %d / %d | %s |\n", g.Where(), g.Chart.Package, g.Chart.Version, res, len(g.Rendered), len(g.State), strings.Join(adds, ", "))
 		}
 		if b.Graduation.Convert != nil {
 			for _, m := range b.Graduation.Convert.Messages {
@@ -233,8 +233,12 @@ func classRank(c string) int {
 		return 1
 	case "in-cluster":
 		return 2
-	case "note":
+	case "unevaluated":
 		return 3
+	case "unmapped":
+		return 4
+	case "note":
+		return 5
 	}
-	return 4
+	return 6
 }

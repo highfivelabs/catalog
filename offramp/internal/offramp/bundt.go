@@ -33,6 +33,10 @@ type BundtOptions struct {
 	// Graduation, when set, says which calls graduate to an Instance of a
 	// catalog chart (Graduate); the rest keep frozen Packages.
 	Graduation *Graduation
+	// DependsOn adds dependencies the state does not record, by component:
+	// a Terragrunt unit's dependency and dependencies blocks, whose order
+	// Terragrunt keeps between units (each with its own state).
+	DependsOn map[string][]string
 }
 
 // Component is one Template component: the objects of one root module
@@ -99,6 +103,11 @@ func Group(objs []*Object, opt BundtOptions) *Bundle {
 				if dc != name {
 					deps[dc] = true
 				}
+			}
+		}
+		for _, d := range opt.DependsOn[name] {
+			if _, known := byCall[d]; known && d != name {
+				deps[d] = true
 			}
 		}
 		for d := range deps {

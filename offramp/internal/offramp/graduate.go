@@ -70,6 +70,17 @@ type Graduated struct {
 	// chart does not manage them from then on.
 	Unmanaged []Difference
 	Err       string
+	// Origin, when set, says where the call is for people (a Terragrunt
+	// unit and the call inside it); otherwise module.<Call>.
+	Origin string
+}
+
+// Where says where the call is.
+func (g *Graduated) Where() string {
+	if g.Origin != "" {
+		return g.Origin
+	}
+	return "module." + g.Call
 }
 
 // OK says the call graduates: the render matches the state.
@@ -106,9 +117,17 @@ func Graduate(res *Result, st *State, opt GraduateOptions) (*Graduation, error) 
 	if err != nil && cres == nil {
 		return nil, err
 	}
+	return graduateConverted(cres, res, st, opt, map[string]map[string]any{}), nil
+}
+
+// graduateConverted checks each component catalogtool convert made against
+// the objects converted from the state. outputs holds the outputs of the
+// components already graduated, by component name, for the expressions
+// that read them; each component checked here adds its own.
+func graduateConverted(cres *convert.Result, res *Result, st *State, opt GraduateOptions, outputs map[string]map[string]any) *Graduation {
 	g := &Graduation{Convert: cres, Calls: map[string]*Graduated{}}
 	if cres == nil {
-		return g, nil
+		return g
 	}
 	attrs := map[string]map[string]any{}
 	for _, in := range st.Instances() {
@@ -122,7 +141,6 @@ func Graduate(res *Result, st *State, opt GraduateOptions) (*Graduation, error) 
 	for _, o := range res.Objects {
 		labelOf[componentName(o.Call)] = o.Call
 	}
-	outputs := map[string]map[string]any{}
 	for _, c := range order(cres.Components) {
 		gr := &Graduated{Component: c.Name, Chart: c.Chart, Inputs: c.Inputs, Values: c.Values, Call: labelOf[c.Name]}
 		if gr.Call == "" {
@@ -189,7 +207,7 @@ func Graduate(res *Result, st *State, opt GraduateOptions) (*Graduation, error) 
 		gr.Outputs = evalOutputs(filepath.Join(opt.Catalog, c.Chart.Dir), c.Chart.Values, gr.Effective, rendered, match, attrs)
 		outputs[c.Name] = gr.Outputs
 	}
-	return g, nil
+	return g
 }
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
