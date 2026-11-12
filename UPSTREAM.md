@@ -17,7 +17,7 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
-| Gap kinds commit | `6d749aa2190ee1e4bd9cbb64dd08c74900999223` (config-connector-extensions main, 2026-11-12): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
+| Gap kinds commit | `f3d17ddac1f255c36dd07972b84042b58ceee53f` (config-connector-extensions main, 2026-11-12, round 2): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
 | Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
 | Azure Service Operator release | `v2.22.0` (2026-10-30) |
 | Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |
@@ -95,6 +95,8 @@ must carry.
 | `charts/azure/avm-res-network-networksecuritygroup` | Azure Verified Module `avm-res-network-networksecuritygroup` (v0.6.0) | the group, security rules, lock, role assignments, diagnostic settings | `ignore_body_changes`, `resource_types`, `retry`, `timeouts` |
 | `charts/azure/avm-res-network-routetable` | Azure Verified Module `avm-res-network-routetable` (v0.6.0) | the table, routes, lock, role assignments | `subnet_resource_ids` |
 | `charts/azure/avm-res-network-natgateway` | Azure Verified Module `avm-res-network-natgateway` (v0.3.2) | the gateway, its public IPs and their locks, lock, role assignments, diagnostic settings | `timeouts` |
+| `charts/azure/avm-res-network-publicipaddress` | Azure Verified Module `avm-res-network-publicipaddress` (v0.2.1) | the address, lock, role assignments, diagnostic settings | none |
+| `charts/azure/avm-res-network-privatednszone` | Azure Verified Module `avm-res-network-privatednszone` (v0.6.0) | the zone, A/AAAA/CNAME/MX/PTR/SRV/TXT records, virtual network links, lock, role assignments | `soa_record`, `retry`, `timeouts` |
 
 ## Moving the pins
 

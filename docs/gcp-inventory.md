@@ -170,15 +170,15 @@ not have. Each is refused by the chart when set.
 | 29 | [cloud-identity-group](#cloud-identity-group) | full | S | 175 | 6 | 2 / 0 / 0 |
 | 30 | [dns-response-policy](#dns-response-policy) | partial | S | 276 | 9 | 0 / 1 / 1 |
 | 31 | [certificate-manager](#certificate-manager) | partial | S | 282 | 5 | 4 / 0 / 1 |
-| 32 | [net-lb-app-ext](#net-lb-app-ext) | partial | XL | 3127 | 17 | 12 / 2 / 1 |
+| 32 | [net-lb-app-ext](#net-lb-app-ext) | partial | XL | 3127 | 17 | 12 / 1 / 2 |
 | 33 | [net-lb-int](#net-lb-int) | full | L | 1389 | 24 | 6 / 0 / 0 |
 | 34 | [net-lb-ext](#net-lb-ext) | full | M | 646 | 11 | 4 / 0 / 0 |
-| 35 | [net-lb-app-int](#net-lb-app-int) | partial | XL | 2770 | 22 | 12 / 1 / 1 |
+| 35 | [net-lb-app-int](#net-lb-app-int) | partial | XL | 2770 | 22 | 12 / 0 / 2 |
 | 36 | [compute-vm](#compute-vm) | partial | XL | 2404 | 43 | 11 / 4 / 3 |
 | 37 | [compute-mig](#compute-mig) | full, with alpha | L | 1085 | 21 | 3 / 4 / 0 |
 | 38 | [service-directory](#service-directory) | full | S | 249 | 8 | 5 / 0 / 0 |
 | 39 | [workflows](#workflows) | full, with alpha | M | 798 | 18 | 4 / 2 / 0 |
-| 40 | [cloud-function-v2](#cloud-function-v2) | partial | L | 917 | 25 | 6 / 1 / 2 |
+| 40 | [cloud-function-v2](#cloud-function-v2) | partial | L | 917 | 25 | 6 / 0 / 3 |
 | 41 | [alloydb](#alloydb) | full | L | 1458 | 33 | 4 / 0 / 0 |
 | 42 | [spanner-instance](#spanner-instance) | full, with alpha | M | 426 | 7 | 6 / 1 / 0 |
 | 43 | [bigtable-instance](#bigtable-instance) | full | S | 308 | 11 | 4 / 0 / 0 |
@@ -186,10 +186,10 @@ not have. Each is refused by the chart when set.
 | 45 | [managed-kafka](#managed-kafka) | full, with alpha | S | 283 | 11 | 2 / 2 / 0 |
 | 46 | [net-cloud-armor](#net-cloud-armor) | partial | XL | 2216 | 33 | 4 / 0 / 3 |
 | 47 | [net-swp](#net-swp) | partial | M | 474 | 14 | 2 / 3 / 1 |
-| 48 | [net-lb-app-ext-regional](#net-lb-app-ext-regional) | partial | XL | 2481 | 19 | 10 / 1 / 1 |
-| 49 | [net-lb-app-int-cross-region](#net-lb-app-int-cross-region) | full, with alpha | XL | 2742 | 23 | 10 / 1 / 0 |
-| 50 | [net-lb-proxy-int](#net-lb-proxy-int) | partial | L | 958 | 14 | 8 / 1 / 1 |
-| 51 | [net-lb-proxy-int-cross-region](#net-lb-proxy-int-cross-region) | full, with alpha | M | 782 | 14 | 7 / 1 / 0 |
+| 48 | [net-lb-app-ext-regional](#net-lb-app-ext-regional) | partial | XL | 2481 | 19 | 10 / 0 / 2 |
+| 49 | [net-lb-app-int-cross-region](#net-lb-app-int-cross-region) | partial | XL | 2742 | 23 | 10 / 0 / 1 |
+| 50 | [net-lb-proxy-int](#net-lb-proxy-int) | partial | L | 958 | 14 | 8 / 0 / 2 |
+| 51 | [net-lb-proxy-int-cross-region](#net-lb-proxy-int-cross-region) | partial | M | 782 | 14 | 7 / 0 / 1 |
 | 52 | [net-vpn-static](#net-vpn-static) | full | S | 328 | 9 | 5 / 0 / 0 |
 | 53 | [net-vpn-dynamic](#net-vpn-dynamic) | partial | M | 515 | 8 | 7 / 0 / 1 |
 | 54 | [net-vlan-attachment](#net-vlan-attachment) | partial | M | 557 | 15 | 5 / 0 / 1 |
@@ -209,9 +209,9 @@ not have. Each is refused by the chart when set.
 | 68 | [dataform-repository](#dataform-repository) | partial | S | 215 | 8 | 1 / 0 / 2 |
 | 69 | [dataproc](#dataproc) | full | M | 720 | 9 | 3 / 0 / 0 |
 | 70 | [datafusion](#datafusion) | full | S | 257 | 14 | 4 / 0 / 0 |
-| 71 | [dataplex](#dataplex) | partial | S | 263 | 7 | 0 / 3 / 2 |
-| 72 | [dataplex-datascan](#dataplex-datascan) | partial | M | 765 | 16 | 0 / 1 / 2 |
-| 73 | [dataplex-aspect-types](#dataplex-aspect-types) | partial | S | 343 | 5 | 0 / 1 / 2 |
+| 71 | [dataplex](#dataplex) | partial | S | 263 | 7 | 0 / 0 / 5 |
+| 72 | [dataplex-datascan](#dataplex-datascan) | partial | M | 765 | 16 | 0 / 0 / 3 |
+| 73 | [dataplex-aspect-types](#dataplex-aspect-types) | partial | S | 343 | 5 | 0 / 0 / 3 |
 | 74 | [data-catalog-policy-tag](#data-catalog-policy-tag) | full | M | 474 | 12 | 6 / 0 / 0 |
 | 75 | [data-catalog-tag](#data-catalog-tag) | full, with alpha | S | 146 | 2 | 0 / 1 / 0 |
 | 76 | [data-catalog-tag-template](#data-catalog-tag-template) | partial | S | 351 | 4 | 0 / 1 / 2 |
@@ -811,7 +811,7 @@ Rank 32. Terraform module: [`modules/net-lb-app-ext`](https://github.com/GoogleC
 | `google_compute_health_check` | ComputeHealthCheck |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
 | `google_compute_managed_ssl_certificate` | ComputeManagedSSLCertificate |  |
-| `google_compute_network_endpoint` | ComputeNetworkEndpoint | alpha only |
+| `google_compute_network_endpoint` | ComputeNetworkEndpoint (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_network_endpoint_group` | ComputeNetworkEndpointGroup |  |
 | `google_compute_region_network_endpoint_group` | ComputeRegionNetworkEndpointGroup |  |
 | `google_compute_ssl_certificate` | ComputeSSLCertificate |  |
@@ -858,7 +858,7 @@ Rank 35. Terraform module: [`modules/net-lb-app-int`](https://github.com/GoogleC
 | `google_compute_forwarding_rule` | ComputeForwardingRule |  |
 | `google_compute_health_check` | ComputeHealthCheck |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
-| `google_compute_network_endpoint` | ComputeNetworkEndpoint | alpha only |
+| `google_compute_network_endpoint` | ComputeNetworkEndpoint (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_network_endpoint_group` | ComputeNetworkEndpointGroup |  |
 | `google_compute_region_backend_service` | ComputeBackendService |  |
 | `google_compute_region_health_check` | ComputeHealthCheck |  |
@@ -952,7 +952,7 @@ Rank 40. Terraform module: [`modules/cloud-function-v2`](https://github.com/Goog
 | --- | --- | --- |
 | `google_cloud_run_service_iam_binding` | IAMPartialPolicy -> RunService |  |
 | `google_cloud_run_service_iam_member` | IAMPolicyMember -> RunService |  |
-| `google_cloudfunctions2_function` | CloudFunctions2Function | alpha only |
+| `google_cloudfunctions2_function` | CloudFunctions2Function (cloudfunctions2.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_cloudfunctions2_function_iam_binding` | none | **gap** |
 | `google_project_iam_member` | IAMPolicyMember -> Project |  |
 | `google_service_account` | IAMServiceAccount |  |
@@ -1071,7 +1071,7 @@ Rank 48. Terraform module: [`modules/net-lb-app-ext-regional`](https://github.co
 | --- | --- | --- |
 | `google_compute_forwarding_rule` | ComputeForwardingRule |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
-| `google_compute_network_endpoint` | ComputeNetworkEndpoint | alpha only |
+| `google_compute_network_endpoint` | ComputeNetworkEndpoint (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_network_endpoint_group` | ComputeNetworkEndpointGroup |  |
 | `google_compute_region_backend_service` | ComputeBackendService |  |
 | `google_compute_region_health_check` | ComputeHealthCheck |  |
@@ -1086,7 +1086,7 @@ Rank 48. Terraform module: [`modules/net-lb-app-ext-regional`](https://github.co
 
 This module allows managing Cross-regional Internal HTTP/HTTPS Load Balancers (L7 ILBs). It's designed to expose the full configuration of t…
 
-Rank 49. Terraform module: [`modules/net-lb-app-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-int-cross-region). Coverage: **full, with alpha**. Size: XL (2742 lines of Terraform, 23 variables, 14 outputs). submodules or factory data: recipe-cross-reg-int-app-lb-vm-dns.
+Rank 49. Terraform module: [`modules/net-lb-app-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-int-cross-region). Coverage: **partial**. Size: XL (2742 lines of Terraform, 23 variables, 14 outputs). submodules or factory data: recipe-cross-reg-int-app-lb-vm-dns.
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1094,7 +1094,7 @@ Rank 49. Terraform module: [`modules/net-lb-app-int-cross-region`](https://githu
 | `google_compute_global_forwarding_rule` | ComputeForwardingRule |  |
 | `google_compute_health_check` | ComputeHealthCheck |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
-| `google_compute_network_endpoint` | ComputeNetworkEndpoint | alpha only |
+| `google_compute_network_endpoint` | ComputeNetworkEndpoint (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_network_endpoint_group` | ComputeNetworkEndpointGroup |  |
 | `google_compute_region_network_endpoint_group` | ComputeRegionNetworkEndpointGroup |  |
 | `google_compute_service_attachment` | ComputeServiceAttachment |  |
@@ -1112,7 +1112,7 @@ Rank 50. Terraform module: [`modules/net-lb-proxy-int`](https://github.com/Googl
 | --- | --- | --- |
 | `google_compute_forwarding_rule` | ComputeForwardingRule |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
-| `google_compute_network_endpoint` | ComputeNetworkEndpoint | alpha only |
+| `google_compute_network_endpoint` | ComputeNetworkEndpoint (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_network_endpoint_group` | ComputeNetworkEndpointGroup |  |
 | `google_compute_region_backend_service` | ComputeBackendService |  |
 | `google_compute_region_health_check` | ComputeHealthCheck |  |
@@ -1126,7 +1126,7 @@ Rank 50. Terraform module: [`modules/net-lb-proxy-int`](https://github.com/Googl
 
 This module allows managing Cross-region Internal Proxy Network Load Balancers (L4 proxy ILBs). It's designed to expose the full configurati…
 
-Rank 51. Terraform module: [`modules/net-lb-proxy-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int-cross-region). Coverage: **full, with alpha**. Size: M (782 lines of Terraform, 14 variables, 15 outputs).
+Rank 51. Terraform module: [`modules/net-lb-proxy-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int-cross-region). Coverage: **partial**. Size: M (782 lines of Terraform, 14 variables, 15 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -1134,7 +1134,7 @@ Rank 51. Terraform module: [`modules/net-lb-proxy-int-cross-region`](https://git
 | `google_compute_global_forwarding_rule` | ComputeForwardingRule |  |
 | `google_compute_health_check` | ComputeHealthCheck |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
-| `google_compute_network_endpoint` | ComputeNetworkEndpoint | alpha only |
+| `google_compute_network_endpoint` | ComputeNetworkEndpoint (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_network_endpoint_group` | ComputeNetworkEndpointGroup |  |
 | `google_compute_region_network_endpoint_group` | ComputeRegionNetworkEndpointGroup |  |
 | `google_compute_target_tcp_proxy` | ComputeTargetTCPProxy |  |
@@ -1413,10 +1413,10 @@ Rank 71. Terraform module: [`modules/dataplex`](https://github.com/GoogleCloudPl
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_dataplex_asset` | DataplexAsset | alpha only |
-| `google_dataplex_lake` | DataplexLake | alpha only |
+| `google_dataplex_asset` | DataplexAsset (dataplex.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_dataplex_lake` | DataplexLake (dataplex.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_dataplex_lake_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on DataplexLake | gap kind (config-connector-extensions) |
-| `google_dataplex_zone` | DataplexZone | alpha only |
+| `google_dataplex_zone` | DataplexZone (dataplex.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_dataplex_zone_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on DataplexZone | gap kind (config-connector-extensions) |
 
 ### dataplex-datascan
@@ -1427,7 +1427,7 @@ Rank 72. Terraform module: [`modules/dataplex-datascan`](https://github.com/Goog
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_dataplex_datascan` | DataplexDataScan | alpha only |
+| `google_dataplex_datascan` | DataplexDataScan (dataplex.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_dataplex_datascan_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on DataplexDataScan | gap kind (config-connector-extensions) |
 | `google_dataplex_datascan_iam_member` | IAMMember (iam.gcp.hfl.dev/v1alpha1) on DataplexDataScan | gap kind (config-connector-extensions) |
 
@@ -1439,7 +1439,7 @@ Rank 73. Terraform module: [`modules/dataplex-aspect-types`](https://github.com/
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_dataplex_aspect_type` | DataplexAspectType | alpha only |
+| `google_dataplex_aspect_type` | DataplexAspectType (dataplex.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_dataplex_aspect_type_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on DataplexAspectType | gap kind (config-connector-extensions) |
 | `google_dataplex_aspect_type_iam_member` | IAMMember (iam.gcp.hfl.dev/v1alpha1) on DataplexAspectType | gap kind (config-connector-extensions) |
 
