@@ -92,8 +92,11 @@ with every other module the catalog tracks. To take a newer release, see
 carries), `existing` (`keyring_create: false`), `names` and `mock`, each
 validated against Config Connector v1.160.0's CRD schemas (and
 `IAMBinding` against config-connector-extensions'), and the refusals in
-`tests/*.fail.yaml`. `tests/mock.values.yaml` is for the fake cloud
-(`task test-mock`).
+`tests/*.fail.yaml`.
+
+Applied to the fake cloud on 2026-11-12 on an offload VM (`task test-mock
+MOCK_CHARTS=kms`): `tests/mock.values.yaml`, a keyring, a key with a rotation period, `iam` on the keyring and an additive member on the key: all 4 objects Ready, the outputs
+evaluated, all deleted. Not applied live yet: neither live-test account holds a Cloud KMS role in the test project and the Cloud KMS API is not enabled there; and Cloud KMS never deletes a keyring, so a live run leaves one empty keyring per run (keyrings cost nothing).
 
 ## Changes
 
