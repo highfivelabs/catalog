@@ -324,6 +324,81 @@ spec:
 {{- end -}}
 
 {{/*
+aso.diagnosticSettingsV2: the v2 diagnostic_settings interface
+(avm-utl-interfaces diagnostic_settings_v2, as the storage account module
+uses it) on one resource, as ASO DiagnosticSetting objects: logs and
+metrics as given, each with its enabled flag and retention policy. An entry
+needs a name, as the module's azapi resource does.
+Arguments (a dict): root, base, idPrefix, owner, v (the map), what (the
+variable's name, for messages).
+*/}}
+{{- define "aso.diagnosticSettingsV2" -}}
+{{- $root := .root -}}
+{{- range $key, $d := (.v | default dict) }}
+{{- $dest := ($d.log_analytics_destination_type | default "Dedicated") }}
+{{- if not (has $dest (list "Dedicated" "AzureDiagnostics")) }}
+{{- fail (printf "%s: Log analytics destination type must be one of: 'Dedicated', 'AzureDiagnostics'." $root.Chart.Name) }}
+{{- end }}
+{{- if not (or $d.workspace_resource_id $d.storage_account_resource_id $d.event_hub_authorization_rule_resource_id $d.marketplace_partner_resource_id) }}
+{{- fail (printf "%s: At least one of `workspace_resource_id`, `storage_account_resource_id`, `marketplace_partner_resource_id`, or `event_hub_authorization_rule_resource_id`, must be set." $root.Chart.Name) }}
+{{- end }}
+{{- if not $d.name }}
+{{- fail (printf "%s: %s.%s needs a name (the module's azapi resource has no default)" $root.Chart.Name $.what $key) }}
+{{- end }}
+---
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+{{- include "aso.metadata" (dict "root" $root "name" (include "aso.name" (list $.base "diag" $key)) "id" (printf "%sdiagnostic-setting-%s" $.idPrefix $key) "abandon" (include "aso.abandon" $root)) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+{{- toYaml $.owner | nindent 4 }}
+  logAnalyticsDestinationType: {{ $dest | quote }}
+  {{- $logs := list }}
+  {{- range $l := ($d.logs | default list) }}
+  {{- $item := dict "enabled" (ne $l.enabled false) "retentionPolicy" (dict "days" (int ((($l.retention_policy | default dict).days) | default 0)) "enabled" (eq (($l.retention_policy | default dict).enabled) true)) }}
+  {{- with $l.category }}{{ $_ := set $item "category" . }}{{ end }}
+  {{- with $l.category_group }}{{ $_ := set $item "categoryGroup" . }}{{ end }}
+  {{- $logs = append $logs $item }}
+  {{- end }}
+  {{- with $logs }}
+  logs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- $metrics := list }}
+  {{- range $m := ($d.metrics | default list) }}
+  {{- $item := dict "enabled" (ne $m.enabled false) "retentionPolicy" (dict "days" (int ((($m.retention_policy | default dict).days) | default 0)) "enabled" (eq (($m.retention_policy | default dict).enabled) true)) }}
+  {{- with $m.category }}{{ $_ := set $item "category" . }}{{ end }}
+  {{- $metrics = append $metrics $item }}
+  {{- end }}
+  {{- with $metrics }}
+  metrics:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $d.workspace_resource_id }}
+  workspaceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.storage_account_resource_id }}
+  storageAccountReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.event_hub_authorization_rule_resource_id }}
+  eventHubAuthorizationRuleReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.event_hub_name }}
+  eventHubName: {{ . | quote }}
+  {{- end }}
+  {{- with $d.marketplace_partner_resource_id }}
+  marketplacePartnerReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
 aso.names: stop the render when the chart's names value sets a key the
 chart does not have. Every chart lists its collision-prone cloud names
 once, in the template of its core resource.

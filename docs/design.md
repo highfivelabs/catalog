@@ -374,7 +374,10 @@ Every new chart, in the order of `docs/design.md`'s sections:
    name at all, `noCloudNames` with the reason, as org-policy-v2's; and,
    for a kind whose `resourceID` the cloud assigns, `nameFields` naming
    the spec field that holds its given name, as
-   hierarchical-firewall-policy's `shortName`);
+   hierarchical-firewall-policy's `shortName`; and, for a kind whose
+   cloud name cannot hold a hyphen, `compactNames` with the reason, so the
+   prefix is checked at the start of the name without one, as an Azure
+   storage account's);
    `tests/name-prefix-limit.fail.yaml` and
    `name-prefix-pattern.fail.yaml` show the refusals. `task test` fails a
    chart without them, and any rendered object whose cloud name lacks the

@@ -42,7 +42,9 @@ IAM and tag bindings; no versions or regional secrets), and
 instance with its replicas, databases and IAM users. On Azure, ported
 from Azure Verified Modules to Azure Service Operator objects:
 `avm-res-resources-resourcegroup` (partial) and
-`avm-res-network-virtualnetwork` (partial: subnets, peerings). Every chart links to
+`avm-res-network-virtualnetwork` (partial: subnets, peerings) and
+`avm-res-storage-storageaccount` (partial: the account, containers, queues,
+tables and shares). Every chart links to
 the open-source module it ports
 and records the release it was ported from (`upstream.yaml`), so changes
 upstream are easy to find and pull in. Every chart takes whole cloud names (`names.<resource>`; a name not
