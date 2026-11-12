@@ -607,7 +607,7 @@ Config Connector. What differs:
 | Refusals | a variable whose Terraform default is not empty (a suffix, a flag that defaults to `true`) is refused when it differs from that default (`ack.unchanged`); the others when set (`ack.unsupported`) |
 | References | ACK references by Kubernetes name (`vpcRef: {from: {name: ...}}`) inside a chart. A field that takes another resource's ID and has no reference (`FlowLog.resourceID`, ack-extensions' `VPNGateway.vpc`) cannot be wired in one render: the variable is refused as a gap, and the missing reference is a gap for ack-extensions |
 | Coverage | `upstream/aws-kinds.yaml` maps Terraform resource types to ACK and ack-extensions kinds; a tracked module whose every type is listed is classified in `docs/coverage` |
-| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. A fake-AWS layer (ACK's controllers against moto, as ack-extensions tests its kinds) and live runs in the AWS sandbox account are not built yet: each chart's `tests/mock.values.yaml` is the case they will apply |
+| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), all against moto (ack-extensions' `config/fake-aws`, image pinned by digest; every AWS client checked to reach only moto); every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it. Live runs in the AWS sandbox account are not built yet |
 
 | Chart | Module | Notes |
 | --- | --- | --- |
@@ -618,6 +618,7 @@ Config Connector. What differs:
 | `charts/aws/iam-role` | `terraform-aws-iam` v6.8.2, `modules/iam-role` | partial: every variable carried; the trust policy and inline policy built as the submodule builds them (generic, GitHub and Bitbucket OIDC, SAML, statements, source and override documents merged by `Sid`, with `account_id`), policy attachments, instance profile; `use_name_prefix` names the role without Terraform's random suffix |
 | `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
 | `charts/aws/acm` | `terraform-aws-acm` v6.3.1 | partial: the certificate, or (`create_route53_records_only`) its DNS validation records from a certificate component's outputs: DNS validation with Route 53 is two components, since the records exist only in the certificate's status; EMAIL validation and the wait for `ISSUED` are gaps |
+| `charts/aws/ec2-instance` | `terraform-aws-ec2-instance` v6.4.1 | partial: the instance (AMI by ID or by SSM parameter, resolved by EC2 at launch) with most launch options, and its IAM role and instance profile; the security group the module makes by default is refused (no reference from `Instance`), as are extra EBS volumes, the Elastic IP, the Spot request and the root block device |
 
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
@@ -625,6 +626,41 @@ variables. Its user and account submodules, gaps in section 3, map to
 ack-extensions kinds at the commit `crds/ack-extensions` is copied from:
 `UserGroupMembership`, `AccessKey`, `LoginProfile`, `SSHPublicKey`,
 `AccountAlias` and `AccountPasswordPolicy` (`upstream/aws-kinds.yaml`).
+
+What the fake-AWS layer found on its first runs (2026-11-12, offload VMs
+`off-catalog-1112173426-19153` and `off-catalog-1112180857-14840`):
+
+- **security-group** left its group unresolved without `vpc_id` ("resource
+  reference wrapper or ID required: VPCID,VPCRef"): ACK's `SecurityGroup`
+  needs its VPC, where Terraform falls back to the account's default VPC.
+  The chart now requires `vpc_id` and says why.
+- **s3-bucket** never synced: ACK's s3-controller addresses a bucket by
+  host (`<bucket>.<endpoint>`), which the cluster could not resolve; and
+  moto reads a bucket from the host only off `.svc.cluster.local`. The fake
+  now addresses moto as `moto.fake-aws.svc`, answers `<bucket>.` names
+  with moto (CoreDNS), and tells moto its own endpoint
+  (`MOTO_S3_CUSTOM_ENDPOINTS`).
+- **iam-role** could not attach `arn:aws:iam::aws:policy/ReadOnlyAccess`:
+  moto loads AWS's managed policies only when asked
+  (`MOTO_IAM_LOAD_MANAGED_POLICIES`).
+- **vpc**'s route tables, and so its VPC, were never deleted: moto keeps a
+  deleted subnet's route table associations, which AWS removes with the
+  subnet. The script removes them in moto (`moto_fixups`), as AWS would.
+- **s3-bucket** then made ACK's s3-controller v1.15.0 panic reading the
+  bucket: it dereferences a nil `GetBucketEncryption` response when a
+  bucket has no encryption configuration (`pkg/resource/bucket/hook.go:487`;
+  an upstream bug, latent on AWS, where every bucket has SSE-S3 by default
+  since 2023). The fake gives each new bucket that default, as AWS does.
+- **rds**: moto answers `DescribeEngineDefaultParameters`, which ACK's
+  `DBParameterGroup` calls, with an error, so the fake-AWS case uses the
+  engine's default parameter group (`create_db_parameter_group: false`).
+- Every other object synced, evaluated its outputs and was deleted.
+
+With those, the run over every AWS chart then on main or in review (acm,
+ec2-instance, iam-policy, iam-role, kms, rds, s3-bucket, security-group,
+vpc) passed: 29 objects synced in moto, every Package's outputs evaluated,
+every object deleted (offload VM `off-catalog-1112191931-32354`,
+2026-11-12, 12 minutes after a 9-minute setup).
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 
@@ -643,3 +679,7 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | S3 directory buckets, bucket metadata configurations; emptying a bucket on delete (`force_destroy`) | s3-bucket | generated (directory bucket, metadata); a field and hook on ACK's `Bucket` |
 | A certificate that is synced only once `ISSUED` (a `synced.when` on `Status.status`, or a `CertificateValidation` kind that waits), and `validationMethod` on `Certificate` (ACK always requests DNS validation) | acm (`wait_for_validation`, `validation_method: EMAIL`) | generator config on ACK's `Certificate` (upstream), or a hand-written kind |
 | A `RecordSet` that may overwrite a record already there (Route 53's `UPSERT` on create) | acm (`validation_allow_overwrite_records`) | a field on ACK's `RecordSet` (upstream) |
+| `securityGroupRefs` on ACK's `Instance` (it takes IDs only) | ec2-instance (`create_security_group`, the default) | a reference field on ACK's `Instance` (upstream) |
+| `instanceRef` on ack-extensions' `VolumeAttachment`, and a `Volume` that takes its Availability Zone from an instance | ec2-instance (`ebs_volumes`) | reference fields on ack-extensions' kinds |
+| An Elastic IP association with an instance (`AssociateAddress`, with `instanceRef` and `allocationRef`), and `domain` on `ElasticIPAddress` | ec2-instance (`create_eip`) | a new kind (ack-extensions) |
+| `groups` on `Instance.networkInterfaces` (so a public IP or secondary IPs can be asked for with the instance's groups), `enablePrimaryIPv6`, `placement.groupID`, `cpuOptions.amdSevSnp` | ec2-instance | fields on ACK's `Instance` (upstream) |

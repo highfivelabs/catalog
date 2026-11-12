@@ -1,0 +1,70 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/vpc-sc
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/vpc-sc
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/vpc-sc
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: project_id_search_scope
+    kind: by-design
+    reason: "a search is a read, not a resource: give project numbers (projects/123) in the inputs, from another component's output"
+  - variable: factories_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: accepted and ignored; the files' contents go under factories_data"
+    partial: true
+  - variable: access_policy_create
+    kind: gap
+    reason: "AccessContextManagerAccessPolicy has no scopes field (Config Connector ignores it)"
+    partial: true
+    fields: [scopes]
+  - variable: access_levels
+    kind: gap
+    reason: "AccessContextManagerAccessLevel has no vpcNetworkSources, and its members are users and service accounts only"
+    partial: true
+    fields: [conditions.vpc_subnets, "conditions.members (group:)"]
+  - variable: ingress_policies
+    kind: gap
+    reason: "AccessContextManagerServicePerimeter's ingress policies have no title, no roles, no PSC endpoint sources, and identities that are users and service accounts only"
+    partial: true
+    fields: [title, to.roles, from.psc_endpoints, "from.identities (group:, principal:, principalSet:)"]
+  - variable: egress_policies
+    kind: gap
+    reason: "AccessContextManagerServicePerimeter's egress policies have no title, no roles, no sources (access levels, resources, PSC endpoints), and identities that are users and service accounts only"
+    partial: true
+    fields: [title, to.roles, from.access_levels, from.resources, from.psc_endpoints, "from.identities (group:, principal:, principalSet:)"]
+  - variable: perimeters
+    kind: gap
+    reason: "AccessContextManagerServicePerimeter has no allowedServicePatterns in vpcAccessibleServices, and Config Connector cannot ignore changes to a perimeter's resources (ignore_resource_changes)"
+    partial: true
+    fields: [spec.vpc_accessible_services.allowed_service_patterns, status.vpc_accessible_services.allowed_service_patterns, ignore_resource_changes]
+  - variable: iam_bindings
+    kind: gap
+    reason: "Config Connector's IAM on AccessContextManagerAccessPolicy takes no conditions"
+    partial: true
+    fields: [condition]
+  - variable: iam_bindings_additive
+    kind: gap
+    reason: "Config Connector's IAM on AccessContextManagerAccessPolicy takes no conditions"
+    partial: true
+    fields: [condition]

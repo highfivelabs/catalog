@@ -15,7 +15,9 @@
 # a network and a /24 subnet with pod and service ranges (the net-vpc
 # chart), a zonal Standard cluster with its default pool removed and two
 # node pools of one Spot e2-small node each (one autoscaled min 1 max 1,
-# one fixed), and a regional Autopilot cluster with no workloads. On the
+# one fixed), and a regional Autopilot cluster with no workloads. The
+# Standard cluster has the module's cluster and shadow firewall rules
+# (seven ComputeFirewalls), the Autopilot cluster its webhook rule. On the
 # Standard cluster the gke-nodepool chart then adds a third pool of one
 # Spot e2-small node, which is deleted and checked gone before the rest. Both
 # clusters have private nodes and a public endpoint. Then the mode change:
@@ -27,8 +29,9 @@
 # render-tested only. Expect about 30 minutes and well under a dollar.
 #
 # The runner needs, on the project: roles/container.clusterAdmin,
-# roles/compute.networkAdmin, roles/iam.serviceAccountUser (to run nodes as
-# NODE_SA), and the Kubernetes Engine API enabled. A sweeper deletes this
+# roles/compute.networkAdmin, roles/compute.securityAdmin (the firewall
+# rules), roles/iam.serviceAccountUser (to run nodes as NODE_SA), and the
+# Kubernetes Engine API enabled. A sweeper deletes this
 # run's clusters and network after the run, and any cat- cluster or network
 # older than two hours; at the end the script lists what is left
 # (gcloud container clusters list --project).
@@ -166,6 +169,9 @@ remove_default_node_pool: true
 node_pools:
   - {name: spot, machine_type: e2-small, disk_size_gb: 20, min_count: 1, max_count: 1, spot: true}
   - {name: spot-fixed, machine_type: e2-small, disk_size_gb: 20, autoscaling: false, node_count: 1, spot: true}
+add_cluster_firewall_rules: true
+add_shadow_firewall_rules: true
+firewall_ranges: {subnetwork: 10.250.0.0/24, pods: {pods: 10.252.0.0/16}}
 VALUES
 # The same Standard cluster (same release, name and location) rendered as
 # Autopilot: the mode change the chart and Config Connector must refuse.
@@ -181,6 +187,8 @@ ${common}
 mode: autopilot
 name: ${RUN}-ap
 region: ${REGION}
+add_master_webhook_firewall_rules: true
+firewall_ranges: {subnetwork: 10.250.0.0/24}
 VALUES
 
 summary="${OUT}/summary.md"
@@ -357,7 +365,10 @@ for m in net standard autopilot nodepool; do
 done
 gone="$("${G[@]}" container clusters list --filter="name~^${RUN}-" --format='value(name)')"
 [[ -z "${gone}" ]] || { failed=$((failed + 1)); echo "live-gke: still in Google Cloud: ${gone}"; }
-{ echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}; the gke-nodepool chart's pool gone after its delete: ${np_gone:-not checked}."
+# The chart's firewall rules (gke-<cluster>-... and gke-shadow-<cluster>-...).
+fw_left="$("${G[@]}" compute firewall-rules list --filter="name~^gke-(shadow-)?${RUN}-" --format='value(name)')"
+[[ -z "${fw_left}" ]] || { failed=$((failed + 1)); echo "live-gke: firewall rules still in Google Cloud: ${fw_left}"; }
+{ echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}; the chart's firewall rules left: ${fw_left:-none}; the gke-nodepool chart's pool gone after its delete: ${np_gone:-not checked}."
   cat "${mc}"
   echo; echo "${failed} failures."; } >>"${summary}"
 cat "${summary}"

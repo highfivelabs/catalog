@@ -1,0 +1,68 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-natgateway main.public_ip.tf
+(v0.3.2), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.public_ip (Microsoft.Network/publicIPAddresses): one ASO
+PublicIPAddress per public_ips entry, owned by the resource group, its
+settings from public_ip_configuration[<key>] or the module's defaults
+(Static, IPv4, StandardV2 Regional in zones 1, 2 and 3, a 30-minute idle
+timeout, DDoS protection inherited from the network); its tags its own,
+else the module's. azapi_resource.public_ip_lock: an aso-extensions
+ManagementLock on it, with the module's notes.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $pipDefault := dict "allocation_method" "Static" "ddos_protection_mode" "VirtualNetworkInherited" "idle_timeout_in_minutes" 30 "ip_version" "IPv4" "sku" "StandardV2" "sku_tier" "Regional" "zones" (list "1" "2" "3") }}
+{{- range $key, $p := ($v.public_ips | default dict) }}
+{{- $c := deepCopy (index ($v.public_ip_configuration | default dict) $key | default dict) }}
+{{- range $k, $d := $pipDefault }}{{ if kindIs "invalid" (index $c $k) }}{{ $_ := set $c $k $d }}{{ end }}{{ end }}
+{{- if and (eq $c.sku "StandardV2") (ne (len $c.zones) 3) }}
+{{- fail "avm-res-network-natgateway: StandardV2 SKU must use all 3 zones." }}
+{{- end }}
+{{- $obj := include "aso.name" (list $.Release.Name "pip" $key) }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- if not (kindIs "invalid" $c.tags) }}{{ $tags = include "aso.tags" (list (dict "Chart" $.Chart "Values" (dict "tags" $c.tags)) dict) | fromJson }}{{ end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "public_ip:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "public IP" $p.name 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  ddosSettings:
+    {{- if eq $c.ddos_protection_mode "Enabled" }}
+    {{- with $c.ddos_protection_plan_id }}
+    ddosProtectionPlan:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    protectionMode: {{ $c.ddos_protection_mode }}
+  {{- with $c.domain_name_label }}
+  dnsSettings:
+    domainNameLabel: {{ . | quote }}
+  {{- end }}
+  idleTimeoutInMinutes: {{ $c.idle_timeout_in_minutes | int }}
+  publicIPAddressVersion: {{ $c.ip_version }}
+  publicIPAllocationMethod: {{ $c.allocation_method }}
+  sku:
+    name: {{ $c.sku }}
+    tier: {{ $c.sku_tier }}
+  {{- with $c.zones }}
+  zones:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- with $c.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" (printf "public_ip:%s/" $key) "owner" (dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" $obj) "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- end }}

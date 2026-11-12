@@ -1,0 +1,70 @@
+# component gke-hub-dev-hub
+---
+# Source: gke-hub/templates/main.yaml
+apiVersion: gkehub.cnrm.cloud.google.com/v1beta1
+kind: GKEHubFeature
+metadata:
+  name: gke-hub-dev-hub-feature-configmanagement
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gke-hub-dev-hub"
+    app.kubernetes.io/name: gke-hub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "feature:configmanagement"
+spec:
+  resourceID: "configmanagement"
+  location: global
+  projectRef:
+    external: "my-project"
+---
+# Source: gke-hub/templates/main.yaml
+apiVersion: gkehub.cnrm.cloud.google.com/v1beta1
+kind: GKEHubFeatureMembership
+metadata:
+  name: gke-hub-dev-hub-configmanagement-cluster-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gke-hub-dev-hub"
+    app.kubernetes.io/name: gke-hub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "configmanagement-membership:cluster-1"
+spec:
+  projectRef:
+    external: "my-project"
+  location: global
+  featureRef:
+    name: gke-hub-dev-hub-feature-configmanagement
+  membershipRef:
+    name: gke-hub-dev-hub-membership-cluster-1
+  membershipLocation: "europe-west1"
+  configmanagement:
+    version: "v1"
+    configSync:
+      git:
+        policyDir: "configsync"
+        secretType: "none"
+        syncRepo: "https://github.com/danielmarzini/configsync-platform-example"
+      sourceFormat: "hierarchy"
+---
+# Source: gke-hub/templates/main.yaml
+apiVersion: gkehub.cnrm.cloud.google.com/v1beta1
+kind: GKEHubMembership
+metadata:
+  name: gke-hub-dev-hub-membership-cluster-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gke-hub-dev-hub"
+    app.kubernetes.io/name: gke-hub
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "membership:cluster-1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "cluster-1"
+  location: "europe-west1"
+  endpoint:
+    gkeCluster:
+      resourceRef:
+        external: "//container.googleapis.com/projects/my-project/locations/europe-west1/clusters/cluster-1"
