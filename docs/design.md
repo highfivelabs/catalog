@@ -894,6 +894,9 @@ tasks (`task --list`).
    script does its part), and Config Connector at
    config-connector-extensions' pin (ahead of v1.160.0). Alpha features
    are not in the fake-cloud cases.
+   The AWS charts have the same layer, `task test-mock-aws`
+   (`hack/mock-apply-aws.sh`): ACK's pinned controllers and ack-extensions
+   on kind against moto (`docs/aws.md`, "Charts").
 3. **Live**, `task test-live` (`hack/live-apply.sh`), pilot only, after the
    fake cloud passes: an offload VM acting as
    `$GCP_LIVE_SA` (no keys;
