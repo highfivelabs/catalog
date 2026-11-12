@@ -72,6 +72,12 @@ with every other module the catalog tracks. To take a newer release, see
 and `names`, each validated against Config Connector v1.160.0's CRD
 schemas, and the refusals in `tests/*.fail.yaml`.
 
+Fake cloud (`task test-mock MOCK_CHARTS=net-lb-ext`, 2026-11-12): an empty
+group the chart makes, the default health check and a forwarding rule on
+port 80: every object Ready, the outputs evaluated, every object deleted.
+mockgcp does not write the forwarding rule's allocated address back, so
+`forwarding_rule_addresses` was null there.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.
