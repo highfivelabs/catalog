@@ -93,6 +93,13 @@ the chart carries), `windows`, `names` and `mock`, each validated against
 Config Connector v1.160.0's CRD schemas, and the refusals in
 `tests/*.fail.yaml`.
 
+Applied to the fake cloud on 2026-11-12 on an offload VM (`task test-mock
+MOCK_CHARTS=gke-nodepool`): `tests/mock.values.yaml`, a node pool with a
+created service account on the cluster in `tests/mock.needs.yaml`: both
+objects Ready, the outputs evaluated, both deleted. Live, `task
+test-live-gke` adds a pool of one Spot `e2-small` node to its Standard
+cluster with this chart, waits for it, deletes it and checks it is gone.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: the node pool and its optional service
