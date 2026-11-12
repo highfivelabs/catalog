@@ -131,10 +131,10 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 452 of 1478 (30.6%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 456 of 1478 (30.9%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 289 of 2348 (12.3%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 135 of 1170 (11.5%) |
-| **All** | **177** | | **876 of 4996 (17.5%)** |
+| **All** | **177** | | **880 of 4996 (17.6%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
