@@ -710,6 +710,14 @@ Not a kind gap, but an ASO field gap: a table's or share's
 (`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
 flag (`avm-res-keyvault-vault`'s `keys`).
 
+The network security group (`avm-res-network-networksecuritygroup`)
+needs no gap: ASO's `NetworkSecurityGroup` has no `securityRules` field at
+all, so its rules are always `NetworkSecurityGroupsSecurityRule` objects,
+which is the arrangement the module forces by ignoring the group's
+`securityRules`. Its diagnostic settings send no metrics (the shared
+helper's `noMetrics`) and leave `Dedicated` to Azure (`dedicatedNull`), as
+the module does.
+
 Open: the Key Vault module's `secrets` map onto aso-extensions'
 `VaultSecret`, whose value comes from a Kubernetes Secret. The chart does
 not map them until it is settled how a component supplies that Secret (a
