@@ -586,3 +586,40 @@ already refuses kro until L2.4.
 - **Every chart needs ACK's identity setup** (IRSA, Pod Identity, or a
   credentials Secret) and the region annotation. That is a Bundt provider
   concern (`spec.providers`), not a chart concern.
+
+## 8. Charts
+
+The AWS charts live in `charts/aws/<module>` and follow `docs/design.md`
+("A Package per module", the authoring checklist) with ACK in place of
+Config Connector. What differs:
+
+| Topic | AWS charts |
+| --- | --- |
+| Objects | ACK kinds of the controllers pinned in `UPSTREAM.md` ("ACK controllers"); a kind ACK lacks from ack-extensions (`*.aws.hfl.dev`, CRDs copied in `crds/ack-extensions`) |
+| Helpers | `lib/_ack.tpl`, copied into each chart as `templates/_ack.tpl` (`hack/sync-lib.sh`; `hack/test.sh` checks the copies): `ack.metadata`, `ack.tags`, `ack.tagList`, `ack.unsupported`, `ack.unchanged`, `ack.alpha`, and the names helpers `ack.names`, `ack.resourceName`, `ack.cloudName` |
+| Package | `aws-<module>`, `providers: [ack]` |
+| Region | the module's `region` variable, where it has one, becomes the annotation `services.k8s.aws/region` on every object; unset, ACK takes the namespace's or its controller's region. The account is the namespace's (ACK's cross-account annotations), a Bundt provider concern |
+| Tags | the module's `tags` variable is the catalog's `tags`: AWS tags, merged as the module merges them (`ack.tags`), rendered in each kind's own shape (`tags: [{key, value}]`, S3's `tagging.tagSet`, KMS's `tagKey`/`tagValue`) |
+| Labels | Kubernetes labels only: ACK does not copy labels to AWS |
+| Names | most EC2 resources are named by IDs AWS assigns; their `Name` tags carry the `namePrefix` but are not checked for it (`tests/name-prefix.yaml` exempts the kinds). Names AWS keeps unique (a subnet group, a bucket, an alias) are checked (`nameFields`) |
+| Deletion | `deletion_policy: ABANDON` annotates every object `services.k8s.aws/deletion-policy: retain` |
+| Alpha | ACK serves every kind as `v1alpha1`, so the API version says nothing about maturity. A GA (v1.x) controller's kinds are on by default; ack-extensions kinds and preview (v0.x) controllers' kinds need `allow_alpha: true` (`ack.alpha`) |
+| Refusals | a variable whose Terraform default is not empty (a suffix, a flag that defaults to `true`) is refused when it differs from that default (`ack.unchanged`); the others when set (`ack.unsupported`) |
+| References | ACK references by Kubernetes name (`vpcRef: {from: {name: ...}}`) inside a chart. A field that takes another resource's ID and has no reference (`FlowLog.resourceID`, ack-extensions' `VPNGateway.vpc`) cannot be wired in one render: the variable is refused as a gap, and the missing reference is a gap for ack-extensions |
+| Coverage | `upstream/aws-kinds.yaml` maps Terraform resource types to ACK and ack-extensions kinds; a tracked module whose every type is listed is classified in `docs/coverage` |
+| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. A fake-AWS layer (ACK's controllers against moto, as ack-extensions tests its kinds) and live runs in the AWS sandbox account are not built yet: each chart's `tests/mock.values.yaml` is the case they will apply |
+
+| Chart | Module | Notes |
+| --- | --- | --- |
+| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, Block Public Access and the default resources are refused (the chart's README) |
+
+Gaps the charts found, for ack-extensions (beyond section 5):
+
+| Gap | Needed by | Shape |
+| --- | --- | --- |
+| A reference from `FlowLog` to the resource it logs (`resourceRef` for a VPC, subnet or network interface) | vpc (`enable_flow_log`) | a reference field on ACK's `FlowLog` (upstream) |
+| Reference fields on `VPNGateway` (`vpcRef`) and `VPNGatewayRoutePropagation` (`routeTableRef`) | vpc (`enable_vpn_gateway`, `propagate_*_route_tables_vgw`) | reference fields on ack-extensions' kinds |
+| `egressOnlyInternetGatewayRef` on a route; a subnet's IPv6 block from its VPC's (`ipv6CIDRBlock` derived from the VPC's Amazon-provided block) | vpc (IPv6) | reference fields on ACK's `RouteTable` and `Subnet` (upstream) |
+| Adopting a VPC's default security group, network ACL and main route table by their VPC | vpc (`default_security_group_*`, `default_network_acl_*`, `default_route_table_*`) | kinds that take a `vpcRef` and manage the VPC's default object |
+| Redshift `ClusterSubnetGroup` | vpc (redshift subnets) | generated, or ACK's redshift-controller released |
+| VPC Block Public Access options and exclusions | vpc | generated |

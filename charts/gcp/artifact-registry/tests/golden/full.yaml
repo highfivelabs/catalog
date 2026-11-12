@@ -1,0 +1,136 @@
+---
+# Source: artifact-registry/templates/main.yaml
+apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+kind: ArtifactRegistryRepository
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "repository"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "maven-registry"
+  location: "europe-west1"
+  description: "Maven artifacts"
+  format: "MAVEN"
+  mode: "STANDARD_REPOSITORY"
+  kmsKeyRef:
+    external: "projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/key"
+  cleanupPolicyDryRun: true
+  cleanupPolicies:
+    - id: "delete-old"
+      action: "DELETE"
+      condition:
+        tagState: "ANY"
+        versionNamePrefixes: ["v1"]
+        packageNamePrefixes: ["com.example"]
+        olderThan: "2592000s"
+    - id: "keep-5-versions"
+      action: "KEEP"
+      mostRecentVersions:
+        packageNamePrefixes: ["com.example"]
+        keepCount: 5
+    - id: "keep-tagged"
+      action: "KEEP"
+      condition:
+        tagState: "TAGGED"
+        tagPrefixes: ["release"]
+        newerThan: "86400s"
+  mavenConfig:
+    allowSnapshotOverwrites: true
+    versionPolicy: "RELEASE"
+---
+# Source: artifact-registry/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-writers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam-binding-writers"
+spec:
+  resourceRef:
+    apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+    kind: ArtifactRegistryRepository
+    name: full
+  role: "roles/artifactregistry.writer"
+  members:
+    - "serviceAccount:ci@my-project.iam.gserviceaccount.com"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp(\"2030-01-01T00:00:00Z\")"
+---
+# Source: artifact-registry/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+    kind: ArtifactRegistryRepository
+    name: full
+  bindings:
+    - role: "roles/artifactregistry.reader"
+      members:
+        - member: "group:readers@example.org"
+---
+# Source: artifact-registry/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-repo-admin
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "iam-additive-repo-admin"
+spec:
+  resourceRef:
+    apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+    kind: ArtifactRegistryRepository
+    name: full
+  role: "roles/artifactregistry.repoAdmin"
+  member: "user:admin@example.org"
+---
+# Source: artifact-registry/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  name: full-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "tag-env"
+spec:
+  location: "europe-west1"
+  parentRef:
+    external: "//artifactregistry.googleapis.com/projects/my-project/locations/europe-west1/repositories/maven-registry"
+  tagValueRef:
+    external: "tagValues/1234567890"

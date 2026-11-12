@@ -1,0 +1,200 @@
+---
+# Source: vpc/templates/subnet-groups.yaml
+apiVersion: elasticache.services.k8s.aws/v1alpha1
+kind: CacheSubnetGroup
+metadata:
+  name: names-elasticache-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "elasticache-subnet-group"
+spec:
+  cacheSubnetGroupName: "shop-dev-euw1-cache"
+  cacheSubnetGroupDescription: "ElastiCache subnet group for shop-dev-euw1-main"
+  subnetRefs:
+    -
+      from:
+        name: names-elasticache-0
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-cache"
+    - key: "team"
+      value: "shop"
+---
+# Source: vpc/templates/subnet-groups.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: names-database-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "database-subnet-group"
+spec:
+  name: "shop-dev-euw1-db"
+  description: "Database subnet group for shop-dev-euw1-main"
+  subnetRefs:
+    -
+      from:
+        name: names-database-0
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-db"
+    - key: "team"
+      value: "shop"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: names-private-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "private-route-table-0"
+spec:
+  vpcRef:
+    from:
+      name: names-vpc
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-main-private-eu-west-1a"
+    - key: "team"
+      value: "shop"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: names-private-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "private-subnet-0"
+spec:
+  vpcRef:
+    from:
+      name: names-vpc
+  cidrBlock: "10.0.1.0/24"
+  availabilityZone: "eu-west-1a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: names-private-rt-0
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-main-private-eu-west-1a"
+    - key: "team"
+      value: "shop"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: names-database-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "database-subnet-0"
+spec:
+  vpcRef:
+    from:
+      name: names-vpc
+  cidrBlock: "10.0.2.0/24"
+  availabilityZone: "eu-west-1a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: names-private-rt-0
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-main-db-eu-west-1a"
+    - key: "team"
+      value: "shop"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: names-elasticache-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "elasticache-subnet-0"
+spec:
+  vpcRef:
+    from:
+      name: names-vpc
+  cidrBlock: "10.0.3.0/24"
+  availabilityZone: "eu-west-1a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: names-private-rt-0
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-main-elasticache-eu-west-1a"
+    - key: "team"
+      value: "shop"
+---
+# Source: vpc/templates/vpc.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: VPC
+metadata:
+  name: names-vpc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+    app: "web"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "vpc"
+spec:
+  cidrBlocks:
+    - "10.0.0.0/16"
+  instanceTenancy: "default"
+  enableDNSHostnames: true
+  enableDNSSupport: true
+  # manage_default_security_group: the default security group without its
+  # rules, as the module's aws_default_security_group with none leaves it.
+  disallowSecurityGroupDefaultRules: true
+  tags:
+    - key: "Name"
+      value: "shop-dev-euw1-main"
+    - key: "team"
+      value: "shop"

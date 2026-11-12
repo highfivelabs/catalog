@@ -1,0 +1,30 @@
+---
+# Source: artifact-registry/templates/main.yaml
+apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+kind: ArtifactRegistryRepository
+metadata:
+  name: virtual
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "virtual"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "repository"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "virtual-docker"
+  location: "europe-west1"
+  description: "Terraform-managed registry"
+  format: "DOCKER"
+  mode: "VIRTUAL_REPOSITORY"
+  virtualRepositoryConfig:
+    upstreamPolicies:
+      - id: "local"
+        priority: 10
+        repositoryRef:
+          external: "projects/my-project/locations/europe-west1/repositories/docker-registry"
+      - id: "remote"
+        priority: 1
+        repositoryRef:
+          external: "projects/my-project/locations/europe-west1/repositories/dockerhub"

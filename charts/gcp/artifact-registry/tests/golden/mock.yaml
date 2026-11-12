@@ -1,0 +1,72 @@
+---
+# Source: artifact-registry/templates/main.yaml
+apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+kind: ArtifactRegistryRepository
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "repository"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-docker"
+  location: "us-central1"
+  description: "Terraform-managed registry"
+  format: "DOCKER"
+  mode: "STANDARD_REPOSITORY"
+  cleanupPolicies:
+    - id: "keep-3"
+      action: "KEEP"
+      mostRecentVersions:
+        keepCount: 3
+  dockerConfig:
+    immutableTags: false
+---
+# Source: artifact-registry/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+    kind: ArtifactRegistryRepository
+    name: mock
+  bindings:
+    - role: "roles/artifactregistry.reader"
+      members:
+        - member: "user:dev@example.com"
+---
+# Source: artifact-registry/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-iam-writer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: artifact-registry
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-additive-writer"
+spec:
+  resourceRef:
+    apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+    kind: ArtifactRegistryRepository
+    name: mock
+  role: "roles/artifactregistry.writer"
+  member: "user:dev@example.com"
