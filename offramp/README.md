@@ -53,5 +53,5 @@ finding). The output shape is a draft; the design names its open questions.
 
 `task offramp-test` (gofmt, vet, `go test`). `task offramp-validate` checks
 the fixtures on an offload VM. `task offramp-live SHAPE=shared-vpc` runs the
-live proof in hfl-dev-514205 as `cce-live-tests@`; the other shapes need the
+live proof in the live-test project (`GCP_PROJECT`) as `GCP_CCE_LIVE_SA`; the other shapes need the
 grants the design lists.

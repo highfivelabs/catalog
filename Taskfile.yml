@@ -183,8 +183,15 @@ tasks:
 
   offramp-live:
     desc: "The offramp's live proof of one fixture (SHAPE=shared-vpc) in {{.LIVE_PROJECT}}, on an offload VM acting as cce-live-tests@: apply, scan, convert, adopt with Config Connector, check nothing changed, destroy"
+    preconditions:
+      - sh: test -n "{{.LIVE_PROJECT}}"
+        msg: 'set GCP_PROJECT (or HFL_GCP_TEST_PROJECT, the test estate''s project; see .env.example)'
+      - sh: test -n "{{.GCP_CCE_LIVE_SA}}"
+        msg: 'set GCP_CCE_LIVE_SA (the service account the offramp''s live proof runs as; see .env.example)'
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --hours 3 -- env PROJECT={{.LIVE_PROJECT}} offramp/hack/live.sh {{.SHAPE}}'
+      - '{{.OFFLOAD}} run --sa {{.GCP_CCE_LIVE_SA}} --hours 3 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} OFFLOAD_BUCKET={{.OFFLOAD_BUCKET}} offramp/hack/live.sh {{.SHAPE}}'
     vars:
       SHAPE: '{{.SHAPE | default "shared-vpc"}}'
 

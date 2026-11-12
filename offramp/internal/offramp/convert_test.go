@@ -165,7 +165,7 @@ func TestHierarchy(t *testing.T) {
 	if f.Name() != "t-root" {
 		t.Errorf("folder name %s", f.Name())
 	}
-	jsonEq(t, "folder", f.Obj["spec"], `{"resourceID": "4444", "displayName": "t-root", "folderRef": {"external": "31920742998"}}`)
+	jsonEq(t, "folder", f.Obj["spec"], `{"resourceID": "4444", "displayName": "t-root", "folderRef": {"external": "10000000001"}}`)
 	p := find(t, res, `module.skip_default_network.google_org_policy_policy.folder_policy_boolean[0]`)
 	jsonEq(t, "boolean policy", p.Obj["spec"], `{"resourceID": "compute.skipDefaultNetworkCreation",
 		"folderRef": {"external": "folders/4444"},

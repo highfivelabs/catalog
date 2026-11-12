@@ -3,11 +3,11 @@
 #
 # Shape 4: GKE. A small VPC for the cluster, then either a Standard private
 # cluster with two Spot node pools (terraform-google-modules'
-# kubernetes-engine `beta-private-cluster`, which the builder uses) or an
+# kubernetes-engine `beta-private-cluster`, the variant in use) or an
 # Autopilot private cluster (`beta-autopilot-private-cluster`), chosen by
 # var.autopilot. Zonal and Spot so a live run costs cents.
 #
-# Version: the builder linked kubernetes-engine 5.0.0 (2019, Terraform
+# Version: the linked release is kubernetes-engine 5.0.0 (2019, Terraform
 # 0.12, google provider 2.x). The current major is 47 (v47.0.0); the
 # catalog's gke-cluster chart ports v47.0.0, so the fixture pins ~> 47.0.
 # Between them: node_pools became list(map(any)) with many more keys,

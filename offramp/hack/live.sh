@@ -7,8 +7,9 @@
 # Connector objects to a kind cluster, and show the adoption changes
 # nothing in Google Cloud. Then destroy everything.
 #
-#   offload run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com --hours 2 -- \
-#     env PROJECT=hfl-dev-514205 offramp/hack/live.sh shared-vpc
+#   offload run --sa "$GCP_CCE_LIVE_SA" --hours 2 -- \
+#     env PROJECT="$GCP_PROJECT" GCP_PROJECT="$GCP_PROJECT" OFFLOAD_BUCKET="$OFFLOAD_BUCKET" \
+#     offramp/hack/live.sh shared-vpc
 #
 # Shapes: shared-vpc, folders, platform-project, gke. For folders and
 # platform-project set PARENT (folders/<n>, the live-tests folder) and
@@ -40,12 +41,16 @@ set -o errexit -o nounset -o pipefail
 SHAPE="${1:?shape: shared-vpc, folders, platform-project or gke}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OFF="${ROOT}/offramp"
-ALLOWED_PROJECTS=(hfl-dev-514205)
+: "${GCP_PROJECT:?set GCP_PROJECT, the live-test project (see .env.example)}"
+ALLOWED_PROJECTS=("${GCP_PROJECT}")
+# And the test estate generation's project (factory/estate/gcp), when its
+# env file is loaded.
+[[ -z "${HFL_GCP_TEST_PROJECT:-}" ]] || ALLOWED_PROJECTS+=("${HFL_GCP_TEST_PROJECT}")
 PROJECT="${PROJECT:-}"
 REGION="${REGION:-us-central1}"
 KCC_REF="${KCC_REF:-v1.160.0}"
 TF_VERSION="${TF_VERSION:-1.17.1}"
-CACHE_BUCKET="${CACHE_BUCKET:-gs://hfl-dev-514205-offload/catalog-inputs}"
+CACHE_BUCKET="${CACHE_BUCKET:-${OFFLOAD_BUCKET:?set OFFLOAD_BUCKET, the offload bucket as gs://NAME (see .env.example)}/catalog-inputs}"
 allowed=no
 for p in "${ALLOWED_PROJECTS[@]}"; do [[ "${PROJECT}" == "${p}" ]] && allowed=yes; done
 [[ "${allowed}" == yes ]] || { echo "live.sh: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]}" >&2; exit 2; }
