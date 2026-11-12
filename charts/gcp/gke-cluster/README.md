@@ -151,6 +151,7 @@ the ones only Autopilot mode takes.
 | `labels` | Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label |
 | `tags` | cloud labels on every object |
 | `deletion_policy` | `DELETE` (default) or `ABANDON`: every object keeps its cloud resource when the component is deleted. `PREVENT` is refused |
+| `firewall_ranges` | the CIDRs the firewall rules need and the module reads from data sources: `subnetwork`, `pods` (by secondary range name), `private_endpoint_subnetwork`, `tpu` (see "Firewall rules") |
 
 ### Cluster
 
@@ -201,7 +202,7 @@ the ones only Autopilot mode takes.
 | `resource_usage_export_dataset_id`, `enable_network_egress_export`, `enable_resource_consumption_export` | `resourceUsageExportConfig` |
 | `cluster_autoscaling` (S) | `clusterAutoscaling`: `enabled`, `autoscalingProfile`, `resourceLimits` (cpu, memory, `gpu_resources`), `defaultComputeClassConfig` (`enable_default_compute_class`), and `autoProvisioningDefaults` (service account, `node_pools_oauth_scopes.all`, `boot_disk_kms_key`, management, `disk_size`, upgrade settings, shielded instance, `image_type`) |
 | `default_compute_class_enabled` (A) | `clusterAutoscaling.defaultComputeClassConfig.enabled` |
-| `network_tags`, `resource_manager_tags` | `nodePoolAutoConfig` (Autopilot, or Standard with node auto-provisioning) |
+| `network_tags`, `resource_manager_tags` | `nodePoolAutoConfig` (Autopilot, or Standard with node auto-provisioning), with the cluster's tag `gke-<cluster>` added when the firewall rules need it, as the module adds it |
 | `logging_variant`, `enable_gcfs` (S) | `nodePoolDefaults.nodeConfigDefaults` |
 | `initial_node_count`, `remove_default_node_pool` (S) | `initialNodeCount` (at least 1 when the default pool is removed) and the annotation `cnrm.cloud.google.com/remove-default-node-pool`; while the default pool stays, `nodeConfig` configures it from the first node pool, as the module's `node_pool` block does |
 | `deletion_protection` | nothing (see "Differences") |
@@ -216,6 +217,32 @@ the ones only Autopilot mode takes.
 | `monitoring_metric_writer_role` | with `roles/container.defaultNodeServiceAccount` and `roles/stackdriver.resourceMetadata.writer`, an `IAMPolicyMember` on the project for the created account |
 | `grant_registry_access`, `registry_project_ids` | `roles/storage.objectViewer` and `roles/artifactregistry.reader` (and `roles/serviceusage.serviceUsageConsumer` with `enable_gcfs`) on each registry project, else the cluster's |
 | `boot_disk_kms_key` | `bootDiskKMSCryptoKeyRef` on nodes (and `bootDiskKMSKeyRef` for auto-provisioned nodes), unless a pool sets its own |
+| `fleet_project_grant_service_agent` | a `ServiceIdentity` for `gkehub.googleapis.com` and two `IAMPolicyMember`s on the cluster's project, `roles/gkehub.serviceAgent` and `roles/gkehub.crossProjectServiceAgent`, the member resolved from the identity (`memberFrom.serviceIdentityRef`). The module makes the fleet project's identity; `fleet_project` is refused (a gap), so as in the module with it unset, the identity is the cluster's project's |
+
+### Firewall rules
+
+| Module input | Config Connector |
+| --- | --- |
+| `add_cluster_firewall_rules` | `ComputeFirewall`s `gke-<cluster, 36 characters>-intra-cluster-egress` (egress to the control plane, the subnetwork and the pod ranges) and, with `enable_tpu`, `-tpu-egress`; the webhook rule below; and the cluster's tag on auto-provisioned nodes |
+| `add_master_webhook_firewall_rules`, `firewall_inbound_ports` | `gke-<cluster>-webhooks`: the control plane to those TCP ports |
+| `add_shadow_firewall_rules`, `shadow_firewall_rules_priority`, `shadow_firewall_rules_log_config` | the five `gke-shadow-<cluster>-*` rules mirroring GKE's own (`-all`, `-master`, `-vms`, `-inkubelet` one below the priority, `-exkubelet`), logged with that `logConfig` |
+| `firewall_priority` | the priority of the first three |
+
+Every rule targets the cluster's network tag `gke-<cluster>`, which every
+node pool carries, and lives in the network's project
+(`network_project_id`). The module reads the CIDRs from data sources, which
+a chart cannot, so they are inputs under `firewall_ranges`, and the render
+stops naming the one a rule needs, with the `gcloud` command that prints it:
+
+| Range | Needed for | Read with |
+| --- | --- | --- |
+| `subnetwork` | the cluster and shadow rules; the webhook rule unless private nodes give the control plane its own block | `gcloud compute networks subnets describe <subnetwork> --region <region> --format='value(ipCidrRange)'` |
+| `pods.<name>` | the cluster and shadow rules: `ip_range_pods`, `additional_ip_range_pods` and every node pool's `pod_range` | the same subnetwork's `secondaryIpRanges` |
+| `private_endpoint_subnetwork` | any rule, with private nodes and `private_endpoint_subnetwork` | that subnetwork's `ipCidrRange` |
+| `tpu` | `-tpu-egress` (`enable_tpu`) | the cluster's `tpuIpv4CidrBlock`, known only once it exists: apply first without the rule |
+
+With private nodes and `master_ipv4_cidr_block`, the control plane's range is
+that block, as in the module.
 
 ### Node pools (Standard)
 
@@ -271,8 +298,6 @@ to one, and stops the render naming the input and why
 | `node_pools_cgroup_mode` for Autopilot or auto-provisioned nodes | gap | `nodePoolAutoConfig` has no `linuxNodeConfig` |
 | `node_pools_transparent_hugepage_enabled`, `_defrag`, `node_pools_hugepage_size_2m`, `_1g` | gap | `linuxNodeConfig` has no hugepage fields |
 | pool keys `respect_pdb_during_node_pool_deletion`, `enable_confidential_storage`, `provisioned_iops`, `provisioned_throughput`, `secondary_boot_disk`, `secondary_boot_disk_mode`, `performance_monitoring_unit`, `container_log_max_size`, `container_log_max_files`, `allowed_unsafe_sysctls`, `shutdown_grace_period_seconds`, `shutdown_grace_period_critical_pods_seconds`, `single_process_oom_kill`, `storage_pools`, `local_ssd_encryption_mode`, `max_run_duration`, `flex_start` | gap | no `ContainerNodePool` field |
-| `add_cluster_firewall_rules`, `add_master_webhook_firewall_rules`, `add_shadow_firewall_rules` (and `firewall_priority`, `firewall_inbound_ports`, `shadow_firewall_rules_priority`, `shadow_firewall_rules_log_config`, used only by them) | not ported | the rules need the subnetwork's and pod ranges' CIDRs, which the module reads with data sources and a chart cannot; add `ComputeFirewall` rules beside the cluster |
-| `fleet_project_grant_service_agent` | not ported | grants for `fleet_project`, a gap |
 | `stub_domains`, `upstream_nameservers`, `configure_ip_masq`, `ip_masq_link_local` (and `ip_masq_resync_interval`, `non_masquerade_cidrs`) | by design | the module writes kube-dns and ip-masq-agent ConfigMaps into the cluster through the kubernetes provider; with Bundt that is a component delivered to the cluster as a Target |
 | `timeouts` | by design | Config Connector has no per-resource timeouts |
 
@@ -322,12 +347,14 @@ and `secret_manager_addon_enabled` (their inputs are gaps).
   `pd-standard`.
 - **IAM grants** are additive `IAMPolicyMember`s, as the module's
   `google_project_iam_member`s are.
+- **Firewall ranges** are inputs (`firewall_ranges`), not read from the
+  subnetwork as the module's data sources read them: a range changed in the
+  network does not reach the rules until the input changes.
 - **Outputs** come from the live objects where the module reads them from
   the cluster, so a dependent waits until the cluster is ready.
 
 ## Not ported
 
-- The firewall rules (`firewall.tf`): see "Refused when set".
 - The in-cluster ConfigMaps (`dns.tf`, `masq.tf`): see "Refused when set".
 - `safer-cluster` and `safer-cluster-update-variant`: opinionated wrappers
   of `beta-private-cluster` with fixed values; the same values here give the
@@ -370,8 +397,9 @@ both. To take a newer release, see [`UPSTREAM.md`](../../../UPSTREAM.md),
 
 ## Tests
 
-`task test CHART=gke-cluster`: eight render cases (`basic`, `public`,
-`full`, `names`, `autopilot`, `autopilot-full`, `node-sa`, `mock`), each validated
+`task test CHART=gke-cluster`: ten render cases (`basic`, `public`,
+`full`, `names`, `autopilot`, `autopilot-full`, `node-sa`, `firewall`,
+`autopilot-firewall`, `mock`), each validated
 against Config Connector v1.160.0's CRD schemas, and the refusals in
 `tests/*.fail.yaml`. `tests/mock.values.yaml` is applied to the fake cloud by
 `hack/mock-apply.sh` (`task test-mock`): on 2026-11-10 (offload VM
@@ -409,6 +437,22 @@ this script):
   ran. The wait now prints a line a minute. The next run's `sweep_old`
   deletes any `cat-` cluster or network older than two hours.
 
+Firewall rules, 2026-11-12 (catalog `fe91774`): on the fake cloud (offload
+VM `off-catalog-1112192444-31061`) the seven `ComputeFirewall`s of
+`tests/mock.values.yaml` were Ready and deleted with the cluster, pool,
+account and grants, outputs evaluated. Live (`task test-live-gke`, run
+`cat-11121930-084f`, VM `off-catalog-1112192448-25649`, as
+`cce-live-tests`): the Standard cluster's seven rules Ready in 22 to 23 s
+and the Autopilot cluster's webhook rule with its cluster; every object
+Ready and deleted, no cluster and no chart firewall rule left in
+`gcloud`. The fleet service agent grants are render-tested only: the fake
+cloud answers `generateServiceIdentity` for `gkehub.googleapis.com` with
+500, and the live runner has no project IAM role.
+
 ## Changes
 
+- **0.2.0** (2026-11-12): the firewall rules (`add_cluster_firewall_rules`,
+  `add_master_webhook_firewall_rules`, `add_shadow_firewall_rules` and their
+  four settings), with the new value `firewall_ranges`, and
+  `fleet_project_grant_service_agent`; new optional objects only.
 - **0.1.0** (2026-11-10): the port.

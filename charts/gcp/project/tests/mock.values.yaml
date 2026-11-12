@@ -19,3 +19,33 @@ logging_data_access:
   storage.googleapis.com: {DATA_READ: {}}
 logging_exclusions:
   catalog-mock-exclusion: resource.type=gce_instance
+logging_sinks:
+  catalog-mock-sink:
+    destination: projects/catalog-mock-prj/locations/global/buckets/_Default
+    type: logging
+    filter: severity>=ERROR
+logging_metrics:
+  catalog-mock-metric:
+    filter: severity>=ERROR
+    metric_descriptor: {metric_kind: DELTA, value_type: INT64}
+notification_channels:
+  catalog-mock-email: {type: email, labels: {email_address: ops@example.com}}
+alerts:
+  catalog-mock-alert:
+    display_name: catalog mock alert
+    combiner: OR
+    notification_channels: [catalog-mock-email]
+    conditions:
+      - display_name: errors
+        condition_threshold:
+          comparison: COMPARISON_GT
+          duration: 60s
+          filter: metric.type="logging.googleapis.com/log_entry_count" resource.type="global"
+          threshold_value: 10
+          aggregations: [{alignment_period: 60s, per_series_aligner: ALIGN_RATE}]
+quotas:
+  catalog-mock-cpus:
+    service: compute.googleapis.com
+    quota_id: CPUS-per-project-region
+    preferred_value: 8
+    dimensions: {region: us-central1}

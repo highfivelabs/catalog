@@ -1,0 +1,46 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: gke-hub
+spec:
+  version: "1.0.0"
+  components:
+    - name: hub
+      package:
+        name: gcp-gke-hub
+        version: "0.1.0"
+      inputs:
+        project_id: my-project
+        location: europe-west1
+        clusters:
+          cluster-1:
+            configmanagement: default
+            id: projects/my-project/locations/europe-west1/clusters/cluster-1
+        features:
+          configmanagement: true
+        configmanagement_templates:
+          default:
+            config_sync:
+              git:
+                policy_dir: configsync
+                secret_type: none
+                sync_repo: https://github.com/danielmarzini/configsync-platform-example
+              source_format: hierarchy
+            version: v1
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: gke-hub
+  scope: my-team
+spec:
+  template: gke-hub
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: gke-hub-dev
+  scope: my-team/dev
+spec:
+  stack: gke-hub
+  version: "1.0.0"

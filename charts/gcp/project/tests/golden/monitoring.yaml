@@ -1,0 +1,203 @@
+---
+# Source: project/templates/quotas.yaml
+apiVersion: cloudquota.cnrm.cloud.google.com/v1beta1
+kind: APIQuotaPreference
+metadata:
+  name: monitoring-quota-cpus
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+  annotations:
+    hfl.dev/id: "quota:cpus"
+spec:
+  resourceID: "cpus"
+  projectRef:
+    name: monitoring
+  service: "compute.googleapis.com"
+  quotaID: "CPUS-per-project-region"
+  quotaConfig:
+    preferredValue: 24
+    annotations: {"ticket":"123"}
+  dimensions: {"region":"europe-west1"}
+  justification: "More builds."
+  contactEmail: "ops@example.com"
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringAlertPolicy
+metadata:
+  name: monitoring-alert-errors
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+    team: "ops"
+  annotations:
+    hfl.dev/id: "alert:errors"
+    cnrm.cloud.google.com/project-id: "ops-project"
+spec:
+  displayName: "Too many errors"
+  combiner: "OR"
+  severity: "ERROR"
+  notificationChannels:
+    - name: monitoring-channel-email
+    - external: "projects/ops-project/notificationChannels/123"
+  alertStrategy:
+    autoClose: "1800s"
+    notificationRateLimit:
+      period: "300s"
+    notificationChannelStrategy: [{"notificationChannelNames":["email"],"renotifyInterval":"3600s"}]
+  conditions:
+    - displayName: "errors"
+      conditionThreshold:
+        comparison: "COMPARISON_GT"
+        duration: "60s"
+        filter: "metric.type=\"logging.googleapis.com/user/errors\" resource.type=\"global\""
+        thresholdValue: 10
+        aggregations:
+        - alignmentPeriod: 60s
+          groupByFields:
+          - resource.label.project_id
+          perSeriesAligner: ALIGN_RATE
+        trigger:
+          count: 1
+    - displayName: "absent"
+      conditionAbsent:
+        duration: "300s"
+        filter: "metric.type=\"compute.googleapis.com/instance/uptime\" resource.type=\"gce_instance\""
+        trigger:
+          percent: 50
+  documentation:
+    content: "Look at the logs."
+    mimeType: "text/markdown"
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringAlertPolicy
+metadata:
+  name: monitoring-alert-logs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+  annotations:
+    hfl.dev/id: "alert:logs"
+    cnrm.cloud.google.com/project-id: "ops-project"
+spec:
+  displayName: "Log match"
+  combiner: "OR"
+  enabled: false
+  alertStrategy:
+    notificationRateLimit:
+      period: "300s"
+  conditions:
+    - displayName: "matched"
+      conditionMatchedLog:
+        filter: "severity=ERROR"
+        labelExtractors: {"svc":"EXTRACT(resource.labels.service_name)"}
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringAlertPolicy
+metadata:
+  name: monitoring-alert-queries
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+  annotations:
+    hfl.dev/id: "alert:queries"
+    cnrm.cloud.google.com/project-id: "ops-project"
+spec:
+  displayName: "Queries"
+  combiner: "AND"
+  conditions:
+    - displayName: "mql"
+      conditionMonitoringQueryLanguage:
+        duration: "60s"
+        query: "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization'"
+        evaluationMissingData: "EVALUATION_MISSING_DATA_INACTIVE"
+    - displayName: "promql"
+      conditionPrometheusQueryLanguage:
+        query: "up == 0"
+        alertRule: "r"
+        duration: "60s"
+        evaluationInterval: "30s"
+        labels: {"sev":"high"}
+        ruleGroup: "g"
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringMonitoredProject
+metadata:
+  name: monitoring-metric-scope-monitoring-host
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+  annotations:
+    hfl.dev/id: "metric-scope:monitoring-host"
+spec:
+  resourceID: "ops-project"
+  metricsScope: "monitoring-host"
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  name: monitoring-channel-email
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+    team: "ops"
+  annotations:
+    hfl.dev/id: "notification-channel:email"
+    cnrm.cloud.google.com/project-id: "ops-project"
+spec:
+  type: "email"
+  description: "The ops team."
+  labels: {"email_address":"ops@example.com"}
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  name: monitoring-channel-pager
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+  annotations:
+    hfl.dev/id: "notification-channel:pager"
+    cnrm.cloud.google.com/project-id: "ops-project"
+spec:
+  type: "pagerduty"
+  enabled: false
+---
+# Source: project/templates/project.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Project
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "monitoring"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.7.0"
+  annotations:
+    hfl.dev/id: "project"
+    cnrm.cloud.google.com/auto-create-network: "false"
+spec:
+  resourceID: ops-project
+  name: "ops-project"
+  folderRef:
+    external: "1234567890"

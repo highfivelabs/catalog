@@ -1,0 +1,65 @@
+# component vpc-sc-dev-vpc-sc
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: vpc-sc-dev-vpc-sc-level-a1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "vpc-sc-dev-vpc-sc"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_level:a1"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/12345678"
+  resourceID: "a1"
+  title: "a1"
+  basic:
+    conditions:
+      - members:
+          - user: "user1@example.com"
+---
+# Source: vpc-sc/templates/perimeters.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerServicePerimeter
+metadata:
+  name: vpc-sc-dev-vpc-sc-perimeter-p1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "vpc-sc-dev-vpc-sc"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "perimeter:p1"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/12345678"
+  resourceID: "p1"
+  title: "p1"
+  perimeterType: PERIMETER_TYPE_REGULAR
+  useExplicitDryRunSpec: false
+  status:
+    accessLevels:
+      - name: vpc-sc-dev-vpc-sc-level-a1
+    resources:
+      - projectRef:
+          external: "projects/11111"
+      - projectRef:
+          external: "projects/22222"
+    restrictedServices:
+      - "storage.googleapis.com"
+    ingressPolicies:
+      - ingressFrom:
+          identityType: "ANY_IDENTITY"
+          sources:
+            - accessLevelRef:
+                name: vpc-sc-dev-vpc-sc-level-a1
+        ingressTo:
+          operations:
+            - serviceName: "storage.googleapis.com"
+          resources:
+            - projectRef:
+                external: "projects/11111"
