@@ -1,0 +1,50 @@
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: full-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "app"
+  path: "/apps/"
+  description: "the app's role"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ec2.amazonaws.com\",\"ecs-tasks.amazonaws.com\"]},\"Sid\":\"Ec2\"},{\"Action\":[\"sts:TagSession\",\"sts:AssumeRoleWithWebIdentity\"],\"Condition\":{\"StringEquals\":{\"aws:PrincipalTag/team\":[\"shop\"],\"oidc.eks.eu-west-1.amazonaws.com/id/ABC:aud\":[\"sts.amazonaws.com\"],\"oidc.eks.eu-west-1.amazonaws.com/id/ABC:sub\":[\"system:serviceaccount:app:app\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":[\"arn:aws:iam::444455556666:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/ABC\"]}},{\"Action\":[\"sts:TagSession\",\"sts:AssumeRoleWithWebIdentity\"],\"Condition\":{\"StringEquals\":{\"api.bitbucket.org/2.0/workspaces/acme/pipelines-config/identity/oidc:aud\":[\"sts.amazonaws.com\"],\"api.bitbucket.org/2.0/workspaces/acme/pipelines-config/identity/oidc:sub\":[\"system:serviceaccount:app:app\"],\"aws:PrincipalTag/team\":[\"shop\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":[\"arn:aws:iam::444455556666:oidc-provider/api.bitbucket.org/2.0/workspaces/acme/pipelines-config/identity/oidc\"]}},{\"Action\":[\"sts:TagSession\",\"sts:AssumeRoleWithWebIdentity\"],\"Condition\":{\"ForAllValues:StringEquals\":{\"oidc.eks.eu-west-1.amazonaws.com/id/ABC:aud\":[\"sts.amazonaws.com\"]},\"StringEquals\":{\"aws:PrincipalTag/team\":[\"shop\"],\"oidc.eks.eu-west-1.amazonaws.com/id/ABC:sub\":[\"system:serviceaccount:app:app\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":[\"arn:aws:iam::111122223333:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/ABC\"]},\"Sid\":\"BitbucketOidcAuth\"}],\"Version\":\"2012-10-17\"}"
+  maxSessionDuration: 7200
+  permissionsBoundary: "arn:aws:iam::111122223333:policy/boundary"
+  policies:
+    - "arn:aws:iam::111122223333:policy/app"
+    - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+  inlinePolicies:
+    "app": "{\"Statement\":[{\"Action\":[\"s3:GetObject\",\"s3:ListBucket\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::app\",\"arn:aws:s3:::app/*\"],\"Sid\":\"Read\"},{\"Effect\":\"Deny\",\"NotAction\":[\"s3:Get*\"],\"NotResource\":[\"arn:aws:s3:::app/keep/*\"],\"Sid\":\"DenyDelete\"},{\"Action\":\"kms:Decrypt\",\"Effect\":\"Allow\",\"Resource\":\"*\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "team"
+      value: "shop"
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+  name: full-instance-profile
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance-profile"
+spec:
+  name: "app"
+  path: "/apps/"
+  roleRef:
+    from:
+      name: full-role
+  tags:
+    - key: "team"
+      value: "shop"

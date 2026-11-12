@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/gke-nodepool
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/gke-nodepool
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: node_config
+    kind: gap
+    reason: "ContainerNodePool's nodeConfig has no bootDisk (provisioned IOPS and throughput), no flexStart, and its kubeletConfig no insecureKubeletReadonlyPortEnabled, containerLogMaxSize, containerLogMaxFiles or allowedUnsafeSysctls"
+    partial: true
+    fields: [boot_disk.provisioned_iops, boot_disk.provisioned_throughput, flex_start, kubelet_config.insecure_kubelet_readonly_port_enabled, kubelet_config.container_log_max_size, kubelet_config.container_log_max_files, kubelet_config.allowed_unsafe_sysctls]
+  - variable: network_config
+    kind: gap
+    reason: "ContainerNodePool's networkConfig has no networkPerformanceConfig (total_egress_bandwidth_tier)"
+    partial: true
+    fields: [total_egress_bandwidth_tier]

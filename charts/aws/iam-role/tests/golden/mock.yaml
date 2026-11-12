@@ -1,0 +1,48 @@
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: mock-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "catalog-test-role"
+  path: "/catalog/"
+  description: "catalog test role"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ec2.amazonaws.com\"]},\"Sid\":\"Ec2\"}],\"Version\":\"2012-10-17\"}"
+  maxSessionDuration: 7200
+  policies:
+    - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+  inlinePolicies:
+    "catalog-test-role": "{\"Statement\":[{\"Action\":[\"s3:GetObject\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"],\"Sid\":\"Read\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+  name: mock-instance-profile
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance-profile"
+spec:
+  name: "catalog-test-role"
+  path: "/catalog/"
+  roleRef:
+    from:
+      name: mock-role
+  tags:
+    - key: "catalog-test"
+      value: "true"

@@ -76,8 +76,8 @@ tags").
           each must be a valid Google Cloud label (lower-case letters,
           digits, "_" and "-"; a key starts with a letter) and a valid
           Kubernetes label. A value that is a map or a list is left out
-          here: a chart whose module has a tags variable of another shape
-          refuses it itself.
+          here, and so is a tags value that is a list: a chart whose module
+          has a tags variable of another shape maps or refuses it itself.
   labels  Kubernetes labels, {KEY: VALUE}. A prefixed key (hfl.dev/team)
           stays in Kubernetes; an unprefixed one also reaches the cloud, so
           it must be a valid Google Cloud label too.
@@ -94,7 +94,11 @@ app.kubernetes.io keys, stops the render.
 {{- $k8sKey := "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?[A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?$" -}}
 {{- $k8sValue := "^([A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?)?$" -}}
 {{- $standard := list "app.kubernetes.io/managed-by" "app.kubernetes.io/instance" "app.kubernetes.io/name" "app.kubernetes.io/version" -}}
-{{- $sources := list (list "tags" ($root.Values.tags | default dict)) (list "labels" ($root.Values.labels | default dict)) (list "labels of this object" $own) -}}
+{{- /* A tags value that is a list is a module's own variable of that name
+(gke-nodepool's network tags), not cloud labels: the chart maps it. */ -}}
+{{- $tags := $root.Values.tags | default dict -}}
+{{- if kindIs "slice" $tags }}{{ $tags = dict }}{{ end -}}
+{{- $sources := list (list "tags" $tags) (list "labels" ($root.Values.labels | default dict)) (list "labels of this object" $own) -}}
 {{- range $s := $sources -}}
 {{- $from := index $s 0 -}}
 {{- range $k, $raw := (index $s 1) -}}

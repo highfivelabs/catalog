@@ -1,0 +1,52 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/acm
+repo: https://github.com/terraform-aws-modules/terraform-aws-acm
+path: .
+version: v6.3.1
+commit: aae84c011dd68ace1beb5d10e1feddfe9a334953
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/acm/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field), not-ported (ACK has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is not carried.
+refused:
+- variable: create_route53_records
+  kind: gap
+  reason: "accepted, except true (the default) for a certificate this component requests with DNS validation: the validation records' names and values exist only in the Certificate's status, so one render cannot write them; a second component with create_route53_records_only: true writes them from this one's outputs, as the module's \"separate AWS providers\" example does"
+  partial: true
+- variable: validate_certificate
+  kind: gap
+  reason: "accepted; true with DNS validation and create_route53_records: true is refused, as for create_route53_records"
+  partial: true
+- variable: validation_allow_overwrite_records
+  kind: gap
+  reason: "accepted, but ACK's RecordSet is created with Route 53's CREATE action, which fails on a record already there (as false does): true's overwrite is not carried"
+  partial: true
+- variable: validation_method
+  kind: gap
+  reason: "accepted DNS or unset; EMAIL is refused: ACK's Certificate always requests DNS validation"
+  partial: true
+- variable: validation_record_fqdns
+  kind: gap
+  reason: "accepted, but the validation wait (aws_acm_certificate_validation) has no kind: the component is Ready once ACK has requested the certificate, not when it is ISSUED (ACK's Certificate is synced in PENDING_VALIDATION); the acm_certificate_status output reports ISSUED"
+  partial: true
+- variable: validation_timeout
+  kind: by-design
+  reason: "Terraform's wait for validation, which has no kind here (aws_acm_certificate_validation): Bundt waits for the component to be Ready"
+- variable: wait_for_validation
+  kind: gap
+  reason: "accepted, but the validation wait (aws_acm_certificate_validation) has no kind: the component is Ready once ACK has requested the certificate, not when it is ISSUED (ACK's Certificate is synced in PENDING_VALIDATION); the acm_certificate_status output reports ISSUED"
+  partial: true
