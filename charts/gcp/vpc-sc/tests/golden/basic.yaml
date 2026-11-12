@@ -1,0 +1,81 @@
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: basic-level-a1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_level:a1"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/12345678"
+  resourceID: "a1"
+  title: "a1"
+  basic:
+    conditions:
+      - members:
+          - user: "user1@example.com"
+---
+# Source: vpc-sc/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: basic-level-a2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_level:a2"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/12345678"
+  resourceID: "a2"
+  title: "a2"
+  basic:
+    combiningFunction: "OR"
+    conditions:
+      - regions: ["IT","FR"]
+      - ipSubnetworks: ["101.101.101.0/24"]
+---
+# Source: vpc-sc/templates/perimeters.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerServicePerimeter
+metadata:
+  name: basic-perimeter-p1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: vpc-sc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "perimeter:p1"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/12345678"
+  resourceID: "p1"
+  title: "p1"
+  perimeterType: PERIMETER_TYPE_REGULAR
+  useExplicitDryRunSpec: false
+  status:
+    accessLevels:
+      - name: basic-level-a1
+      - name: basic-level-a2
+    resources:
+      - projectRef:
+          external: "projects/11111"
+      - projectRef:
+          external: "projects/111111"
+    restrictedServices:
+      - "storage.googleapis.com"
+    vpcAccessibleServices:
+      enableRestriction: true
+      allowedServices:
+        - "RESTRICTED-SERVICES"
+        - "storage.googleapis.com"

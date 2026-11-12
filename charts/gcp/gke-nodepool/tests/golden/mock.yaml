@@ -1,0 +1,55 @@
+---
+# Source: gke-nodepool/templates/nodepool.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "nodepool"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-pool"
+  location: "us-central1-a"
+  clusterRef:
+    external: "catalog-mock-cluster"
+  initialNodeCount: 1
+  autoscaling:
+    maxNodeCount: 1
+    minNodeCount: 0
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  nodeConfig:
+    diskSizeGb: 20
+    diskType: "pd-balanced"
+    resourceLabels: {"env":"test"}
+    machineType: "e2-small"
+    metadata: {"disable-legacy-endpoints":"true"}
+    oauthScopes: ["https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/userinfo.email"]
+    serviceAccountRef:
+      name: mock-sa
+    spot: true
+---
+# Source: gke-nodepool/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: mock-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "tf-gke-catalog-mock-pool"
+  displayName: "Terraform GKE catalog-mock-cluster catalog-mock-pool."
