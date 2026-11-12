@@ -1,0 +1,75 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's net-vpc-firewall module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.admins, names.http, names.https, names.ssh: the default rules'
+# names in full. A name set here takes no prefix; unset, a default rule is
+# <network>-ingress-admins (-tag-http, -tag-https, -tag-ssh), as fabric
+# names it. Custom rules are named by their keys.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every rule name this
+# chart derives (never one set under names). Empty (the default) changes
+# nothing.
+namePrefix: ""
+# Kubernetes labels on every object. Firewall rules take no Google Cloud
+# labels, so these stay in Kubernetes.
+labels: {}
+# Cloud labels on every resource; firewall rules take none, so these stay
+# in Kubernetes too.
+tags: {}
+
+# Context-specific interpolations. Refused when set: Bundt's ${...}
+# expressions and valueFrom replace fabric's $context lookups.
+context: {}
+# Optionally created convenience rules. Set disabled to true, or a rule's
+# attributes to empty lists, to disable them.
+default_rules_config:
+  admin_ranges: null
+  disabled: false
+  http_ranges: [35.191.0.0/16, 130.211.0.0/22, 209.85.152.0/22, 209.85.204.0/22]
+  http_tags: [http-server]
+  https_ranges: [35.191.0.0/16, 130.211.0.0/22, 209.85.152.0/22, 209.85.204.0/22]
+  https_tags: [https-server]
+  ssh_ranges: [35.235.240.0/20]
+  ssh_tags: [ssh]
+# Egress rule definitions, default to deny action. Null destination ranges
+# are replaced with 0/0.
+egress_rules: {}
+# Paths to data files and folders: a chart cannot read them, so they are
+# accepted and ignored; their contents go under factories_data.
+factories_config: {}
+# Not a fabric variable: the factory files' contents. rules: {FILE:
+# {ingress: {NAME: rule}, egress: {NAME: rule}}}, each file as the module's
+# rules_folder holds it; cidr_tpl: {NAME: [RANGES]}, the cidr_tpl_file.
+factories_data:
+  rules: {}
+  cidr_tpl: {}
+# Ingress rule definitions, default to allow action. Null source ranges are
+# replaced with 0/0.
+ingress_rules: {}
+# Names of ranges that rules can use in place of CIDRs.
+named_ranges:
+  any: [0.0.0.0/0]
+  dns-forwarders: [35.199.192.0/19]
+  health-checkers: [35.191.0.0/16, 130.211.0.0/22, 209.85.152.0/22, 209.85.204.0/22]
+  iap-forwarders: [35.235.240.0/20]
+  private-googleapis: [199.36.153.8/30]
+  restricted-googleapis: [199.36.153.4/30]
+  rfc1918: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+# Name (or self link) of the network this set of firewall rules applies to.
+network: ""
+# Project id of the project that holds the network.
+project_id: ""
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# rules when the component is deleted. PREVENT has no Config Connector
+# equivalent.
+deletion_policy: null

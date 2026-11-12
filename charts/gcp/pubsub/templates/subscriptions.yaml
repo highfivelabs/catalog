@@ -1,0 +1,125 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/pubsub/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_pubsub_subscription.default: one PubSubSubscription per entry of
+subscriptions, named by its key, on the topic. A subscription's own labels
+replace the topic's labels on it, as fabric's coalesce does; the chart's
+labels and tags are on every object.
+*/ -}}
+{{- $v := .Values }}
+{{- $subs := $v.subscriptions | default dict }}
+{{- range $key := keys $subs | sortAlpha }}
+{{- $s := index $subs $key }}
+{{- $bq := $s.bigquery | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "subscriptions.%s.bigquery.use_table_schema" $key) $bq.use_table_schema "PubSubSubscription's bigqueryConfig has no useTableSchema") }}
+{{- include "kcc.unsupported" (list $ (printf "subscriptions.%s.bigquery.service_account_email" $key) $bq.service_account_email "PubSubSubscription's bigqueryConfig has no serviceAccountEmail") }}
+{{- if eq (toString $s.deletion_policy) "PREVENT" }}
+{{- include "kcc.unsupported" (list $ (printf "subscriptions.%s.deletion_policy PREVENT" $key) "set" "Config Connector has no PREVENT; ABANDON keeps the subscription") }}
+{{- end }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- if eq (toString $s.deletion_policy) "ABANDON" }}{{ $abandon = "true" }}{{ end }}
+---
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubSubscription
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "pubsub.subObject" (list $ $key)) "id" (printf "subscription:%s" $key) "project" $v.project_id "labels" ($s.labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "subscription" $key 255 "letter") | quote }}
+  topicRef:
+    name: {{ $.Release.Name }}
+  {{- if not (kindIs "invalid" $s.ack_deadline_seconds) }}
+  ackDeadlineSeconds: {{ $s.ack_deadline_seconds }}
+  {{- end }}
+  {{- with $s.message_retention_duration }}
+  messageRetentionDuration: {{ . | quote }}
+  {{- end }}
+  {{- if $s.retain_acked_messages }}
+  retainAckedMessages: true
+  {{- end }}
+  {{- with $s.filter }}
+  filter: {{ . | quote }}
+  {{- end }}
+  {{- if $s.enable_message_ordering }}
+  enableMessageOrdering: true
+  {{- end }}
+  {{- if $s.enable_exactly_once_delivery }}
+  enableExactlyOnceDelivery: true
+  {{- end }}
+  {{- with $s.bigquery }}
+  bigqueryConfig:
+    tableRef:
+      external: {{ include "pubsub.table" .table | quote }}
+    {{- if .use_topic_schema }}
+    useTopicSchema: true
+    {{- end }}
+    {{- if .write_metadata }}
+    writeMetadata: true
+    {{- end }}
+    {{- if .drop_unknown_fields }}
+    dropUnknownFields: true
+    {{- end }}
+  {{- end }}
+  {{- with $s.cloud_storage }}
+  cloudStorageConfig:
+    bucketRef:
+      external: {{ .bucket | quote }}
+    {{- with .filename_prefix }}
+    filenamePrefix: {{ . | quote }}
+    {{- end }}
+    {{- with .filename_suffix }}
+    filenameSuffix: {{ . | quote }}
+    {{- end }}
+    {{- with .max_duration }}
+    maxDuration: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .max_bytes) }}
+    maxBytes: {{ .max_bytes }}
+    {{- end }}
+    {{- with .avro_config }}
+    avroConfig:
+      writeMetadata: {{ .write_metadata | default false }}
+    {{- end }}
+  {{- end }}
+  {{- with $s.dead_letter_policy }}
+  deadLetterPolicy:
+    deadLetterTopicRef:
+      external: {{ .topic | quote }}
+    {{- if not (kindIs "invalid" .max_delivery_attempts) }}
+    maxDeliveryAttempts: {{ .max_delivery_attempts }}
+    {{- end }}
+  {{- end }}
+  {{- with $s.expiration_policy_ttl }}
+  expirationPolicy:
+    ttl: {{ . | quote }}
+  {{- end }}
+  {{- with $s.push }}
+  pushConfig:
+    pushEndpoint: {{ .endpoint | quote }}
+    {{- with .attributes }}
+    attributes: {{ toJson . }}
+    {{- end }}
+    {{- with .no_wrapper }}
+    noWrapper:
+      writeMetadata: {{ .write_metadata | default false }}
+    {{- end }}
+    {{- with .oidc_token }}
+    oidcToken:
+      serviceAccountEmail: {{ .service_account_email | quote }}
+      {{- with .audience }}
+      audience: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $s.retry_policy }}
+  retryPolicy:
+    {{- if not (kindIs "invalid" .maximum_backoff) }}
+    maximumBackoff: {{ printf "%vs" .maximum_backoff | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .minimum_backoff) }}
+    minimumBackoff: {{ printf "%vs" .minimum_backoff | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}

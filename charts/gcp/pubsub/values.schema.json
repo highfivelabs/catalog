@@ -1,0 +1,587 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "pubsub values (fabric pubsub v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id"
+  ],
+  "definitions": {
+    "condition": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "expression",
+        "title"
+      ],
+      "properties": {
+        "expression": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "The topic name in full (names.topic; not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z][-A-Za-z0-9_.~+%]*$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the derived topic name and every subscription name, never a name set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it). fabric's labels.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "kms_key": {
+      "description": "KMS customer managed encryption key.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message_retention_duration": {
+      "description": "Minimum duration to retain a message.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message_storage_enforce_in_transit": {
+      "description": "If true, regions also enforce in-transit guarantees.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "PubSub topic name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project used for resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "regions": {
+      "description": "Regions used to set persistence policy.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "schema": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "type": "string"
+        },
+        "msg_encoding": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schema_type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "definition",
+        "schema_type"
+      ]
+    },
+    "subscriptions": {
+      "description": "Topic subscriptions.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[A-Za-z][-A-Za-z0-9_.~+%]{2,254}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ack_deadline_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "deletion_policy": {
+            "description": "Subscription deletion policy must be one of 'ABANDON', 'DELETE' or 'PREVENT'.",
+            "enum": [
+              "ABANDON",
+              "DELETE",
+              "PREVENT",
+              null
+            ]
+          },
+          "enable_exactly_once_delivery": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "enable_message_ordering": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "expiration_policy_ttl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iam": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "labels": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "message_retention_duration": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retain_acked_messages": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "bigquery": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "table": {
+                "type": "string"
+              },
+              "drop_unknown_fields": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "service_account_email": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "use_table_schema": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "use_topic_schema": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "write_metadata": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "table"
+            ]
+          },
+          "cloud_storage": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "bucket": {
+                "type": "string"
+              },
+              "filename_prefix": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "filename_suffix": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "max_duration": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "max_bytes": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "avro_config": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "write_metadata": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "bucket"
+            ]
+          },
+          "dead_letter_policy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "topic": {
+                "type": "string"
+              },
+              "max_delivery_attempts": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "topic"
+            ]
+          },
+          "iam_bindings": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "members",
+                "role"
+              ],
+              "properties": {
+                "members": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "role": {
+                  "type": "string"
+                },
+                "condition": {
+                  "$ref": "#/definitions/condition"
+                }
+              }
+            }
+          },
+          "iam_bindings_additive": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "member",
+                "role"
+              ],
+              "properties": {
+                "member": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "condition": {
+                  "$ref": "#/definitions/condition"
+                }
+              }
+            }
+          },
+          "push": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "endpoint": {
+                "type": "string"
+              },
+              "attributes": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "no_wrapper": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "write_metadata": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "oidc_token": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "audience": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "service_account_email": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "service_account_email"
+                ]
+              }
+            },
+            "required": [
+              "endpoint"
+            ]
+          },
+          "retry_policy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "minimum_backoff": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "maximum_backoff": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "iam": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "IAM bindings on the topic in {ROLE => [MEMBERS]} format."
+    },
+    "iam_bindings": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members",
+          "role"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        }
+      },
+      "description": "Authoritative IAM bindings on the topic."
+    },
+    "iam_bindings_additive": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "member",
+          "role"
+        ],
+        "properties": {
+          "member": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        }
+      },
+      "description": "Individual additive IAM bindings on the topic."
+    },
+    "iam_by_principals": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Authoritative IAM bindings in {PRINCIPAL => [ROLES]} format, merged with iam."
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

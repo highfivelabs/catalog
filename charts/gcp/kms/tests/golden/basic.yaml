@@ -1,0 +1,99 @@
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: basic-key-key-b-iam-binding-encrypter
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:key-b:iam-binding-encrypter"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSCryptoKey
+    name: basic-key-key-b
+  role: "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  members:
+    - "serviceAccount:app@my-project.iam.gserviceaccount.com"
+---
+# Source: kms/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: basic-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: kms.cnrm.cloud.google.com/v1beta1
+    kind: KMSKeyRing
+    name: basic
+  bindings:
+    - role: "roles/cloudkms.admin"
+      members:
+        - member: "user:user1@example.com"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: basic-key-key-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:key-a"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "key-a"
+  keyRingRef:
+    name: basic
+  purpose: "ENCRYPT_DECRYPT"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSCryptoKey
+metadata:
+  name: basic-key-key-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key:key-b"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "key-b"
+  keyRingRef:
+    name: basic
+  purpose: "ENCRYPT_DECRYPT"
+  rotationPeriod: "604800s"
+---
+# Source: kms/templates/main.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyRing
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "keyring"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "test"
+  location: "europe-west1"
