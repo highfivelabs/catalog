@@ -1,0 +1,43 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: secret-manager
+spec:
+  version: "1.0.0"
+  components:
+    - name: secret-manager
+      package:
+        name: gcp-secret-manager
+        version: "0.1.0"
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: secret-manager
+  scope: my-team
+spec:
+  template: secret-manager
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: secret-manager-dev
+  scope: my-team/dev
+spec:
+  stack: secret-manager
+  version: "1.0.0"
+  components:
+    secret-manager:
+      values:
+        project_id: myproject
+        secrets:
+          test-auto:
+            iam:
+              roles/secretmanager.secretAccessor:
+                - serviceAccount:app@myproject.iam.gserviceaccount.com
+          test-user:
+            global_replica_locations:
+              europe-west1: null
+              europe-west3: null
+            labels:
+              app: checkout

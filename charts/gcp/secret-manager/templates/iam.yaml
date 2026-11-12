@@ -1,0 +1,16 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/secret-manager/iam.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+Per secret: iam (google_secret_manager_secret_iam_binding.authoritative)
+one IAMPartialPolicy, iam_bindings one IAMBinding each, and
+iam_bindings_additive one IAMPolicyMember each (docs/design.md, "IAM").
+*/ -}}
+{{- $secrets := .Values.secrets | default dict }}
+{{- range $key := keys $secrets | sortAlpha }}
+{{- $s := index $secrets $key }}
+{{- $obj := include "secretManager.object" (list $ $key) }}
+{{- include "kcc.iam" (dict "root" $ "base" $obj "idPrefix" (printf "secret:%s:" $key) "resourceRef" (dict "apiVersion" "secretmanager.cnrm.cloud.google.com/v1beta1" "kind" "SecretManagerSecret" "name" $obj) "v" (dict "iam" $s.iam "iam_bindings" $s.iam_bindings "iam_bindings_additive" $s.iam_bindings_additive)) }}
+{{- end }}

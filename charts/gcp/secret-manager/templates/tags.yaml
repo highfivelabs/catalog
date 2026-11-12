@@ -1,0 +1,28 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/secret-manager/global.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_tags_tag_binding.binding: one TagsTagBinding per secret and tag
+binding, its parent the secret as fabric writes it
+(//secretmanager.googleapis.com/projects/<project number, else id>/secrets/<id>).
+*/ -}}
+{{- $v := .Values }}
+{{- $project := $v.project_number | default $v.project_id }}
+{{- $secrets := $v.secrets | default dict }}
+{{- range $key := keys $secrets | sortAlpha }}
+{{- $s := index $secrets $key }}
+{{- range $tk := keys ($s.tag_bindings | default dict) | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name $key "tag" $tk)) "id" (printf "secret:%s:tag-%s" $key $tk)) | nindent 2 }}
+spec:
+  parentRef:
+    external: {{ printf "//secretmanager.googleapis.com/projects/%s/secrets/%s" (toString $project) (include "secretManager.id" (list $ $key)) | quote }}
+  tagValueRef:
+    external: {{ index $s.tag_bindings $tk | quote }}
+{{- end }}
+{{- end }}

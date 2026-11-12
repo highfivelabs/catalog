@@ -11,7 +11,7 @@
 #   module.platform_ci             fabric iam-service-account v60.0.0  charts/gcp/iam-service-account
 #   (app.tf) module.checkout       fabric iam-service-account v60.0.0  charts/gcp/iam-service-account
 #   (app.tf) module.checkout_assets fabric gcs v60.0.0                 charts/gcp/gcs
-#   (app.tf) module.checkout_secrets fabric secret-manager v60.0.0     none: a gap (frozen Package)
+#   (app.tf) module.checkout_secrets fabric secret-manager v60.0.0     charts/gcp/secret-manager
 #
 # The platform's part (this file): the project with its APIs and labels,
 # the platform admins' additive grants, and baseline service accounts with
