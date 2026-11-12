@@ -704,6 +704,7 @@ aso-extensions:
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
+| `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
@@ -742,15 +743,21 @@ not run on the host as Config Connector is). ASO's credential is the VM's
 Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
-trust). The virtual network, storage account and key vault charts are
-applied with tiny resources named for the run, in the one resource group
+trust). The virtual network, storage account, key vault, network security
+group, route table, NAT gateway and public IP charts are applied
+(`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
 deleted and Azure must answer 404 for it; anything of the run left is
 swept. The resource group chart (subscription scope) and the
 aso-extensions lock (its manager is not installed) are not applied. A
 deleted key vault stays soft-deleted for 7 days (purging needs a
-subscription-scope right). First passed on 2026-11-12.
+subscription-scope right). First passed on 2026-11-12; the network
+security group (two rules), route table (two routes, the group by name
+and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
+and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
+Ready, outputs evaluated (the allocated addresses among them), deleted,
+Azure answering 404, nothing left.
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO

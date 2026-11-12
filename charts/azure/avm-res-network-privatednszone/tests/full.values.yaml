@@ -1,0 +1,56 @@
+# Every input the chart carries: tags, a lock, role assignments, every
+# record type (in both spellings the module takes where it takes two), and
+# links with registration, the legacy keys and a Private Link resolution
+# policy.
+domain_name: corp.example.internal
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns
+location: westeurope
+enable_telemetry: false
+tags: {environment: prod}
+lock: {kind: CanNotDelete}
+role_assignments:
+  dnsops:
+    role_definition_id_or_name: Private DNS Zone Contributor
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+a_records:
+  web: {name: web, ttl: 300, ip_addresses: [10.0.0.5, 10.0.0.4]}
+  legacy: {name: old, ttl: 600, records: [10.0.1.4]}
+aaaa_records:
+  web6: {name: web, ttl: 300, ip_addresses: ["fd00::4"]}
+cname_records:
+  www: {name: www, ttl: 300, cname: web.corp.example.internal}
+  alias: {name: alias, ttl: 300, record: www.corp.example.internal}
+mx_records:
+  mail:
+    ttl: 3600
+    records:
+      a: {preference: 10, exchange: mx1.corp.example.internal}
+      b: {preference: 20, exchange: mx2.corp.example.internal}
+ptr_records:
+  rev: {name: "4", ttl: 300, domain_names: [web.corp.example.internal]}
+srv_records:
+  sip:
+    name: _sip._tcp
+    ttl: 300
+    records:
+      a: {priority: 10, weight: 60, port: 5060, target: sip1.corp.example.internal}
+txt_records:
+  spf:
+    name: "@"
+    ttl: 300
+    records:
+      a: {value: ["v=spf1 -all"]}
+      b: {value: [part one, part two]}
+virtual_network_links:
+  hub:
+    name: hub-link
+    virtual_network_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub
+    registration_enabled: true
+    tags: {link: hub}
+  spoke:
+    vnetlinkname: spoke-link
+    vnetid: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-spoke
+    autoregistration: false
+    private_dns_zone_supports_private_link: true
+    resolution_policy: NxDomainRedirect
