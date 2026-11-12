@@ -781,9 +781,22 @@ workspace (a diagnostic setting to itself) passed the same way (run
 cache rule from MCR) in run `cat11121946e404`. The first registry run
 found that Azure refuses a Docker Hub cache rule without credentials.
 
-Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
-Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
-gets its token from Entra over HTTP (`AZURE_AUTHORITY_HOST`), and
-aso-extensions' fake Entra is an in-process `http.RoundTripper` only: a
-fake Entra server (and ASO trusting the fake cloud's CA) is what is
-missing. Each chart's `tests/mock.values.yaml` is ready for it.
+Layer 2 (the fake cloud, `task test-mock-azure`, `hack/azure-mock.sh`): on
+an offload VM, kind runs aso-extensions' fake Resource Manager
+(`cmd/fakearm`, a store of resources by ARM ID) and fake Entra
+(`cmd/fakeentra`, answering as `login.microsoftonline.com` through a
+CoreDNS rewrite), built from aso-extensions at `ASOX_COMMIT` (Taskfile),
+both over TLS from a throwaway CA; stock ASO v2.22.0 from its own chart
+talks to them (`azureResourceManagerEndpoint`, workload identity, the CA
+through `SSL_CERT_FILE`; the fakes listen on 443 in their pods, the only
+egress ASO's network policies allow). Each chart's `tests/mock.values.yaml`
+is applied, every object must become Ready and be deleted; the Package's
+outputs are evaluated and reported, not required, since the fake keeps a
+body as sent and computes nothing Azure computes. First run on 2026-11-12
+(run `off-catalog-1112211443-12213`): 23 of 26 objects Ready and deleted
+across the twelve charts. The three that are not are the fake's gaps, for
+aso-extensions: a vault's `properties.vaultUri` (a `VaultKey` waits for
+it) and a storage account's default `blobServices/default` and
+`queueServices/default` (Azure makes them with the account; a container's
+or queue's parent). Not applied to the fake: anything needing the
+aso-extensions manager (the lock).
