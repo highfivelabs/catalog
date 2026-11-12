@@ -1,0 +1,48 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/quotas.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_cloud_quotas_quota_preference.default: one APIQuotaPreference per
+entry of quotas, named by its key. ignore_safety_checks is refused:
+APIQuotaPreference has no such field. Quotas read from files
+(factories_config.quotas) are part of factories_config, not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $quotas := $v.quotas | default dict }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- range $key := keys $quotas | sortAlpha }}
+{{- $q := index $quotas $key }}
+{{- with $q.ignore_safety_checks }}
+{{- if not (has . (list "QUOTA_DECREASE_BELOW_USAGE" "QUOTA_DECREASE_PERCENTAGE_TOO_HIGH" "QUOTA_SAFETY_CHECK_UNSPECIFIED")) }}
+{{- fail (printf "project: quotas.%s: Invalid value for ignore safety checks." $key) }}
+{{- end }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "quotas.%s.ignore_safety_checks" $key) $q.ignore_safety_checks "APIQuotaPreference has no ignoreSafetyChecks") }}
+---
+apiVersion: cloudquota.cnrm.cloud.google.com/v1beta1
+kind: APIQuotaPreference
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "quota" $key)) "id" (printf "quota:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "quota preference" $key 63) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  service: {{ $q.service | quote }}
+  quotaID: {{ $q.quota_id | quote }}
+  quotaConfig:
+    preferredValue: {{ $q.preferred_value }}
+    {{- with $q.annotations }}
+    annotations: {{ toJson . }}
+    {{- end }}
+  {{- with $q.dimensions }}
+  dimensions: {{ toJson . }}
+  {{- end }}
+  {{- with $q.justification }}
+  justification: {{ . | quote }}
+  {{- end }}
+  {{- with $q.contact_email }}
+  contactEmail: {{ . | quote }}
+  {{- end }}
+{{- end }}

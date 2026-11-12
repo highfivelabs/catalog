@@ -1,0 +1,61 @@
+---
+# Source: avm-res-network-privatednszone/templates/main.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZone
+metadata:
+  name: mock-zone
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_dns_zone"
+spec:
+  azureName: "catalog.mock.internal"
+  location: global
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesARecord
+metadata:
+  name: mock-a-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "a_record:app"
+spec:
+  azureName: "app"
+  owner:
+    name: mock-zone
+  ttl: 60
+  aRecords:
+    - ipv4Address: "10.42.0.10"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesTXTRecord
+metadata:
+  name: mock-txt-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "txt_record:owner"
+spec:
+  azureName: "@"
+  owner:
+    name: mock-zone
+  ttl: 60
+  txtRecords:
+    - value:
+        - "catalog"
