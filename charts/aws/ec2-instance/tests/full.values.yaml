@@ -1,0 +1,50 @@
+# Most of the instance's options at once, with an IAM role and instance
+# profile, Spot through instance_market_options, user data, and the AMI
+# from an SSM parameter (EC2 resolves it at launch).
+name: app
+region: eu-west-1
+ami_ssm_parameter: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+instance_type: t4g.small
+cpu_credits: unlimited
+availability_zone: eu-west-1a
+subnet_id: subnet-0123456789abcdef0
+vpc_security_group_ids: [sg-0123456789abcdef0, sg-0fedcba9876543210]
+create_security_group: false
+private_ip: 10.0.1.10
+ipv6_address_count: 1
+key_name: deployer
+monitoring: true
+ebs_optimized: true
+disable_api_stop: false
+disable_api_termination: true
+instance_initiated_shutdown_behavior: stop
+hibernation: false
+enclave_options_enabled: false
+tenancy: default
+placement_group: app-spread
+placement_partition_number: 2
+source_dest_check: false
+capacity_reservation_specification:
+  capacity_reservation_preference: open
+cpu_options: {core_count: 1, threads_per_core: 2}
+instance_market_options:
+  market_type: spot
+  spot_options: {instance_interruption_behavior: stop, spot_instance_type: persistent, max_price: "0.01"}
+maintenance_options: {auto_recovery: default}
+metadata_options: {http_tokens: required, instance_metadata_tags: enabled}
+private_dns_name_options: {hostname_type: resource-name, enable_resource_name_dns_a_record: true}
+ephemeral_block_device:
+  sdb: {device_name: /dev/sdb, virtual_name: ephemeral0}
+  sdc: {device_name: /dev/sdc, no_device: true}
+user_data: |
+  #!/bin/bash
+  echo hello
+create_iam_instance_profile: true
+iam_role_description: the app's role
+iam_role_path: /ec2/
+iam_role_permissions_boundary: arn:aws:iam::111122223333:policy/boundary
+iam_role_policies:
+  ssm: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+iam_role_tags: {role: app}
+instance_tags: {Backup: daily}
+tags: {team: shop}
