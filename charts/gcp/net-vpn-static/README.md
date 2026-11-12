@@ -73,6 +73,12 @@ gateway, its address and its three forwarding rules on a network from
 `tests/mock.needs.yaml`: every object Ready, the outputs evaluated, every
 object deleted.
 
+Applied live on 2026-11-12 (`hack/live-apply.sh` with
+`LIVE_CHARTS=net-vpn-static`, offload VM as `catalog-live-tests`): the
+gateway, its address and its three forwarding rules on a network made for
+the run: all Ready, the outputs evaluated (`address` the allocated IP),
+deleted, and gone from Google Cloud.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.

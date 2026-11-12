@@ -23,11 +23,12 @@
 #
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
-# artifact-registry, net-vpc-firewall, net-vpc-peering and net-lb-int. Each
-# needs the runner's roles on its resources: the pilot's are
-# catalog-live-tests', artifact-registry needs roles/artifactregistry.admin,
-# net-vpc-firewall roles/compute.securityAdmin (cce-live-tests has both),
-# net-lb-int roles/compute.networkAdmin (both have it). A chart whose case
+# artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int and
+# net-vpn-static. Each needs the runner's roles on its resources: the
+# pilot's are catalog-live-tests', artifact-registry needs
+# roles/artifactregistry.admin, net-vpc-firewall roles/compute.securityAdmin
+# (cce-live-tests has both), net-lb-int and net-vpn-static
+# roles/compute.networkAdmin (both have it). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -71,6 +72,7 @@ FWNET="${RUN}-fwnet"
 PEER_A="${RUN}-pa"
 PEER_B="${RUN}-pb"
 ILB="${RUN}-ilb"
+VPN="${RUN}-vpn"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
@@ -106,10 +108,17 @@ sweep_run() {
   "${G[@]}" compute backend-services delete "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 && echo "swept backend service ${r}-ilb" || true
   "${G[@]}" compute health-checks delete "${r}-ilb" --global >/dev/null 2>&1 && echo "swept health check ${r}-ilb" || true
   "${G[@]}" compute instance-groups unmanaged delete "${r}-ilb-a" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept instance group ${r}-ilb-a" || true
+  # net-vpn-static: the forwarding rules, gateway and address (its network
+  # goes below).
+  for n in esp udp-500 udp-4500; do
+    "${G[@]}" compute forwarding-rules delete "vpn-${r}-vpn-$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept forwarding rule vpn-${r}-vpn-$n" || true
+  done
+  "${G[@]}" compute target-vpn-gateways delete "${r}-vpn" --region "${REGION}" >/dev/null 2>&1 && echo "swept VPN gateway ${r}-vpn" || true
+  "${G[@]}" compute addresses delete "vpn-${r}-vpn" --region "${REGION}" >/dev/null 2>&1 && echo "swept address vpn-${r}-vpn" || true
   for n in "${r}-ilb-psc" "${r}-ilb-sn"; do
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
-  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net"; do
+  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
 }
@@ -119,7 +128,7 @@ sweep_old() {
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\)$/\1/p'
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
@@ -138,6 +147,8 @@ list_left() {
   "${G[@]}" compute health-checks list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute instance-groups list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute service-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
+  "${G[@]}" compute target-vpn-gateways list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute addresses list --format='value(name)' | grep -E '^(vpn-)?cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
@@ -345,6 +356,25 @@ spec:
   networkRef: {name: live-ilb-net}
 NEEDS
 
+cat >"${OUT}/net-vpn-static.values.yaml" <<VALUES
+project_id: ${PROJECT}
+region: ${REGION}
+name: ${VPN}
+network: projects/${PROJECT}/global/networks/${VPN}-net
+labels: {catalog-run: ${RUN}}
+VALUES
+cat >"${OUT}/net-vpn-static.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-vpn-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${VPN}-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+NEEDS
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -421,6 +451,14 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute instance-groups unmanaged describe "${ILB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute service-attachments describe "${ILB}" --region "${REGION}" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks describe "${ILB}-net" >/dev/null 2>&1 && gone=no ;;
+    net-vpn-static)
+      gone=yes
+      for n in esp udp-500 udp-4500; do
+        "${G[@]}" compute forwarding-rules describe "vpn-${VPN}-$n" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      done
+      "${G[@]}" compute target-vpn-gateways describe "${VPN}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute addresses describe "vpn-${VPN}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${VPN}-net" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
