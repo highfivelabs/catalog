@@ -98,7 +98,10 @@ sweep_run() {
   done
   # net-lb-int: the service attachment, forwarding rule, backend service,
   # health check and group, then its subnets (the network goes below).
-  "${G[@]}" compute service-attachments delete "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 && echo "swept service attachment ${r}-ilb" || true
+  # gcloud's service-attachments delete exits 0 for a name that does not
+  # exist, so ask first.
+  "${G[@]}" compute service-attachments describe "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 \
+    && "${G[@]}" compute service-attachments delete "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 && echo "swept service attachment ${r}-ilb" || true
   "${G[@]}" compute forwarding-rules delete "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 && echo "swept forwarding rule ${r}-ilb" || true
   "${G[@]}" compute backend-services delete "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 && echo "swept backend service ${r}-ilb" || true
   "${G[@]}" compute health-checks delete "${r}-ilb" --global >/dev/null 2>&1 && echo "swept health check ${r}-ilb" || true

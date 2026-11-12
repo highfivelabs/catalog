@@ -54,10 +54,11 @@ backend service and has no Config Connector field to render.
 ## Outputs
 
 `backend_service_id`, `backend_service_self_link`,
-`forwarding_rule_addresses`, `forwarding_rule_self_links`, `id` (the
-forwarding rules' ids), `group_self_links`, `health_check_id`,
-`health_check_self_link` (null with an existing health check) and
-`service_attachment_ids`. Not outputs: fabric's whole objects
+`forwarding_rule_self_links`, `id` (the forwarding rules' ids),
+`group_self_links`, `health_check_id`, `health_check_self_link` (null
+with an existing health check) and `service_attachment_ids`. Not outputs:
+`forwarding_rule_addresses`, since `ComputeForwardingRule` reports no
+allocated address (a field gap), and fabric's whole objects
 (`backend_service`, `forwarding_rules`, `groups`, `health_check`;
 `docs/design.md`, "Outputs").
 
@@ -88,8 +89,12 @@ Fake cloud (`task test-mock MOCK_CHARTS=net-lb-int`, 2026-11-12): an empty
 group the chart makes, the default health check, a forwarding rule on port
 80 and its PSC service attachment, on a network and subnets from
 `tests/mock.needs.yaml`: every object Ready, the outputs evaluated, every
-object deleted. mockgcp does not write the forwarding rule's allocated
-address back, so `forwarding_rule_addresses` was null there.
+object deleted.
+
+Applied live on 2026-11-12 (`task test-live LIVE_CHARTS=net-lb-int`,
+offload VM as `catalog-live-tests`): the same objects with an HTTP health
+check and no global access, on a network and subnets made for the run:
+all Ready, the outputs evaluated, deleted, and gone from Google Cloud.
 
 ## Changes
 
