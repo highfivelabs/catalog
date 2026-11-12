@@ -1,0 +1,116 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Terraform AWS resource types mapped to the Kubernetes kinds that manage
+# them: AWS Controllers for Kubernetes (ACK) at the controller releases in
+# UPSTREAM.md ("ACK controllers") and docs/aws.md (section 4), and
+# ack-extensions. Hand-kept, read by `task coverage` (docs/coverage): a
+# tracked AWS module whose every resource type is listed here is classified
+# (its resource_types_with_stable_kind and resource_types_missing are
+# counted, and with no chart it is "blocked" when one lacks a stable kind);
+# a module with a type not listed stays unclassified. Add a module's types
+# when its chart is started.
+#
+# class:
+#   stable      a kind of a GA (v1.x) ACK controller, or a field of one
+#               (ACK puts many Terraform side resources inline: routes,
+#               bucket configurations, security group rules)
+#   extensions  a kind ack-extensions provides (ACK has none)
+#   alpha       only a preview (v0.x) ACK controller's kind
+#   none        no kind
+# kind: <controller or ack-extensions group>/<Kind>, with the field in
+# parentheses when the type is a field of that kind. note: why, for a type
+# a reader might expect to be covered.
+types:
+  # vpc (v6.7.3), with its flow-log and vpc-endpoints submodules
+  aws_vpc: {class: stable, kind: ec2/VPC}
+  aws_vpc_ipv4_cidr_block_association: {class: stable, kind: ec2/VPC (cidrBlocks)}
+  aws_subnet: {class: stable, kind: ec2/Subnet}
+  aws_route_table: {class: stable, kind: ec2/RouteTable}
+  aws_route: {class: stable, kind: ec2/RouteTable (routes)}
+  aws_route_table_association: {class: stable, kind: ec2/Subnet (routeTableRefs)}
+  aws_internet_gateway: {class: stable, kind: ec2/InternetGateway}
+  aws_egress_only_internet_gateway: {class: stable, kind: ec2/EgressOnlyInternetGateway}
+  aws_eip: {class: stable, kind: ec2/ElasticIPAddress}
+  aws_nat_gateway: {class: stable, kind: ec2/NATGateway}
+  aws_network_acl: {class: stable, kind: ec2/NetworkACL}
+  aws_network_acl_rule: {class: stable, kind: ec2/NetworkACL (entries)}
+  aws_vpc_dhcp_options: {class: stable, kind: ec2/DHCPOptions}
+  aws_vpc_dhcp_options_association: {class: stable, kind: ec2/DHCPOptions (vpcRefs)}
+  aws_flow_log: {class: stable, kind: ec2/FlowLog}
+  aws_vpc_endpoint: {class: stable, kind: ec2/VPCEndpoint}
+  aws_db_subnet_group: {class: stable, kind: rds/DBSubnetGroup}
+  aws_elasticache_subnet_group: {class: stable, kind: elasticache/CacheSubnetGroup}
+  aws_redshift_subnet_group: {class: none, note: "redshift-controller has no release"}
+  aws_customer_gateway: {class: extensions, kind: ec2.aws.hfl.dev/CustomerGateway}
+  aws_vpn_gateway: {class: extensions, kind: ec2.aws.hfl.dev/VPNGateway}
+  aws_vpn_gateway_attachment: {class: extensions, kind: ec2.aws.hfl.dev/VPNGateway (vpc)}
+  aws_vpn_gateway_route_propagation: {class: extensions, kind: ec2.aws.hfl.dev/VPNGatewayRoutePropagation}
+  aws_default_vpc: {class: none, note: "the account's default VPC: no kind adopts it"}
+  aws_default_security_group: {class: none, note: "a VPC's default security group: VPC.disallowSecurityGroupDefaultRules removes its rules, no kind sets its rules or tags"}
+  aws_default_network_acl: {class: none, note: "a VPC's default network ACL: no kind adopts it by its VPC"}
+  aws_default_route_table: {class: none, note: "a VPC's main route table: no kind adopts it by its VPC"}
+  aws_vpc_block_public_access_options: {class: none}
+  aws_vpc_block_public_access_exclusion: {class: none}
+  aws_cloudwatch_log_group: {class: stable, kind: cloudwatchlogs/LogGroup}
+  aws_iam_role: {class: stable, kind: iam/Role}
+  aws_iam_policy: {class: stable, kind: iam/Policy}
+  aws_iam_role_policy: {class: stable, kind: iam/Role (inlinePolicies)}
+  aws_iam_role_policy_attachment: {class: stable, kind: iam/Role (policies)}
+  aws_security_group: {class: stable, kind: ec2/SecurityGroup}
+  aws_security_group_rule: {class: stable, kind: "ec2/SecurityGroup (ingressRules, egressRules)"}
+
+  # security-group (v6.0.0)
+  aws_vpc_security_group_ingress_rule: {class: stable, kind: ec2/SecurityGroup (ingressRules)}
+  aws_vpc_security_group_egress_rule: {class: stable, kind: ec2/SecurityGroup (egressRules)}
+  aws_vpc_security_group_rules_exclusive: {class: stable, kind: "ec2/SecurityGroup (ingressRules, egressRules)", note: "ACK owns a group's whole rule set, as the exclusive resource does"}
+  aws_vpc_security_group_vpc_association: {class: none}
+
+  # s3-bucket (v5.17.0), with its submodules
+  aws_s3_bucket: {class: stable, kind: s3/Bucket}
+  aws_s3_bucket_accelerate_configuration: {class: stable, kind: s3/Bucket (accelerate)}
+  aws_s3_bucket_acl: {class: stable, kind: s3/Bucket (acl)}
+  aws_s3_bucket_analytics_configuration: {class: stable, kind: s3/Bucket (analytics)}
+  aws_s3_bucket_cors_configuration: {class: stable, kind: s3/Bucket (cors)}
+  aws_s3_bucket_intelligent_tiering_configuration: {class: stable, kind: s3/Bucket (intelligentTiering)}
+  aws_s3_bucket_inventory: {class: stable, kind: s3/Bucket (inventory)}
+  aws_s3_bucket_lifecycle_configuration: {class: stable, kind: s3/Bucket (lifecycle)}
+  aws_s3_bucket_logging: {class: stable, kind: s3/Bucket (logging)}
+  aws_s3_bucket_metric: {class: stable, kind: s3/Bucket (metrics)}
+  aws_s3_bucket_notification: {class: stable, kind: s3/Bucket (notification)}
+  aws_s3_bucket_object_lock_configuration: {class: stable, kind: s3/Bucket (objectLockConfiguration)}
+  aws_s3_bucket_ownership_controls: {class: stable, kind: s3/Bucket (ownershipControls)}
+  aws_s3_bucket_policy: {class: stable, kind: s3/Bucket (policy)}
+  aws_s3_bucket_public_access_block: {class: stable, kind: s3/Bucket (publicAccessBlock)}
+  aws_s3_bucket_replication_configuration: {class: stable, kind: s3/Bucket (replication)}
+  aws_s3_bucket_request_payment_configuration: {class: stable, kind: s3/Bucket (requestPayment)}
+  aws_s3_bucket_server_side_encryption_configuration: {class: stable, kind: s3/Bucket (encryption)}
+  aws_s3_bucket_versioning: {class: stable, kind: s3/Bucket (versioning)}
+  aws_s3_bucket_website_configuration: {class: stable, kind: s3/Bucket (website)}
+  aws_s3_bucket_metadata_configuration: {class: none}
+  aws_s3_directory_bucket: {class: none, note: "S3 Express One Zone"}
+  aws_s3_object: {class: none}
+  aws_s3_account_public_access_block: {class: none, note: "s3control has only AccessPoint"}
+  aws_s3tables_table_bucket: {class: stable, kind: s3tables/TableBucket}
+  aws_s3tables_table_bucket_policy: {class: stable, kind: s3tables/TableBucket (policy)}
+  aws_s3tables_table: {class: stable, kind: s3tables/Table}
+  aws_s3tables_table_policy: {class: none}
+  aws_s3vectors_vector_bucket: {class: stable, kind: s3vectors/VectorBucket}
+  aws_s3vectors_index: {class: stable, kind: s3vectors/Index}
+  aws_s3vectors_vector_bucket_policy: {class: none}
+  aws_s3files_file_system: {class: stable, kind: s3files/FileSystem}
+  aws_s3files_file_system_policy: {class: stable, kind: s3files/FileSystem (policy)}
+  aws_s3files_synchronization_configuration: {class: stable, kind: "s3files/FileSystem (importDataRules, expirationDataRules)"}
+  aws_s3files_access_point: {class: stable, kind: s3files/AccessPoint}
+  aws_s3files_mount_target: {class: stable, kind: s3files/MountTarget}
+  aws_lambda_permission: {class: extensions, kind: lambda.aws.hfl.dev/Permission}
+  aws_sns_topic_policy: {class: stable, kind: sns/Topic (policy)}
+  aws_sqs_queue_policy: {class: stable, kind: sqs/Queue (policy)}
+
+  # kms (v4.2.2)
+  aws_kms_key: {class: stable, kind: kms/Key}
+  aws_kms_alias: {class: stable, kind: kms/Alias}
+  aws_kms_grant: {class: stable, kind: kms/Grant}
+  aws_kms_replica_key: {class: extensions, kind: kms.aws.hfl.dev/ReplicaKey}
+  aws_kms_external_key: {class: none, note: "imported key material (Origin EXTERNAL): Key has origin, but no kind imports the material"}
+  aws_kms_replica_external_key: {class: none}

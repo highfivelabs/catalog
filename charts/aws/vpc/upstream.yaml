@@ -1,0 +1,424 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/vpc
+repo: https://github.com/terraform-aws-modules/terraform-aws-vpc
+path: .
+version: v6.7.3
+commit: b3abd6df2ecf052451a361ed55b8f06f8742a795
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field, or none that can be wired in one render),
+# alpha (only an ack-extensions kind, behind allow_alpha), not-ported (ACK
+# has it, the chart does not map it yet) or by-design (Bundt replaces it).
+# partial: the variable is accepted, the reason says what is not carried.
+refused:
+- variable: amazon_side_asn
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: create_egress_only_igw
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: create_flow_log_cloudwatch_iam_role
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: create_flow_log_cloudwatch_log_group
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: create_redshift_subnet_group
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: create_redshift_subnet_route_table
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: customer_gateways
+  kind: alpha
+  reason: "CustomerGateway is an ack-extensions kind (outside ACK's releases): needs allow_alpha: true"
+  partial: true
+  needs_allow_alpha: true
+- variable: customer_owned_ipv4_pool
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: database_subnet_assign_ipv6_address_on_creation
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: database_subnet_enable_dns64
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: database_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: database_subnet_ipv6_native
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: database_subnet_ipv6_prefixes
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: default_network_acl_egress
+  kind: gap
+  reason: "the VPC's default network ACL is not adopted (aws_default_network_acl has no kind): it keeps AWS's own rules and gets no name or tags"
+- variable: default_network_acl_ingress
+  kind: gap
+  reason: "the VPC's default network ACL is not adopted (aws_default_network_acl has no kind): it keeps AWS's own rules and gets no name or tags"
+- variable: default_network_acl_name
+  kind: gap
+  reason: "the VPC's default network ACL is not adopted (aws_default_network_acl has no kind): it keeps AWS's own rules and gets no name or tags"
+- variable: default_network_acl_tags
+  kind: gap
+  reason: "the VPC's default network ACL is not adopted (aws_default_network_acl has no kind): it keeps AWS's own rules and gets no name or tags"
+- variable: default_route_table_name
+  kind: gap
+  reason: "the VPC's main route table is not adopted (aws_default_route_table has no kind): no routes, route propagation, name or tags are set on it"
+- variable: default_route_table_propagating_vgws
+  kind: gap
+  reason: "the VPC's main route table is not adopted (aws_default_route_table has no kind): no routes, route propagation, name or tags are set on it"
+- variable: default_route_table_routes
+  kind: gap
+  reason: "the VPC's main route table is not adopted (aws_default_route_table has no kind): no routes, route propagation, name or tags are set on it"
+- variable: default_route_table_tags
+  kind: gap
+  reason: "the VPC's main route table is not adopted (aws_default_route_table has no kind): no routes, route propagation, name or tags are set on it"
+- variable: default_security_group_egress
+  kind: gap
+  reason: "the VPC's default security group is not adopted (aws_default_security_group has no kind): its rules, name and tags are not set; manage_default_security_group removes its rules"
+- variable: default_security_group_ingress
+  kind: gap
+  reason: "the VPC's default security group is not adopted (aws_default_security_group has no kind): its rules, name and tags are not set; manage_default_security_group removes its rules"
+- variable: default_security_group_name
+  kind: gap
+  reason: "the VPC's default security group is not adopted (aws_default_security_group has no kind): its rules, name and tags are not set; manage_default_security_group removes its rules"
+- variable: default_security_group_tags
+  kind: gap
+  reason: "the VPC's default security group is not adopted (aws_default_security_group has no kind): its rules, name and tags are not set; manage_default_security_group removes its rules"
+- variable: default_vpc_enable_dns_hostnames
+  kind: gap
+  reason: "the account's default VPC is not managed: aws_default_vpc has no kind"
+- variable: default_vpc_enable_dns_support
+  kind: gap
+  reason: "the account's default VPC is not managed: aws_default_vpc has no kind"
+- variable: default_vpc_name
+  kind: gap
+  reason: "the account's default VPC is not managed: aws_default_vpc has no kind"
+- variable: default_vpc_tags
+  kind: gap
+  reason: "the account's default VPC is not managed: aws_default_vpc has no kind"
+- variable: elasticache_subnet_assign_ipv6_address_on_creation
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: elasticache_subnet_enable_dns64
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: elasticache_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: elasticache_subnet_ipv6_native
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: elasticache_subnet_ipv6_prefixes
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: enable_flow_log
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: enable_ipv6
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: enable_public_redshift
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: enable_vpn_gateway
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: flow_log_cloudwatch_iam_role_arn
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_iam_role_conditions
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_log_group_class
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_log_group_kms_key_id
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_log_group_name_prefix
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_log_group_name_suffix
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_log_group_retention_in_days
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_cloudwatch_log_group_skip_destroy
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_deliver_cross_account_role
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_destination_arn
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_destination_type
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_file_format
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_hive_compatible_partitions
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_log_format
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_max_aggregation_interval
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_per_hour_partition
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: flow_log_traffic_type
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: intra_subnet_assign_ipv6_address_on_creation
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: intra_subnet_enable_dns64
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: intra_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: intra_subnet_ipv6_native
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: intra_subnet_ipv6_prefixes
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: ipv4_netmask_length
+  kind: gap
+  reason: VPC.cidrBlocks is required in ACK's VPC, so a VPC cannot take its whole block from an IPAM pool by netmask length; ipv4_ipam_pool_id with cidr is supported
+- variable: ipv6_cidr
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: ipv6_cidr_block_network_border_group
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: ipv6_ipam_pool_id
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: ipv6_netmask_length
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: manage_default_network_acl
+  kind: gap
+  reason: "accepted: the default network ACL keeps AWS's own rules (Terraform's defaults allow all, as AWS's do, plus a ::/0 rule) and gets no Name tag or tags (aws_default_network_acl has no kind)"
+  partial: true
+- variable: manage_default_route_table
+  kind: gap
+  reason: "accepted: the main route table keeps its local route and gets no Name tag or tags (aws_default_route_table has no kind)"
+  partial: true
+- variable: manage_default_security_group
+  kind: gap
+  reason: "accepted: true removes the default security group's rules (VPC.disallowSecurityGroupDefaultRules), as Terraform's aws_default_security_group with no rules does; its Name tag and tags are not set (aws_default_security_group has no kind)"
+  partial: true
+- variable: manage_default_vpc
+  kind: gap
+  reason: "the account's default VPC is not managed: aws_default_vpc has no kind"
+- variable: map_customer_owned_ip_on_launch
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_acl_tags
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_arn
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_az
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_dedicated_network_acl
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_inbound_acl_rules
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_outbound_acl_rules
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_assign_ipv6_address_on_creation
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_enable_dns64
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_enable_resource_name_dns_a_record_on_launch
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_ipv6_native
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_ipv6_prefixes
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_names
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_private_dns_hostname_type_on_launch
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_suffix
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnet_tags
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: outpost_subnets
+  kind: not-ported
+  reason: "Outpost subnets are not ported yet: Subnet has outpostARN and customerOwnedIPv4Pool, the chart does not map them"
+- variable: private_subnet_assign_ipv6_address_on_creation
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: private_subnet_enable_dns64
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: private_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: private_subnet_ipv6_native
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: private_subnet_ipv6_prefixes
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: propagate_intra_route_tables_vgw
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: propagate_private_route_tables_vgw
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: propagate_public_route_tables_vgw
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: public_subnet_assign_ipv6_address_on_creation
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: public_subnet_enable_dns64
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: public_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: public_subnet_ipv6_native
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: public_subnet_ipv6_prefixes
+  kind: gap
+  reason: "IPv6 is not ported: a subnet's IPv6 block is cut from the VPC's Amazon-assigned block (cidrsubnet), known only after apply, and Subnet has no field that references it; a route to an egress-only internet gateway has no reference either (RouteTable.routes takes egressOnlyInternetGatewayID only)"
+- variable: redshift_acl_tags
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_dedicated_network_acl
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_inbound_acl_rules
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_outbound_acl_rules
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_route_table_tags
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_assign_ipv6_address_on_creation
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_enable_dns64
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_enable_resource_name_dns_a_record_on_launch
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_enable_resource_name_dns_aaaa_record_on_launch
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_group_name
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_group_tags
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_ipv6_native
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_ipv6_prefixes
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_names
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_private_dns_hostname_type_on_launch
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_suffix
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnet_tags
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: redshift_subnets
+  kind: gap
+  reason: "Redshift subnets are not ported: aws_redshift_subnet_group has no kind (ACK's redshift-controller has no release)"
+- variable: use_ipam_pool
+  kind: gap
+  reason: VPC.cidrBlocks is required in ACK's VPC, so a VPC cannot take its whole block from an IPAM pool by netmask length; ipv4_ipam_pool_id with cidr is supported
+- variable: vpc_block_public_access_exclusions
+  kind: gap
+  reason: VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)
+- variable: vpc_block_public_access_options
+  kind: gap
+  reason: VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)
+- variable: vpc_flow_log_iam_policy_name
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpc_flow_log_iam_policy_use_name_prefix
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpc_flow_log_iam_role_name
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpc_flow_log_iam_role_path
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpc_flow_log_iam_role_use_name_prefix
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpc_flow_log_permissions_boundary
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpc_flow_log_tags
+  kind: gap
+  reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"
+- variable: vpn_gateway_az
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: vpn_gateway_id
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"
+- variable: vpn_gateway_tags
+  kind: gap
+  reason: "the VPN gateway is not ported: ack-extensions' VPNGateway takes the VPC as a plain ID (spec.vpc) and VPNGatewayRoutePropagation the route table as a plain ID (spec.routeTableID), both known only after apply; neither has a reference field"

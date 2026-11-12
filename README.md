@@ -3,24 +3,27 @@
 Bundt's seed catalog: Packages that teams instantiate as components.
 Today it holds the first Google Cloud Packages, Helm charts of Config
 Connector objects ported from Cloud Foundation Fabric's Terraform modules,
-so a team moving from those modules keeps its variables, its names and
-its outputs.
+and the first AWS Packages, Helm charts of AWS Controllers for Kubernetes
+(ACK) objects ported from terraform-aws-modules, so a team moving from
+those modules keeps its variables, its names and its outputs.
 
 | Path | What |
 | --- | --- |
 | `docs/design.md` | how a fabric module becomes a Package: values, IAM, references, deletion, scope, kro or Helm, versioning, testing, the pilot's results, questions |
 | `docs/gcp-inventory.md` | every fabric module against Config Connector v1.160.0, ranked, and the gaps for config-connector-extensions |
+| `docs/aws.md` | the top terraform-aws-modules against ACK, ranked, the gaps for ack-extensions, and how the AWS charts differ from the Google Cloud ones (section 8) |
 | `docs/coverage/` | how much of each tracked open-source module the catalog carries: CSVs per module, variable, output and resource type, SVG bars, and the method (`task coverage`) |
 | `docs/migrating-from-terraform.md`, `examples/` | moving a Terraform module call to the catalog: the mapping, `catalogtool convert` (`task convert`), a worked example for each chart with its plan, and adopting resources that already exist |
 | `docs/upstream-status.md`, `.github/workflows/upstream-watch.yml` | which tracked modules have a newer release than their pin, and what changed (`task upstream-watch`); a daily workflow keeps one tracking issue; `task upstream-bump` records a release as taken |
-| `charts/gcp/<module>/` | one chart per ported module, with its Bundt Package (`package.yaml`), README and tests |
+| `charts/gcp/<module>/`, `charts/aws/<module>/` | one chart per ported module, with its Bundt Package (`package.yaml`), README and tests |
 | `charts/azure/<module>/` | one chart per ported Azure Verified Module, of Azure Service Operator objects (`docs/azure.md`, "8. Charts") |
 | `upstream/modules.yaml` | every open-source Terraform module the catalog tracks (91 fabric modules, terraform-google-modules' kubernetes-engine beta-private-cluster, 40 terraform-aws-modules, 37 Azure Verified Modules): repository, path, pinned release and commit, licence, registry and module pages, and the chart that ports it |
 | `charts/<cloud>/<chart>/upstream.yaml` | where one chart came from: the module, release, commit, licence and date synced |
-| `lib/_kcc.tpl`, `lib/_aso.tpl` | helpers every Google Cloud (Azure) chart carries a copy of (`hack/sync-lib.sh`) |
+| `lib/_kcc.tpl`, `lib/_ack.tpl`, `lib/_aso.tpl` | helpers every Google Cloud, AWS (ACK) and Azure chart carries a copy of (`hack/sync-lib.sh`) |
+| `upstream/aws-kinds.yaml`, `crds/ack-extensions/` | Terraform AWS resource types mapped to ACK and ack-extensions kinds (read by `task coverage`); the ack-extensions CRDs the AWS charts render |
 | `tools/catalogtool` | Config Connector CRDs to kubeconform schemas; Package checks; outputs evaluated against live objects |
 | `Taskfile.yml` | the entry points: `task check`, `test`, `test-live`, `test-mock`, `inventory`, `upstream-check`, `coverage`, `coverage-check`, `coverage-verify`, `convert`, `examples-test`, `upstream-watch`, `upstream-bump`, `tools-test` (`task --list`) |
-| `hack/test.sh` | render tests (offline, seconds), behind `task test` |
+| `hack/test.sh`, `hack/ack.sh` | render tests (offline, seconds), behind `task test`; `hack/ack.sh` fetches the CRDs of the ACK controllers `UPSTREAM.md` pins |
 | `hack/mock-apply.sh`, `hack/live-apply.sh` | the fake-cloud and real-project applies (an offload VM, never a laptop), behind `task test-mock` and `task test-live` |
 | `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
 | `UPSTREAM.md` | the fabric and Config Connector commits everything is pinned to, the tracked modules' licences, and how to move a pin |
@@ -39,7 +42,10 @@ from terraform-google-modules' kubernetes-engine `beta-private-cluster` and
 its Autopilot twin, `secret-manager` (partial: global secrets, their
 IAM and tag bindings; no versions or regional secrets), and
 `cloudsql-instance` (partial: no password-bearing users yet), a Cloud SQL
-instance with its replicas, databases and IAM users. On Azure, ported
+instance with its replicas, databases and IAM users. On AWS, ported from
+terraform-aws-modules to ACK objects: `vpc` (partial: no IPv6, flow logs
+or VPN gateway yet), a VPC with its subnets, route tables, gateways,
+network ACLs and subnet groups. On Azure, ported
 from Azure Verified Modules to Azure Service Operator objects:
 `avm-res-resources-resourcegroup` (partial) and
 `avm-res-network-virtualnetwork` (partial: subnets, peerings) and
@@ -116,14 +122,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**175 modules tracked**: 2 ported, 14 partial, 61 blocked, 98 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**175 modules tracked**: 2 ported, 15 partial, 64 blocked, 94 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 318 of 1478 (21.5%) |
-| AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 0 of 2310 (0.0%) |
+| AWS: terraform-aws-modules | 40 | ![aws](docs/coverage/aws.svg) | 109 of 2310 (4.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 26 of 1170 (2.2%) |
-| **All** | **175** | | **344 of 4958 (6.9%)** |
+| **All** | **175** | | **453 of 4958 (9.1%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -180,22 +186,36 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### AWS: terraform-aws-modules
 
-0 ported, 0 partial, 0 blocked, 40 not started.
+0 ported, 1 partial, 3 blocked, 36 not started.
 
-**Not started (first 10 of 40, by rank)**
+**Ported and partial**
+
+| Module | Variables covered | Outputs | Resource types with a stable kind | Status |
+| --- | --- | ---: | ---: | --- |
+| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 109 of 236 | 53 of 119 | 24 of 35 | partial |
+
+**Blocked: a resource type has no stable kind**
+
+| Module | Variables covered | Outputs | Resource types with a stable kind | Status |
+| --- | --- | ---: | ---: | --- |
+| [`s3-bucket`](https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/tree/v5.17.0) | ![s3-bucket](docs/coverage/bars/aws-s3-bucket.svg) 0 of 78 | 0 of 21 | 38 of 45 | blocked |
+| [`kms`](https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2) | ![kms](docs/coverage/bars/aws-kms.svg) 0 of 41 | 0 of 9 | 3 of 6 | blocked |
+| [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) | ![security-group](docs/coverage/bars/aws-security-group.svg) 0 of 14 | 0 of 5 | 4 of 5 | blocked |
+
+**Not started (first 10 of 36, by rank)**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
 | [`iam`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2) | ![iam](docs/coverage/bars/aws-iam.svg) 0 of 0 | 0 of 0 | 17 | not started |
-| [`s3-bucket`](https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/tree/v5.17.0) | ![s3-bucket](docs/coverage/bars/aws-s3-bucket.svg) 0 of 78 | 0 of 21 | 45 | not started |
-| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) | ![vpc](docs/coverage/bars/aws-vpc.svg) 0 of 236 | 0 of 119 | 35 | not started |
 | [`eks`](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/v21.29.0) | ![eks](docs/coverage/bars/aws-eks.svg) 0 of 108 | 0 of 41 | 30 | not started |
-| [`kms`](https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2) | ![kms](docs/coverage/bars/aws-kms.svg) 0 of 41 | 0 of 9 | 6 | not started |
 | [`lambda`](https://github.com/terraform-aws-modules/terraform-aws-lambda/tree/v8.13.0) | ![lambda](docs/coverage/bars/aws-lambda.svg) 0 of 141 | 0 of 36 | 21 | not started |
-| [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) | ![security-group](docs/coverage/bars/aws-security-group.svg) 0 of 14 | 0 of 5 | 5 | not started |
 | [`rds`](https://github.com/terraform-aws-modules/terraform-aws-rds/tree/v7.2.2) | ![rds](docs/coverage/bars/aws-rds.svg) 0 of 111 | 0 of 34 | 10 | not started |
 | [`rds-aurora`](https://github.com/terraform-aws-modules/terraform-aws-rds-aurora/tree/v10.4.2) | ![rds-aurora](docs/coverage/bars/aws-rds-aurora.svg) 0 of 114 | 0 of 33 | 21 | not started |
 | [`acm`](https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1) | ![acm](docs/coverage/bars/aws-acm.svg) 0 of 24 | 0 of 7 | 3 | not started |
+| [`ec2-instance`](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1) | ![ec2-instance](docs/coverage/bars/aws-ec2-instance.svg) 0 of 83 | 0 of 30 | 12 | not started |
+| [`sqs`](https://github.com/terraform-aws-modules/terraform-aws-sqs/tree/v5.2.2) | ![sqs](docs/coverage/bars/aws-sqs.svg) 0 of 42 | 0 of 10 | 4 | not started |
+| [`route53`](https://github.com/terraform-aws-modules/terraform-aws-route53/tree/v6.5.1) | ![route53](docs/coverage/bars/aws-route53.svg) 0 of 22 | 0 of 16 | 16 | not started |
+| [`ecs`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/v7.6.1) | ![ecs](docs/coverage/bars/aws-ecs.svg) 0 of 60 | 0 of 20 | 18 | not started |
 
 ### Azure: Azure Verified Modules
 
