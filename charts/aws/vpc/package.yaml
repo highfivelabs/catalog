@@ -1,0 +1,130 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"). Outputs are
+# the module's declared outputs for what the chart ports, selected from the
+# live ACK objects (resources.<hfl.dev/id>) and the component's values
+# (inputs). Lists keep the module's order: an object made in a loop has
+# its index in its id (public-subnet-0, nat-1), and lists.range walks them.
+# ARNs EC2 does not report are built as Terraform's provider builds them,
+# arn:<partition>:ec2:<region>:<owner>:<type>/<id>. Not provided: whole
+# Terraform objects (*_subnet_objects, this_customer_gateway), route and
+# route table association IDs (ACK keeps no route or association object),
+# and the outputs of what the chart refuses (IPv6, redshift and outpost
+# subnets, flow logs, the VPN gateway, the default VPC, security group,
+# network ACL and route table, Block Public Access).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-vpc
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    azs: >-
+      inputs.azs
+    cgw_arns: >-
+      inputs.customer_gateways.map(k, k).sort().map(k, dyn('arn:' + (resources['customer-gateway-' + k].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['customer-gateway-' + k].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['customer-gateway-' + k].status.ackResourceMetadata.region + ':' + resources['customer-gateway-' + k].status.ackResourceMetadata.ownerAccountID + ':customer-gateway/' + resources['customer-gateway-' + k].status.customerGatewayID))
+    cgw_ids: >-
+      inputs.customer_gateways.map(k, k).sort().map(k, resources['customer-gateway-' + k].status.customerGatewayID)
+    database_network_acl_arn: >-
+      'database-network-acl' in resources ? dyn('arn:' + (resources['database-network-acl'].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['database-network-acl'].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['database-network-acl'].status.ackResourceMetadata.region + ':' + resources['database-network-acl'].status.ownerID + ':network-acl/' + resources['database-network-acl'].status.id) : null
+    database_network_acl_id: >-
+      'database-network-acl' in resources ? resources['database-network-acl'].status.id : null
+    database_route_table_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^database-route-table-[0-9]+$')))).map(i, resources['database-route-table-' + string(i)].status.routeTableID)
+    database_subnet_arns: >-
+      lists.range(size(resources.filter(k, k.matches('^database-subnet-[0-9]+$')))).map(i, dyn('arn:' + (resources['database-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['database-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['database-subnet-' + string(i)].status.ackResourceMetadata.region + ':' + resources['database-subnet-' + string(i)].status.ownerID + ':subnet/' + resources['database-subnet-' + string(i)].status.subnetID))
+    database_subnet_group: >-
+      'database-subnet-group' in resources ? resources['database-subnet-group'].spec.name : null
+    database_subnet_group_name: >-
+      'database-subnet-group' in resources ? resources['database-subnet-group'].spec.name : null
+    database_subnets: >-
+      lists.range(size(resources.filter(k, k.matches('^database-subnet-[0-9]+$')))).map(i, resources['database-subnet-' + string(i)].status.subnetID)
+    database_subnets_cidr_blocks: >-
+      lists.range(size(resources.filter(k, k.matches('^database-subnet-[0-9]+$')))).map(i, resources['database-subnet-' + string(i)].spec.cidrBlock)
+    dhcp_options_id: >-
+      'dhcp-options' in resources ? resources['dhcp-options'].status.dhcpOptionsID : null
+    elasticache_network_acl_arn: >-
+      'elasticache-network-acl' in resources ? dyn('arn:' + (resources['elasticache-network-acl'].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['elasticache-network-acl'].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['elasticache-network-acl'].status.ackResourceMetadata.region + ':' + resources['elasticache-network-acl'].status.ownerID + ':network-acl/' + resources['elasticache-network-acl'].status.id) : null
+    elasticache_network_acl_id: >-
+      'elasticache-network-acl' in resources ? resources['elasticache-network-acl'].status.id : null
+    elasticache_route_table_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^elasticache-route-table-[0-9]+$')))).map(i, resources['elasticache-route-table-' + string(i)].status.routeTableID)
+    elasticache_subnet_arns: >-
+      lists.range(size(resources.filter(k, k.matches('^elasticache-subnet-[0-9]+$')))).map(i, dyn('arn:' + (resources['elasticache-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['elasticache-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['elasticache-subnet-' + string(i)].status.ackResourceMetadata.region + ':' + resources['elasticache-subnet-' + string(i)].status.ownerID + ':subnet/' + resources['elasticache-subnet-' + string(i)].status.subnetID))
+    elasticache_subnet_group: >-
+      'elasticache-subnet-group' in resources ? resources['elasticache-subnet-group'].spec.cacheSubnetGroupName : null
+    elasticache_subnet_group_name: >-
+      'elasticache-subnet-group' in resources ? resources['elasticache-subnet-group'].spec.cacheSubnetGroupName : null
+    elasticache_subnets: >-
+      lists.range(size(resources.filter(k, k.matches('^elasticache-subnet-[0-9]+$')))).map(i, resources['elasticache-subnet-' + string(i)].status.subnetID)
+    elasticache_subnets_cidr_blocks: >-
+      lists.range(size(resources.filter(k, k.matches('^elasticache-subnet-[0-9]+$')))).map(i, resources['elasticache-subnet-' + string(i)].spec.cidrBlock)
+    igw_arn: >-
+      'igw' in resources ? dyn('arn:' + (resources.igw.status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources.igw.status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources.igw.status.ackResourceMetadata.region + ':' + resources.igw.status.ownerID + ':internet-gateway/' + resources.igw.status.internetGatewayID) : null
+    igw_id: >-
+      'igw' in resources ? resources.igw.status.internetGatewayID : null
+    intra_network_acl_arn: >-
+      'intra-network-acl' in resources ? dyn('arn:' + (resources['intra-network-acl'].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['intra-network-acl'].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['intra-network-acl'].status.ackResourceMetadata.region + ':' + resources['intra-network-acl'].status.ownerID + ':network-acl/' + resources['intra-network-acl'].status.id) : null
+    intra_network_acl_id: >-
+      'intra-network-acl' in resources ? resources['intra-network-acl'].status.id : null
+    intra_route_table_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^intra-route-table-[0-9]+$')))).map(i, resources['intra-route-table-' + string(i)].status.routeTableID)
+    intra_subnet_arns: >-
+      lists.range(size(resources.filter(k, k.matches('^intra-subnet-[0-9]+$')))).map(i, dyn('arn:' + (resources['intra-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['intra-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['intra-subnet-' + string(i)].status.ackResourceMetadata.region + ':' + resources['intra-subnet-' + string(i)].status.ownerID + ':subnet/' + resources['intra-subnet-' + string(i)].status.subnetID))
+    intra_subnets: >-
+      lists.range(size(resources.filter(k, k.matches('^intra-subnet-[0-9]+$')))).map(i, resources['intra-subnet-' + string(i)].status.subnetID)
+    intra_subnets_cidr_blocks: >-
+      lists.range(size(resources.filter(k, k.matches('^intra-subnet-[0-9]+$')))).map(i, resources['intra-subnet-' + string(i)].spec.cidrBlock)
+    name: >-
+      ('vpc' in inputs.names && inputs.names.vpc != '' ? inputs.names.vpc : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    nat_ids: >-
+      inputs.reuse_nat_ips ? inputs.external_nat_ip_ids : lists.range(size(resources.filter(k, k.matches('^nat-eip-[0-9]+$')))).map(i, resources['nat-eip-' + string(i)].status.allocationID)
+    nat_public_ips: >-
+      inputs.reuse_nat_ips ? inputs.external_nat_ips : lists.range(size(resources.filter(k, k.matches('^nat-eip-[0-9]+$')))).map(i, resources['nat-eip-' + string(i)].status.publicIP)
+    natgw_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^nat-[0-9]+$')))).map(i, resources['nat-' + string(i)].status.natGatewayID)
+    natgw_interface_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^nat-[0-9]+$')))).map(i, resources['nat-' + string(i)].status.natGatewayAddresses[0].networkInterfaceID)
+    private_network_acl_arn: >-
+      'private-network-acl' in resources ? dyn('arn:' + (resources['private-network-acl'].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['private-network-acl'].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['private-network-acl'].status.ackResourceMetadata.region + ':' + resources['private-network-acl'].status.ownerID + ':network-acl/' + resources['private-network-acl'].status.id) : null
+    private_network_acl_id: >-
+      'private-network-acl' in resources ? resources['private-network-acl'].status.id : null
+    private_route_table_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^private-route-table-[0-9]+$')))).map(i, resources['private-route-table-' + string(i)].status.routeTableID)
+    private_subnet_arns: >-
+      lists.range(size(resources.filter(k, k.matches('^private-subnet-[0-9]+$')))).map(i, dyn('arn:' + (resources['private-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['private-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['private-subnet-' + string(i)].status.ackResourceMetadata.region + ':' + resources['private-subnet-' + string(i)].status.ownerID + ':subnet/' + resources['private-subnet-' + string(i)].status.subnetID))
+    private_subnets: >-
+      lists.range(size(resources.filter(k, k.matches('^private-subnet-[0-9]+$')))).map(i, resources['private-subnet-' + string(i)].status.subnetID)
+    private_subnets_cidr_blocks: >-
+      lists.range(size(resources.filter(k, k.matches('^private-subnet-[0-9]+$')))).map(i, resources['private-subnet-' + string(i)].spec.cidrBlock)
+    public_network_acl_arn: >-
+      'public-network-acl' in resources ? dyn('arn:' + (resources['public-network-acl'].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['public-network-acl'].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['public-network-acl'].status.ackResourceMetadata.region + ':' + resources['public-network-acl'].status.ownerID + ':network-acl/' + resources['public-network-acl'].status.id) : null
+    public_network_acl_id: >-
+      'public-network-acl' in resources ? resources['public-network-acl'].status.id : null
+    public_route_table_ids: >-
+      lists.range(size(resources.filter(k, k.matches('^public-route-table-[0-9]+$')))).map(i, resources['public-route-table-' + string(i)].status.routeTableID)
+    public_subnet_arns: >-
+      lists.range(size(resources.filter(k, k.matches('^public-subnet-[0-9]+$')))).map(i, dyn('arn:' + (resources['public-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources['public-subnet-' + string(i)].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources['public-subnet-' + string(i)].status.ackResourceMetadata.region + ':' + resources['public-subnet-' + string(i)].status.ownerID + ':subnet/' + resources['public-subnet-' + string(i)].status.subnetID))
+    public_subnets: >-
+      lists.range(size(resources.filter(k, k.matches('^public-subnet-[0-9]+$')))).map(i, resources['public-subnet-' + string(i)].status.subnetID)
+    public_subnets_cidr_blocks: >-
+      lists.range(size(resources.filter(k, k.matches('^public-subnet-[0-9]+$')))).map(i, resources['public-subnet-' + string(i)].spec.cidrBlock)
+    vpc_arn: >-
+      'vpc' in resources ? dyn('arn:' + (resources.vpc.status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn' : (resources.vpc.status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws')) + ':ec2:' + resources.vpc.status.ackResourceMetadata.region + ':' + resources.vpc.status.ownerID + ':vpc/' + resources.vpc.status.vpcID) : null
+    vpc_cidr_block: >-
+      'vpc' in resources ? resources.vpc.spec.cidrBlocks[0] : null
+    vpc_enable_dns_hostnames: >-
+      'vpc' in resources ? resources.vpc.spec.enableDNSHostnames : null
+    vpc_enable_dns_support: >-
+      'vpc' in resources ? resources.vpc.spec.enableDNSSupport : null
+    vpc_id: >-
+      'vpc' in resources ? resources.vpc.status.vpcID : null
+    vpc_instance_tenancy: >-
+      'vpc' in resources ? resources.vpc.spec.instanceTenancy : null
+    vpc_owner_id: >-
+      'vpc' in resources ? resources.vpc.status.ownerID : null
+    vpc_secondary_cidr_blocks: >-
+      'vpc' in resources ? inputs.secondary_cidr_blocks : []
