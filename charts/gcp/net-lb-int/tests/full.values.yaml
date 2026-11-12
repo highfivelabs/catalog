@@ -1,0 +1,63 @@
+# Every field the chart carries: two forwarding rules (one with a fixed
+# address, one IPv6 on two ports), groups made by the chart, a regional
+# HTTP health check, the backend service's settings and a PSC service
+# attachment.
+project_id: my-project
+region: europe-west1
+name: ilb-full
+labels: {env: test}
+service_label: svc
+description: PSC for ilb-full
+vpc_config:
+  network: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-network
+  subnetwork: projects/my-project/regions/europe-west1/subnetworks/gce
+forwarding_rules_config:
+  "":
+    address: 10.0.0.10
+    description: the main rule
+    global_access: false
+  ipv6:
+    ipv6: true
+    ports: ["80", "443"]
+    protocol: TCP
+    name: custom-fr
+group_configs:
+  my-group:
+    zone: europe-west1-b
+    instances: [projects/my-project/zones/europe-west1-b/instances/vm-a]
+    named_ports: {http: 80}
+backends:
+  - group: my-group
+  - group: projects/my-project/zones/europe-west1-c/instanceGroups/other
+    failover: true
+    description: failover group
+backend_service_config:
+  name: custom-bs
+  description: the backend
+  protocol: TCP
+  connection_draining_timeout_sec: 10
+  session_affinity: CLIENT_IP
+  timeout_sec: 30
+  enable_subsetting: true
+  connection_tracking: {idle_timeout_sec: 600, persist_conn_on_unhealthy: NEVER_PERSIST, track_per_session: true}
+  failover_config: {disable_conn_drain: true, drop_traffic_if_unhealthy: true, ratio: 0.5}
+  log_config: {enable: true, sample_rate: 0.5}
+health_check_config:
+  is_regional: true
+  name: custom-hc
+  check_interval_sec: 5
+  healthy_threshold: 2
+  timeout_sec: 5
+  unhealthy_threshold: 3
+  enable_logging: true
+  http: {port: 80, request_path: /healthz, port_specification: USE_FIXED_PORT}
+service_attachments:
+  "":
+    nat_subnets: [projects/my-project/regions/europe-west1/subnetworks/psc]
+    automatic_connection: true
+    consumer_accept_lists: {consumer-project: "10"}
+    consumer_reject_lists: [bad-project]
+    enable_proxy_protocol: true
+  missing:
+    nat_subnets: [projects/my-project/regions/europe-west1/subnetworks/psc]
+deletion_policy: ABANDON
