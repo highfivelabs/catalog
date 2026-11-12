@@ -1,0 +1,34 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# five outputs, from the live SecurityGroup (resources.security-group) and
+# the component's values (inputs). EC2 reports no ARN for a group, so arn is
+# built as the Terraform provider builds it,
+# arn:<partition>:ec2:<region>:<owner>:security-group/<id>.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-security-group
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    id: >-
+      'security-group' in resources ? resources['security-group'].status.id : null
+    arn: >-
+      'security-group' in resources
+      ? dyn('arn:'
+        + (resources['security-group'].status.ackResourceMetadata.region.startsWith('cn-') ? 'aws-cn'
+          : (resources['security-group'].status.ackResourceMetadata.region.startsWith('us-gov-') ? 'aws-us-gov' : 'aws'))
+        + ':ec2:' + resources['security-group'].status.ackResourceMetadata.region
+        + ':' + resources['security-group'].status.ackResourceMetadata.ownerAccountID
+        + ':security-group/' + resources['security-group'].status.id)
+      : null
+    vpc_id: >-
+      'security-group' in resources && has(resources['security-group'].spec.vpcID) ? resources['security-group'].spec.vpcID : null
+    owner_id: >-
+      'security-group' in resources ? resources['security-group'].status.ackResourceMetadata.ownerAccountID : null
+    name: >-
+      'security-group' in resources ? resources['security-group'].spec.name : null

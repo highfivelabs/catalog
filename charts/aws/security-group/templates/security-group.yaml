@@ -1,0 +1,81 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the security group (aws_security_group) and its rules
+(aws_vpc_security_group_ingress_rule, aws_vpc_security_group_egress_rule),
+which ACK keeps inline as SecurityGroup.ingressRules and egressRules. ACK
+owns the whole rule set, as aws_vpc_security_group_rules_exclusive does
+(enable_exclusive_rules), and removes the default egress rule AWS adds to
+a new group, as the Terraform provider does.
+*/ -}}
+{{- include "ack.names" (list $ (list "securityGroup")) -}}
+{{- $v := .Values -}}
+{{- if and $v.create $v.putin_khuylo }}
+{{- $name := include "ack.resourceName" (list $ "securityGroup" "security group" $v.name 255) }}
+{{- if not $name }}
+{{- fail "security-group: name is required: the group's name (or names.securityGroup)" }}
+{{- end }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: SecurityGroup
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "sg")) "id" "security-group" "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+  {{- /* Unset, the Terraform provider's default; AWS cannot change it later. */}}
+  description: {{ $v.description | default "Managed by Terraform" | quote }}
+{{- with $v.vpc_id }}
+  vpcID: {{ . | quote }}
+{{- end }}
+{{- range $dir := list "ingress" "egress" }}
+{{- $rules := index $v (printf "%s_rules" $dir) | default dict }}
+{{- if $rules }}
+  {{ $dir }}Rules:
+{{- range $key := keys $rules | sortAlpha }}
+{{- $r := index $rules $key }}
+{{- $set := list }}
+{{- range $f := list "cidr_ipv4" "cidr_ipv6" "prefix_list_id" "referenced_security_group_id" }}
+{{- if index $r $f }}{{ $set = append $set $f }}{{ end }}
+{{- end }}
+{{- if ne (len $set) 1 }}
+{{- fail (printf "security-group: %s_rules.%s: Each %s rule must set exactly one of cidr_ipv4, cidr_ipv6, prefix_list_id, or referenced_security_group_id." $dir $key $dir) }}
+{{- end }}
+{{- $from := $r.from_port }}
+{{- if kindIs "invalid" $from }}{{ $from = $r.to_port }}{{ end }}
+{{- $to := $r.to_port }}
+{{- if kindIs "invalid" $to }}{{ $to = $r.from_port }}{{ end }}
+{{- $desc := dict }}
+{{- with $r.description }}{{ $desc = dict "description" . }}{{ end }}
+    - ipProtocol: {{ $r.ip_protocol | default "tcp" | toString | quote }}
+{{- if not (kindIs "invalid" $from) }}
+      fromPort: {{ int64 $from }}
+{{- end }}
+{{- if not (kindIs "invalid" $to) }}
+      toPort: {{ int64 $to }}
+{{- end }}
+{{- if $r.cidr_ipv4 }}
+      ipRanges:
+        - {{ toJson (merge (dict "cidrIP" $r.cidr_ipv4) $desc) }}
+{{- else if $r.cidr_ipv6 }}
+      ipv6Ranges:
+        - {{ toJson (merge (dict "cidrIPv6" $r.cidr_ipv6) $desc) }}
+{{- else if $r.prefix_list_id }}
+      prefixListIDs:
+        - {{ toJson (merge (dict "prefixListID" $r.prefix_list_id) $desc) }}
+{{- else if eq $r.referenced_security_group_id "self" }}
+      {{- /* self: a pair without a group ID is this group (ACK fills its ID in) */}}
+      userIDGroupPairs:
+        - {{ toJson $desc }}
+{{- else }}
+      userIDGroupPairs:
+        - {{ toJson (merge (dict "groupID" $r.referenced_security_group_id) $desc) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

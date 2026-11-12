@@ -9,7 +9,7 @@ gcp,project,cloud_armor_policy,"object({excluded_folders, excluded_projects, nam
 gcp,project,compute_metadata,map(string),no,"ComputeProjectMetadata owns all of a project's metadata, while fabric sets single items; there is no per-item kind (gap 10)",gap
 gcp,project,contacts,map(list(string)),yes,,
 gcp,project,context,"object({bigquery_datasets, condition_vars, custom_roles, email_addresses, folder_ids, iam_principals, +11})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
-gcp,project,custom_roles,"map(object({description, permissions, stage, title}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,custom_roles,"map(object({description, permissions, stage, title}))",yes,,
 gcp,project,default_network_tier,string,no,Config Connector has no project default network tier (gap 10),gap
 gcp,project,default_service_account,string,partial,"only keep (the default) is supported: Config Connector cannot delete, deprivilege or disable a project's default service accounts (gap 10)",gap
 gcp,project,deletion_policy,string,partial,"DELETE and ABANDON only: PREVENT is refused, use lien_reason",by-design
@@ -26,8 +26,8 @@ gcp,project,kms_autokeys,"map(object({location, resource_type_selector}))",no,"C
 gcp,project,labels,map(string),yes,,
 gcp,project,lien_reason,string,yes,,
 gcp,project,log_scopes,"map(object({description, resource_names}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,logging_data_access,"map(object({ADMIN_READ, DATA_READ, DATA_WRITE}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,logging_exclusions,map(string),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,logging_data_access,"map(object({ADMIN_READ, DATA_READ, DATA_WRITE}))",yes,,
+gcp,project,logging_exclusions,map(string),yes,,
 gcp,project,logging_metrics,"map(object({bucket_name, bucket_options, description, disabled, filter, label_extractors, +2}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +3}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,metric_scopes,list(string),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
@@ -48,10 +48,10 @@ gcp,project,service_agents_project_bindings,"map(object({condition, project, rol
 gcp,project,service_config,"object({disable_dependent_services, disable_on_destroy})",yes,,
 gcp,project,service_encryption_key_ids,map(list(string)),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,services,list(string),yes,,
-gcp,project,shared_vpc_host_config,"object({enabled, service_projects})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,shared_vpc_host_config,"object({enabled, service_projects})",yes,,
 gcp,project,shared_vpc_service_config,"object({host_project, iam_bindings_additive, network_subnet_users, network_users, service_agent_iam, service_agent_subnet_iam, +1})",partial,"host_project, network_users and iam_bindings_additive are ported; service_agent_iam, service_agent_subnet_iam, service_iam_grants and network_subnet_users name the project number, known only after apply (gap 8)",gap
 gcp,project,skip_delete,bool,no,deprecated in fabric: use deletion_policy,by-design
-gcp,project,tag_bindings,map(string),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,tag_bindings,map(string),yes,,
 gcp,project,tags,"map(object({allowed_values_regex, description, iam, iam_bindings, iam_bindings_additive, id, +1}))",no,"fabric's tag keys (a map value per key) have a stable Config Connector kind; the chart does not map them yet (charts/gcp/project/README.md, ""Not ported""). A tags entry whose value is a string is the catalog's cloud label, applied to every object",not-ported
 gcp,project,tags_config,"object({force_context_ids, ignore_iam})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
 gcp,project,universe,"object({forced_jit_service_identities, prefix, unavailable_service_identities, unavailable_services})",no,universes other than Google Cloud's are not supported,gap
@@ -180,14 +180,14 @@ gcp,net-vpc,subnets_private_nat,"list(object({description, ip_cidr_range, name, 
 gcp,net-vpc,subnets_proxy_only,"list(object({active, description, global, iam, iam_bindings, iam_bindings_additive, +3}))",yes,,
 gcp,net-vpc,subnets_psc,"list(object({description, flow_logs_config, iam, iam_bindings, iam_bindings_additive, ip_cidr_range, +2}))",yes,,
 gcp,net-vpc,vpc_reuse,"object({attributes, use_data_source})",yes,,
-gcp,net-vpc-firewall,context,"object({cidr_ranges, cidr_ranges_sets, iam_principals, networks, project_ids})",no,,no-chart
-gcp,net-vpc-firewall,default_rules_config,"object({admin_ranges, disabled, http_ranges, http_tags, https_ranges, https_tags, +2})",no,,no-chart
-gcp,net-vpc-firewall,egress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +4}))",no,,no-chart
-gcp,net-vpc-firewall,factories_config,"object({cidr_tpl_file, rules_folder})",no,,no-chart
-gcp,net-vpc-firewall,ingress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +5}))",no,,no-chart
-gcp,net-vpc-firewall,named_ranges,map(list(string)),no,,no-chart
-gcp,net-vpc-firewall,network,string,no,,no-chart
-gcp,net-vpc-firewall,project_id,string,no,,no-chart
+gcp,net-vpc-firewall,context,"object({cidr_ranges, cidr_ranges_sets, iam_principals, networks, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-vpc-firewall,default_rules_config,"object({admin_ranges, disabled, http_ranges, http_tags, https_ranges, https_tags, +2})",yes,,
+gcp,net-vpc-firewall,egress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +4}))",yes,,
+gcp,net-vpc-firewall,factories_config,"object({cidr_tpl_file, rules_folder})",partial,a chart cannot read the caller's files: accepted and ignored; the rule files' contents go under factories_data.rules and the CIDR template's under factories_data.cidr_tpl,by-design
+gcp,net-vpc-firewall,ingress_rules,"map(object({deny, description, destination_ranges, disabled, enable_logging, priority, +5}))",yes,,
+gcp,net-vpc-firewall,named_ranges,map(list(string)),yes,,
+gcp,net-vpc-firewall,network,string,yes,,
+gcp,net-vpc-firewall,project_id,string,yes,,
 gcp,net-cloudnat,addresses,list(string),yes,,
 gcp,net-cloudnat,config_port_allocation,"object({enable_dynamic_port_allocation, enable_endpoint_independent_mapping, max_ports_per_vm, min_ports_per_vm})",yes,,
 gcp,net-cloudnat,config_source_subnetworks,"object({all, primary_ranges_only, subnetworks})",yes,,
@@ -500,13 +500,13 @@ gcp,net-vpc-factory,context,"object({addresses, cidr_ranges, cidr_ranges_sets, c
 gcp,net-vpc-factory,data_defaults,"object({auto_create_subnetworks, create_googleapis_routes, delete_default_routes_on_create, description, dns_policy, firewall_policy_enforcement_order, +4})",no,,no-chart
 gcp,net-vpc-factory,data_overrides,"object({auto_create_subnetworks, create_googleapis_routes, delete_default_routes_on_create, description, dns_policy, firewall_policy_enforcement_order, +6})",no,,no-chart
 gcp,net-vpc-factory,factories_config,"object({basepath, paths})",no,,no-chart
-gcp,net-vpc-peering,local_network,string,no,,no-chart
-gcp,net-vpc-peering,name,"object({local, peer})",no,,no-chart
-gcp,net-vpc-peering,peer_create_peering,bool,no,,no-chart
-gcp,net-vpc-peering,peer_network,string,no,,no-chart
-gcp,net-vpc-peering,prefix,string,no,,no-chart
-gcp,net-vpc-peering,routes_config,"object({local, peer})",no,,no-chart
-gcp,net-vpc-peering,stack_type,string,no,,no-chart
+gcp,net-vpc-peering,local_network,string,yes,,
+gcp,net-vpc-peering,name,"object({local, peer})",yes,,
+gcp,net-vpc-peering,peer_create_peering,bool,yes,,
+gcp,net-vpc-peering,peer_network,string,yes,,
+gcp,net-vpc-peering,prefix,string,yes,,
+gcp,net-vpc-peering,routes_config,"object({local, peer})",yes,,
+gcp,net-vpc-peering,stack_type,string,yes,,
 gcp,net-address,context,"object({locations, networks, project_ids, subnets})",no,,no-chart
 gcp,net-address,external_addresses,"map(object({description, ipv6, labels, name, region, subnetwork, +1}))",no,,no-chart
 gcp,net-address,global_addresses,"map(object({description, ipv6, name}))",no,,no-chart
@@ -2081,20 +2081,20 @@ aws,lambda,trusted_entities,any,no,,no-chart
 aws,lambda,use_existing_cloudwatch_log_group,bool,no,,no-chart
 aws,lambda,vpc_security_group_ids,list(string),no,,no-chart
 aws,lambda,vpc_subnet_ids,list(string),no,,no-chart
-aws,security-group,create,bool,no,,no-chart
-aws,security-group,description,string,no,,no-chart
-aws,security-group,egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,security-group,enable_exclusive_rules,bool,no,,no-chart
-aws,security-group,ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",no,,no-chart
-aws,security-group,name,string,no,,no-chart
-aws,security-group,putin_khuylo,bool,no,,no-chart
-aws,security-group,region,string,no,,no-chart
-aws,security-group,revoke_rules_on_delete,bool,no,,no-chart
-aws,security-group,tags,map(string),no,,no-chart
-aws,security-group,timeouts,"object({create, delete})",no,,no-chart
-aws,security-group,use_name_prefix,bool,no,,no-chart
-aws,security-group,vpc_associations,map(object({vpc_id})),no,,no-chart
-aws,security-group,vpc_id,string,no,,no-chart
+aws,security-group,create,bool,yes,,
+aws,security-group,description,string,yes,,
+aws,security-group,egress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",partial,"accepted, but each rule's name and tags (the Name tag of an aws_vpc_security_group_*_rule) are not carried: ACK keeps a group's rules inline in SecurityGroup, which has no per-rule tags",gap
+aws,security-group,enable_exclusive_rules,bool,no,"ACK keeps the group's rules inline and owns all of them, as enable_exclusive_rules: true does; letting rules added elsewhere stay has no ACK equivalent",gap
+aws,security-group,ingress_rules,"map(object({cidr_ipv4, cidr_ipv6, description, from_port, ip_protocol, name, +4}))",partial,"accepted, but each rule's name and tags (the Name tag of an aws_vpc_security_group_*_rule) are not carried: ACK keeps a group's rules inline in SecurityGroup, which has no per-rule tags",gap
+aws,security-group,name,string,yes,,
+aws,security-group,putin_khuylo,bool,yes,,
+aws,security-group,region,string,yes,,
+aws,security-group,revoke_rules_on_delete,bool,no,ACK's SecurityGroup has no field to revoke its rules before it is deleted,gap
+aws,security-group,tags,map(string),yes,,
+aws,security-group,timeouts,"object({create, delete})",no,"Terraform's create and delete timeouts: ACK retries until the group is synced, and Bundt waits for it",by-design
+aws,security-group,use_name_prefix,bool,partial,"accepted: true (the default) names the group name as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' groups apart",gap
+aws,security-group,vpc_associations,map(object({vpc_id})),no,aws_vpc_security_group_vpc_association has no ACK or ack-extensions kind,gap
+aws,security-group,vpc_id,string,yes,,
 aws,rds,allocated_storage,number,no,,no-chart
 aws,rds,allow_major_version_upgrade,bool,no,,no-chart
 aws,rds,apply_immediately,bool,no,,no-chart
