@@ -36,7 +36,7 @@ The module's variables, with the same names, types and defaults.
 | `backends` | the backend service's `backend` entries (`CONNECTION` balancing); a `group` is an instance group's id or self link, as in fabric; a key of `group_configs` also refers to the chart's group (fabric's callers pass its `group_self_links` output, which one component cannot read of itself) |
 | `forwarding_rules_config` | one `ComputeForwardingRule` per key (`EXTERNAL`): address (an IP, else an address reference), IP version when no address, protocol, ports or all ports, subnetwork |
 | `group_configs` | one unmanaged `ComputeInstanceGroup` per key, with its instances and named ports |
-| `health_check`, `health_check_config` | an existing health check, or the regional `ComputeHealthCheck` the chart makes, with one of its six check types; fabric's one-type check. Helm merges a values file's `health_check_config` into the default (`tcp` on the serving port) where Terraform replaces it, so a type set beside the untouched default drops the default |
+| `health_check`, `health_check_config` | an existing health check, or the regional `ComputeHealthCheck` the chart makes, with one of its six check types; fabric's one-type check. Helm merges a values file's `health_check_config` into the default (`tcp` on the serving port) where Terraform replaces it, so a type set beside the untouched default drops the default, and a `tcp` check that sets its own `port` or `port_name` drops the default's `port_specification` (the API refuses a port with `USE_SERVING_PORT`) |
 | `context` | refused: Bundt expressions (`${...}`) and `valueFrom` replace fabric's `$context` lookups |
 | `deletion_policy` | not a fabric variable; `ABANDON` keeps the cloud resources |
 
@@ -76,6 +76,14 @@ schemas, and the refusals in `tests/*.fail.yaml`.
 Fake cloud (`task test-mock MOCK_CHARTS=net-lb-ext`, 2026-11-12): an empty
 group the chart makes, the default health check and a forwarding rule on
 port 80: every object Ready, the outputs evaluated, every object deleted.
+
+Applied live on 2026-11-12 (`hack/live-apply.sh` with
+`LIVE_CHARTS=net-lb-ext`, offload VM as `catalog-live-tests`): the same
+objects with a TCP health check on port 80: all Ready, the outputs
+evaluated, deleted, and gone from Google Cloud. The first run failed: the
+`tcp` check rendered `port: 80` beside the default's `USE_SERVING_PORT`,
+which the API refuses; the chart now drops the default's
+`port_specification` there (`tests/tcp-port.values.yaml`).
 
 ## Changes
 

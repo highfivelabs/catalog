@@ -23,11 +23,12 @@
 #
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
-# artifact-registry, net-vpc-firewall, net-vpc-peering and net-lb-int. Each
+# artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int and
+# net-lb-ext. Each
 # needs the runner's roles on its resources: the pilot's are
 # catalog-live-tests', artifact-registry needs roles/artifactregistry.admin,
 # net-vpc-firewall roles/compute.securityAdmin (cce-live-tests has both),
-# net-lb-int roles/compute.networkAdmin (both have it). A chart whose case
+# net-lb-int and net-lb-ext roles/compute.networkAdmin (both have it). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -71,6 +72,7 @@ FWNET="${RUN}-fwnet"
 PEER_A="${RUN}-pa"
 PEER_B="${RUN}-pb"
 ILB="${RUN}-ilb"
+NLB="${RUN}-nlb"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
@@ -106,6 +108,11 @@ sweep_run() {
   "${G[@]}" compute backend-services delete "${r}-ilb" --region "${REGION}" >/dev/null 2>&1 && echo "swept backend service ${r}-ilb" || true
   "${G[@]}" compute health-checks delete "${r}-ilb" --global >/dev/null 2>&1 && echo "swept health check ${r}-ilb" || true
   "${G[@]}" compute instance-groups unmanaged delete "${r}-ilb-a" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept instance group ${r}-ilb-a" || true
+  # net-lb-ext: the forwarding rule, backend service, health check and group.
+  "${G[@]}" compute forwarding-rules delete "${r}-nlb" --region "${REGION}" >/dev/null 2>&1 && echo "swept forwarding rule ${r}-nlb" || true
+  "${G[@]}" compute backend-services delete "${r}-nlb" --region "${REGION}" >/dev/null 2>&1 && echo "swept backend service ${r}-nlb" || true
+  "${G[@]}" compute health-checks delete "${r}-nlb" --region "${REGION}" >/dev/null 2>&1 && echo "swept health check ${r}-nlb" || true
+  "${G[@]}" compute instance-groups unmanaged delete "${r}-nlb-a" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept instance group ${r}-nlb-a" || true
   for n in "${r}-ilb-psc" "${r}-ilb-sn"; do
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
@@ -345,6 +352,21 @@ spec:
   networkRef: {name: live-ilb-net}
 NEEDS
 
+cat >"${OUT}/net-lb-ext.values.yaml" <<VALUES
+project_id: ${PROJECT}
+region: ${REGION}
+name: ${NLB}
+labels: {catalog-run: ${RUN}}
+group_configs:
+  a: {zone: ${REGION}-a}
+backends:
+  - group: a
+forwarding_rules_config:
+  "": {ports: ["80"]}
+health_check_config:
+  tcp: {port: 80}
+VALUES
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -421,6 +443,12 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute instance-groups unmanaged describe "${ILB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute service-attachments describe "${ILB}" --region "${REGION}" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks describe "${ILB}-net" >/dev/null 2>&1 && gone=no ;;
+    net-lb-ext)
+      gone=yes
+      "${G[@]}" compute forwarding-rules describe "${NLB}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute backend-services describe "${NLB}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute health-checks describe "${NLB}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute instance-groups unmanaged describe "${NLB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
