@@ -103,6 +103,7 @@ func Files(res *Result) (map[string][]byte, error) {
 	for _, r := range shown(res) {
 		files[barPath(r)] = progressBar(r)
 	}
+	files[BlockedKindsPath] = blockedKindsPage(res)
 	return files, nil
 }
 
