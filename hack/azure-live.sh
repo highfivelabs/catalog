@@ -5,10 +5,14 @@
 # Apply the Azure charts (avm-res-network-virtualnetwork,
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
-# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
+# avm-res-network-natgateway, avm-res-network-publicipaddress,
+# avm-res-network-privatednszone,
+# avm-res-managedidentity-userassignedidentity,
+# avm-res-operationalinsights-workspace) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
+# uai law)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -45,7 +49,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -135,7 +139,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*' \
+  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*' \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -149,7 +153,10 @@ kubectl -n azureserviceoperator-system rollout status deployment azureserviceope
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
-    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    privatednszones.network.azure.com privatednszonesarecords.network.azure.com privatednszonestxtrecords.network.azure.com \
+    privatednszonesvirtualnetworklinks.network.azure.com userassignedidentities.managedidentity.azure.com \
+    federatedidentitycredentials.managedidentity.azure.com workspaces.operationalinsights.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -227,6 +234,39 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# A zone named for the run, with an A and a TXT record and no link (a
+# link needs a network of the run; the network chart is its own case).
+cat >"${WORK}/dns.yaml" <<EOF
+domain_name: ${RUN}.catalog.internal
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+a_records:
+  app: {name: app, ttl: 60, ip_addresses: [10.250.0.10]}
+txt_records:
+  owner: {name: "@", ttl: 60, records: {a: {value: [catalog-run=${RUN}]}}}
+EOF
+# An identity with a federated credential; no outbound role assignment
+# (the live identity may not assign roles).
+cat >"${WORK}/uai.yaml" <<EOF
+name: ${RUN}-uai
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+tags: {catalog-run: ${RUN}}
+federated_identity_credentials:
+  gh: {name: gh-main, audience: [api://AzureADTokenExchange], issuer: https://token.actions.githubusercontent.com, subject: "repo:highfivelabs/catalog:ref:refs/heads/main"}
+EOF
+# A workspace at the smallest retention its SKU takes, with a diagnostic
+# setting to itself (the module's default destination).
+cat >"${WORK}/law.yaml" <<EOF
+name: ${RUN}-law
+location: ${LOCATION}
+resource_group_name: ${RG}
+log_analytics_workspace_retention_in_days: 30
+tags: {catalog-run: ${RUN}}
+diagnostic_settings:
+  self: {log_groups: [audit], metric_categories: []}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -240,7 +280,8 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress; do
+    pip:avm-res-network-publicipaddress dns:avm-res-network-privatednszone \
+    uai:avm-res-managedidentity-userassignedidentity law:avm-res-operationalinsights-workspace; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
