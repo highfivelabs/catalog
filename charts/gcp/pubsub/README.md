@@ -89,6 +89,12 @@ chart carries), `names` and `mock`, each validated against Config Connector
 v1.160.0's CRD schemas (and `IAMBinding` against config-connector-extensions'),
 and the refusals in `tests/*.fail.yaml`.
 
+Applied to the fake cloud on 2026-11-12 on an offload VM (`task test-mock
+MOCK_CHARTS=pubsub`): `tests/mock.values.yaml`, a topic with `iam` and a
+subscription with a retry policy and an additive member: all 4 objects
+Ready, the outputs evaluated, all deleted. Not applied live yet: neither
+live-test account holds a Pub/Sub role in the test project.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: topic, schema, subscriptions of every
