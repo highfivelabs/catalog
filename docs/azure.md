@@ -430,11 +430,11 @@ Covered.
 | root | `managedClusters@2026-03-01` (and `2026-03-02-preview`), credential actions | `containerservice/ManagedCluster` (2025-08-01). The kubeconfig is exported to a Secret through `operatorSpec.secrets` |
 | `agentpool` | `managedClusters/agentPools@2026-01-02-preview` | `ManagedClustersAgentPool` (2025-08-01) |
 | `maintenanceconfiguration` | `maintenanceConfigurations@2026-03-01` | `MaintenanceConfiguration` |
-| `namespace` | `managedNamespaces@2026-03-01` | **GAP** |
+| `namespace` | `managedNamespaces@2026-03-01` | aso-extensions `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`, 2026-05-01) |
 | `monitoring` | data collection rules, endpoints and associations | `insights/DataCollectionRule`, `DataCollectionEndpoint`, `DataCollectionRuleAssociation` (2024-03-11) |
 | `alerting` | Prometheus rule groups, action groups, metric alerts | `alertsmanagement/PrometheusRuleGroup`, `insights/ActionGroup`, `insights/MetricAlert` |
 
-Covered, except managed namespaces and preview-only properties.
+Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8).
 
 ### 17. avm-res-dbforpostgresql-flexibleserver (v0.2.3; azurerm)
 
@@ -706,6 +706,12 @@ aso-extensions:
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
 
+Field gaps in ASO's agent pool (up to API 2025-10-02-preview), which
+`avm-res-containerservice-managedcluster` refuses: `enableOSDiskFullCaching`
+and `gpuProfile.nvidia` (`default_agent_pool` and `agent_pools`), and the
+`ignore-pod-disruption-budget` option of a pool's delete
+(`delete_options`).
+
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
@@ -760,6 +766,12 @@ and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
 Azure answering 404, nothing left.
+
+The AKS chart (`avm-res-containerservice-managedcluster`) is not applied
+live: AKS makes the cluster's node resource group (`MC_<group>_<name>_<region>`,
+or `node_resource_group`) beside the sandbox's one resource group, at
+subscription scope, where the live identity has no rights and the live
+rules allow no change. Its renders and the fake cloud are its tests.
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
