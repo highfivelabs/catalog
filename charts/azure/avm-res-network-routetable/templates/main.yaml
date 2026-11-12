@@ -1,0 +1,83 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-routetable main.tf,
+modules/route/main.tf and locals.tf (v0.6.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_route_table.this: one ASO RouteTable, owned by the resource group
+resource_group_name names. module.routes (azapi_resource.route,
+Microsoft.Network/routeTables/routes) and, in legacy mode, azurerm_route:
+one ASO RouteTablesRoute per entry, owned by the table. azurerm_management_lock:
+an aso-extensions ManagementLock, with the module's notes.
+azurerm_role_assignment: one ASO RoleAssignment each.
+azurerm_subnet_route_table_association is refused (subnet_resource_ids).
+The telemetry deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "subnet_resource_ids" $v.subnet_resource_ids "an association is the routeTable property of an existing subnet, which ASO sets only by owning the whole subnet (VirtualNetworksSubnet); set the subnet's route_table in avm-res-network-virtualnetwork") }}
+{{- include "aso.names" (list $ (list "routeTable")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-routetable: name is required" }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-routetable: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $names := list }}
+{{- range $_, $r := ($v.routes | default dict) }}
+{{- if has $r.name $names }}{{ fail "avm-res-network-routetable: Each route name must be unique within the route table." }}{{ end }}
+{{- $names = append $names $r.name }}
+{{- if and (ne $r.next_hop_type "VirtualAppliance") (not (kindIs "invalid" $r.next_hop_in_ip_address)) }}
+{{- fail "avm-res-network-routetable: If next_hop_type is not VirtualAppliance, next_hop_in_ip_address must be null." }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "rt") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "route_table" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "routeTable" "route table" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  disableBgpRoutePropagation: {{ eq $v.bgp_route_propagation_enabled false }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $key, $r := ($v.routes | default dict) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "route" $key)) "id" (printf "route:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | quote }}
+  owner:
+    name: {{ $obj }}
+  addressPrefix: {{ $r.address_prefix | quote }}
+  nextHopType: {{ $r.next_hop_type }}
+  {{- with $r.next_hop_in_ip_address }}
+  nextHopIpAddress: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "RouteTable" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
