@@ -379,7 +379,13 @@ func convertValue(v any, s *Schema, path string, nested map[string]string) (any,
 			if !ok {
 				return nil, false
 			}
-			return convertObject(m, s, path, nested)
+			if cv, ok := convertObject(m, s, path, nested); ok {
+				return cv, true
+			}
+			// The block is there with nothing set inside: its presence is
+			// the setting (a secret's replication { auto {} }), so it stays,
+			// empty.
+			return map[string]any{}, true
 		case map[string]any:
 			if s.Properties == nil {
 				return convertMap(t, s)

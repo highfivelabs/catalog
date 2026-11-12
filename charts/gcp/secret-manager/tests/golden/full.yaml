@@ -1,0 +1,157 @@
+---
+# Source: secret-manager/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-test-auto-iam-binding-viewers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "secret:test-auto:iam-binding-viewers"
+spec:
+  resourceRef:
+    apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+    kind: SecretManagerSecret
+    name: full-test-auto
+  role: "roles/secretmanager.viewer"
+  members:
+    - "group:auditors@example.com"
+  condition:
+    title: "expires_after_2027"
+    expression: "request.time < timestamp(\"2028-01-01T00:00:00Z\")"
+    description: "Expiring at the end of 2027"
+---
+# Source: secret-manager/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-test-auto-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "secret:test-auto:iam"
+spec:
+  resourceRef:
+    apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+    kind: SecretManagerSecret
+    name: full-test-auto
+  bindings:
+    - role: "roles/secretmanager.secretAccessor"
+      members:
+        - member: "serviceAccount:app@my-project.iam.gserviceaccount.com"
+---
+# Source: secret-manager/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-test-auto-iam-ci
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "secret:test-auto:iam-additive-ci"
+spec:
+  resourceRef:
+    apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+    kind: SecretManagerSecret
+    name: full-test-auto
+  role: "roles/secretmanager.secretVersionAdder"
+  member: "serviceAccount:ci@my-project.iam.gserviceaccount.com"
+---
+# Source: secret-manager/templates/secrets.yaml
+apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+kind: SecretManagerSecret
+metadata:
+  name: full-test-auto
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    app: "checkout"
+    env: "dev"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "secret:test-auto"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "test-auto"
+  annotations:
+    "owner": "platform"
+  versionAliases:
+    "current": "1"
+  ttl: "86400s"
+  replication:
+    auto:
+      customerManagedEncryption:
+        kmsKeyRef:
+          external: "projects/my-project/locations/global/keyRings/kr/cryptoKeys/k"
+  rotation:
+    nextRotationTime: "2027-01-01T00:00:00Z"
+    rotationPeriod: "2592000s"
+  topics:
+    - topicRef:
+        external: "projects/my-project/topics/rotation"
+---
+# Source: secret-manager/templates/secrets.yaml
+apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+kind: SecretManagerSecret
+metadata:
+  name: full-test-user
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "secret:test-user"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "test-user"
+  expireTime: "2030-01-01T00:00:00Z"
+  replication:
+    userManaged:
+      replicas:
+        - location: "europe-west1"
+          customerManagedEncryption:
+            kmsKeyRef:
+              external: "projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k"
+        - location: "europe-west3"
+---
+# Source: secret-manager/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: full-test-auto-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "platform"
+  annotations:
+    hfl.dev/id: "secret:test-auto:tag-env"
+spec:
+  parentRef:
+    external: "//secretmanager.googleapis.com/projects/123456789012/secrets/test-auto"
+  tagValueRef:
+    external: "tagValues/1234567890"

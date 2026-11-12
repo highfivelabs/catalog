@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "secret-manager values (fabric secret-manager v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id"],
+  "definitions": {
+    "stringOrNull": {"type": ["string", "null"]},
+    "boolOrNull": {"type": ["boolean", "null"]},
+    "stringMap": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+    "condition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["expression", "title"],
+      "properties": {
+        "expression": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "secret": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {"$ref": "#/definitions/stringMap"},
+        "deletion_protection": {"$ref": "#/definitions/boolOrNull"},
+        "kms_key": {"$ref": "#/definitions/stringOrNull"},
+        "labels": {"$ref": "#/definitions/stringMap"},
+        "global_replica_locations": {"type": ["object", "null"], "additionalProperties": {"type": ["string", "null"]}},
+        "location": {"$ref": "#/definitions/stringOrNull"},
+        "tag_bindings": {"$ref": "#/definitions/stringMap"},
+        "tags": {"$ref": "#/definitions/stringMap"},
+        "expiration_config": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {"time": {"$ref": "#/definitions/stringOrNull"}, "ttl": {"$ref": "#/definitions/stringOrNull"}}
+        },
+        "iam": {"type": ["object", "null"], "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+        "iam_bindings": {
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["members", "role"],
+            "properties": {
+              "members": {"type": "array", "items": {"type": "string"}},
+              "role": {"type": "string"},
+              "condition": {"$ref": "#/definitions/condition"}
+            }
+          }
+        },
+        "iam_bindings_additive": {
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["member", "role"],
+            "properties": {
+              "member": {"type": "string"},
+              "role": {"type": "string"},
+              "condition": {"$ref": "#/definitions/condition"}
+            }
+          }
+        },
+        "version_config": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "aliases": {"type": ["object", "null"], "additionalProperties": {"type": "integer"}},
+            "destroy_ttl": {"$ref": "#/definitions/stringOrNull"}
+          }
+        },
+        "versions": {
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["data"],
+            "properties": {
+              "data": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "value": {"$ref": "#/definitions/stringOrNull"},
+                  "path": {"$ref": "#/definitions/stringOrNull"},
+                  "wo_version": {"type": ["number", "null"]}
+                }
+              },
+              "deletion_policy": {"enum": ["DELETE", "DISABLE", "ABANDON", null]},
+              "enabled": {"$ref": "#/definitions/boolOrNull"},
+              "is_base64": {"$ref": "#/definitions/boolOrNull"}
+            }
+          }
+        },
+        "rotation_config": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["period"],
+          "properties": {"next_time": {"$ref": "#/definitions/stringOrNull"}, "period": {"type": "string"}}
+        },
+        "topics": {"type": ["array", "null"], "items": {"type": "string"}}
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Secret IDs set in full, by key of secrets (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; a secret not named here is named by its key.",
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 255, "pattern": "^[A-Za-z0-9_-]+$"}
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived secret ID, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "context": {"description": "fabric's context interpolations; refused when set.", "type": ["object", "null"]},
+    "project_id": {"description": "Project id where the secrets are created.", "type": "string", "minLength": 1},
+    "project_number": {"description": "Project number of project_id, for the tag bindings' parent.", "$ref": "#/definitions/stringOrNull"},
+    "secrets": {
+      "description": "Map of secrets to manage, by secret ID.",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[A-Za-z0-9_-]{1,255}$"},
+      "additionalProperties": {"$ref": "#/definitions/secret"}
+    },
+    "deletion_policy": {"description": "DELETE (default) or ABANDON (not a fabric variable).", "enum": ["DELETE", "ABANDON", "PREVENT", null]}
+  }
+}

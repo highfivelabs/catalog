@@ -1,0 +1,63 @@
+# component secret-manager-dev-secret-manager
+---
+# Source: secret-manager/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: secret-manager-dev-secret-manager-test-auto-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "secret-manager-dev-secret-manager"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "secret:test-auto:iam"
+spec:
+  resourceRef:
+    apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+    kind: SecretManagerSecret
+    name: secret-manager-dev-secret-manager-test-auto
+  bindings:
+    - role: "roles/secretmanager.secretAccessor"
+      members:
+        - member: "serviceAccount:app@myproject.iam.gserviceaccount.com"
+---
+# Source: secret-manager/templates/secrets.yaml
+apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+kind: SecretManagerSecret
+metadata:
+  name: secret-manager-dev-secret-manager-test-auto
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "secret-manager-dev-secret-manager"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "secret:test-auto"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "test-auto"
+  replication:
+    auto: {}
+---
+# Source: secret-manager/templates/secrets.yaml
+apiVersion: secretmanager.cnrm.cloud.google.com/v1beta1
+kind: SecretManagerSecret
+metadata:
+  name: secret-manager-dev-secret-manager-test-user
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "secret-manager-dev-secret-manager"
+    app.kubernetes.io/name: secret-manager
+    app.kubernetes.io/version: "0.1.0"
+    app: "checkout"
+  annotations:
+    hfl.dev/id: "secret:test-user"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "test-user"
+  replication:
+    userManaged:
+      replicas:
+        - location: "europe-west1"
+        - location: "europe-west3"

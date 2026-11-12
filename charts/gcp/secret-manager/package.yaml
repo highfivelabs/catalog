@@ -1,0 +1,21 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"): ids from the rendered secrets (a secret is secret:<key>), as
+# fabric's projects/<project>/secrets/<secret id>. Not outputs: secrets and
+# versions (whole Terraform objects), and version_ids and version_versions,
+# since the chart refuses versions (README.md, "Values").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-secret-manager
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'SecretManagerSecret',
+        {k.substring(7): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id'] + '/secrets/' + v.spec.resourceID})
