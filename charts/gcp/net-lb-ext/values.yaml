@@ -1,0 +1,68 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's net-lb-ext module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.backendService, names.healthCheck: the backend service's and the
+# health check's names in full. A name set here takes no namePrefix; unset,
+# fabric's (backend_service_config.name or health_check_config.name, else
+# name).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the chart
+# derives or is given in an entry (forwarding rules, groups, the backend
+# service and the health check), never one set
+# under names. Empty (the default) changes nothing.
+namePrefix: ""
+# fabric's labels: Kubernetes labels on every object. An unprefixed key also
+# becomes a Google Cloud label (the forwarding rules take labels; the other
+# resources none), so it must be a valid one.
+labels: {}
+# Cloud labels on every resource that takes them (the forwarding rules).
+tags: {}
+
+# Backend service level configuration: connection_draining_timeout_sec,
+# connection_tracking, failover_config, locality_lb_policy, log_config,
+# name, description, port_name, protocol, security_policy,
+# session_affinity, timeout_sec.
+backend_service_config: {}
+# Load balancer backends: [{group, description, failover}]. group is a key
+# of group_configs or an instance group's id or self link.
+backends: []
+# fabric's context interpolations. Refused when set: Bundt expressions and
+# valueFrom replace them.
+context: {}
+# The forwarding rules, keyed: {address, description, ipv6, name, ports,
+# protocol, subnetwork (required for IPv6)}. The "" key is named after name, the others
+# <name>-<key>.
+forwarding_rules_config:
+  "": {}
+# Optional unmanaged groups to create, keyed: {zone, name, description,
+# instances, named_ports}.
+group_configs: {}
+# Id or self link of an existing health check; disables the auto-created
+# one.
+health_check: null
+# The auto-created health check: check_interval_sec, description,
+# enable_logging, healthy_threshold, name, timeout_sec,
+# unhealthy_threshold and one of grpc, http, http2, https, tcp, ssl.
+health_check_config:
+  tcp:
+    port_specification: USE_SERVING_PORT
+# Project id where resources will be created.
+project_id: null
+# GCP region.
+region: null
+# Name used for all resources.
+name: null
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# cloud resources when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null

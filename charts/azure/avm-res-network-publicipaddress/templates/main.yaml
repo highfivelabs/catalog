@@ -1,0 +1,101 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-publicipaddress main.tf and
+locals.tf (v0.2.1), Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_public_ip.this: one ASO PublicIPAddress, owned by the resource
+group resource_group_name names. azurerm_management_lock.this: an
+aso-extensions ManagementLock, with the module's notes.
+azurerm_role_assignment.this: one ASO RoleAssignment each.
+azurerm_monitor_diagnostic_setting.this: one ASO DiagnosticSetting each,
+Dedicated sent as null, as the module sends it. The telemetry is not
+ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.names" (list $ (list "publicIp")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-publicipaddress: name is required" }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-publicipaddress: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "pip") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "public_ip" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "publicIp" "public IP" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  ddosSettings:
+    {{- with $v.ddos_protection_plan_id }}
+    ddosProtectionPlan:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    protectionMode: {{ $v.ddos_protection_mode }}
+  {{- if or $v.domain_name_label $v.reverse_fqdn }}
+  dnsSettings:
+    {{- with $v.domain_name_label }}
+    domainNameLabel: {{ . | quote }}
+    {{- end }}
+    {{- with $v.reverse_fqdn }}
+    reverseFqdn: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  idleTimeoutInMinutes: {{ $v.idle_timeout_in_minutes | int }}
+  {{- with $v.ip_tags }}
+  ipTags:
+    {{- range $k, $t := . }}
+    - ipTagType: {{ $k | quote }}
+      tag: {{ $t | quote }}
+    {{- end }}
+  {{- end }}
+  publicIPAddressVersion: {{ $v.ip_version }}
+  publicIPAllocationMethod: {{ $v.allocation_method }}
+  {{- with $v.public_ip_prefix_id }}
+  publicIPPrefix:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  sku:
+    name: {{ $v.sku }}
+    tier: {{ $v.sku_tier }}
+  {{- $zones := list }}
+  {{- range ($v.zones | default list) }}{{ $zones = append $zones (toString (int .)) }}{{ end }}
+  {{- with (uniq $zones | sortAlpha) }}
+  zones:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}

@@ -1,0 +1,212 @@
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: full-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "spoke-ra-cr"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  bgp:
+    asn: 65000
+    advertiseMode: CUSTOM
+    advertisedGroups: [ALL_SUBNETS]
+    advertisedIpRanges:
+      - range: "10.254.0.0/24"
+        description: "other"
+      - range: "10.255.0.0/24"
+        description: "onprem"
+    keepaliveInterval: 20
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: full-intf0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "intf_0"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "spoke-ra-cr-intf0"
+  region: "europe-west1"
+  routerRef:
+    name: full-router
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/subnet"
+  privateIpAddressRef:
+    external: "10.0.0.14"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: full-intf1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "intf_1"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "spoke-ra-cr-intf1"
+  region: "europe-west1"
+  routerRef:
+    name: full-router
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/subnet"
+  privateIpAddressRef:
+    external: "10.0.0.15"
+  redundantInterfaceRef:
+    name: full-intf0
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: full-peer-0-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_0:0"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "spoke-ra-cr-router-app-a-peer1"
+  region: "europe-west1"
+  routerRef:
+    name: full-router
+  routerInterfaceRef:
+    name: full-intf0
+  advertisedRoutePriority: 200
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.3"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-b/instances/router-app-a"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: full-peer-1-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_1:0"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "spoke-ra-cr-router-app-a-peer2"
+  region: "europe-west1"
+  routerRef:
+    name: full-router
+  routerInterfaceRef:
+    name: full-intf1
+  advertisedRoutePriority: 200
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.3"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-b/instances/router-app-a"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: full-route-policy-import-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:import-all"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "import-all"
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  routerRef:
+    name: full-router
+  type: ROUTE_POLICY_TYPE_IMPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "destination == '10.0.0.0/8'"
+        title: "rfc1918"
+      actions:
+        - expression: "accept()"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivityHub
+metadata:
+  name: full-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "hub"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "prod-hub"
+  projectRef:
+    external: "my-project"
+  description: "the hub"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivitySpoke
+metadata:
+  name: full-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "spoke_ra"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "spoke-ra"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  hubRef:
+    name: full-hub
+  linkedRouterApplianceInstances:
+    instances:
+      - ipAddress: "10.0.0.3"
+        virtualMachineRef:
+          external: "projects/my-project/zones/europe-west1-b/instances/router-app-a"
+    siteToSiteDataTransfer: true
