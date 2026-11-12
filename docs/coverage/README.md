@@ -54,9 +54,9 @@ supported". A variable the chart does not list at all counts as not covered
 
 | `gap_kind` | Meaning |
 | --- | --- |
-| `gap` | Config Connector has no kind or field for it |
+| `gap` | Config Connector (on Azure: Azure Service Operator or aso-extensions) has no kind or field for it |
 | `alpha` | only a `v1alpha1` kind exists, or it needs `allow_alpha: true` |
-| `not-ported` | Config Connector has a stable kind; the chart does not map it yet |
+| `not-ported` | Config Connector (on Azure: ASO or aso-extensions) has a stable kind; the chart does not map it yet |
 | `by-design` | Bundt replaces it (`$context` lookups, reusing a resource, `factories_config`) |
 | `no-chart` | the module has no chart yet |
 
