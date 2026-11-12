@@ -1,0 +1,55 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpc-peering/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_compute_network_peering.local_network_peering and, with
+peer_create_peering, .peer_network_peering: a ComputeNetworkPeering on
+each side, named as fabric names them, with their route settings (export
+and import true unless set, as fabric's defaults).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "local" "peer")) }}
+{{- $link := dict "local" (trimPrefix "https://www.googleapis.com/compute/v1/" $v.local_network) "peer" (trimPrefix "https://www.googleapis.com/compute/v1/" $v.peer_network) }}
+{{- $short := dict "local" (splitList "/" $v.local_network | last) "peer" (splitList "/" $v.peer_network | last) }}
+{{- $prefix := ternary "" (printf "%s-" (toString $v.prefix)) (kindIs "invalid" $v.prefix) }}
+{{- $sides := list "local" }}{{ if $v.peer_create_peering }}{{ $sides = append $sides "peer" }}{{ end }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $side := $sides }}
+{{- $other := ternary "peer" "local" (eq $side "local") }}
+{{- $given := index ($v.name | default dict) $side }}
+{{- $auto := printf "%s%s-%s" $prefix (index $short $side) (index $short $other) }}
+{{- $resourceName := "" }}
+{{- if or (index $v.names $side) (not $given) }}
+{{- if and (not (index $v.names $side)) (gt (len (printf "%s%s" (include "kcc.namePrefix" $) $auto)) 63) (not $v.namePrefix) }}
+{{- fail (printf "net-vpc-peering: The default peering name exceeds 63 characters. Use var.name.%s to provide a custom the name." $side) }}
+{{- end }}
+{{- $resourceName = include "kcc.resourceName" (list $ $side (printf "%s peering" $side) $auto 63 "letter") }}
+{{- else }}
+{{- $resourceName = include "kcc.cloudName" (list $ (printf "%s peering" $side) $given 63 "letter") }}
+{{- end }}
+{{- $rc := index ($v.routes_config | default dict) $side | default dict }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkPeering
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name $side)) "id" (printf "%s_network_peering" $side) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $resourceName | quote }}
+  networkRef:
+    external: {{ index $link $side | quote }}
+  peerNetworkRef:
+    external: {{ index $link $other | quote }}
+  exportCustomRoutes: {{ ternary true $rc.export (kindIs "invalid" $rc.export) }}
+  importCustomRoutes: {{ ternary true $rc.import (kindIs "invalid" $rc.import) }}
+  {{- if not (kindIs "invalid" $rc.public_export) }}
+  exportSubnetRoutesWithPublicIp: {{ $rc.public_export }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $rc.public_import) }}
+  importSubnetRoutesWithPublicIp: {{ $rc.public_import }}
+  {{- end }}
+  {{- with $v.stack_type }}
+  stackType: {{ . | quote }}
+  {{- end }}
+{{- end }}
