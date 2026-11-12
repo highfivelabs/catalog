@@ -25,6 +25,7 @@ those modules keeps its variables, its names and its outputs.
 | `Taskfile.yml` | the entry points: `task check`, `test`, `test-live`, `test-mock`, `inventory`, `upstream-check`, `coverage`, `coverage-check`, `coverage-verify`, `convert`, `examples-test`, `upstream-watch`, `upstream-bump`, `tools-test` (`task --list`) |
 | `hack/test.sh`, `hack/ack.sh` | render tests (offline, seconds), behind `task test`; `hack/ack.sh` fetches the CRDs of the ACK controllers `UPSTREAM.md` pins |
 | `hack/mock-apply.sh`, `hack/live-apply.sh` | the fake-cloud and real-project applies (an offload VM, never a laptop), behind `task test-mock` and `task test-live` |
+| `hack/azure-live.sh` | the Azure charts applied to the Azure sandbox with Azure Service Operator on kind (an offload VM, keyless federation), behind `task test-live-azure` |
 | `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
 | `UPSTREAM.md` | the fabric and Config Connector commits everything is pinned to, the tracked modules' licences, and how to move a pin |
 

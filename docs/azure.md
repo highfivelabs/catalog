@@ -717,9 +717,30 @@ secret's value does not belong in a component's inputs).
 
 **Testing.** Layer 1 (render, `task test`) as on Google Cloud: golden
 files, `kubeconform -strict` against ASO v2.22.0's CRDs and aso-extensions'
-copied CRDs, refusals, `catalogtool ids` and `nameprefix`. Each chart has a
-`tests/mock.values.yaml` for layer 2, the fake cloud. Layers 2 and 3 do
-not run yet for Azure: aso-extensions' fake Resource Manager
-(`cmd/fakearm`) stands in for Azure, but ASO itself must run against it (or,
-live, against the sandbox subscription through the offload VMs' keyless
-federation), and the catalog has no harness that installs ASO yet.
+copied CRDs, refusals, `catalogtool ids` and `nameprefix`.
+
+Layer 3 (live, `task test-live-azure`, `hack/azure-live.sh`): on an
+offload VM acting as the service account the sandbox's app registration is
+federated to (no secret, as aso-extensions' live runs), kind runs ASO
+v2.22.0 from its own Helm chart, with cert-manager for the webhooks that
+convert between its CRD versions (ASO cannot run without them, so it is
+not run on the host as Config Connector is). ASO's credential is the VM's
+Google ID token, mounted where ASO's global workload identity credential
+reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
+chart's projected service account token, whose kind issuer Entra does not
+trust). The virtual network, storage account and key vault charts are
+applied with tiny resources named for the run, in the one resource group
+the identity is Contributor on; every object must become Ready, the
+Package's outputs are evaluated against the live objects, every object is
+deleted and Azure must answer 404 for it; anything of the run left is
+swept. The resource group chart (subscription scope) and the
+aso-extensions lock (its manager is not installed) are not applied. A
+deleted key vault stays soft-deleted for 7 days (purging needs a
+subscription-scope right). First passed on 2026-11-12.
+
+Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
+Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
+gets its token from Entra over HTTP (`AZURE_AUTHORITY_HOST`), and
+aso-extensions' fake Entra is an in-process `http.RoundTripper` only: a
+fake Entra server (and ASO trusting the fake cloud's CA) is what is
+missing. Each chart's `tests/mock.values.yaml` is ready for it.
