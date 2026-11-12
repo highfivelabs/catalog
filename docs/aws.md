@@ -611,7 +611,7 @@ Config Connector. What differs:
 
 | Chart | Module | Notes |
 | --- | --- | --- |
-| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, Block Public Access and the default resources are refused (the chart's README) |
+| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, the default resources are refused; Block Public Access options through ack-extensions (Cloud Control, `allow_alpha`), its exclusions refused (no reference from the exclusion kind to the VPC or subnet) (the chart's README) |
 | `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations, `revoke_rules_on_delete` and non-exclusive rules are refused |
 | `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
@@ -684,7 +684,7 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | `egressOnlyInternetGatewayRef` on a route; a subnet's IPv6 block from its VPC's (`ipv6CIDRBlock` derived from the VPC's Amazon-provided block) | vpc (IPv6) | reference fields on ACK's `RouteTable` and `Subnet` (upstream) |
 | Adopting a VPC's default security group, network ACL and main route table by their VPC | vpc (`default_security_group_*`, `default_network_acl_*`, `default_route_table_*`) | kinds that take a `vpcRef` and manage the VPC's default object |
 | Redshift `ClusterSubnetGroup` | vpc (redshift subnets) | generated, or ACK's redshift-controller released |
-| VPC Block Public Access options and exclusions | vpc | generated |
+| References on ack-extensions' `VPCBlockPublicAccessExclusion` (`vpcRef`, `subnetRef`) and `SecurityGroupVpcAssociation` (`groupRef`): the kinds exist (Cloud Control) but take IDs a chart cannot know in one render | vpc (`vpc_block_public_access_exclusions`), security-group (`vpc_associations`) | reference fields on ack-extensions' Cloud Control kinds |
 | `SecurityGroupVPCAssociation` (`AssociateSecurityGroupVpc`) | security-group (`vpc_associations`) | generated |
 | Standalone security group rules with tags (section 5, gap 6) | security-group (each rule's `name` and `tags`) | design question, as in section 5 |
 | KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |
