@@ -46,18 +46,22 @@ org_policies:
 | `contacts` | one `EssentialContactsContact` per email |
 | `shared_vpc_service_config` | `host_project`: a `ComputeSharedVPCServiceProject`; `network_users` and `iam_bindings_additive`: `IAMPolicyMember`s on the host project |
 | `default_service_account` | only `keep` (the default) |
+| `shared_vpc_host_config` | `enabled`: a `ComputeSharedVPCHostProject`; `service_projects`: one `ComputeSharedVPCServiceProject` each, attached to this project |
+| `custom_roles` | one `IAMCustomRole` each, its ID the key; title `Custom role <key>` and description `Terraform-managed.` unless given, as fabric; fabric's stage check |
+| `logging_data_access` | one `IAMAuditConfig` per service (`allServices` for all), a log config per type set, with its exempted members |
+| `logging_exclusions` | one `LoggingLogExclusion` each, named by its key (with the `namePrefix`), described `<name> (Terraform-managed).` |
+| `tag_bindings` | one `TagsTagBinding` each on the project: the `Project` object (Config Connector reads its number), or with `project_reuse` the number in `project_reuse.attributes.number`, which it then needs |
 
 ## Not ported
 
 Config Connector has kinds for these; the chart refuses them until they
-are mapped: `custom_roles`, `logging_sinks`, `logging_exclusions`,
-`logging_metrics`, `logging_data_access`, `log_scopes`, `metric_scopes`,
-`notification_channels`, `alerts`, `asset_feeds`, `bigquery_reservations`,
-`tags`, `tag_bindings`, `network_tags`, `tags_config`, `kms_autokeys`,
-`service_encryption_key_ids`, `workload_identity_pools`,
+are mapped: `logging_sinks`, `logging_metrics`, `log_scopes`,
+`metric_scopes`, `notification_channels`, `alerts`, `asset_feeds`,
+`bigquery_reservations`, `tags`, `network_tags`, `tags_config`,
+`kms_autokeys`, `service_encryption_key_ids`, `workload_identity_pools`,
 `pam_entitlements`, `iam_deny_policies` (alpha), `scc_mute_configs`
-(alpha), `scc_sha_custom_modules` (alpha), `shared_vpc_host_config`,
-`vpc_sc`, `quotas`, `factories_config`, `service_agents_config`,
+(alpha), `scc_sha_custom_modules` (alpha), `vpc_sc`, `quotas`,
+`factories_config`, `service_agents_config`,
 `service_agents_folder_bindings`, `service_agents_project_bindings`,
 `iam_by_principals_conditional`.
 
@@ -112,6 +116,15 @@ neither) is applied to the fake cloud.
 
 ## Changes
 
+- **0.5.0** (2026-11-12): five more of fabric's variables:
+  `custom_roles` (one `IAMCustomRole` each, fabric's default title and
+  description), `logging_data_access` (one `IAMAuditConfig` per service),
+  `logging_exclusions` (one `LoggingLogExclusion` each, with the
+  `namePrefix`), `tag_bindings` (one `TagsTagBinding` each, on the Project
+  object, or by `project_reuse.attributes.number`) and
+  `shared_vpc_host_config` (a `ComputeSharedVPCHostProject` and one
+  `ComputeSharedVPCServiceProject` per service project). Values that set
+  none of them render as before, with the new version label.
 - **0.4.0** (2026-11-10): `iam_bindings` render one exact `IAMBinding` each (config-connector-extensions, `iam.gcp.hfl.dev/v1beta1`) by default (K5, K12), instead of bindings of the `IAMPartialPolicy`: members added to those roles out of band are now removed, as fabric removes them. Values that set `iam_bindings` render different objects (`docs/design.md`, "Versioning and the OCI layout").
 - **0.3.0** (2026-11-10): `names` (`names.project`) sets cloud names in full;
   `labels` and `tags` go on every object; `namePrefix` is an optional
