@@ -1,0 +1,90 @@
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableGCPolicy
+metadata:
+  name: mock-gc-events-cf
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "gc-policy:events/cf"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  instanceRef:
+    name: mock
+  tableRef:
+    name: mock-table-events
+  columnFamily: "cf"
+  maxVersion:
+    - number: 2
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableInstance
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-bt"
+  displayName: "catalog-mock-bt"
+  deletionProtection: false
+  cluster:
+    - clusterId: "catalog-mock-cluster-1"
+      zone: "us-central1-a"
+      numNodes: 1
+---
+# Source: bigtable-instance/templates/main.yaml
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableTable
+metadata:
+  name: mock-table-events
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "table:events"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "events"
+  instanceRef:
+    name: mock
+  columnFamily:
+    - family: "cf"
+---
+# Source: bigtable-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigtable-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+    kind: BigtableInstance
+    name: mock
+  bindings:
+    - role: "roles/bigtable.reader"
+      members:
+        - member: "user:dev@example.com"

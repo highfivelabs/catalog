@@ -1,0 +1,109 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the certificate (aws_acm_certificate, acm/Certificate) and its DNS
+validation records (aws_route53_record.validation, route53/RecordSet).
+
+ACK requests every certificate with DNS validation, and the validation
+records' names and values exist only in the Certificate's status once ACK
+has requested it. So one render cannot write the records for a
+certificate it also requests: the records are rendered in the module's
+create_route53_records_only mode, from acm_certificate_domain_validation_options
+given as a value (a second component fed by this one's outputs, as the
+module's "separate AWS providers" example does). Nothing waits for the
+certificate to be ISSUED (aws_acm_certificate_validation has no kind).
+*/ -}}
+{{- include "ack.names" (list $ list) -}}
+{{- $v := .Values -}}
+{{- if $v.putin_khuylo }}
+{{- if and $v.validation_method (not (has $v.validation_method (list "DNS" "EMAIL"))) }}
+{{- fail "acm: validation_method: This variable is optional. Valid values are DNS, EMAIL, or null." }}
+{{- end }}
+{{- /* aws_route53_record.validation's count */}}
+{{- $records := and (or $v.create_certificate $v.create_route53_records_only) (eq (toString $v.validation_method) "DNS") $v.create_route53_records (or $v.validate_certificate $v.create_route53_records_only) }}
+{{- if $v.create_certificate }}
+{{- if eq (toString $v.validation_method) "EMAIL" }}
+{{- fail "acm: validation_method EMAIL is not supported: ACK's Certificate always requests DNS validation (docs/aws.md)" }}
+{{- end }}
+{{- if $records }}
+{{- fail "acm: create_route53_records is not supported for a certificate this component requests: the validation records' names and values exist only in the Certificate's status, so one render cannot write them. Set create_route53_records: false here, and give a second component create_certificate: false, create_route53_records_only: true, zone_id, and this one's acm_certificate_domain_validation_options and distinct_domain_names outputs, as the module's \"separate AWS providers\" example does (docs/aws.md, section 6)" }}
+{{- end }}
+{{- if not $v.domain_name }}
+{{- fail "acm: domain_name is required to request a certificate" }}
+{{- end }}
+---
+apiVersion: acm.services.k8s.aws/v1alpha1
+kind: Certificate
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "certificate")) "id" "certificate" "region" $v.region) | nindent 2 }}
+spec:
+  domainName: {{ $v.domain_name | quote }}
+{{- with $v.subject_alternative_names }}
+  subjectAlternativeNames:
+{{- range . }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.validation_option }}
+  domainValidationOptions:
+{{- range $k := keys . | sortAlpha }}
+{{- $o := index $v.validation_option $k }}
+    - domainName: {{ $o.domain_name | default $k | quote }}
+      validationDomain: {{ $o.validation_domain | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.key_algorithm }}
+  keyAlgorithm: {{ . | quote }}
+{{- end }}
+{{- with $v.private_authority_arn }}
+  certificateAuthorityARN: {{ . | quote }}
+{{- end }}
+  options:
+    certificateTransparencyLoggingPreference: {{ ternary "ENABLED" "DISABLED" $v.certificate_transparency_logging_preference | quote }}
+{{- with $v.export }}
+    export: {{ . | quote }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- if and $records (not $v.create_certificate) }}
+{{- /* locals.distinct_domain_names and locals.validation_domains */}}
+{{- $names := $v.distinct_domain_names | default list }}
+{{- if not $names }}
+{{- range $s := concat (list $v.domain_name) ($v.subject_alternative_names | default list) }}{{ $names = append $names (replace "*." "" $s) }}{{ end }}
+{{- $names = $names | uniq }}
+{{- end }}
+{{- $domains := list }}
+{{- $opts := $v.acm_certificate_domain_validation_options | default list }}
+{{- if kindIs "map" $opts }}{{ $l := list }}{{ range $k := keys $opts | sortAlpha }}{{ $l = append $l (index $opts $k) }}{{ end }}{{ $opts = $l }}{{ end }}
+{{- range $o := $opts }}
+{{- $d := merge (dict "domain_name" (replace "*." "" $o.domain_name)) $o }}
+{{- if not (has $d $domains) }}{{ $domains = append $domains $d }}{{ end }}
+{{- end }}
+{{- if and $names (not $domains) }}
+{{- fail "acm: create_route53_records_only needs acm_certificate_domain_validation_options: the certificate component's output of that name" }}
+{{- end }}
+{{- range $i, $_ := $names }}
+{{- $d := index $domains (mod $i (len $domains)) }}
+{{- $zone := get ($v.zones | default dict) $d.domain_name | default $v.zone_id }}
+{{- if not $zone }}
+{{- fail (printf "acm: zone_id is required: the hosted zone of the validation record for %s (or zones.%s)" $d.domain_name $d.domain_name) }}
+{{- end }}
+---
+apiVersion: route53.services.k8s.aws/v1alpha1
+kind: RecordSet
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "validation" $i)) "id" (printf "validation-record-%d" $i)) | nindent 2 }}
+spec:
+  hostedZoneID: {{ $zone | quote }}
+  name: {{ $d.resource_record_name | quote }}
+  recordType: {{ $d.resource_record_type | quote }}
+  ttl: {{ int64 $v.dns_ttl }}
+  resourceRecords:
+    - value: {{ $d.resource_record_value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

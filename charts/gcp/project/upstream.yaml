@@ -14,7 +14,7 @@ license: Apache-2.0
 copyright: Google LLC
 module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project
 registry_url: null
-synced: 2026-11-09
+synced: 2026-11-12
 # Module variables the chart keeps in values.yaml (so tfvars convert one to
 # one) but refuses when set, or accepts only in part. Read by `task
 # coverage`; `task coverage-verify` renders the chart to check that each one
@@ -24,8 +24,10 @@ synced: 2026-11-09
 # accepted, the reason says what is refused.
 refused:
   - variable: alerts
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "MonitoringAlertPolicy has no notification prompts, documentation subject or links, or a PromQL condition's disableMetricValidation"
+    partial: true
+    fields: [alert_strategy.notification_prompts, documentation.subject, documentation.links, conditions.condition_prometheus_query_language.disable_metric_validation]
   - variable: asset_feeds
     kind: not-ported
     reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
@@ -70,29 +72,31 @@ refused:
     kind: not-ported
     reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: log_scopes
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
-  - variable: logging_metrics
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: alpha
+    reason: "LoggingLogScope is v1alpha1: needs allow_alpha: true"
+    partial: true
+    needs_allow_alpha: true
   - variable: logging_sinks
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
-  - variable: metric_scopes
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "type project is refused: LoggingLogSink's destination is a dataset, log bucket, topic or bucket, never a project; a bigquery sink needs iam: false, since the writer identity's grant on a dataset needs the alpha BigQueryDatasetAccess"
+    partial: true
+    values: [project]
   - variable: network_tags
     kind: not-ported
     reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: notification_channels
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "Config Connector names a notification channel by its Kubernetes object, so display_name is refused; sensitive_labels would put a secret in the rendered manifest"
+    partial: true
+    fields: [display_name, sensitive_labels]
   - variable: pam_entitlements
     kind: not-ported
     reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: quotas
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "APIQuotaPreference has no ignoreSafetyChecks"
+    partial: true
+    fields: [ignore_safety_checks]
   - variable: scc_mute_configs
     kind: alpha
     reason: "Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, \"Not ported\")"

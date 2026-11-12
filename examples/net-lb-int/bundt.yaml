@@ -1,0 +1,43 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-lb-int
+spec:
+  version: "1.0.0"
+  components:
+    - name: ilb
+      package:
+        name: gcp-net-lb-int
+        version: "0.1.0"
+      inputs:
+        region: europe-west1
+        name: ilb-test
+        vpc_config:
+          network: projects/my-project/global/networks/my-network
+          subnetwork: projects/my-project/regions/europe-west1/subnetworks/gce
+        backends:
+          - group: projects/my-project/zones/europe-west1-b/instanceGroups/my-ig
+        health_check_config:
+          http:
+            port: 80
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-lb-int
+  scope: my-team
+spec:
+  template: net-lb-int
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-lb-int-dev
+  scope: my-team/dev
+spec:
+  stack: net-lb-int
+  version: "1.0.0"
+  components:
+    ilb:
+      values:
+        project_id: my-project
