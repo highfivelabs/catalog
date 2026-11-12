@@ -22,9 +22,9 @@ those modules keeps its variables, its names and its outputs.
 | `lib/_kcc.tpl`, `lib/_ack.tpl`, `lib/_aso.tpl` | helpers every Google Cloud, AWS (ACK) and Azure chart carries a copy of (`hack/sync-lib.sh`) |
 | `upstream/aws-kinds.yaml`, `crds/ack-extensions/` | Terraform AWS resource types mapped to ACK and ack-extensions kinds (read by `task coverage`); the ack-extensions CRDs the AWS charts render |
 | `tools/catalogtool` | Config Connector CRDs to kubeconform schemas; Package checks; outputs evaluated against live objects |
-| `Taskfile.yml` | the entry points: `task check`, `test`, `test-live`, `test-mock`, `inventory`, `upstream-check`, `coverage`, `coverage-check`, `coverage-verify`, `convert`, `examples-test`, `upstream-watch`, `upstream-bump`, `tools-test` (`task --list`) |
+| `Taskfile.yml` | the entry points: `task check`, `test`, `test-live`, `test-mock`, `test-mock-aws`, `inventory`, `upstream-check`, `coverage`, `coverage-check`, `coverage-verify`, `convert`, `examples-test`, `upstream-watch`, `upstream-bump`, `tools-test` (`task --list`) |
 | `hack/test.sh`, `hack/ack.sh` | render tests (offline, seconds), behind `task test`; `hack/ack.sh` fetches the CRDs of the ACK controllers `UPSTREAM.md` pins |
-| `hack/mock-apply.sh`, `hack/live-apply.sh` | the fake-cloud and real-project applies (an offload VM, never a laptop), behind `task test-mock` and `task test-live` |
+| `hack/mock-apply.sh`, `hack/mock-apply-aws.sh`, `hack/live-apply.sh` | the fake-cloud (Google Cloud, AWS) and real-project applies (an offload VM, never a laptop), behind `task test-mock`, `task test-mock-aws` and `task test-live` |
 | `hack/azure-live.sh` | the Azure charts applied to the Azure sandbox with Azure Service Operator on kind (an offload VM, keyless federation), behind `task test-live-azure` |
 | `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
 | `UPSTREAM.md` | the fabric and Config Connector commits everything is pinned to, the tracked modules' licences, and how to move a pin |
