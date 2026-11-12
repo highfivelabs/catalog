@@ -1,0 +1,84 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-network-networksecuritygroup (v0.6.0): same names, types and
+# defaults, so a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-network-networksecuritygroup
+# (variables.tf, variables.security_rule.tf, v0.6.0), Copyright (c)
+# Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The network security group's name in full, {networkSecurityGroup}. A
+# name set here takes no prefix; one not set is name, with the namePrefix
+# in front. Security rules are named by their entries.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the group's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# A map of diagnostic settings to create on the Network Security Group.
+# Each: {name, log_categories, log_groups (["allLogs"]), metric_categories
+# (not used: network security groups emit no metrics),
+# log_analytics_destination_type ("Dedicated"), workspace_resource_id,
+# storage_account_resource_id, event_hub_authorization_rule_resource_id,
+# event_hub_name, marketplace_partner_resource_id}.
+diagnostic_settings: {}
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# Paths in each resource's body whose changes the AzAPI provider ignores.
+# Refused when a list is not empty: ASO cannot leave a path to another
+# writer. {authorization_locks, authorization_role_assignments,
+# insights_diagnostic_settings, network_network_security_groups,
+# network_network_security_groups_security_rules}
+ignore_body_changes: {}
+# (Required) Specifies the supported Azure location where the resource
+# exists.
+location: ""
+# Controls the Resource Lock configuration for this resource.
+# {kind (CanNotDelete or ReadOnly), name (default lock-<kind>), notes
+# (default the module's note for the kind)}
+lock: null
+# (Required) Specifies the name of the network security group.
+name: null
+# The fully-qualified ARM resource ID of the existing resource group into
+# which the network security group will be deployed:
+# /subscriptions/<id>/resourceGroups/<name>.
+parent_id: ""
+# AzAPI resource types and API versions used by the module. Refused when
+# set: ASO's kinds fix the API versions.
+resource_types: {}
+# Retry configuration applied to every azapi resource. Refused when set:
+# ASO retries itself.
+retry: null
+# A map of role assignments to create on this resource.
+# Each: {role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+role_assignments: {}
+# The security rules. Each: {name, access (Allow or Deny), direction
+# (Inbound or Outbound), priority (100 to 4096), protocol (Tcp, Udp, Icmp,
+# Esp, Ah or *), description, source_address_prefix,
+# source_address_prefixes, source_application_security_group_ids,
+# source_port_range, source_port_ranges, destination_address_prefix,
+# destination_address_prefixes,
+# destination_application_security_group_ids, destination_port_range,
+# destination_port_ranges, timeouts}. A rule's timeouts are refused.
+security_rules: {}
+# (Optional) A mapping of tags to assign to the resource.
+tags: null
+# Default per-operation timeouts. Refused when set: ASO has none; Bundt
+# sets a component's time limit.
+timeouts: null

@@ -1,0 +1,70 @@
+---
+# Source: avm-res-network-networksecuritygroup/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  name: mock-nsg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_security_group"
+spec:
+  azureName: "catalog-nsg"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-networksecuritygroup/templates/rules.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: mock-rule-out
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "security_rule:out"
+spec:
+  azureName: "deny-out"
+  owner:
+    name: mock-nsg
+  access: Deny
+  direction: Outbound
+  priority: 4000
+  protocol: "*"
+  sourceAddressPrefix: "*"
+  sourcePortRange: "*"
+  destinationAddressPrefix: "Internet"
+  destinationPortRange: "*"
+---
+# Source: avm-res-network-networksecuritygroup/templates/rules.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: mock-rule-ssh
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-networksecuritygroup
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "security_rule:ssh"
+spec:
+  azureName: "allow-ssh"
+  owner:
+    name: mock-nsg
+  access: Allow
+  direction: Inbound
+  priority: 100
+  protocol: "Tcp"
+  sourceAddressPrefix: "10.0.0.0/8"
+  sourcePortRange: "*"
+  destinationAddressPrefix: "*"
+  destinationPortRange: "22"

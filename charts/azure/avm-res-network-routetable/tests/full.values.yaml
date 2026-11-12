@@ -1,0 +1,25 @@
+# Every input the chart carries: the group by ID, BGP propagation off,
+# tags, a lock, role assignments (by name, by ID with the Entra check
+# skipped) and routes of each next hop type, one to an appliance.
+name: rt-hub
+location: westeurope
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net
+bgp_route_propagation_enabled: false
+enable_telemetry: false
+tags: {environment: prod}
+lock: {kind: ReadOnly}
+role_assignments:
+  netops:
+    role_definition_id_or_name: Network Contributor
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+  deployer:
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+    principal_id: 7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f
+    skip_service_principal_aad_check: true
+routes:
+  default: {name: to-firewall, address_prefix: 0.0.0.0/0, next_hop_type: VirtualAppliance, next_hop_in_ip_address: 10.0.0.4}
+  local: {name: local, address_prefix: 10.1.0.0/16, next_hop_type: VnetLocal}
+  monitor: {name: monitor, address_prefix: AzureMonitor, next_hop_type: Internet}
+  gw: {name: onprem, address_prefix: 192.168.0.0/16, next_hop_type: VirtualNetworkGateway}
+  drop: {name: blackhole, address_prefix: 10.99.0.0/16, next_hop_type: None}
