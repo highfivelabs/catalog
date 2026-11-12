@@ -9,10 +9,11 @@ google_folder.folders: one Folder per entry of names, its display name
 Google's: resource_ids adopts an existing folder (README.md, "Adopting
 existing resources").
 
-google_folder_iam_binding.owners_combined: authoritative per role in the
-module; here one IAMPartialPolicy per folder with a binding per role
-(docs/design.md, "IAM"), which keeps the listed members and leaves others
-alone (README.md, "Differences from the module").
+google_folder_iam_binding.owners_combined: one per folder and role,
+authoritative for that role: here one IAMBinding each
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1), exact as the
+module's: members of that role it does not list are removed
+(docs/design.md, "IAM").
 */ -}}
 {{- $v := .Values }}
 {{- /* deletion_protection is accepted and ignored: Terraform's own guard (README.md, "Differences from the module"). */}}
@@ -48,11 +49,14 @@ spec:
 {{- end }}
 {{- $byFolder := dict }}
 {{- range $key, $b := (include "folders.bindings" . | fromJson) }}
+{{- if not $b.members }}
+{{- fail (printf "folders: the admin binding of role %q on folder %q has no members (per_folder_admins.%s.members and all_folder_admins are empty): the module would remove every member of the role from the folder, and an IAMBinding needs at least one member (README.md, \"Differences from the module\")" $b.role $b.name $b.name) }}
+{{- end }}
 {{- $roles := get $byFolder $b.name | default dict }}
-{{- $_ := set $roles $b.role $b.members }}
+{{- $_ := set $roles $b.role (dict "role" $b.role "members" $b.members) }}
 {{- $_ := set $byFolder $b.name $roles }}
 {{- end }}
 {{- range $name := keys $byFolder | sortAlpha }}
 {{- $obj := include "folders.object" (list $ $name) }}
-{{- include "kcc.iam" (dict "root" $ "base" $obj "idPrefix" (printf "%s:" (include "folders.id" $name)) "resourceRef" (dict "apiVersion" "resourcemanager.cnrm.cloud.google.com/v1beta1" "kind" "Folder" "name" $obj) "v" (dict "iam" (get $byFolder $name))) }}
+{{- include "kcc.iam" (dict "root" $ "base" $obj "idPrefix" (printf "%s:" (include "folders.id" $name)) "resourceRef" (dict "apiVersion" "resourcemanager.cnrm.cloud.google.com/v1beta1" "kind" "Folder" "name" $obj) "v" (dict "iam_bindings" (get $byFolder $name))) }}
 {{- end }}
