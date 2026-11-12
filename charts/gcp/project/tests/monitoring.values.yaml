@@ -1,0 +1,65 @@
+# Notification channels, alert policies (every condition type the chart
+# carries), metric scopes and quota preferences.
+name: ops-project
+parent: folders/1234567890
+notification_channels:
+  email:
+    type: email
+    description: The ops team.
+    labels: {email_address: ops@example.com}
+    user_labels: {team: ops}
+  pager:
+    type: pagerduty
+    enabled: false
+alerts:
+  errors:
+    display_name: Too many errors
+    combiner: OR
+    severity: ERROR
+    notification_channels: [email, projects/ops-project/notificationChannels/123]
+    user_labels: {team: ops}
+    alert_strategy:
+      auto_close: 1800s
+      notification_rate_limit: {period: 300s}
+      notification_channel_strategy: {notification_channel_names: [email], renotify_interval: 3600s}
+    conditions:
+      - display_name: errors
+        condition_threshold:
+          comparison: COMPARISON_GT
+          duration: 60s
+          filter: metric.type="logging.googleapis.com/user/errors" resource.type="global"
+          threshold_value: 10
+          aggregations: [{alignment_period: 60s, per_series_aligner: ALIGN_RATE, group_by_fields: [resource.label.project_id]}]
+          trigger: {count: 1}
+      - display_name: absent
+        condition_absent:
+          duration: 300s
+          filter: metric.type="compute.googleapis.com/instance/uptime" resource.type="gce_instance"
+          trigger: {percent: 50}
+    documentation: {content: Look at the logs., mime_type: text/markdown}
+  logs:
+    display_name: Log match
+    combiner: OR
+    enabled: false
+    alert_strategy: {notification_rate_limit: {period: 300s}}
+    conditions:
+      - display_name: matched
+        condition_matched_log: {filter: severity=ERROR, label_extractors: {svc: EXTRACT(resource.labels.service_name)}}
+  queries:
+    display_name: Queries
+    combiner: AND
+    conditions:
+      - display_name: mql
+        condition_monitoring_query_language: {duration: 60s, query: "fetch gce_instance | metric 'compute.googleapis.com/instance/cpu/utilization'", evaluation_missing_data: EVALUATION_MISSING_DATA_INACTIVE}
+      - display_name: promql
+        condition_prometheus_query_language: {query: "up == 0", duration: 60s, evaluation_interval: 30s, labels: {sev: high}, rule_group: g, alert_rule: r}
+metric_scopes: [monitoring-host]
+quotas:
+  cpus:
+    service: compute.googleapis.com
+    quota_id: CPUS-per-project-region
+    preferred_value: 24
+    dimensions: {region: europe-west1}
+    justification: More builds.
+    contact_email: ops@example.com
+    annotations: {ticket: "123"}

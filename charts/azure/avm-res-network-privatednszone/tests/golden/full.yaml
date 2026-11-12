@@ -1,0 +1,300 @@
+---
+# Source: avm-res-network-privatednszone/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-zone-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-corp.example.internal"
+  owner:
+    group: network.azure.com
+    kind: PrivateDnsZone
+    name: full-zone
+  level: CanNotDelete
+---
+# Source: avm-res-network-privatednszone/templates/main.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZone
+metadata:
+  name: full-zone
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_dns_zone"
+spec:
+  azureName: "corp.example.internal"
+  location: global
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesAAAARecord
+metadata:
+  name: full-aaaa-web6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "aaaa_record:web6"
+spec:
+  azureName: "web"
+  owner:
+    name: full-zone
+  ttl: 300
+  aaaaRecords:
+    - ipv6Address: "fd00::4"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesARecord
+metadata:
+  name: full-a-legacy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "a_record:legacy"
+spec:
+  azureName: "old"
+  owner:
+    name: full-zone
+  ttl: 600
+  aRecords:
+    - ipv4Address: "10.0.1.4"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesARecord
+metadata:
+  name: full-a-web
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "a_record:web"
+spec:
+  azureName: "web"
+  owner:
+    name: full-zone
+  ttl: 300
+  aRecords:
+    - ipv4Address: "10.0.0.4"
+    - ipv4Address: "10.0.0.5"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesCNAMERecord
+metadata:
+  name: full-cname-alias
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cname_record:alias"
+spec:
+  azureName: "alias"
+  owner:
+    name: full-zone
+  ttl: 300
+  cnameRecord:
+    cname: "www.corp.example.internal"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesCNAMERecord
+metadata:
+  name: full-cname-www
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cname_record:www"
+spec:
+  azureName: "www"
+  owner:
+    name: full-zone
+  ttl: 300
+  cnameRecord:
+    cname: "web.corp.example.internal"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesMXRecord
+metadata:
+  name: full-mx-mail
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "mx_record:mail"
+spec:
+  azureName: "@"
+  owner:
+    name: full-zone
+  ttl: 3600
+  mxRecords:
+    - exchange: "mx1.corp.example.internal"
+      preference: 10
+    - exchange: "mx2.corp.example.internal"
+      preference: 20
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesPTRRecord
+metadata:
+  name: full-ptr-rev
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ptr_record:rev"
+spec:
+  azureName: "4"
+  owner:
+    name: full-zone
+  ttl: 300
+  ptrRecords:
+    - ptrdname: "web.corp.example.internal"
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesSRVRecord
+metadata:
+  name: full-srv-sip
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "srv_record:sip"
+spec:
+  azureName: "_sip._tcp"
+  owner:
+    name: full-zone
+  ttl: 300
+  srvRecords:
+    - port: 5060
+      priority: 10
+      target: "sip1.corp.example.internal"
+      weight: 60
+---
+# Source: avm-res-network-privatednszone/templates/records.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesTXTRecord
+metadata:
+  name: full-txt-spf
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "txt_record:spf"
+spec:
+  azureName: "@"
+  owner:
+    name: full-zone
+  ttl: 300
+  txtRecords:
+    - value:
+        - "v=spf1 -all"
+    - value:
+        - "part one"
+        - "part two"
+---
+# Source: avm-res-network-privatednszone/templates/links.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesVirtualNetworkLink
+metadata:
+  name: full-link-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network_link:hub"
+spec:
+  azureName: "hub-link"
+  location: global
+  owner:
+    name: full-zone
+  registrationEnabled: true
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub"
+  tags:
+    link: hub
+---
+# Source: avm-res-network-privatednszone/templates/links.yaml
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesVirtualNetworkLink
+metadata:
+  name: full-link-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network_link:spoke"
+spec:
+  azureName: "spoke-link"
+  location: global
+  owner:
+    name: full-zone
+  registrationEnabled: false
+  resolutionPolicy: "NxDomainRedirect"
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-spoke"
+---
+# Source: avm-res-network-privatednszone/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-zone-role-dnsops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-privatednszone
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-dnsops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PrivateDnsZone
+    name: full-zone
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Private DNS Zone Contributor"
