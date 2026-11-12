@@ -92,6 +92,7 @@ must carry.
 | `charts/azure/avm-res-storage-storageaccount` | Azure Verified Module `avm-res-storage-storageaccount` (v0.11.0) | the account, containers, queues, tables, shares, lock, role assignments, diagnostic settings | see the chart's README |
 | `charts/azure/avm-res-keyvault-vault` | Azure Verified Module `avm-res-keyvault-vault` (v0.13.0) | the vault, keys, lock, role assignments, diagnostic settings | see the chart's README |
 | `charts/azure/avm-res-network-networksecuritygroup` | Azure Verified Module `avm-res-network-networksecuritygroup` (v0.6.0) | the group, security rules, lock, role assignments, diagnostic settings | `ignore_body_changes`, `resource_types`, `retry`, `timeouts` |
+| `charts/azure/avm-res-network-routetable` | Azure Verified Module `avm-res-network-routetable` (v0.6.0) | the table, routes, lock, role assignments | `subnet_resource_ids` |
 
 ## Moving the pins
 
