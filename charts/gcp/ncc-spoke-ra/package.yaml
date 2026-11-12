@@ -1,0 +1,26 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs that are not whole objects: id, the
+# new hub's fully qualified ID (null with an existing hub, as fabric's),
+# and route_policies, each policy's ID keyed as fabric keys them. hub,
+# router and spoke_ra are whole Terraform objects, which a Package does not
+# output (docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-ncc-spoke-ra
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'hub' in resources
+      ? dyn('projects/' + inputs.project_id + '/locations/global/hubs/' + resources.hub.spec.resourceID)
+      : null
+    route_policies: >-
+      resources.transformMapEntry(k, v, k.startsWith('route_policy:'),
+        {k.substring(13): 'projects/' + inputs.project_id + '/regions/' + inputs.region
+          + '/routers/' + resources.router.spec.resourceID + '/routePolicies/' + v.spec.resourceID})
