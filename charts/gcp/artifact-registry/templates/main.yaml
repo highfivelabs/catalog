@@ -1,0 +1,131 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/artifact-registry/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_artifact_registry_repository.registry: one
+ArtifactRegistryRepository. What the kind cannot say is refused: vulnerability
+scanning, apt and yum remotes, custom repositories, upstream credentials and
+disable_upstream_validation (README.md, "Values").
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- if not (kindIs "invalid" $v.enable_vulnerability_scanning) }}
+{{- include "kcc.unsupported" (list $ "enable_vulnerability_scanning" "set" "ArtifactRegistryRepository has no vulnerabilityScanningConfig field") }}
+{{- end }}
+{{- include "kcc.names" (list $ (list "repository")) }}
+{{- $format := include "artifactRegistry.format" . }}
+{{- $mode := include "artifactRegistry.mode" . }}
+{{- $f := index $v.format $format }}
+{{- $m := index $f $mode }}
+{{- if and (eq $mode "remote") (not (has $format (list "apt" "docker" "go" "maven" "npm" "python" "yum"))) }}
+{{- fail "artifact-registry: format: Invalid format for remote repository." }}
+{{- end }}
+{{- if eq $mode "remote" }}
+{{- $n := 0 }}
+{{- range $k := list "public_repository" "custom_repository" "common_repository" }}{{ if and (hasKey $m $k) (not (kindIs "invalid" (index $m $k))) }}{{ $n = add1 $n }}{{ end }}{{ end }}
+{{- if ne (int $n) 1 }}
+{{- fail "artifact-registry: format: Remote repositories must specify exactly one of public_repository, custom_repository and common_repository." }}
+{{- end }}
+{{- if has $format (list "apt" "yum") }}
+{{- include "kcc.unsupported" (list $ (printf "format.%s.remote" $format) "set" "ArtifactRegistryRepository's remoteRepositoryConfig has no apt or yum repository") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "format.%s.remote.custom_repository" $format) $m.custom_repository "ArtifactRegistryRepository's remoteRepositoryConfig has no custom repository") }}
+{{- include "kcc.unsupported" (list $ (printf "format.%s.remote.upstream_credentials" $format) $m.upstream_credentials "ArtifactRegistryRepository's remoteRepositoryConfig has no upstream credentials") }}
+{{- if not (kindIs "invalid" $m.disable_upstream_validation) }}
+{{- include "kcc.unsupported" (list $ (printf "format.%s.remote.disable_upstream_validation" $format) "set" "ArtifactRegistryRepository has no disableUpstreamValidation field") }}
+{{- end }}
+{{- end }}
+---
+apiVersion: artifactregistry.cnrm.cloud.google.com/v1beta1
+kind: ArtifactRegistryRepository
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "repository" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "artifactRegistry.id" . | quote }}
+  location: {{ $v.location | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  format: {{ upper $format | quote }}
+  mode: {{ printf "%s_REPOSITORY" (upper $mode) | quote }}
+  {{- with $v.encryption_key }}
+  kmsKeyRef:
+    external: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.cleanup_policy_dry_run) }}
+  cleanupPolicyDryRun: {{ $v.cleanup_policy_dry_run }}
+  {{- end }}
+  {{- with $v.cleanup_policies }}
+  cleanupPolicies:
+    {{- range $id := keys . | sortAlpha }}
+    {{- $p := index $v.cleanup_policies $id }}
+    - id: {{ $id | quote }}
+      action: {{ $p.action | quote }}
+      {{- with $p.condition }}
+      condition:
+        {{- with .tag_state }}
+        tagState: {{ . | quote }}
+        {{- end }}
+        {{- with .tag_prefixes }}
+        tagPrefixes: {{ toJson . }}
+        {{- end }}
+        {{- with .version_name_prefixes }}
+        versionNamePrefixes: {{ toJson . }}
+        {{- end }}
+        {{- with .package_name_prefixes }}
+        packageNamePrefixes: {{ toJson . }}
+        {{- end }}
+        {{- with .newer_than }}
+        newerThan: {{ . | quote }}
+        {{- end }}
+        {{- with .older_than }}
+        olderThan: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $p.most_recent_versions }}
+      mostRecentVersions:
+        {{- with .package_name_prefixes }}
+        packageNamePrefixes: {{ toJson . }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .keep_count) }}
+        keepCount: {{ .keep_count }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if and (eq $format "docker") (eq $mode "standard") (not (kindIs "invalid" $m.immutable_tags)) }}
+  dockerConfig:
+    immutableTags: {{ $m.immutable_tags }}
+  {{- end }}
+  {{- if and (eq $format "maven") (eq $mode "standard") (or (not (kindIs "invalid" $m.allow_snapshot_overwrites)) $m.version_policy) }}
+  mavenConfig:
+    {{- if not (kindIs "invalid" $m.allow_snapshot_overwrites) }}
+    allowSnapshotOverwrites: {{ $m.allow_snapshot_overwrites }}
+    {{- end }}
+    {{- with $m.version_policy }}
+    versionPolicy: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if eq $mode "remote" }}
+  remoteRepositoryConfig:
+    {{- if $m.common_repository }}
+    commonRepository:
+      uri: {{ $m.common_repository | quote }}
+    {{- else }}
+    {{ $format }}Repository:
+      publicRepository: {{ $m.public_repository | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if eq $mode "virtual" }}
+  virtualRepositoryConfig:
+    upstreamPolicies:
+      {{- range $id := keys $m | sortAlpha }}
+      {{- $u := index $m $id }}
+      - id: {{ $id | quote }}
+        priority: {{ $u.priority }}
+        repositoryRef:
+          external: {{ $u.repository | quote }}
+      {{- end }}
+  {{- end }}
