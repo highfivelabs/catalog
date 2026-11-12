@@ -1,0 +1,155 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "Key", "Replica Key", "Policy", "Alias" and "Grant": the key
+(aws_kms_key, kms/Key) or, with create_replica, the replica of a primary
+key (aws_kms_replica_key, ack-extensions' ReplicaKey), its key policy (the
+module's aws_iam_policy_document, built in _kms.tpl), its aliases
+(aws_kms_alias, kms/Alias) and grants (aws_kms_grant, kms/Grant). External
+keys are refused (refusals.yaml).
+*/ -}}
+{{- include "ack.names" (list $ list) -}}
+{{- $v := .Values -}}
+{{- if eq (toJson $v.is_enabled) "false" }}
+{{- fail "kms: is_enabled false is not supported: ACK's Key has no field to disable a key (docs/aws.md)" }}
+{{- end }}
+{{- if $v.create }}
+{{- $key := include "ack.name" (list .Release.Name "key") }}
+{{- $policy := include "kms.policy" . }}
+{{- $tags := include "ack.tags" (list $ $v.tags) | fromJson }}
+{{- if $v.create_replica }}
+{{- include "ack.alpha" (list $ "create_replica" $v.create_replica "ReplicaKey (ack-extensions)") }}
+{{- if not $v.primary_key_arn }}
+{{- fail "kms: create_replica needs primary_key_arn, the ARN of the multi-Region primary key" }}
+{{- end }}
+{{- if not $v.region }}
+{{- fail "kms: create_replica needs region, the Region the replica is made in (the module takes it from the provider)" }}
+{{- end }}
+{{- $parts := splitList ":" $v.primary_key_arn }}
+{{- if lt (len $parts) 6 }}
+{{- fail (printf "kms: primary_key_arn %q is not a KMS key ARN" $v.primary_key_arn) }}
+{{- end }}
+---
+apiVersion: kms.aws.hfl.dev/v1alpha1
+kind: ReplicaKey
+metadata:
+{{- /* ReplicateKey is called in the primary key's Region. */}}
+{{- include "ack.metadata" (dict "root" $ "name" $key "id" "key" "region" (index $parts 3)) | nindent 2 }}
+spec:
+  keyID: {{ $v.primary_key_arn | quote }}
+  replicaRegion: {{ $v.region | quote }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.bypass_policy_lockout_safety_check) }}
+  bypassPolicyLockoutSafetyCheck: {{ $v.bypass_policy_lockout_safety_check }}
+{{- end }}
+{{- with $policy }}
+  policy: {{ . | quote }}
+{{- end }}
+{{- with $tags }}
+  tags:
+{{- include "ack.tagList" (list . "tagKey" "tagValue") | nindent 4 }}
+{{- end }}
+{{- else }}
+---
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Key
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $key "id" "key" "region" $v.region) | nindent 2 }}
+spec:
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- with $v.customer_master_key_spec }}
+  keySpec: {{ . | quote }}
+{{- end }}
+{{- with $v.key_usage }}
+  keyUsage: {{ . | quote }}
+{{- end }}
+{{- with $v.custom_key_store_id }}
+  customKeyStoreID: {{ . | quote }}
+{{- end }}
+  enableKeyRotation: {{ $v.enable_key_rotation }}
+  multiRegion: {{ $v.multi_region }}
+{{- if not (kindIs "invalid" $v.bypass_policy_lockout_safety_check) }}
+  bypassPolicyLockoutSafetyCheck: {{ $v.bypass_policy_lockout_safety_check }}
+{{- end }}
+{{- with $policy }}
+  policy: {{ . | quote }}
+{{- end }}
+{{- with $tags }}
+  tags:
+{{- include "ack.tagList" (list . "tagKey" "tagValue") | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- $aliases := dict }}
+{{- range $a := $v.aliases | default list }}{{ $_ := set $aliases $a (dict "name" $a) }}{{ end }}
+{{- range $k, $a := $v.computed_aliases | default dict }}{{ $_ := set $aliases $k $a }}{{ end }}
+{{- range $k := keys $aliases | sortAlpha }}
+{{- $a := index $aliases $k }}
+{{- $name := include "ack.cloudName" (list $ "alias" (trimPrefix "alias/" $a.name) 250) }}
+---
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Alias
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "alias" $k)) "id" (printf "alias-%s" $k) "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ printf "alias/%s" $name | quote }}
+{{- if $v.create_replica }}
+  {{- /* A replica's key ID is the primary's, the same in every Region. */}}
+  targetKeyID: {{ last (splitList "/" $v.primary_key_arn) | quote }}
+{{- else }}
+  targetKeyRef:
+    from:
+      name: {{ $key }}
+{{- end }}
+{{- end }}
+{{- range $k := keys ($v.grants | default dict) | sortAlpha }}
+{{- $g := index $v.grants $k }}
+{{- if gt (len ($g.constraints | default list)) 1 }}
+{{- fail (printf "kms: grants.%s has %d constraints: ACK's Grant takes one (encryption_context_equals or encryption_context_subset)" $k (len $g.constraints)) }}
+{{- end }}
+{{- if $g.retire_on_delete }}
+{{- fail (printf "kms: grants.%s.retire_on_delete is not supported: ACK revokes a grant when it is deleted, as Terraform does by default; retiring instead has no ACK field (docs/aws.md)" $k) }}
+{{- end }}
+---
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Grant
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "grant" $k)) "id" (printf "grant-%s" $k) "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ $g.name | default $k | quote }}
+  granteePrincipal: {{ $g.grantee_principal | quote }}
+  operations:
+{{- toYaml $g.operations | nindent 4 }}
+{{- with $g.retiring_principal }}
+  retiringPrincipal: {{ . | quote }}
+{{- end }}
+{{- with $g.grant_creation_tokens }}
+  grantTokens:
+{{- toYaml . | nindent 4 }}
+{{- end }}
+{{- range $c := $g.constraints | default list | first | list }}
+{{- if $c }}
+  constraints:
+{{- with $c.encryption_context_equals }}
+    encryptionContextEquals:
+{{- toYaml . | nindent 6 }}
+{{- end }}
+{{- with $c.encryption_context_subset }}
+    encryptionContextSubset:
+{{- toYaml . | nindent 6 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $v.create_replica }}
+  keyID: {{ last (splitList "/" $v.primary_key_arn) | quote }}
+{{- else }}
+  keyRef:
+    from:
+      name: {{ $key }}
+{{- end }}
+{{- end }}
+{{- end }}

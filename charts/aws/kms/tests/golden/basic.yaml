@@ -1,0 +1,86 @@
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Alias
+metadata:
+  name: basic-alias-foo-bar-9e9fb086
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "alias-foo/bar"
+spec:
+  name: "alias/foo/bar"
+  targetKeyRef:
+    from:
+      name: basic-key
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Alias
+metadata:
+  name: basic-alias-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "alias-one"
+spec:
+  name: "alias/one"
+  targetKeyRef:
+    from:
+      name: basic-key
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Grant
+metadata:
+  name: basic-grant-lambda
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "grant-lambda"
+spec:
+  name: "lambda"
+  granteePrincipal: "arn:aws:iam::111122223333:role/lambda"
+  operations:
+    - Encrypt
+    - Decrypt
+    - GenerateDataKey
+  constraints:
+    encryptionContextEquals:
+      Department: Finance
+  keyRef:
+    from:
+      name: basic-key
+---
+# Source: kms/templates/key.yaml
+apiVersion: kms.services.k8s.aws/v1alpha1
+kind: Key
+metadata:
+  name: basic-key
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: kms
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "key"
+spec:
+  description: "EC2 AutoScaling key usage"
+  keyUsage: "ENCRYPT_DECRYPT"
+  enableKeyRotation: true
+  multiRegion: false
+  policy: "{\"Statement\":[{\"Action\":[\"kms:*\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:root\"]},\"Resource\":[\"*\"],\"Sid\":\"Default\"},{\"Action\":[\"kms:Create*\",\"kms:Describe*\",\"kms:Enable*\",\"kms:List*\",\"kms:Put*\",\"kms:Update*\",\"kms:Revoke*\",\"kms:Disable*\",\"kms:Get*\",\"kms:Delete*\",\"kms:TagResource\",\"kms:UntagResource\",\"kms:ScheduleKeyDeletion\",\"kms:CancelKeyDeletion\",\"kms:ReplicateKey\",\"kms:ImportKeyMaterial\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/admin\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyAdministration\"},{\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\",\"kms:ReEncrypt*\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/user\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyUsage\"},{\"Action\":[\"kms:CreateGrant\",\"kms:ListGrants\",\"kms:RevokeGrant\"],\"Condition\":{\"Bool\":{\"kms:GrantIsForAWSResource\":[\"true\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/ec2-role\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyServiceUsage\"},{\"Action\":[\"kms:Encrypt\",\"kms:Decrypt\",\"kms:ReEncrypt*\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyServiceRolesASG\"},{\"Action\":[\"kms:CreateGrant\"],\"Condition\":{\"Bool\":{\"kms:GrantIsForAWSResource\":[\"true\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling\"]},\"Resource\":[\"*\"],\"Sid\":\"KeyServiceRolesASGPersistentVol\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - tagKey: "Environment"
+      tagValue: "dev"
+    - tagKey: "Terraform"
+      tagValue: "true"
