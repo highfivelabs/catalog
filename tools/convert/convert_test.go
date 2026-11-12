@@ -143,7 +143,7 @@ labels   = { team = "x" }
 
 func TestSourceWithoutAChart(t *testing.T) {
 	f := write(t, "main.tf", `module "v" {
-  source = "terraform-aws-modules/vpc/aws"
+  source = "terraform-aws-modules/eks/aws"
 }
 module "k" {
   source = "./modules/kms"
@@ -153,7 +153,7 @@ module "k" {
 		t.Fatal("nothing converts, so Convert should fail")
 	}
 	m := messages(res)
-	if !strings.Contains(m, "aws/vpc") || !strings.Contains(m, "gcp/kms") || !strings.Contains(m, "has no chart yet") {
+	if !strings.Contains(m, "aws/eks") || !strings.Contains(m, "gcp/kms") || !strings.Contains(m, "has no chart yet") {
 		t.Fatalf("got:\n%s", m)
 	}
 }

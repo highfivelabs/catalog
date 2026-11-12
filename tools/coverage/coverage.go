@@ -13,8 +13,9 @@
 //     a variable refused only in part ("partial") is covered, and said so;
 //   - a chart covers an output when its Package declares an output of that name;
 //   - a resource type has a stable kind when Config Connector (or ACK, or
-//     ASO) has a GA/beta kind for it. Only Google Cloud is classified so
-//     far (the inventory, docs/gcp-inventory.md).
+//     ASO) has a GA/beta kind for it. Google Cloud is classified by the
+//     inventory (docs/gcp-inventory.md); another cloud by the hand-kept
+//     upstream/<cloud>-kinds.yaml, for the modules whose every type it lists.
 package coverage
 
 import (
@@ -47,7 +48,8 @@ type Row struct {
 	VarsTotal, VarsCovered, VarsPartial              int
 	OutsTotal, OutsCovered                           int
 	TypesTotal, TypesStable, TypesMissing            int
-	// KindsKnown is false where resource types are not yet classified (AWS, Azure).
+	// KindsKnown is false where resource types are not yet classified (an
+	// AWS or Azure module with a type upstream/<cloud>-kinds.yaml does not list).
 	KindsKnown bool
 	Notes      string
 	Refusals   int
@@ -108,6 +110,12 @@ func Build(o Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	typeKinds := map[string]map[string]TypeKind{}
+	for _, c := range []string{"aws", "azure"} {
+		if typeKinds[c], err = ReadTypeKinds(filepath.Join(o.Root, "upstream", c+"-kinds.yaml")); err != nil {
+			return nil, err
+		}
+	}
 
 	// One download per (repository, tag), extracting every module path
 	// that is pinned at it.
@@ -164,9 +172,26 @@ func Build(o Options) (*Result, error) {
 				}
 			}
 		} else {
+			// Classified when upstream/<cloud>-kinds.yaml lists every type.
+			row.KindsKnown = len(mod.ResourceTypes) > 0
+			for _, t := range mod.ResourceTypes {
+				if _, ok := typeKinds[m.Cloud][t]; !ok {
+					row.KindsKnown = false
+				}
+			}
 			for _, t := range mod.ResourceTypes {
 				row.TypesTotal++
-				res.Types = append(res.Types, TypeRow{m.Cloud, m.Module, t, "unclassified", ""})
+				tk, ok := typeKinds[m.Cloud][t]
+				if !row.KindsKnown || !ok {
+					res.Types = append(res.Types, TypeRow{m.Cloud, m.Module, t, "unclassified", ""})
+					continue
+				}
+				res.Types = append(res.Types, TypeRow{m.Cloud, m.Module, t, tk.Class, tk.Kind})
+				if tk.Class == "stable" {
+					row.TypesStable++
+				} else {
+					missing = append(missing, fmt.Sprintf("%s (%s)", t, tk.Class))
+				}
 			}
 		}
 		row.TypesMissing = row.TypesTotal - row.TypesStable
@@ -280,7 +305,7 @@ func Build(o Options) (*Result, error) {
 		default:
 			row.Status = NotStarted
 		}
-		row.Notes = notes(&row, mod, missing, classSummary(res.Types, m.Module), refused, cu, additions)
+		row.Notes = notes(&row, mod, missing, classSummary(res.Types, m.Cloud, m.Module), refused, cu, additions)
 		res.Rows = append(res.Rows, row)
 	}
 	sort.SliceStable(res.Rows, func(i, j int) bool {
@@ -347,7 +372,7 @@ func notes(r *Row, mod *tfmod.Module, missing []string, classCounts string, refu
 			n = append(n, fmt.Sprintf("%d of %d outputs not provided", r.OutsTotal-r.OutsCovered, r.OutsTotal))
 		}
 	}
-	if cu == nil && r.Cloud == "gcp" {
+	if cu == nil && r.KindsKnown {
 		if r.TypesTotal == 0 {
 			n = append(n, "creates no resource types of its own (it composes other modules, or reads or generates)")
 		} else if len(missing) > 0 {
@@ -366,7 +391,11 @@ func notes(r *Row, mod *tfmod.Module, missing []string, classCounts string, refu
 		if r.VarsTotal == 0 {
 			n = append(n, "the root module declares no variables: the module is its submodules, which are not counted")
 		}
-		n = append(n, "resource types counted from the source; not yet mapped to a controller's kinds")
+		if !r.KindsKnown {
+			n = append(n, "resource types counted from the source; not yet mapped to a controller's kinds")
+		} else if cu != nil && len(missing) > 0 {
+			n = append(n, fmt.Sprintf("resource types without a stable kind: %s", strings.Join(missing, ", ")))
+		}
 	}
 	return strings.Join(n, "; ")
 }
@@ -435,12 +464,50 @@ func topLevelKeys(path string) (map[string]bool, error) {
 	return out, nil
 }
 
-// classSummary counts a gcp module's resource types that have no stable
+// TypeKind is how one Terraform resource type of a cloud other than Google
+// Cloud is managed (upstream/<cloud>-kinds.yaml).
+type TypeKind struct {
+	Class string `yaml:"class"`
+	Kind  string `yaml:"kind"`
+	Note  string `yaml:"note"`
+}
+
+// ReadTypeKinds reads upstream/<cloud>-kinds.yaml; a missing file is an
+// empty classification.
+func ReadTypeKinds(path string) (map[string]TypeKind, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return map[string]TypeKind{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var f struct {
+		Types map[string]TypeKind `yaml:"types"`
+	}
+	if err := upstream.Decode(data, &f); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	for t, k := range f.Types {
+		switch k.Class {
+		case "stable", "extensions", "alpha":
+			if k.Kind == "" {
+				return nil, fmt.Errorf("%s: %s is %s but names no kind", path, t, k.Class)
+			}
+		case "none":
+		default:
+			return nil, fmt.Errorf("%s: %s has class %q (want stable, extensions, alpha or none)", path, t, k.Class)
+		}
+	}
+	return f.Types, nil
+}
+
+// classSummary counts a module's resource types that have no stable
 // kind by class, like "2 alpha, 1 none".
-func classSummary(types []TypeRow, module string) string {
+func classSummary(types []TypeRow, cloud, module string) string {
 	c := map[string]int{}
 	for _, t := range types {
-		if t.Cloud == "gcp" && t.Module == module && t.Class != "stable" {
+		if t.Cloud == cloud && t.Module == module && t.Class != "stable" && t.Class != "unclassified" {
 			c[t.Class]++
 		}
 	}

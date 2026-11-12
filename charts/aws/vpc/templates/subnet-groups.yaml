@@ -1,0 +1,51 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "Database Subnets" and "Elasticache Subnets": the RDS subnet
+group of the database subnets (aws_db_subnet_group, rds/DBSubnetGroup) and
+the ElastiCache subnet group of the ElastiCache subnets
+(aws_elasticache_subnet_group, elasticache/CacheSubnetGroup).
+*/ -}}
+{{- $p := include "vpc.plan" . | fromJson -}}
+{{- if $p.create }}
+{{- $v := .Values }}
+{{- if and (gt (len $p.subnets.database) 0) $v.create_database_subnet_group }}
+{{- $name := lower $p.base }}
+{{- with $v.database_subnet_group_name }}{{ $name = include "ack.cloudName" (list $ "database subnet group" . 255) | lower }}{{ end }}
+{{- with index ($v.names | default dict) "databaseSubnetGroup" }}{{ $name = include "ack.resourceName" (list $ "databaseSubnetGroup" "database subnet group" . 255) }}{{ end }}
+---
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "database-subnet-group")) "id" "database-subnet-group" "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+  description: {{ printf "Database subnet group for %s" $p.base | quote }}
+  subnetRefs:
+{{- range $s := $p.subnets.database }}
+    - {{- include "vpc.ref" $s.k8s | nindent 6 }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" $name) $v.tags $v.database_subnet_group_tags) | fromJson)) | nindent 4 }}
+{{- end }}
+{{- if and (gt (len $p.subnets.elasticache) 0) $v.create_elasticache_subnet_group }}
+{{- $name := $p.base }}
+{{- with $v.elasticache_subnet_group_name }}{{ $name = include "ack.cloudName" (list $ "ElastiCache subnet group" . 255) }}{{ end }}
+{{- with index ($v.names | default dict) "elasticacheSubnetGroup" }}{{ $name = include "ack.resourceName" (list $ "elasticacheSubnetGroup" "ElastiCache subnet group" . 255) }}{{ end }}
+---
+apiVersion: elasticache.services.k8s.aws/v1alpha1
+kind: CacheSubnetGroup
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "elasticache-subnet-group")) "id" "elasticache-subnet-group" "region" $v.region) | nindent 2 }}
+spec:
+  cacheSubnetGroupName: {{ $name | quote }}
+  cacheSubnetGroupDescription: {{ printf "ElastiCache subnet group for %s" $p.base | quote }}
+  subnetRefs:
+{{- range $s := $p.subnets.elasticache }}
+    - {{- include "vpc.ref" $s.k8s | nindent 6 }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list (include "ack.tags" (list $ (dict "Name" $name) $v.tags $v.elasticache_subnet_group_tags) | fromJson)) | nindent 4 }}
+{{- end }}
+{{- end }}
