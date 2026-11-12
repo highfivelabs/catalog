@@ -127,18 +127,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 3 ported, 31 partial, 62 blocked, 81 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 3 ported, 32 partial, 61 blocked, 81 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 402 of 1478 (27.2%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 413 of 1478 (27.9%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 236 of 2348 (10.1%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 118 of 1170 (10.1%) |
-| **All** | **177** | | **756 of 4996 (15.1%)** |
+| **All** | **177** | | **767 of 4996 (15.4%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-3 ported, 18 partial, 61 blocked, 16 not started.
+3 ported, 19 partial, 60 blocked, 16 not started.
 
 **Ported and partial**
 
@@ -157,6 +157,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`cloudsql-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance) ([chart](charts/gcp/cloudsql-instance)) | ![cloudsql-instance](docs/coverage/bars/gcp-cloudsql-instance.svg) 31 of 35 | 14 of 17 | 4 of 4 | partial |
 | [`gke-nodepool`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool) ([chart](charts/gcp/gke-nodepool)) | ![gke-nodepool](docs/coverage/bars/gcp-gke-nodepool.svg) 20 of 20 | 4 of 4 | 2 of 2 | partial |
 | [`pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub) ([chart](charts/gcp/pubsub)) | ![pubsub](docs/coverage/bars/gcp-pubsub.svg) 13 of 14 | 3 of 6 | 7 of 7 | partial |
+| [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) ([chart](charts/gcp/net-firewall-policy)) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 11 of 13 | 1 of 1 | 6 of 11 | partial |
 | [`net-vpc-peering`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-peering) ([chart](charts/gcp/net-vpc-peering)) | ![net-vpc-peering](docs/coverage/bars/gcp-net-vpc-peering.svg) 7 of 7 | 0 of 2 | 1 of 1 | ported |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 133 of 162 | 30 of 36 | 0 of 0 | partial |
 | [`network-firewall-rules`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/firewall-rules) ([chart](charts/gcp/firewall-rules)) | ![network-firewall-rules](docs/coverage/bars/gcp-network-firewall-rules.svg) 5 of 5 | 2 of 2 | 0 of 0 | ported |
@@ -166,7 +167,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 61, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 60, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
@@ -178,8 +179,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`cloud-run-v2`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-run-v2) | ![cloud-run-v2](docs/coverage/bars/gcp-cloud-run-v2.svg) 0 of 21 | 0 of 12 | 9 of 13 | blocked |
 | [`billing-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/billing-account) | ![billing-account](docs/coverage/bars/gcp-billing-account.svg) 0 of 11 | 0 of 2 | 8 of 10 | blocked |
 | [`logging-bucket`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/logging-bucket) | ![logging-bucket](docs/coverage/bars/gcp-logging-bucket.svg) 0 of 12 | 0 of 2 | 7 of 9 | blocked |
-| [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 0 of 13 | 0 of 1 | 6 of 11 | blocked |
 | [`project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory) | ![project-factory](docs/coverage/bars/gcp-project-factory.svg) 0 of 8 | 0 of 16 | 0 of 1 | blocked |
+| [`net-address`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-address) | ![net-address](docs/coverage/bars/gcp-net-address.svg) 0 of 9 | 0 of 8 | 4 of 5 | blocked |
 
 **Not started (first 10 of 16, by rank)**
 
