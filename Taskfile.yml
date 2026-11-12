@@ -25,6 +25,10 @@ vars:
   # terraform-offramp-demo repository's layout).
   FIXTURES: '{{.FIXTURES | default "offramp/fixtures"}}'
   CCE_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
+  # aso-extensions at this commit supplies the Azure fake cloud (cmd/fakearm,
+  # cmd/fakeentra; docs/azure.md, "8. Charts").
+  ASOX_COMMIT: e3b4177ba6a2ef5c52747a9886c158e9cd8c7134
+  ASOX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/asox-{{.ASOX_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:
@@ -169,6 +173,22 @@ tasks:
     deps: [test, cce-snapshot]
     cmds:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply.sh'
+
+  asox-snapshot:
+    desc: Upload aso-extensions at ASOX_COMMIT for the Azure fake-cloud run
+    preconditions:
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
+    status:
+      - gcloud storage ls {{.ASOX_TARBALL}}
+    cmds:
+      - git -C ../aso-extensions archive --format=tar.gz {{.ASOX_COMMIT}} | gcloud storage cp --quiet - {{.ASOX_TARBALL}}
+
+  test-mock-azure:
+    desc: Apply each Azure chart's tests/mock.values.yaml to aso-extensions' fake cloud (fakearm, fakeentra) with stock Azure Service Operator on an offload VM (MOCK_CHARTS="avm-res-network-routetable ..." for some)
+    deps: [asox-snapshot]
+    cmds:
+      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env ASOX_TARBALL={{.ASOX_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/azure-mock.sh'
 
   offramp-test:
     desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/), the equivalence of each fixture's module calls with their charts included (FIXTURES=dir of root modules, default offramp/fixtures)
