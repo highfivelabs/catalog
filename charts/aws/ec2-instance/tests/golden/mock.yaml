@@ -1,0 +1,73 @@
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: mock-iam-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-role"
+spec:
+  name: "catalog-instance"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ec2.amazonaws.com\"]},\"Sid\":\"EC2AssumeRole\"}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Instance
+metadata:
+  name: mock-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  imageID: "ami-12c6146b"
+  instanceType: "t3.micro"
+  minCount: 1
+  maxCount: 1
+  subnetID: "subnet-set-by-mock-set-yaml"
+  iamInstanceProfile:
+    name: "catalog-instance"
+  metadataOptions:
+    httpEndpoint: "enabled"
+    httpPutResponseHopLimit: 1
+    httpTokens: "required"
+  tags:
+    - key: "Name"
+      value: "catalog-instance"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+  name: mock-instance-profile
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-instance-profile"
+spec:
+  name: "catalog-instance"
+  roleRef:
+    from:
+      name: mock-iam-role
+  tags:
+    - key: "catalog-test"
+      value: "true"
