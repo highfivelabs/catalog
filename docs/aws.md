@@ -607,7 +607,7 @@ Config Connector. What differs:
 | Refusals | a variable whose Terraform default is not empty (a suffix, a flag that defaults to `true`) is refused when it differs from that default (`ack.unchanged`); the others when set (`ack.unsupported`) |
 | References | ACK references by Kubernetes name (`vpcRef: {from: {name: ...}}`) inside a chart. A field that takes another resource's ID and has no reference (`FlowLog.resourceID`, ack-extensions' `VPNGateway.vpc`) cannot be wired in one render: the variable is refused as a gap, and the missing reference is a gap for ack-extensions |
 | Coverage | `upstream/aws-kinds.yaml` maps Terraform resource types to ACK and ack-extensions kinds; a tracked module whose every type is listed is classified in `docs/coverage` |
-| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. A fake-AWS layer (ACK's controllers against moto, as ack-extensions tests its kinds) and live runs in the AWS sandbox account are not built yet: each chart's `tests/mock.values.yaml` is the case they will apply |
+| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), all against moto (ack-extensions' `config/fake-aws`, image pinned by digest; every AWS client checked to reach only moto); every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it. Live runs in the AWS sandbox account are not built yet |
 
 | Chart | Module | Notes |
 | --- | --- | --- |
@@ -627,6 +627,41 @@ variables. Its user and account submodules, gaps in section 3, map to
 ack-extensions kinds at the commit `crds/ack-extensions` is copied from:
 `UserGroupMembership`, `AccessKey`, `LoginProfile`, `SSHPublicKey`,
 `AccountAlias` and `AccountPasswordPolicy` (`upstream/aws-kinds.yaml`).
+
+What the fake-AWS layer found on its first runs (2026-11-12, offload VMs
+`off-catalog-1112173426-19153` and `off-catalog-1112180857-14840`):
+
+- **security-group** left its group unresolved without `vpc_id` ("resource
+  reference wrapper or ID required: VPCID,VPCRef"): ACK's `SecurityGroup`
+  needs its VPC, where Terraform falls back to the account's default VPC.
+  The chart now requires `vpc_id` and says why.
+- **s3-bucket** never synced: ACK's s3-controller addresses a bucket by
+  host (`<bucket>.<endpoint>`), which the cluster could not resolve; and
+  moto reads a bucket from the host only off `.svc.cluster.local`. The fake
+  now addresses moto as `moto.fake-aws.svc`, answers `<bucket>.` names
+  with moto (CoreDNS), and tells moto its own endpoint
+  (`MOTO_S3_CUSTOM_ENDPOINTS`).
+- **iam-role** could not attach `arn:aws:iam::aws:policy/ReadOnlyAccess`:
+  moto loads AWS's managed policies only when asked
+  (`MOTO_IAM_LOAD_MANAGED_POLICIES`).
+- **vpc**'s route tables, and so its VPC, were never deleted: moto keeps a
+  deleted subnet's route table associations, which AWS removes with the
+  subnet. The script removes them in moto (`moto_fixups`), as AWS would.
+- **s3-bucket** then made ACK's s3-controller v1.15.0 panic reading the
+  bucket: it dereferences a nil `GetBucketEncryption` response when a
+  bucket has no encryption configuration (`pkg/resource/bucket/hook.go:487`;
+  an upstream bug, latent on AWS, where every bucket has SSE-S3 by default
+  since 2023). The fake gives each new bucket that default, as AWS does.
+- **rds**: moto answers `DescribeEngineDefaultParameters`, which ACK's
+  `DBParameterGroup` calls, with an error, so the fake-AWS case uses the
+  engine's default parameter group (`create_db_parameter_group: false`).
+- Every other object synced, evaluated its outputs and was deleted.
+
+With those, the run over every AWS chart then on main or in review (acm,
+ec2-instance, iam-policy, iam-role, kms, rds, s3-bucket, security-group,
+vpc) passed: 29 objects synced in moto, every Package's outputs evaluated,
+every object deleted (offload VM `off-catalog-1112191931-32354`,
+2026-11-12, 12 minutes after a 9-minute setup).
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 
