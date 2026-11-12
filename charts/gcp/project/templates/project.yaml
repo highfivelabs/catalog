@@ -6,15 +6,9 @@ Copyright 2025 Google LLC, Apache-2.0: the project, its lien and its
 essential contacts.
 */ -}}
 {{- $v := .Values }}
-{{- range $var := list "asset_feeds" "bigquery_reservations" "network_tags" "tags_config" "kms_autokeys" "service_encryption_key_ids" "workload_identity_pools" "pam_entitlements" "iam_deny_policies" "scc_mute_configs" "scc_sha_custom_modules" "vpc_sc" "factories_config" "service_agents_config" "service_agents_folder_bindings" "service_agents_project_bindings" "iam_by_principals_conditional" }}
+{{- range $var := list "asset_feeds" "bigquery_reservations" "kms_autokeys" "service_encryption_key_ids" "workload_identity_pools" "pam_entitlements" "iam_deny_policies" "scc_mute_configs" "scc_sha_custom_modules" "vpc_sc" "factories_config" "service_agents_config" "service_agents_folder_bindings" "service_agents_project_bindings" }}
 {{- include "kcc.unsupported" (list $ $var (index $v $var) "not ported to this chart yet (charts/gcp/project/README.md, \"Not ported\")") }}
 {{- end }}
-{{- /* tags: string values are cloud labels on every object (the catalog's
-tags value, kcc.labels); fabric's tags variable, tag keys to create
-({KEY: {description, iam, values, ...}}), is not ported. */}}
-{{- $fabricTags := dict }}
-{{- range $k, $t := ($v.tags | default dict) }}{{ if or (kindIs "map" $t) (kindIs "slice" $t) }}{{ $_ := set $fabricTags $k $t }}{{ end }}{{ end }}
-{{- include "kcc.unsupported" (list $ "tags" $fabricTags "fabric's tag keys ({KEY: {description, iam, values}}) are not ported to this chart yet (charts/gcp/project/README.md, \"Not ported\"); a tags entry whose value is a string is a cloud label") }}
 {{- include "kcc.names" (list $ (list "project")) }}
 {{- include "kcc.unsupported" (list $ "compute_metadata" $v.compute_metadata "ComputeProjectMetadata owns all of a project's metadata, while fabric sets single items; no per-item kind") }}
 {{- include "kcc.unsupported" (list $ "default_network_tier" $v.default_network_tier "Config Connector has no project default network tier") }}

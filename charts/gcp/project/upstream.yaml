@@ -62,9 +62,6 @@ refused:
   - variable: factories_config
     kind: not-ported
     reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
-  - variable: iam_by_principals_conditional
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: iam_deny_policies
     kind: alpha
     reason: "Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, \"Not ported\")"
@@ -82,8 +79,10 @@ refused:
     partial: true
     values: [project]
   - variable: network_tags
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "tag keys and values take no IAM conditions"
+    partial: true
+    fields: [iam_bindings.condition, iam_bindings_additive.condition]
   - variable: notification_channels
     kind: gap
     reason: "Config Connector names a notification channel by its Kubernetes object, so display_name is refused; sensitive_labels would put a secret in the rendered manifest"
@@ -124,11 +123,15 @@ refused:
     kind: by-design
     reason: "deprecated in fabric: use deletion_policy"
   - variable: tags
-    kind: not-ported
-    reason: "fabric's tag keys (a map value per key) have a stable Config Connector kind; the chart does not map them yet (charts/gcp/project/README.md, \"Not ported\"). A tags entry whose value is a string is the catalog's cloud label, applied to every object"
+    kind: gap
+    reason: "fabric's tag keys are ported; allowed_values_regex is refused (TagsTagKey has no such field), and so are IAM conditions on tag keys and values (they take none). A tags entry whose value is a string is the catalog's cloud label, applied to every object"
+    partial: true
+    fields: [allowed_values_regex, iam_bindings.condition, iam_bindings_additive.condition]
   - variable: tags_config
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: by-design
+    reason: "force_context_ids is refused: Bundt replaces fabric's $context ids with ${...} expressions"
+    partial: true
+    fields: [force_context_ids]
   - variable: universe
     kind: gap
     reason: "universes other than Google Cloud's are not supported"

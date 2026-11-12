@@ -23,8 +23,9 @@ namePrefix: ""
 labels: {}
 # Cloud labels on every resource: on Google Cloud, labels (Config
 # Connector carries them as unprefixed metadata.labels).
-# A value that is a map is fabric's tags variable (tag keys to create),
-# which is not ported yet and is refused.
+# A value that is a map is fabric's tags variable: a tag key to create,
+# {description, allowed_values_regex (refused), id, iam, iam_bindings,
+# iam_bindings_additive, values: {VALUE: {description, id, iam, ...}}}.
 tags: {}
 
 # Project name and ID suffix; the project ID is "<prefix>-<name>".
@@ -59,6 +60,9 @@ iam_by_principals: {}
 iam_bindings: {}
 iam_bindings_additive: {}
 iam_by_principals_additive: {}
+# Authoritative conditional IAM, {PRINCIPAL: {roles, condition}}, merged
+# into iam_bindings as fabric merges it.
+iam_by_principals_conditional: {}
 
 # Organization policies, {POLICY: {inherit_from_parent, reset, rules}};
 # a "dry_run:<POLICY>" key sets the policy's dry-run spec.
@@ -102,6 +106,13 @@ notification_channels: {}
 # notification channel given by a key of notification_channels refers to
 # that channel.
 alerts: {}
+# Network tags (tag keys with purpose GCE_FIREWALL), {KEY: {network
+# ("<project>/<vpc>" or ALL), description, id, iam, iam_bindings,
+# iam_bindings_additive, values}}.
+network_tags: {}
+# {force_context_ids (refused), ignore_iam}: ignore_iam skips the IAM of
+# tag keys and values.
+tags_config: {}
 # Quota preferences, {KEY: {service, quota_id, preferred_value,
 # dimensions, justification, contact_email, annotations}};
 # ignore_safety_checks is refused.
@@ -116,8 +127,6 @@ allow_alpha: false
 # map them yet (README.md, "Not ported").
 asset_feeds: {}
 bigquery_reservations: {}
-network_tags: {}
-tags_config: {}
 kms_autokeys: {}
 service_encryption_key_ids: {}
 workload_identity_pools: {}
@@ -131,7 +140,6 @@ factories_config: {}
 service_agents_config: {}
 service_agents_folder_bindings: {}
 service_agents_project_bindings: {}
-iam_by_principals_conditional: {}
 
 # Not supported (docs/gcp-inventory.md, "Gaps"); refused when set.
 compute_metadata: {}
