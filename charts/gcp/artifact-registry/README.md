@@ -97,8 +97,22 @@ with every other module the catalog tracks. To take a newer release, see
 field the chart carries), `remote`, `common`, `virtual`, `generic`, `names`
 and `mock`, each validated against Config Connector v1.160.0's CRD schemas
 (and `IAMBinding` against config-connector-extensions'), and the refusals
-in `tests/*.fail.yaml`. `tests/mock.values.yaml` is for the fake cloud
-(`task test-mock`).
+in `tests/*.fail.yaml`.
+
+Applied on 2026-11-12, on offload VMs:
+
+- **Fake cloud** (`task test-mock MOCK_CHARTS=artifact-registry`):
+  `tests/mock.values.yaml`, a Docker repository with a cleanup policy,
+  `iam` and an additive member: all 3 objects Ready, the outputs evaluated,
+  all deleted.
+- **Live** (`task test-live LIVE_CHARTS=artifact-registry
+  GCP_LIVE_SA=<cce-live-tests>`, which has `roles/artifactregistry.admin`):
+  the same shape in the test project, named by the run: all 3 objects
+  Ready, the outputs evaluated, all deleted, and the repository gone from
+  Google Cloud.
+
+Not applied yet: remote and virtual repositories, `iam_bindings`
+(`IAMBinding`) and tag bindings, which are render-tested only.
 
 ## Changes
 
