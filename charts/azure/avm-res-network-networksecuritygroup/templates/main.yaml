@@ -1,0 +1,74 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-networksecuritygroup main.tf
+and locals.tf (v0.6.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.Network/networkSecurityGroups): one ASO
+NetworkSecurityGroup, owned by the resource group parent_id names. The
+module sends flushConnection and securityRules only as placeholders it
+always ignores; ASO's kind has no securityRules (the rules are their own
+objects, templates/rules.yaml) and the chart leaves flushConnection to
+Azure, as the module does. azapi_resource.lock: an aso-extensions
+ManagementLock, with the module's notes. azapi_resource.role_assignments:
+one ASO RoleAssignment each. azapi_resource.diagnostic_settings: one ASO
+DiagnosticSetting each, with no metrics (a network security group emits
+none) and Dedicated sent as null, as the module sends them. The
+telemetry, and the time_sleep that waits for a deleted lock, are not
+ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" (include "nsg.anySet" $v.ignore_body_changes) "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
+{{- include "aso.unsupported" (list $ "resource_types" (include "nsg.anySet" $v.resource_types) "ASO's kinds fix the API versions (NetworkSecurityGroup and NetworkSecurityGroupsSecurityRule 2025-03-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "networkSecurityGroup")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-networksecuritygroup: name is required" }}{{ end }}
+{{- if not (regexMatch "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$" $v.name) }}
+{{- fail "avm-res-network-networksecuritygroup: The name must be between 1 and 80 characters long and can only contain alphanumerics, underscores, periods, and hyphens. It must start with an alphanumeric and end with an alphanumeric or underscore." }}
+{{- end }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$" (toString $v.parent_id)) }}
+{{- fail "avm-res-network-networksecuritygroup: `parent_id` must be a valid Azure resource group resource ID." }}
+{{- end }}
+{{- range $_, $d := ($v.diagnostic_settings | default dict) }}
+{{- $rid := "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/" }}
+{{- if and $d.workspace_resource_id (not (regexMatch (printf "%sMicrosoft\\.OperationalInsights/workspaces/[^/]+$" $rid) $d.workspace_resource_id)) }}
+{{- fail "avm-res-network-networksecuritygroup: Each `workspace_resource_id` must be a valid Log Analytics workspace resource ID, or null." }}
+{{- end }}
+{{- if and $d.storage_account_resource_id (not (regexMatch (printf "%sMicrosoft\\.Storage/storageAccounts/[^/]+$" $rid) $d.storage_account_resource_id)) }}
+{{- fail "avm-res-network-networksecuritygroup: Each `storage_account_resource_id` must be a valid storage account resource ID, or null." }}
+{{- end }}
+{{- if and $d.event_hub_authorization_rule_resource_id (not (regexMatch (printf "%sMicrosoft\\.EventHub/namespaces/[^/]+/authorizationRules/[^/]+$" $rid) $d.event_hub_authorization_rule_resource_id)) }}
+{{- fail "avm-res-network-networksecuritygroup: Each `event_hub_authorization_rule_resource_id` must be a valid Event Hub namespace authorization rule resource ID, or null." }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "nsg") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "network_security_group" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "networkSecurityGroup" "network security group" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "NetworkSecurityGroup" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := dict "CanNotDelete" "Cannot delete the resource or its child resources." "ReadOnly" "Cannot delete or modify the resource or its child resources." }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" (.notes | default (get $notes (toString .kind))))) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "noMetrics" true "dedicatedNull" true) }}

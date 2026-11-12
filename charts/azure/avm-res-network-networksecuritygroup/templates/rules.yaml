@@ -1,0 +1,80 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-networksecuritygroup
+main.rules.tf and variables.security_rule.tf (v0.6.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azapi_resource.security_rules (.../networkSecurityGroups/securityRules):
+one ASO NetworkSecurityGroupsSecurityRule per entry, owned by the group.
+The body is the module's, property for property; the module's empty lists
+for unset prefixes and port ranges are left out (Azure reads them back
+empty). The module serialises rule changes with an azapi lock; ASO sends
+them as they come and retries the ones Azure refuses while another is in
+progress.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $nsg := include "aso.name" (list .Release.Name "nsg") }}
+{{- $asg := "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Network/applicationSecurityGroups/[^/]+$" }}
+{{- range $key, $r := ($v.security_rules | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "security_rules.%s.timeouts" $key) $r.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- range $id := concat ($r.source_application_security_group_ids | default list) ($r.destination_application_security_group_ids | default list) }}
+{{- if not (regexMatch $asg $id) }}
+{{- fail "avm-res-network-networksecuritygroup: Each `source_application_security_group_ids` and `destination_application_security_group_ids` entry must be a valid application security group resource ID." }}
+{{- end }}
+{{- end }}
+{{- $obj := include "aso.name" (list $.Release.Name "rule" $key) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "security_rule:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | quote }}
+  owner:
+    name: {{ $nsg }}
+  access: {{ $r.access }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  direction: {{ $r.direction }}
+  priority: {{ $r.priority | int }}
+  protocol: {{ $r.protocol | quote }}
+  {{- with $r.source_address_prefix }}
+  sourceAddressPrefix: {{ . | quote }}
+  {{- end }}
+  {{- with $r.source_address_prefixes }}
+  sourceAddressPrefixes:
+    {{- include "nsg.strings" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $r.source_application_security_group_ids }}
+  sourceApplicationSecurityGroups:
+    {{- include "nsg.asgs" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $r.source_port_range }}
+  sourcePortRange: {{ . | quote }}
+  {{- end }}
+  {{- with $r.source_port_ranges }}
+  sourcePortRanges:
+    {{- include "nsg.strings" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $r.destination_address_prefix }}
+  destinationAddressPrefix: {{ . | quote }}
+  {{- end }}
+  {{- with $r.destination_address_prefixes }}
+  destinationAddressPrefixes:
+    {{- include "nsg.strings" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $r.destination_application_security_group_ids }}
+  destinationApplicationSecurityGroups:
+    {{- include "nsg.asgs" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $r.destination_port_range }}
+  destinationPortRange: {{ . | quote }}
+  {{- end }}
+  {{- with $r.destination_port_ranges }}
+  destinationPortRanges:
+    {{- include "nsg.strings" . | trim | nindent 4 }}
+  {{- end }}
+{{- end }}
