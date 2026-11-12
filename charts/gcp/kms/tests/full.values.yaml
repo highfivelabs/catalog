@@ -1,0 +1,28 @@
+# Every field the chart carries.
+project_id: my-project
+keyring: {location: europe-west1, name: full}
+labels: {env: dev}
+iam_bindings:
+  admins: {role: roles/cloudkms.admin, members: ["group:kms-admins@example.org"]}
+iam_bindings_additive:
+  viewer: {member: "user:viewer@example.org", role: roles/cloudkms.viewer}
+keys:
+  hsm-key:
+    destroy_scheduled_duration: 86400s
+    rotation_period: 2592000s
+    labels: {app: payments}
+    version_template: {algorithm: GOOGLE_SYMMETRIC_ENCRYPTION, protection_level: HSM}
+    iam:
+      roles/cloudkms.cryptoKeyEncrypterDecrypter: ["serviceAccount:app@my-project.iam.gserviceaccount.com"]
+    iam_bindings_additive:
+      viewer:
+        member: "user:viewer@example.org"
+        role: roles/cloudkms.viewer
+        condition: {title: expires, expression: 'request.time < timestamp("2030-01-01T00:00:00Z")'}
+  signer:
+    purpose: ASYMMETRIC_SIGN
+    skip_initial_version_creation: true
+    version_template: {algorithm: EC_SIGN_P256_SHA256}
+import_job: {id: import-1, import_method: RSA_OAEP_3072_SHA1_AES_256, protection_level: SOFTWARE}
+tag_bindings: {env: tagValues/1234567890}
+deletion_policy: ABANDON

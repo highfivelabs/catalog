@@ -1,0 +1,58 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's kms module (v60.0.0):
+# same names, types and defaults, so a module block's arguments become this
+# file one to one (README.md, "From Terraform"). values.schema.json carries
+# the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.keyring: the keyring name in full. A name set here takes no prefix;
+# unset, the keyring is keyring.name, as fabric names it. Keys are named by
+# their keys (with the namePrefix in front when it is set).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the derived keyring
+# name, every key name and the import job ID (never a name set under
+# names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. A prefixed key (hfl.dev/team) stays in
+# Kubernetes; an unprefixed one also becomes a Google Cloud label on the
+# kinds that take labels (the keys), since Config Connector copies it.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels (Config
+# Connector carries them as unprefixed metadata.labels).
+tags: {}
+
+# Context-specific interpolations. Refused when set: Bundt's ${...}
+# expressions and valueFrom replace fabric's $context lookups.
+context: {}
+# Keyring IAM bindings in {ROLE => [MEMBERS]} format.
+iam: {}
+# Authoritative IAM bindings in {KEY => {role, members, condition}}.
+iam_bindings: {}
+# Keyring individual additive IAM bindings in {KEY => {member, role, condition}}.
+iam_bindings_additive: {}
+# Keyring import job attributes ({id, import_method, protection_level}).
+import_job: null
+# Keyring attributes ({location, name}).
+keyring:
+  location: ""
+  name: ""
+# Set to false to manage keys and IAM bindings in an existing keyring.
+keyring_create: true
+# Key names and base attributes, {NAME: {destroy_scheduled_duration,
+# rotation_period, labels, purpose, skip_initial_version_creation,
+# version_template, iam, iam_bindings, iam_bindings_additive}}.
+keys: {}
+# Project id where the keyring will be created.
+project_id: ""
+# Tag bindings for this keyring, in key => tag value id format.
+tag_bindings: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# keys when the component is deleted (a keyring is never deleted: Cloud KMS
+# keeps keyrings). PREVENT has no Config Connector equivalent.
+deletion_policy: null
