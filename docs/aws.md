@@ -1,10 +1,9 @@
 # AWS seed catalog: terraform-aws-modules mapped to ACK
 
-The builder asked for this (verbatim): "On the AWS side it would likely make
-sense to mirror charts for each of the top modules and their submodules here:
-https://github.com/terraform-aws-modules. Having these will make the
-transition from tf for teams much simpler. Again kro if it's legit valuable
-but not otherwise."
+The goal: on the AWS side, mirror charts for each of the top modules of
+https://github.com/terraform-aws-modules and their submodules, to make the
+transition from Terraform much simpler for teams; kro only if it is
+clearly valuable.
 
 This is an inventory. It ranks the modules by use, lists what each top module
 and its submodules create, maps every Terraform resource to an ACK kind, and

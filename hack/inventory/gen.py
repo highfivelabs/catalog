@@ -8,7 +8,7 @@ desc={}
 for l in open("desc.txt"):
     m,_,t=l.rstrip("\n").partition("|"); desc[m]=t
 RANK=[
- # tier 1: landing-zone foundation (the builder's list first)
+ # tier 1: landing-zone foundation (the first-named list first)
  "project","folder","organization","iam-service-account","net-vpc","net-vpc-firewall","net-cloudnat","dns","kms","gcs",
  "artifact-registry","secret-manager","cloudsql-instance","gke-cluster-standard","gke-cluster-autopilot","gke-nodepool",
  "pubsub","bigquery-dataset","cloud-run-v2",
