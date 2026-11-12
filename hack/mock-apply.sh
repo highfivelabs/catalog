@@ -29,7 +29,7 @@ cd "${ROOT}"
 OUT="${ROOT}/offload-artifacts/mock"
 PROJECT=mock-project
 TIMEOUT="${MOCK_TIMEOUT:-300}"
-GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql logging servicedirectory sourcerepo cloudidentity gkehub cloudbuild bigtable"
+GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql logging servicedirectory sourcerepo cloudidentity gkehub cloudbuild accesscontextmanager bigtable"
 mkdir -p "${OUT}"
 
 for t in docker kind kubectl helm go git; do

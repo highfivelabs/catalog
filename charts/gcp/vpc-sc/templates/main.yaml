@@ -1,0 +1,28 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/vpc-sc/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_access_context_manager_access_policy.default, when
+access_policy_create is set: an AccessContextManagerAccessPolicy in the
+organization its parent names (Config Connector's organization-id
+annotation). Its cloud name is a number Google assigns; its title is the
+name people know it by, so names.policy and the namePrefix go there.
+Scopes have no field. context and project_id_search_scope (a Cloud Asset
+Inventory search) are refused: Bundt's inputs give project numbers.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "policy")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.unsupported" (list $ "project_id_search_scope" $v.project_id_search_scope "a search is a read, not a resource: give project numbers (projects/123) in the inputs, from another component's output") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- with $v.access_policy_create }}
+{{- include "kcc.unsupported" (list $ "access_policy_create.scopes" .scopes "AccessContextManagerAccessPolicy has no scopes field (Config Connector ignores it)") }}
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $.Release.Name "id" "policy" "abandon" $abandon "annotations" (dict "cnrm.cloud.google.com/organization-id" (trimPrefix "organizations/" .parent))) | nindent 2 }}
+spec:
+  title: {{ include "kcc.resourceName" (list $ "policy" "access policy" .title 255) | quote }}
+{{- end }}
