@@ -1,0 +1,140 @@
+---
+# Source: avm-res-network-publicipaddress/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-pip-diag-archive
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-publicipaddress
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-archive"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - category: "DDoSProtectionNotifications"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag"
+---
+# Source: avm-res-network-publicipaddress/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-pip-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-publicipaddress
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-pip-web"
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-network-publicipaddress/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-pip-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-publicipaddress
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-publicipaddress/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: full-pip
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-publicipaddress
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip"
+spec:
+  azureName: "pip-web"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  ddosSettings:
+    ddosProtectionPlan:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ddosProtectionPlans/ddos"
+    protectionMode: Enabled
+  dnsSettings:
+    domainNameLabel: "web-example"
+    reverseFqdn: "web.example.com."
+  idleTimeoutInMinutes: 15
+  ipTags:
+    - ipTagType: "RoutingPreference"
+      tag: "Internet"
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  publicIPPrefix:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/publicIPPrefixes/ippre"
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "2"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-publicipaddress/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-pip-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-publicipaddress
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
