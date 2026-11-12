@@ -1,0 +1,59 @@
+# Log sinks of every destination type the chart carries, with fabric's
+# writer-identity grants, log-based metrics, and a log scope (alpha).
+name: logs-project
+parent: folders/1234567890
+allow_alpha: true
+logging_sinks:
+  audit-bucket:
+    destination: projects/logs-project/locations/global/buckets/audit
+    type: logging
+    filter: logName:"cloudaudit.googleapis.com"
+    exclusions: {no-gke: resource.type=k8s_container, no-gce: resource.type=gce_instance}
+  to-bq:
+    destination: projects/logs-project/datasets/logs
+    type: bigquery
+    bq_partitioned_table: true
+    iam: false
+  to-gcs:
+    destination: my-log-archive
+    type: storage
+    description: Archive.
+    unique_writer: false
+  to-pubsub:
+    destination: projects/logs-project/topics/logs
+    type: pubsub
+    disabled: true
+logging_metrics:
+  errors:
+    filter: severity>=ERROR
+    description: Errors.
+    label_extractors: {service: EXTRACT(resource.labels.service_name)}
+    metric_descriptor:
+      metric_kind: DELTA
+      value_type: INT64
+      display_name: Errors
+      labels: [{key: service, description: The service., value_type: STRING}]
+  latency:
+    filter: resource.type=http_load_balancer
+    bucket_name: projects/logs-project/locations/global/buckets/audit
+    value_extractor: EXTRACT(httpRequest.latency)
+    disabled: false
+    bucket_options:
+      exponential_buckets: {num_finite_buckets: 64, growth_factor: 2, scale: 0.01}
+    metric_descriptor: {metric_kind: DELTA, value_type: DISTRIBUTION, unit: s}
+  sizes:
+    filter: resource.type=gcs_bucket
+    value_extractor: EXTRACT(protoPayload.size)
+    bucket_options:
+      linear_buckets: {num_finite_buckets: 10, width: 100, offset: 0}
+    metric_descriptor: {metric_kind: DELTA, value_type: DISTRIBUTION}
+  bounds:
+    filter: resource.type=gce_instance
+    value_extractor: EXTRACT(jsonPayload.n)
+    bucket_options:
+      explicit_buckets: {bounds: [1, 10, 100]}
+    metric_descriptor: {metric_kind: DELTA, value_type: DISTRIBUTION}
+log_scopes:
+  all-apps:
+    description: Every app project.
+    resource_names: [app-1, projects/app-2]

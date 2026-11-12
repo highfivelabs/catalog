@@ -1,0 +1,86 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/logging-metrics.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_logging_metric.metrics: one LoggingLogMetric per entry of
+logging_metrics, named by its key, with its bucket, extractors, bucket
+options and metric descriptor. fabric's observability factory (metrics
+read from files under factories_config) is part of factories_config,
+which is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $metrics := $v.logging_metrics | default dict }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- range $name := keys $metrics | sortAlpha }}
+{{- $m := index $metrics $name }}
+---
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "metric" $name)) "id" (printf "logging-metric:%s" $name) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "logging metric" $name 100) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  filter: {{ $m.filter | quote }}
+  {{- with $m.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $m.disabled) }}
+  disabled: {{ $m.disabled }}
+  {{- end }}
+  {{- with $m.bucket_name }}
+  loggingLogBucketRef:
+    external: {{ . | quote }}
+  {{- end }}
+  {{- with $m.value_extractor }}
+  valueExtractor: {{ . | quote }}
+  {{- end }}
+  {{- with $m.label_extractors }}
+  labelExtractors: {{ toJson . }}
+  {{- end }}
+  {{- with $m.bucket_options }}
+  bucketOptions:
+    {{- with .explicit_buckets }}
+    explicitBuckets:
+      bounds: {{ toJson .bounds }}
+    {{- end }}
+    {{- with .exponential_buckets }}
+    exponentialBuckets:
+      numFiniteBuckets: {{ .num_finite_buckets }}
+      growthFactor: {{ .growth_factor }}
+      scale: {{ .scale }}
+    {{- end }}
+    {{- with .linear_buckets }}
+    linearBuckets:
+      numFiniteBuckets: {{ .num_finite_buckets }}
+      width: {{ .width }}
+      offset: {{ .offset }}
+    {{- end }}
+  {{- end }}
+  {{- with $m.metric_descriptor }}
+  metricDescriptor:
+    metricKind: {{ .metric_kind | quote }}
+    valueType: {{ .value_type | quote }}
+    {{- with .display_name }}
+    displayName: {{ . | quote }}
+    {{- end }}
+    {{- with .unit }}
+    unit: {{ . | quote }}
+    {{- end }}
+    {{- with .labels }}
+    labels:
+      {{- range $l := . }}
+      - key: {{ $l.key | quote }}
+        {{- with $l.description }}
+        description: {{ . | quote }}
+        {{- end }}
+        {{- with $l.value_type }}
+        valueType: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

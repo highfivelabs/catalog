@@ -17,7 +17,8 @@
 # `git archive` of one commit, in Cloud Storage) or CCE_DIR (a checkout).
 #
 # MOCK_CHARTS="gcs net-vpc" applies only those charts (default: every
-# chart with a tests/mock.values.yaml). A chart whose case needs objects it
+# chart under charts/gcp with a tests/mock.values.yaml; charts/aws has
+# hack/mock-apply-aws.sh). A chart whose case needs objects it
 # does not make (gke-nodepool, a cluster) has them in tests/mock.needs.yaml:
 # applied first and waited for, deleted after the chart's objects.
 #
@@ -29,7 +30,7 @@ cd "${ROOT}"
 OUT="${ROOT}/offload-artifacts/mock"
 PROJECT=mock-project
 TIMEOUT="${MOCK_TIMEOUT:-300}"
-GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql logging dataproc"
+GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql logging servicedirectory sourcerepo cloudidentity gkehub cloudbuild accesscontextmanager bigtable dataproc"
 mkdir -p "${OUT}"
 
 for t in docker kind kubectl helm go git; do
@@ -80,7 +81,8 @@ summary="${OUT}/summary.md"
 } >"${summary}"
 
 total=0; failed=0
-for values in charts/*/*/tests/mock.values.yaml; do
+# Config Connector charts only: charts/aws has hack/mock-apply-aws.sh.
+for values in charts/gcp/*/tests/mock.values.yaml; do
   dir="$(dirname "$(dirname "${values}")")"; chart="$(basename "${dir}")"
   if [[ -n "${MOCK_CHARTS:-}" && " ${MOCK_CHARTS} " != *" ${chart} "* ]]; then continue; fi
   ns="catalog-${chart}"; rel="mock"
