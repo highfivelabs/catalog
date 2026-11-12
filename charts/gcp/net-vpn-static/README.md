@@ -68,6 +68,11 @@ with every other module the catalog tracks. To take a newer release, see
 `names`, each validated against Config Connector v1.160.0's CRD schemas,
 and the refusals in `tests/*.fail.yaml`.
 
+Fake cloud (`task test-mock MOCK_CHARTS=net-vpn-static`, 2026-11-12): the
+gateway, its address and its three forwarding rules on a network from
+`tests/mock.needs.yaml`: every object Ready, the outputs evaluated, every
+object deleted.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.
