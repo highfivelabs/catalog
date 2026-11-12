@@ -676,9 +676,9 @@ What this shows and what it does not:
   Organization, IAMServiceAccount, StorageBucket, SecretManagerSecret,
   ArtifactRegistryRepository, RunService, PubSubTopic, PubSubSubscription,
   KMSKeyRing, KMSCryptoKey); on any other (net-vpc's subnets) the bindings
-  stay in the `IAMPartialPolicy`. Not applied to a cloud yet: the fake-cloud
-  pin (`CCE_COMMIT`) predates the kind. A chart README says which kind it
-  uses.
+  stay in the `IAMPartialPolicy`. The fake-cloud pin (`CCE_COMMIT`) has
+  the kind since 2026-11-12, so a fake-cloud case can apply it. A chart
+  README says which kind it uses.
 - **Principals from other components** come through Bundt:
   `members: ["serviceAccount:${components.runtime.outputs.email}"]`, or
   the `iam_email` output through `valueFrom`. fabric's `$iam_principals:`

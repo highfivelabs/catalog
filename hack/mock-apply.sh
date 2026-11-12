@@ -30,7 +30,7 @@ cd "${ROOT}"
 OUT="${ROOT}/offload-artifacts/mock"
 PROJECT=mock-project
 TIMEOUT="${MOCK_TIMEOUT:-300}"
-GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql logging servicedirectory sourcerepo cloudidentity gkehub cloudbuild accesscontextmanager bigtable monitoring cloudquota alloydb privilegedaccessmanager bigqueryreservation"
+GROUPS_NEEDED="iam resourcemanager compute storage pubsub serviceusage dns servicenetworking orgpolicy essentialcontacts tags container artifactregistry kms secretmanager sql logging servicedirectory sourcerepo cloudidentity gkehub cloudbuild accesscontextmanager bigtable monitoring cloudquota alloydb privilegedaccessmanager bigqueryreservation binaryauthorization containeranalysis certificatemanager"
 mkdir -p "${OUT}"
 
 for t in docker kind kubectl helm go git; do
@@ -47,13 +47,6 @@ if [[ -z "${CCE_DIR:-}" ]]; then
     git -C "${CCE_DIR}" -c user.email=mock@example.com -c user.name=mock commit -qm "cce from ${CCE_TARBALL}"
 fi
 CCE_DIR="$(cd "${CCE_DIR}" && pwd)"
-# Workaround, in this scratch copy only: config-connector-extensions'
-# hack/fake-cloud/up.sh applies config/crds/*.yaml, which at 1de95478
-# also matches kustomization.yaml, and kubectl refuses it. Reported to
-# config-connector-extensions; remove when its up.sh skips it.
-if [[ -f "${CCE_DIR}/config/crds/kustomization.yaml" ]]; then
-  mkdir -p "${CCE_DIR}/.moved" && mv "${CCE_DIR}/config/crds/kustomization.yaml" "${CCE_DIR}/.moved/"
-fi
 if [[ ! -d "${CCE_DIR}/.git" ]]; then
   # hack/upstream.sh wants a git checkout to compare against.
   git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
@@ -63,11 +56,15 @@ echo "== config-connector-extensions from ${CCE_TARBALL:-${CCE_DIR}}"
 
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 start=$(date +%s)
-(cd "${CCE_DIR}" && make upstream >/dev/null)
-(cd "${CCE_DIR}" && CRD_GROUPS="${GROUPS_NEEDED}" FAKE_CLOUD_PROJECT="${PROJECT}" make fake-cloud-up)
+# config-connector-extensions' scripts rather than its tasks (`task
+# upstream`, `task fake-cloud-up`, `task fake-cloud-down` run these): its
+# Taskfile includes a remote Taskfile, which the snapshot does not carry.
+(cd "${CCE_DIR}" && hack/upstream.sh >/dev/null)
+(cd "${CCE_DIR}" && GOTOOLCHAIN=auto go build -o bin/fakecloud ./cmd/fakecloud)
+(cd "${CCE_DIR}" && CRD_GROUPS="${GROUPS_NEEDED}" FAKE_CLOUD_PROJECT="${PROJECT}" hack/fake-cloud/up.sh)
 export KUBECONFIG="${CCE_DIR}/bin/fake-cloud/kubeconfig"
 echo "== fake cloud up in $(( $(date +%s) - start ))s"
-trap '(cd "${CCE_DIR}" && make fake-cloud-down) >/dev/null 2>&1 || true' EXIT
+trap '(cd "${CCE_DIR}" && hack/fake-cloud/down.sh) >/dev/null 2>&1 || true' EXIT
 
 summary="${OUT}/summary.md"
 {
