@@ -60,18 +60,22 @@ org_policies:
 | `notification_channels` | one `MonitoringNotificationChannel` each, with its type, description, `enabled`, labels and user labels (as the object's labels). Config Connector names a channel by its Kubernetes object, so the channel's display name is `<component>-channel-<key>`: `display_name` is refused, and so are `sensitive_labels` (a secret would be in the rendered manifest) |
 | `alerts` | one `MonitoringAlertPolicy` each, with its conditions (absent, matched log, MQL, PromQL, threshold), strategy, documentation and user labels; a notification channel named by a key of `notification_channels` is a reference to it, any other is used as given; `display_name` is required (fabric leaves it to the API). Refused: `alert_strategy.notification_prompts`, `documentation.subject` and `links`, and a PromQL condition's `disable_metric_validation` (no such fields) |
 | `quotas` | one `APIQuotaPreference` each, named by its key (with the `namePrefix`); `ignore_safety_checks` is refused (no such field) |
+| `workload_identity_pools` | one `IAMWorkloadIdentityPool` each (its ID with the `namePrefix`) and one `IAMWorkloadIdentityPoolProvider` per provider, with fabric's OIDC templates (`github`, `gitlab`, `okta`, `terraform`: issuer and attribute mapping) and checks; SAML providers and `oidc.jwks_json` are refused (no such fields) |
+| `pam_entitlements` | one `PrivilegedAccessManagerEntitlement` each on the project, with fabric's default justification (unstructured), its approvals and notification targets |
+| `bigquery_reservations` | one `BigQueryReservationReservation` each and one `BigQueryReservationAssignment` per job type and assignee (`projects/`, `folders/` or `organizations/`), keyed as fabric keys them; fabric's `scaling_mode` is not read by its resource either |
+| `kms_autokeys` | one `KMSKeyHandle` each |
 | `allow_alpha` | not a fabric variable: accept `log_scopes`, whose kind is `v1alpha1` |
 | `tag_bindings` | one `TagsTagBinding` each on the project: the `Project` object (Config Connector reads its number), or with `project_reuse` the number in `project_reuse.attributes.number`, which it then needs |
 
 ## Not ported
 
-Config Connector has kinds for these; the chart refuses them until they
-are mapped: `asset_feeds`,
-`bigquery_reservations`, `kms_autokeys`, `service_encryption_key_ids`, `workload_identity_pools`,
-`pam_entitlements`, `iam_deny_policies` (alpha), `scc_mute_configs`
-(alpha), `scc_sha_custom_modules` (alpha), `vpc_sc`,
-`factories_config`, `service_agents_config`,
-`service_agents_folder_bindings`, `service_agents_project_bindings`.
+Refused when set:
+
+| Variable | Why |
+| --- | --- |
+| `asset_feeds`, `iam_deny_policies`, `scc_mute_configs`, `scc_sha_custom_modules`, `vpc_sc` | their Config Connector kinds are `v1alpha1` (`CloudAssetProjectFeed`, `IAMDenyPolicy`, `SecurityCenterMuteConfig`, the SCC custom module, `AccessContextManagerServicePerimeterResource`); not ported yet, even with `allow_alpha` |
+| `service_agents_config`, `service_agents_folder_bindings`, `service_agents_project_bindings`, `service_encryption_key_ids` | they grant roles to the project's service agents, whose emails name the project number, known only after apply (gap 8); fabric's default grants to service agents are not made either |
+| `factories_config` | a chart cannot read the caller's files: their entries go in the variables they feed |
 
 Refused because Config Connector cannot express them:
 
@@ -97,6 +101,7 @@ Fabric's declared outputs for what the chart ports, selected.
 | `organization_policies_ids` | `projects/<id>/policies/<policy>` per policy |
 | `sink_writer_identities` | each sink's `status.writerIdentity`, by its key |
 | `tag_keys`, `tag_values`, `network_tag_keys`, `network_tag_values` | the IDs (`tagKeys/<n>`, `tagValues/<n>`) of the keys and values the chart makes, by fabric's keys (`<key>/<value>` for values); fabric outputs whole objects |
+| `kms_autokeys` | each key handle's key (`status.observedState.kmsKey`), by its key |
 | `alert_ids`, `notification_channel_names` | each alert policy's and channel's `status.name` (`projects/<id>/alertPolicies/<n>`), by its key |
 
 With `project_reuse` there is no project object, so `name` and `number`
@@ -121,9 +126,9 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=project`: ten render cases (`extras` carries the
-0.5.0 variables, `logging` the 0.6.0 ones, `monitoring` the 0.7.0 ones, `tags` the 0.8.0 ones, `reuse-tags` tag bindings on a
-reused project), twenty-seven refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
+`task test CHART=project`: eleven render cases (`extras` carries the
+0.5.0 variables, `logging` the 0.6.0 ones, `monitoring` the 0.7.0 ones, `tags` the 0.8.0 ones, `identity` the 0.9.0 ones, `reuse-tags` tag bindings on a
+reused project), thirty-one refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
 neither) is applied to the fake cloud.
 
 On 2026-11-12 (`task test-mock MOCK_CHARTS=project`, offload VM), with the
@@ -136,6 +141,13 @@ render-tested only and the case no longer sets one.
 
 ## Changes
 
+- **0.9.0** (2026-11-12): `workload_identity_pools` (pools and AWS and
+  OIDC providers, fabric's templates; SAML and `jwks_json` refused),
+  `pam_entitlements`, `bigquery_reservations` (with assignments) and
+  `kms_autokeys`, and the output `kms_autokeys`. The variables still
+  refused say why: alpha kinds, grants to service agents (gap 8), or the
+  caller's files. Values that set none of them render as before, with
+  the new version label.
 - **0.8.0** (2026-11-12): fabric's tags: `tags` entries whose value is a
   map (tag keys), `network_tags` and `tags_config` (one `TagsTagKey` per
   key and one `TagsTagValue` per value, with their IAM;
