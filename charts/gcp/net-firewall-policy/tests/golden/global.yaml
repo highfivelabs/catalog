@@ -1,0 +1,154 @@
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicy
+metadata:
+  name: global-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "global"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "test-1"
+  projectRef:
+    external: "my-project"
+  description: "a global policy"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+metadata:
+  name: global-association-my-vpc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "global"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "association:my-vpc"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "test-1-my-vpc"
+  firewallPolicyRef:
+    external: "test-1"
+  projectRef:
+    external: "my-project"
+  attachmentTargetRef:
+    external: "https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-vpc"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: global-rule-egress-smtp-eccb7226
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "global"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:egress/smtp"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  firewallPolicyRef:
+    name: global-policy
+  projectRef:
+    external: "my-project"
+  priority: 900
+  action: "deny"
+  direction: EGRESS
+  ruleName: "smtp"
+  description: "no mail"
+  disabled: true
+  targetServiceAccounts:
+    - external: "app@my-project.iam.gserviceaccount.com"
+  match:
+    destIPRanges:
+    - "0.0.0.0/0"
+    destFqdns:
+    - "example.com"
+    destRegionCodes:
+    - "US"
+    layer4Configs:
+    - ipProtocol: "tcp"
+      ports:
+        - "25"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: global-rule-ingress-from-factory-2b690fe0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "global"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:ingress/from-factory"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  firewallPolicyRef:
+    name: global-policy
+  projectRef:
+    external: "my-project"
+  priority: 1100
+  action: "allow"
+  direction: INGRESS
+  ruleName: "from-factory"
+  disabled: false
+  match:
+    srcIPRanges:
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+    - "1.2.3.4/32"
+    layer4Configs:
+    - ipProtocol: "all"
+      ports:
+        - "22"
+---
+# Source: net-firewall-policy/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkFirewallPolicyRule
+metadata:
+  name: global-rule-ingress-tagged-04156965
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "global"
+    app.kubernetes.io/name: net-firewall-policy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:ingress/tagged"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  firewallPolicyRef:
+    name: global-policy
+  projectRef:
+    external: "my-project"
+  priority: 1000
+  action: "deny"
+  direction: INGRESS
+  ruleName: "tagged"
+  disabled: false
+  targetSecureTags:
+    - name: "tagValues/1"
+    - name: "tagValues/2"
+  match:
+    srcAddressGroups:
+    - "projects/my-project/locations/global/addressGroups/ag"
+    srcThreatIntelligences:
+    - "iplist-known-malicious-ips"
+    srcSecureTags:
+      - name: "tagValues/3"
+    layer4Configs:
+    - ipProtocol: "all"
