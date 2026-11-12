@@ -1,0 +1,47 @@
+# Every ported feature: five subnet types, a single NAT gateway, database
+# and ElastiCache route tables and subnet groups, dedicated network ACLs,
+# DHCP options, a customer gateway (allow_alpha), a region and ABANDON.
+name: full
+cidr: 10.10.0.0/16
+secondary_cidr_blocks: [10.11.0.0/16]
+region: us-east-2
+azs: [us-east-2a, us-east-2b, use2-az3]
+public_subnets: [10.10.0.0/24, 10.10.1.0/24, 10.10.2.0/24]
+public_subnet_names: [edge-a]
+private_subnets: [10.10.10.0/24, 10.10.11.0/24]
+database_subnets: [10.10.20.0/24, 10.10.21.0/24]
+elasticache_subnets: [10.10.30.0/24, 10.10.31.0/24]
+intra_subnets: [10.11.0.0/24, 10.11.1.0/24]
+create_multiple_intra_route_tables: true
+enable_nat_gateway: true
+single_nat_gateway: true
+create_database_subnet_route_table: true
+create_database_nat_gateway_route: true
+create_elasticache_subnet_route_table: true
+database_subnet_group_name: Full-DB
+elasticache_subnet_group_name: full-cache
+map_public_ip_on_launch: true
+private_subnet_private_dns_hostname_type_on_launch: resource-name
+private_subnet_enable_resource_name_dns_a_record_on_launch: true
+public_dedicated_network_acl: true
+public_inbound_acl_rules:
+  - {rule_number: 100, rule_action: allow, from_port: 443, to_port: 443, protocol: tcp, cidr_block: 0.0.0.0/0}
+  - {rule_number: 110, rule_action: allow, icmp_type: 8, icmp_code: 0, protocol: icmp, cidr_block: 10.0.0.0/8}
+private_dedicated_network_acl: true
+enable_dhcp_options: true
+dhcp_options_domain_name: service.consul
+dhcp_options_domain_name_servers: [127.0.0.1, 10.10.0.2]
+dhcp_options_ntp_servers: [169.254.169.123]
+enable_network_address_usage_metrics: true
+manage_default_security_group: false
+tags: {Owner: platform, Environment: test}
+vpc_tags: {Tier: core}
+public_subnet_tags: {"kubernetes.io/role/elb": "1"}
+private_subnet_tags_per_az: {us-east-2a: {Zone: a}}
+nat_gateway_tags: {Kind: nat}
+allow_alpha: true
+customer_gateways:
+  office: {bgp_asn: 65112, ip_address: 203.0.113.12, device_name: office-router}
+customer_gateway_tags: {Site: office}
+deletion_policy: ABANDON
+labels: {hfl.dev/team: platform}

@@ -5,6 +5,10 @@ for Google Cloud is modelled, and the pilot that tests the model. The goal
 is to make the transition from Terraform much simpler for teams,
 starting from the foundational layers of Cloud Foundation Fabric.
 
+The AWS charts (`charts/aws`) follow this design with AWS Controllers for
+Kubernetes (ACK) in place of Config Connector; `docs/aws.md`, section 8,
+says where they differ.
+
 Read with: Bundt's `specs/catalog/packages.md` and `templates.md` (what a
 Package and a Template are), `drafts/agreed/README.md` (providers, the
 escape hatch), `drafts/delivery/README.md` (hooks, CRDs, the dependency

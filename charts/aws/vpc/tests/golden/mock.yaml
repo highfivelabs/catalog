@@ -1,0 +1,441 @@
+---
+# Source: vpc/templates/subnet-groups.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: mock-database-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database-subnet-group"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "catalog-vpc"
+  description: "Database subnet group for catalog-vpc"
+  subnetRefs:
+    -
+      from:
+        name: mock-database-0
+    -
+      from:
+        name: mock-database-1
+  tags:
+    - key: "Name"
+      value: "catalog-vpc"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/vpc.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: DHCPOptions
+metadata:
+  name: mock-dhcp-options
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dhcp-options"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  dhcpConfigurations:
+    - key: domain-name
+      values: ["catalog.internal"]
+    - key: domain-name-servers
+      values:
+        - "AmazonProvidedDNS"
+  vpcRefs:
+    -
+      from:
+        name: mock-vpc
+  tags:
+    - key: "Name"
+      value: "catalog-vpc"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/gateways.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: ElasticIPAddress
+metadata:
+  name: mock-nat-eip-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat-eip-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-us-east-1a"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/gateways.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: InternetGateway
+metadata:
+  name: mock-igw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "igw"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  tags:
+    - key: "Name"
+      value: "catalog-vpc"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/gateways.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NATGateway
+metadata:
+  name: mock-nat-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  allocationRef:
+    from:
+      name: mock-nat-eip-0
+  subnetRef:
+    from:
+      name: mock-public-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-us-east-1a"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NetworkACL
+metadata:
+  name: mock-public-acl
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public-network-acl"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  associations:
+    - subnetRef:
+        from:
+          name: mock-public-0
+    - subnetRef:
+        from:
+          name: mock-public-1
+  entries:
+    - cidrBlock: 0.0.0.0/0
+      egress: false
+      portRange:
+        from: 0
+        to: 0
+      protocol: "-1"
+      ruleAction: allow
+      ruleNumber: 100
+    - cidrBlock: 0.0.0.0/0
+      egress: true
+      portRange:
+        from: 0
+        to: 0
+      protocol: "-1"
+      ruleAction: allow
+      ruleNumber: 100
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-public"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: mock-public-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public-route-table-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  routes:
+    - destinationCIDRBlock: 0.0.0.0/0
+      gatewayRef:
+        from:
+          name: mock-igw
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-public"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: mock-private-rt-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private-route-table-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  routes:
+    - destinationCIDRBlock: 0.0.0.0/0
+      natGatewayRef:
+        from:
+          name: mock-nat-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-private"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: mock-public-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public-subnet-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  cidrBlock: "10.20.0.0/24"
+  availabilityZone: "us-east-1a"
+  mapPublicIPOnLaunch: false
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: mock-public-rt-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-public-us-east-1a"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: mock-public-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public-subnet-1"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  cidrBlock: "10.20.1.0/24"
+  availabilityZone: "us-east-1b"
+  mapPublicIPOnLaunch: false
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: mock-public-rt-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-public-us-east-1b"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: mock-private-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private-subnet-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  cidrBlock: "10.20.10.0/24"
+  availabilityZone: "us-east-1a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: mock-private-rt-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-private-us-east-1a"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: mock-private-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private-subnet-1"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  cidrBlock: "10.20.11.0/24"
+  availabilityZone: "us-east-1b"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: mock-private-rt-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-private-us-east-1b"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: mock-database-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database-subnet-0"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  cidrBlock: "10.20.20.0/24"
+  availabilityZone: "us-east-1a"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: mock-private-rt-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-db-us-east-1a"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/subnets.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: mock-database-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database-subnet-1"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  vpcRef:
+    from:
+      name: mock-vpc
+  cidrBlock: "10.20.21.0/24"
+  availabilityZone: "us-east-1b"
+  enableResourceNameDNSARecord: false
+  routeTableRefs:
+    -
+      from:
+        name: mock-private-rt-0
+  tags:
+    - key: "Name"
+      value: "catalog-vpc-db-us-east-1b"
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: vpc/templates/vpc.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: VPC
+metadata:
+  name: mock-vpc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: vpc
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "vpc"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  cidrBlocks:
+    - "10.20.0.0/16"
+  instanceTenancy: "default"
+  enableDNSHostnames: true
+  enableDNSSupport: true
+  # manage_default_security_group: the default security group without its
+  # rules, as the module's aws_default_security_group with none leaves it.
+  disallowSecurityGroupDefaultRules: true
+  tags:
+    - key: "Name"
+      value: "catalog-vpc"
+    - key: "catalog-test"
+      value: "true"
