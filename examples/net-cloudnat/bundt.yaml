@@ -1,0 +1,41 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-cloudnat
+spec:
+  version: "1.0.0"
+  components:
+    - name: nat
+      package:
+        name: gcp-net-cloudnat
+        version: "0.1.0"
+      inputs:
+        region: europe-west8
+        name: default
+        logging_filter: ERRORS_ONLY
+        config_port_allocation:
+          enable_dynamic_port_allocation: true
+          enable_endpoint_independent_mapping: false
+          min_ports_per_vm: 64
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-cloudnat
+  scope: my-team
+spec:
+  template: net-cloudnat
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-cloudnat-dev
+  scope: my-team/dev
+spec:
+  stack: net-cloudnat
+  version: "1.0.0"
+  components:
+    nat:
+      values:
+        project_id: myproject
+        router_network: my-vpc
