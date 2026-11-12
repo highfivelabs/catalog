@@ -1,0 +1,27 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs mirror the module's outputs, as CEL over the live objects, each
+# object bound as resources.<its hfl.dev/id>, and the values as inputs
+# (docs/design.md, "Outputs"). id and access_policy_name are the policy's
+# number: the created policy's, which Google assigns, else access_policy.
+# access_level_names maps each access level's key to its resource name.
+# fabric's access_levels, access_policy and perimeters are whole Terraform
+# objects, which a Package does not output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-vpc-sc
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      inputs.access_policy_create != null ? resources.policy.status.name : inputs.access_policy
+    access_policy_name: >-
+      inputs.access_policy_create != null ? resources.policy.status.name : inputs.access_policy
+    access_level_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'AccessContextManagerAccessLevel',
+        {k.substring(13): 'accessPolicies/' + (inputs.access_policy_create != null ? resources.policy.status.name : inputs.access_policy) + '/accessLevels/' + v.spec.resourceID})
