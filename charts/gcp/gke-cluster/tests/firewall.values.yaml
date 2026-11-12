@@ -1,0 +1,35 @@
+# Every firewall rule of the module (firewall.tf), Standard mode: private
+# nodes with a control-plane block, a second pod range, a node pool with its
+# own pod range and node auto-provisioning (whose nodes get the cluster's
+# network tag), the shadow rules logged, a TPU block, and the fleet service
+# agent's grants (sa.tf).
+project_id: my-project
+name: gke-fw
+regional: false
+zones: [europe-west1-b]
+network: vpc
+network_project_id: host-project
+subnetwork: gke
+ip_range_pods: pods
+additional_ip_range_pods: [pods-2]
+ip_range_services: services
+enable_private_nodes: true
+master_ipv4_cidr_block: 172.16.0.0/28
+enable_tpu: true
+cluster_autoscaling: {enabled: true, max_cpu_cores: 10, max_memory_gb: 64}
+network_tags: [web]
+node_pools:
+  - name: pool-a
+  - name: pool-b
+    pod_range: pods-b
+add_cluster_firewall_rules: true
+add_shadow_firewall_rules: true
+firewall_priority: 900
+firewall_inbound_ports: ["8443", "9443"]
+shadow_firewall_rules_priority: 950
+shadow_firewall_rules_log_config: {metadata: EXCLUDE_ALL_METADATA}
+fleet_project_grant_service_agent: true
+firewall_ranges:
+  subnetwork: 10.0.0.0/24
+  pods: {pods: 10.4.0.0/14, pods-2: 10.8.0.0/14, pods-b: 10.12.0.0/14}
+  tpu: 10.100.0.0/20
