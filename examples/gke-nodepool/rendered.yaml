@@ -1,0 +1,54 @@
+# component gke-nodepool-dev-cluster-1-nodepool-1
+---
+# Source: gke-nodepool/templates/nodepool.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: gke-nodepool-dev-cluster-1-nodepool-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gke-nodepool-dev-cluster-1-nodepool-1"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nodepool"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "nodepool-1"
+  location: "europe-west1-b"
+  clusterRef:
+    external: "projects/myproject/locations/europe-west1-b/clusters/cluster-1"
+  initialNodeCount: 1
+  autoscaling:
+    maxNodeCount: 3
+    minNodeCount: 0
+  nodeConfig:
+    diskType: "pd-balanced"
+    labels: {"environment":"dev"}
+    machineType: "n2-standard-2"
+    metadata: {"disable-legacy-endpoints":"true"}
+    oauthScopes: ["https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/userinfo.email"]
+    serviceAccountRef:
+      name: gke-nodepool-dev-cluster-1-nodepool-1-sa
+    spot: true
+    taint:
+      - key: "dedicated"
+        value: "batch"
+        effect: "NO_SCHEDULE"
+---
+# Source: gke-nodepool/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: gke-nodepool-dev-cluster-1-nodepool-1-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gke-nodepool-dev-cluster-1-nodepool-1"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceID: "tf-gke-nodepool-1"
+  displayName: "Terraform GKE cluster-1 nodepool-1."

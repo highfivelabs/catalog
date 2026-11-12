@@ -1,0 +1,40 @@
+---
+# Source: gke-nodepool/templates/nodepool.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: windows
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nodepool"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "win"
+  location: "europe-west1"
+  clusterRef:
+    external: "projects/my-project/locations/europe-west1/clusters/cluster-0"
+  initialNodeCount: 1
+  autoscaling:
+    totalMaxNodeCount: 3
+    totalMinNodeCount: 0
+  queuedProvisioning:
+    enabled: true
+  nodeConfig:
+    diskType: "pd-balanced"
+    imageType: "WINDOWS_LTSC_CONTAINERD"
+    machineType: "n2-standard-4"
+    metadata: {"disable-legacy-endpoints":"true"}
+    oauthScopes: ["https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/monitoring.write","https://www.googleapis.com/auth/userinfo.email"]
+    preemptible: true
+    serviceAccountRef:
+      external: "nodes@my-project.iam.gserviceaccount.com"
+    ephemeralStorageConfig:
+      localSsdCount: 1
+    taint:
+      - key: "node.kubernetes.io/os"
+        value: "windows"
+        effect: "NO_EXECUTE"

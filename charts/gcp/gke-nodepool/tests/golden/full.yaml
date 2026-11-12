@@ -1,0 +1,178 @@
+---
+# Source: gke-nodepool/templates/nodepool.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerNodePool
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "nodepool"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "full"
+  location: "europe-west1"
+  clusterRef:
+    external: "projects/my-project/locations/europe-west1/clusters/cluster-0"
+  version: "1.31.1-gke.1678000"
+  maxPodsPerNode: 64
+  initialNodeCount: 1
+  nodeCount: 2
+  nodeLocations: ["europe-west1-b","europe-west1-c"]
+  autoscaling:
+    locationPolicy: "BALANCED"
+    maxNodeCount: 5
+    minNodeCount: 1
+  management:
+    autoRepair: true
+    autoUpgrade: true
+  networkConfig:
+    enablePrivateNodes: true
+    podRange: "pods-web"
+    additionalNodeNetworkConfigs:
+      - networkRef:
+          external: "projects/my-project/global/networks/extra"
+        subnetworkRef:
+          external: "projects/my-project/regions/europe-west1/subnetworks/extra"
+    additionalPodNetworkConfigs:
+      - subnetworkRef:
+          external: "projects/my-project/regions/europe-west1/subnetworks/extra"
+        secondaryPodRange: "pods-extra"
+        maxPodsPerNode: 32
+    podCidrOverprovisionConfig:
+      disabled: true
+  upgradeSettings:
+    maxSurge: 0
+    maxUnavailable: 0
+    strategy: "BLUE_GREEN"
+    blueGreenSettings:
+      nodePoolSoakDuration: "600s"
+      standardRolloutPolicy:
+        batchPercentage: 0.5
+        batchSoakDuration: "60s"
+  placementPolicy:
+    type: "COMPACT"
+    policyNameRef:
+      external: "projects/my-project/regions/europe-west1/resourcePolicies/compact"
+  nodeConfig:
+    bootDiskKMSCryptoKeyRef:
+      external: "projects/kms/locations/europe-west1/keyRings/r/cryptoKeys/k"
+    diskSizeGb: 100
+    diskType: "pd-ssd"
+    imageType: "COS_CONTAINERD"
+    labels: {"workload":"web"}
+    resourceLabels: {"env":"dev"}
+    machineType: "n2-standard-4"
+    metadata: {"disable-legacy-endpoints":"true","foo":"bar"}
+    minCpuPlatform: "Intel Cascade Lake"
+    nodeGroupRef:
+      external: "projects/my-project/zones/europe-west1-b/nodeGroups/ng"
+    oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"]
+    serviceAccountRef:
+      name: full-sa
+    spot: true
+    tags: ["gke-node","web"]
+    resourceManagerTags: {"tagKeys/123":"tagValues/456"}
+    ephemeralStorageLocalSsdConfig:
+      localSsdCount: 1
+    gcfsConfig:
+      enabled: true
+    guestAccelerator:
+      - count: 1
+        type: "nvidia-tesla-t4"
+        gpuPartitionSize: "1g.5gb"
+        gpuSharingConfig:
+          gpuSharingStrategy: TIME_SHARING
+          maxSharedClientsPerGpu: 2
+        gpuDriverInstallationConfig:
+          gpuDriverVersion: "LATEST"
+    localNvmeSsdBlockConfig:
+      localSsdCount: 1
+    gvnic:
+      enabled: true
+    kubeletConfig:
+      cpuManagerPolicy: "static"
+      cpuCfsQuota: true
+      cpuCfsQuotaPeriod: "100ms"
+      podPidsLimit: 4096
+      imageGcLowThresholdPercent: 70
+      imageGcHighThresholdPercent: 85
+      imageMinimumGcAge: "2m"
+      imageMaximumGcAge: "24h"
+    linuxNodeConfig:
+      sysctls: {"net.core.somaxconn":"4096"}
+      cgroupMode: "CGROUP_MODE_V2"
+    reservationAffinity:
+      consumeReservationType: "SPECIFIC_RESERVATION"
+      key: "compute.googleapis.com/reservation-name"
+      values: ["res-1"]
+    sandboxConfig:
+      sandboxType: gvisor
+    shieldedInstanceConfig:
+      enableSecureBoot: true
+      enableIntegrityMonitoring: true
+    taint:
+      - key: "dedicated"
+        value: "web"
+        effect: "NO_SCHEDULE"
+    workloadMetadataConfig:
+      mode: "GKE_METADATA"
+    advancedMachineFeatures:
+      enableNestedVirtualization: false
+      threadsPerCore: 1
+    containerdConfig:
+      privateRegistryAccessConfig:
+        enabled: true
+        certificateAuthorityDomainConfig:
+          - fqdns: ["registry.example.com"]
+            gcpSecretManagerCertificateConfig:
+              secretRef:
+                external: "projects/my-project/secrets/ca/versions/1"
+      writableCgroups:
+        enabled: true
+      registryHosts:
+        - server: "registry.example.com"
+          hosts:
+            - host: "mirror.example.com"
+              capabilities: ["pull","resolve"]
+              overridePath: true
+              dialTimeout: "5s"
+              header:
+                - key: "X-Custom"
+                  value: ["a","b"]
+              ca:
+                - secretRef:
+                    external: "projects/my-project/secrets/mirror-ca/versions/1"
+              client:
+                - cert:
+                    secretRef:
+                      external: "projects/my-project/secrets/cert/versions/1"
+                  key:
+                    secretRef:
+                      external: "projects/my-project/secrets/key/versions/1"
+---
+# Source: gke-nodepool/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: full-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-nodepool
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "tf-gke-full"
+  displayName: "Web nodes"

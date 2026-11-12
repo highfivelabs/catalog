@@ -15,7 +15,9 @@
 # a network and a /24 subnet with pod and service ranges (the net-vpc
 # chart), a zonal Standard cluster with its default pool removed and two
 # node pools of one Spot e2-small node each (one autoscaled min 1 max 1,
-# one fixed), and a regional Autopilot cluster with no workloads. Both
+# one fixed), and a regional Autopilot cluster with no workloads. On the
+# Standard cluster the gke-nodepool chart then adds a third pool of one
+# Spot e2-small node, which is deleted and checked gone before the rest. Both
 # clusters have private nodes and a public endpoint. Then the mode change:
 # the Standard cluster rendered as Autopilot must be refused by the chart
 # when helm can see the cluster (--dry-run=server), and by Config Connector
@@ -267,6 +269,41 @@ for m in standard autopilot; do
   "${G[@]}" container clusters list --filter="name=${RUN}-${short[$m]}" --format='value(name,location,status,currentMasterVersion,autopilot.enabled)' | tee -a "${OUT}/${m}.gcloud.txt" || true
 done
 
+echo "== gke-nodepool: one more Spot node pool on the Standard cluster, then deleted"
+cat >"${OUT}/nodepool.values.yaml" <<VALUES
+project_id: ${PROJECT}
+cluster_name: ${RUN}-std
+location: ${ZONE}
+name: extra
+labels: {catalog-run: ${RUN}}
+k8s_labels: {catalog-run: ${RUN}}
+service_account: {email: ${NODE_SA}}
+node_count: {initial: 1}
+node_config: {machine_type: e2-small, disk_size_gb: 20, spot: true}
+nodepool_config:
+  management: {auto_repair: true, auto_upgrade: true}
+  upgrade_settings: {max_surge: 1, max_unavailable: 0}
+taints:
+  catalog: {value: live, effect: NO_SCHEDULE}
+VALUES
+helm template np charts/gcp/gke-nodepool --namespace "${NS}" -f "${OUT}/nodepool.values.yaml" >"${OUT}/nodepool.rendered.yaml"
+t0=$(date +%s)
+kubectl apply --server-side -n "${NS}" -f "${OUT}/nodepool.rendered.yaml"
+wait_ready nodepool "${OUT}/nodepool.rendered.yaml" "${t0}"
+kubectl get -n "${NS}" -f "${OUT}/nodepool.rendered.yaml" -o json \
+  | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/nodepool.live.json"
+echo "-- nodepool outputs"
+bin/catalogtool outputs charts/gcp/gke-nodepool/package.yaml "${OUT}/nodepool.live.json" charts/gcp/gke-nodepool/values.yaml "${OUT}/nodepool.values.yaml" \
+  | tee "${OUT}/nodepool.outputs.json" || failed=$((failed + 1))
+"${G[@]}" container node-pools list --cluster "${RUN}-std" --location "${ZONE}" --format='value(name,status,config.machineType,config.spot)' | tee "${OUT}/nodepool.gcloud.txt" || true
+delete_all "${OUT}/nodepool.rendered.yaml" || echo "live-gke: the node pool was not deleted in ${TIMEOUT}s"
+if "${G[@]}" container node-pools describe extra --cluster "${RUN}-std" --location "${ZONE}" >/dev/null 2>&1; then
+  failed=$((failed + 1)); echo "live-gke: node pool extra is still in Google Cloud"; np_gone=no
+else
+  np_gone=yes
+fi
+echo "   node pool extra gone from Google Cloud: ${np_gone}"
+
 echo "== the refused mode change: Standard ${RUN}-std rendered as Autopilot"
 mc="${OUT}/modechange.md"
 { echo; echo "## The mode change (Standard ${RUN}-std rendered with mode: autopilot)"; echo; } >"${mc}"
@@ -307,7 +344,7 @@ echo "== delete the clusters, then the network"
 delete_all "${OUT}/standard.rendered.yaml" "${OUT}/autopilot.rendered.yaml" || echo "live-gke: the clusters were not deleted in ${TIMEOUT}s"
 delete_all "${OUT}/net.rendered.yaml" || echo "live-gke: the network was not deleted in ${TIMEOUT}s"
 
-for m in net standard autopilot; do
+for m in net standard autopilot nodepool; do
   while read -r o; do
     kubectl get -n "${NS}" "$o" >/dev/null 2>&1 && deleted=no || deleted=yes
     [[ "${ready["$m $o"]}" == yes && "${deleted}" == yes ]] || failed=$((failed + 1))
@@ -316,7 +353,7 @@ for m in net standard autopilot; do
 done
 gone="$("${G[@]}" container clusters list --filter="name~^${RUN}-" --format='value(name)')"
 [[ -z "${gone}" ]] || { failed=$((failed + 1)); echo "live-gke: still in Google Cloud: ${gone}"; }
-{ echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}."
+{ echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}; the gke-nodepool chart's pool gone after its delete: ${np_gone:-not checked}."
   cat "${mc}"
   echo; echo "${failed} failures."; } >>"${summary}"
 cat "${summary}"
