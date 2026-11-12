@@ -1,0 +1,28 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# outputs for what the chart ports, from the live Key or ReplicaKey
+# (resources.key) and the component's values (inputs). Not provided: the
+# external key's outputs (refused), and aliases and grants, which are whole
+# Terraform objects.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-kms
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    key_arn: >-
+      !('key' in resources) ? null
+      : (resources.key.kind == 'ReplicaKey' ? resources.key.status.replicaKeyMetadata.arn : resources.key.status.ackResourceMetadata.arn)
+    key_id: >-
+      !('key' in resources) ? null
+      : (resources.key.kind == 'ReplicaKey' ? resources.key.status.replicaKeyMetadata.keyID : resources.key.status.keyID)
+    key_region: >-
+      !('key' in resources) ? null
+      : (resources.key.kind == 'ReplicaKey' ? resources.key.spec.replicaRegion : resources.key.status.ackResourceMetadata.region)
+    key_policy: >-
+      'key' in resources && has(resources.key.spec.policy) ? resources.key.spec.policy : null

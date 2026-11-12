@@ -199,3 +199,17 @@ func TestTerraformPrefixStaysPrefixAndNamePrefixIsAdded(t *testing.T) {
 		t.Fatalf("got:\n%s", messages(res))
 	}
 }
+
+// Two clouds have a kms chart: a bare name is ambiguous, cloud/name is not.
+func TestChartByNameWithTwoClouds(t *testing.T) {
+	r := repo(t)
+	if _, err := r.ChartByName("kms"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("want kms to be ambiguous, got %v", err)
+	}
+	for _, n := range []string{"aws/kms", "gcp/kms"} {
+		ch, err := r.ChartByName(n)
+		if err != nil || ch.Dir != "charts/"+n {
+			t.Fatalf("%s: got %+v, %v", n, ch, err)
+		}
+	}
+}

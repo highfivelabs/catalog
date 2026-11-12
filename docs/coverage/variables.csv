@@ -1899,47 +1899,47 @@ aws,eks,timeouts,"object({create, delete, update})",no,,no-chart
 aws,eks,upgrade_policy,object({support_type}),no,,no-chart
 aws,eks,vpc_id,string,no,,no-chart
 aws,eks,zonal_shift_config,object({enabled}),no,,no-chart
-aws,kms,aliases,list(string),no,,no-chart
-aws,kms,aliases_use_name_prefix,bool,no,,no-chart
-aws,kms,bypass_policy_lockout_safety_check,bool,no,,no-chart
-aws,kms,computed_aliases,map(object({name})),no,,no-chart
-aws,kms,create,bool,no,,no-chart
-aws,kms,create_external,bool,no,,no-chart
-aws,kms,create_replica,bool,no,,no-chart
-aws,kms,create_replica_external,bool,no,,no-chart
-aws,kms,custom_key_store_id,string,no,,no-chart
-aws,kms,customer_master_key_spec,string,no,,no-chart
-aws,kms,deletion_window_in_days,number,no,,no-chart
-aws,kms,description,string,no,,no-chart
-aws,kms,enable_default_policy,bool,no,,no-chart
-aws,kms,enable_key_rotation,bool,no,,no-chart
-aws,kms,enable_route53_dnssec,bool,no,,no-chart
-aws,kms,grants,"map(object({constraints, grant_creation_tokens, grantee_principal, name, operations, retire_on_delete, +1}))",no,,no-chart
-aws,kms,is_enabled,bool,no,,no-chart
-aws,kms,key_administrators,list(string),no,,no-chart
-aws,kms,key_asymmetric_public_encryption_users,list(string),no,,no-chart
-aws,kms,key_asymmetric_sign_verify_users,list(string),no,,no-chart
-aws,kms,key_hmac_users,list(string),no,,no-chart
-aws,kms,key_material_base64,string,no,,no-chart
-aws,kms,key_owners,list(string),no,,no-chart
-aws,kms,key_service_roles_for_autoscaling,list(string),no,,no-chart
-aws,kms,key_service_users,list(string),no,,no-chart
-aws,kms,key_spec,string,no,,no-chart
-aws,kms,key_statements,"list(object({actions, condition, effect, not_actions, not_principals, not_resources, +3}))",no,,no-chart
-aws,kms,key_symmetric_encryption_users,list(string),no,,no-chart
-aws,kms,key_usage,string,no,,no-chart
-aws,kms,key_users,list(string),no,,no-chart
-aws,kms,multi_region,bool,no,,no-chart
-aws,kms,override_policy_documents,list(string),no,,no-chart
-aws,kms,policy,string,no,,no-chart
-aws,kms,primary_external_key_arn,string,no,,no-chart
-aws,kms,primary_key_arn,string,no,,no-chart
-aws,kms,region,string,no,,no-chart
-aws,kms,rotation_period_in_days,number,no,,no-chart
-aws,kms,route53_dnssec_sources,"list(object({account_ids, hosted_zone_arn}))",no,,no-chart
-aws,kms,source_policy_documents,list(string),no,,no-chart
-aws,kms,tags,map(string),no,,no-chart
-aws,kms,valid_to,string,no,,no-chart
+aws,kms,aliases,list(string),yes,,
+aws,kms,aliases_use_name_prefix,bool,no,an alias name with a random suffix (name_prefix) would change between renders,gap
+aws,kms,bypass_policy_lockout_safety_check,bool,yes,,
+aws,kms,computed_aliases,map(object({name})),yes,,
+aws,kms,create,bool,yes,,
+aws,kms,create_external,bool,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,create_replica,bool,partial,ReplicaKey is an ack-extensions kind (outside ACK's releases): needs allow_alpha: true; region (the replica's) is then required,alpha
+aws,kms,create_replica_external,bool,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,custom_key_store_id,string,yes,,
+aws,kms,customer_master_key_spec,string,yes,,
+aws,kms,deletion_window_in_days,number,no,"ACK's Key has no field for the waiting period before deletion (KMS's default, 30 days, applies)",gap
+aws,kms,description,string,yes,,
+aws,kms,enable_default_policy,bool,yes,,
+aws,kms,enable_key_rotation,bool,yes,,
+aws,kms,enable_route53_dnssec,bool,yes,,
+aws,kms,grants,"map(object({constraints, grant_creation_tokens, grantee_principal, name, operations, retire_on_delete, +1}))",partial,"accepted, except retire_on_delete: true (ACK revokes a grant when it is deleted, as Terraform does by default; retiring instead has no ACK field)",gap
+aws,kms,is_enabled,bool,partial,accepted unset or true; false (a disabled key) is refused: ACK's Key has no field to disable a key,gap
+aws,kms,key_administrators,list(string),yes,,
+aws,kms,key_asymmetric_public_encryption_users,list(string),yes,,
+aws,kms,key_asymmetric_sign_verify_users,list(string),yes,,
+aws,kms,key_hmac_users,list(string),yes,,
+aws,kms,key_material_base64,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,key_owners,list(string),yes,,
+aws,kms,key_service_roles_for_autoscaling,list(string),yes,,
+aws,kms,key_service_users,list(string),yes,,
+aws,kms,key_spec,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material (key_spec is the external key's)",gap
+aws,kms,key_statements,"list(object({actions, condition, effect, not_actions, not_principals, not_resources, +3}))",yes,,
+aws,kms,key_symmetric_encryption_users,list(string),yes,,
+aws,kms,key_usage,string,yes,,
+aws,kms,key_users,list(string),yes,,
+aws,kms,multi_region,bool,yes,,
+aws,kms,override_policy_documents,list(string),no,"merging other policy documents into the key policy by statement sid is not ported yet; write the whole policy in policy, or the statements in key_statements",not-ported
+aws,kms,policy,string,yes,,
+aws,kms,primary_external_key_arn,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
+aws,kms,primary_key_arn,string,yes,,
+aws,kms,region,string,yes,,
+aws,kms,rotation_period_in_days,number,no,"ACK's Key has no rotation period field (enable_key_rotation is supported, with KMS's default period, 365 days)",gap
+aws,kms,route53_dnssec_sources,"list(object({account_ids, hosted_zone_arn}))",yes,,
+aws,kms,source_policy_documents,list(string),no,"merging other policy documents into the key policy by statement sid is not ported yet; write the whole policy in policy, or the statements in key_statements",not-ported
+aws,kms,tags,map(string),yes,,
+aws,kms,valid_to,string,no,"imported key material (aws_kms_external_key, aws_kms_replica_external_key) has no kind: ACK's Key takes origin EXTERNAL, but nothing imports the material",gap
 aws,lambda,allowed_triggers,map(any),no,,no-chart
 aws,lambda,architectures,list(string),no,,no-chart
 aws,lambda,artifacts_dir,string,no,,no-chart
