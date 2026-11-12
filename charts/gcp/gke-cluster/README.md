@@ -341,7 +341,7 @@ and `secret_manager_addon_enabled` (their inputs are gaps).
 
 ## Since 5.0.0
 
-The builder's link names v5.0.0 (2019). Between v5.0.0 and v47.0.0 the
+The linked release is v5.0.0 (2019). Between v5.0.0 and v47.0.0 the
 `beta-private-cluster` inputs grew from 62 to 162. Seven of v5.0.0's inputs
 are gone: `basic_auth_username` and `basic_auth_password` (GKE removed basic
 authentication), `istio` (the Istio add-on, removed from GKE),
@@ -381,7 +381,7 @@ deleted, and all 30 outputs evaluated.
 
 `task test-live-gke` (`hack/live-gke.sh`) applies a zonal Standard cluster
 with two node pools of one Spot `e2-small` node each and a regional
-Autopilot cluster to `hfl-dev-514205`, waits for Ready, renders the
+Autopilot cluster to the live-test project (`GCP_PROJECT`), waits for Ready, renders the
 Standard cluster as Autopilot to check the mode change is refused, deletes
 everything and checks `gcloud container clusters list`.
 

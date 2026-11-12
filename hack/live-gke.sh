@@ -7,8 +7,8 @@
 # (docs/design.md, "Testing", layer 3). Only on an offload VM acting as a
 # service account, never with a key. `task test-live-gke` runs it:
 #
-#   offload run --sa cce-live-tests@hfl-dev-514205.iam.gserviceaccount.com \
-#     --machine e2-standard-8 --hours 2 -- env PROJECT=hfl-dev-514205 \
+#   offload run --sa "$GCP_CCE_LIVE_SA" \
+#     --machine e2-standard-8 --hours 2 -- env PROJECT="$GCP_PROJECT" \
 #     CCE_TARBALL=gs://.../cce-<commit>.tar.gz hack/live-gke.sh
 #
 # What it makes, all named cat-<UTC month day hour minute>-<4 hex>-...:
@@ -33,8 +33,15 @@
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
+: "${GCP_PROJECT:?set GCP_PROJECT, the live-test project (see .env.example)}"
+ALLOWED_PROJECTS=("${GCP_PROJECT}")
+# And the test estate generation's project (factory/estate/gcp), when its
+# env file is loaded.
+[[ -z "${HFL_GCP_TEST_PROJECT:-}" ]] || ALLOWED_PROJECTS+=("${HFL_GCP_TEST_PROJECT}")
 PROJECT="${PROJECT:-}"
-[[ "${PROJECT}" == hfl-dev-514205 ]] || { echo "live-gke: refusing project '${PROJECT}': only hfl-dev-514205" >&2; exit 2; }
+allowed=no
+for p in "${ALLOWED_PROJECTS[@]}"; do [[ "${PROJECT}" == "${p}" ]] && allowed=yes; done
+[[ "${allowed}" == yes ]] || { echo "live-gke: refusing project '${PROJECT}': only ${ALLOWED_PROJECTS[*]} (GCP_PROJECT, HFL_GCP_TEST_PROJECT)" >&2; exit 2; }
 REGION=us-central1
 ZONE=us-central1-a
 TIMEOUT="${LIVE_TIMEOUT:-1800}"
