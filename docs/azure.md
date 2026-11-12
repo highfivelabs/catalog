@@ -704,7 +704,13 @@ aso-extensions:
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
-| `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
+
+The private DNS zone's `soa_record` maps to aso-extensions'
+`PrivateDnsZonesSOARecord` (`network.azure.hfl.dev/v20240601`, its CRD
+copied in `crds/aso-extensions`), which updates the SOA record set Azure
+makes with the zone and leaves it when deleted. Rendered and validated
+only: the live and fake-cloud runs install ASO, not the aso-extensions
+manager.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
