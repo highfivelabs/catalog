@@ -428,7 +428,7 @@ func matchObjects(rendered []map[string]any, objs []*Object, attrs map[string]ma
 	}
 	for _, r := range rendered {
 		k := str(r["kind"])
-		if k == "IAMPolicyMember" || k == "IAMPartialPolicy" || k == "IAMPolicy" || k == "IAMAuditConfig" {
+		if k == "IAMPolicyMember" || k == "IAMPartialPolicy" || k == "IAMBinding" || k == "IAMPolicy" || k == "IAMAuditConfig" {
 			continue
 		}
 		if o := byID[Identity(r)]; o != nil {
