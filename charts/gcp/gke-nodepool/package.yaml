@@ -1,0 +1,32 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, computed from inputs as fabric
+# computes them (docs/design.md, "Outputs"): id is fabric's
+# <project>/<location>/<cluster>/<name> (the provider's id format), name
+# the node pool's name (names.nodepool, else name, else the component's
+# name), service_account_email the created account's email
+# (<account id>@<project>.iam.gserviceaccount.com) or the one given, and
+# service_account_iam_email it as an IAM member.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-gke-nodepool
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.nodepool.spec.resourceID
+    id: >-
+      inputs.project_id + '/' + inputs.location + '/' +
+      (inputs.cluster_id != null ? inputs.cluster_id : inputs.cluster_name) + '/' + resources.nodepool.spec.resourceID
+    service_account_email: >-
+      'service_account' in resources
+      ? resources.service_account.spec.resourceID + '@' + inputs.project_id + '.iam.gserviceaccount.com'
+      : inputs.service_account.email
+    service_account_iam_email: >-
+      'serviceAccount:' + ('service_account' in resources
+      ? resources.service_account.spec.resourceID + '@' + inputs.project_id + '.iam.gserviceaccount.com'
+      : (inputs.service_account.email != null ? inputs.service_account.email : ''))
