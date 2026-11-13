@@ -12,7 +12,8 @@ validate Config Connector's own kinds against its CRDs.
 | `compute.gcp.hfl.dev_computerouterroutepolicies.yaml` | `ComputeRouterRoutePolicy` (`compute.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `89806ec7a1ea127fd435ca264d2883b9c233de2c` (2026-11-12) |
 
 `Taskfile.yml`'s `CCE_COMMIT`, which the fake-cloud and live runs use, is
-older than these copies and has none of these kinds: move it to their
-commit or later before a fake-cloud case renders one (`iam_bindings`, a
-network attachment, a route policy). A chart's README says which of its
-objects are only render-tested for this reason.
+`11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12), at or after every
+copy above, so the fake cloud serves each of these kinds (each file is the
+same at the pin). A CRD copied from a later commit needs the pin moved
+first, in its own change, before a fake-cloud case renders the kind; until
+then the chart's README says which of its objects are only render-tested.

@@ -1,0 +1,50 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# fabric's outputs, from the live cluster and the values. Not outputs:
+# cluster (the whole Terraform object, docs/design.md, "Outputs"). The
+# backup maps are keyed as fabric keys them.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-gke-cluster-standard
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    name: resources.cluster.spec.resourceID
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + resources.cluster.spec.location
+      + '/clusters/' + resources.cluster.spec.resourceID
+    location: resources.cluster.spec.location
+    endpoint: >-
+      has(resources.cluster.status.endpoint) ? resources.cluster.status.endpoint : null
+    dns_endpoint: >-
+      has(resources.cluster.status.observedState) && has(resources.cluster.status.observedState.controlPlaneEndpointsConfig)
+        && has(resources.cluster.status.observedState.controlPlaneEndpointsConfig.dnsEndpointConfig)
+      ? resources.cluster.status.observedState.controlPlaneEndpointsConfig.dnsEndpointConfig.endpoint : null
+    ca_certificate: >-
+      has(resources.cluster.status.observedState) && has(resources.cluster.status.observedState.masterAuth)
+      ? resources.cluster.status.observedState.masterAuth.clusterCaCertificate : null
+    master_version: >-
+      has(resources.cluster.status.masterVersion) ? resources.cluster.status.masterVersion : null
+    self_link: >-
+      has(resources.cluster.status.selfLink) ? resources.cluster.status.selfLink : null
+    notifications: >-
+      'notifications' in resources
+      ? dyn('projects/' + inputs.project_id + '/topics/' + resources.notifications.spec.resourceID) : null
+    workload_identity_pool: inputs.project_id + '.svc.id.goog'
+    backup_channel_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('backup_channel:'),
+        {k.substring(15): 'projects/' + inputs.project_id + '/locations/' + v.spec.location + '/backupChannels/' + v.spec.resourceID})
+    restore_channel_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('restore_channel:'),
+        {k.substring(16): 'projects/' + inputs.project_id + '/locations/' + v.spec.location + '/restoreChannels/' + v.spec.resourceID})
+    backup_plan_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('backup_plan:'),
+        {k.substring(12): 'projects/' + inputs.project_id + '/locations/' + v.spec.location + '/backupPlans/' + v.spec.resourceID})
+    restore_plan_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('restore_plan:'),
+        {k.substring(13): 'projects/' + inputs.project_id + '/locations/' + v.spec.location + '/restorePlans/' + v.spec.resourceID})
