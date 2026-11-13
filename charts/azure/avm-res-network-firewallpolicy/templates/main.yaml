@@ -1,0 +1,319 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-firewallpolicy main.tf and
+modules/rule_collection_groups/main.tf (v0.3.4), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_firewall_policy.this: one ASO FirewallPolicy, owned by the resource
+group resource_group_name names. module.rule_collection_groups
+(azurerm_firewall_policy_rule_collection_group.this), one call per entry of
+rule_collection_groups: one ASO FirewallPoliciesRuleCollectionGroup, owned
+by the policy. azurerm_management_lock: an aso-extensions ManagementLock,
+with the module's notes. azurerm_role_assignment: one ASO RoleAssignment
+each. azurerm_monitor_diagnostic_setting: one ASO DiagnosticSetting each.
+The telemetry deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "firewall_policy_timeouts" $v.firewall_policy_timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "firewallPolicy")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-firewallpolicy: name is required" }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-firewallpolicy: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "fwp") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: FirewallPolicy
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "firewall_policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "firewallPolicy" "firewall policy" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with $v.firewall_policy_base_policy_id }}
+  basePolicy:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- with $v.firewall_policy_dns }}
+  dnsSettings:
+    enableProxy: {{ eq .proxy_enabled true }}
+    {{- with .servers }}
+    servers:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.firewall_policy_explicit_proxy }}
+  explicitProxy:
+    {{- if not (kindIs "invalid" .enabled) }}
+    enableExplicitProxy: {{ .enabled }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .enable_pac_file) }}
+    enablePacFile: {{ .enable_pac_file }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .http_port) }}
+    httpPort: {{ .http_port }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .https_port) }}
+    httpsPort: {{ .https_port }}
+    {{- end }}
+    {{- with .pac_file }}
+    pacFile: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .pac_file_port) }}
+    pacFilePort: {{ .pac_file_port }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.firewall_policy_identity }}
+  identity:
+    type: {{ .type }}
+    {{- with .identity_ids }}
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.firewall_policy_insights }}
+  insights:
+    isEnabled: {{ .enabled }}
+    {{- if not (kindIs "invalid" .retention_in_days) }}
+    retentionDays: {{ .retention_in_days }}
+    {{- end }}
+    logAnalyticsResources:
+      defaultWorkspaceId:
+        reference:
+          armId: {{ .default_log_analytics_workspace_id | quote }}
+      {{- with .log_analytics_workspace }}
+      workspaces:
+        {{- range $w := . }}
+        - region: {{ $w.firewall_location | quote }}
+          workspaceId:
+            reference:
+              armId: {{ $w.id | quote }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+  {{- with $v.firewall_policy_intrusion_detection }}
+  intrusionDetection:
+    {{- with .mode }}
+    mode: {{ . }}
+    {{- end }}
+    {{- if or .private_ranges .signature_overrides .traffic_bypass }}
+    configuration:
+      {{- with .private_ranges }}
+      privateRanges:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .signature_overrides }}
+      signatureOverrides:
+        {{- range $s := . }}
+        {{- $o := dict }}
+        {{- with $s.id }}{{ $_ := set $o "id" (toString .) }}{{ end }}
+        {{- with $s.state }}{{ $_ := set $o "mode" . }}{{ end }}
+        - {{ toJson $o }}
+        {{- end }}
+      {{- end }}
+      {{- with .traffic_bypass }}
+      bypassTrafficSettings:
+        {{- range $b := . }}
+        - name: {{ $b.name | quote }}
+          protocol: {{ $b.protocol }}
+          {{- with $b.description }}
+          description: {{ . | quote }}
+          {{- end }}
+          {{- range $f := list (list "destination_addresses" "destinationAddresses") (list "destination_ip_groups" "destinationIpGroups") (list "destination_ports" "destinationPorts") (list "source_addresses" "sourceAddresses") (list "source_ip_groups" "sourceIpGroups") }}
+          {{- with (index $b (index $f 0)) }}
+          {{ index $f 1 }}:
+            {{- toYaml (uniq . | sortAlpha) | nindent 12 }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.firewall_policy_sku }}
+  sku:
+    tier: {{ . }}
+  {{- end }}
+  {{- if or (not (kindIs "invalid" $v.firewall_policy_auto_learn_private_ranges_enabled)) $v.firewall_policy_private_ip_ranges }}
+  snat:
+    {{- if not (kindIs "invalid" $v.firewall_policy_auto_learn_private_ranges_enabled) }}
+    autoLearnPrivateRanges: {{ ternary "Enabled" "Disabled" $v.firewall_policy_auto_learn_private_ranges_enabled }}
+    {{- end }}
+    {{- with $v.firewall_policy_private_ip_ranges }}
+    privateRanges:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.firewall_policy_sql_redirect_allowed) }}
+  sql:
+    allowSqlRedirect: {{ $v.firewall_policy_sql_redirect_allowed }}
+  {{- end }}
+  {{- with $v.firewall_policy_threat_intelligence_mode }}
+  threatIntelMode: {{ . }}
+  {{- end }}
+  {{- with $v.firewall_policy_threat_intelligence_allowlist }}
+  threatIntelWhitelist:
+    {{- with .fqdns }}
+    fqdns:
+      {{- toYaml (uniq . | sortAlpha) | nindent 6 }}
+    {{- end }}
+    {{- with .ip_addresses }}
+    ipAddresses:
+      {{- toYaml (uniq . | sortAlpha) | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.firewall_policy_tls_certificate }}
+  transportSecurity:
+    certificateAuthority:
+      keyVaultSecretId: {{ .key_vault_secret_id | quote }}
+      name: {{ .name | quote }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "FirewallPolicy" "name" $obj }}
+{{- range $key, $g := ($v.rule_collection_groups | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "rule_collection_groups.%s.timeouts" $key) $g.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+---
+apiVersion: network.azure.com/v20250301
+kind: FirewallPoliciesRuleCollectionGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "rcg" $key)) "id" (printf "rule_collection_group:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $g.name | quote }}
+  owner:
+    name: {{ $obj }}
+  priority: {{ $g.priority }}
+  {{- if or $g.application_rule_collection $g.nat_rule_collection $g.network_rule_collection }}
+  ruleCollections:
+    {{- range $c := ($g.application_rule_collection | default list) }}
+    - firewallPolicyFilterRuleCollection:
+        ruleCollectionType: FirewallPolicyFilterRuleCollection
+        name: {{ $c.name | quote }}
+        priority: {{ $c.priority }}
+        action:
+          type: {{ $c.action }}
+        rules:
+          {{- range $r := $c.rule }}
+          - applicationRule:
+              ruleType: ApplicationRule
+              name: {{ $r.name | quote }}
+              {{- with $r.description }}
+              description: {{ . | quote }}
+              {{- end }}
+              {{- range $f := list (list "destination_addresses" "destinationAddresses") (list "destination_fqdn_tags" "fqdnTags") (list "destination_fqdns" "targetFqdns") (list "destination_urls" "targetUrls") (list "source_addresses" "sourceAddresses") (list "source_ip_groups" "sourceIpGroups") (list "web_categories" "webCategories") }}
+              {{- with (index $r (index $f 0)) }}
+              {{ index $f 1 }}:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- end }}
+              {{- if not (kindIs "invalid" $r.terminate_tls) }}
+              terminateTLS: {{ $r.terminate_tls }}
+              {{- end }}
+              {{- with $r.http_headers }}
+              httpHeadersToInsert:
+                {{- range $h := . }}
+                - headerName: {{ $h.name | quote }}
+                  headerValue: {{ $h.value | quote }}
+                {{- end }}
+              {{- end }}
+              {{- with $r.protocols }}
+              protocols:
+                {{- range $p := . }}
+                - port: {{ $p.port }}
+                  protocolType: {{ $p.type }}
+                {{- end }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+    {{- range $c := ($g.nat_rule_collection | default list) }}
+    - firewallPolicyNatRuleCollection:
+        ruleCollectionType: FirewallPolicyNatRuleCollection
+        name: {{ $c.name | quote }}
+        priority: {{ $c.priority }}
+        action:
+          type: DNAT
+        rules:
+          {{- range $r := $c.rule }}
+          - natRule:
+              ruleType: NatRule
+              name: {{ $r.name | quote }}
+              {{- with $r.description }}
+              description: {{ . | quote }}
+              {{- end }}
+              ipProtocols:
+                {{- toYaml $r.protocols | nindent 16 }}
+              {{- with $r.destination_address }}
+              destinationAddresses:
+                - {{ . | quote }}
+              {{- end }}
+              {{- range $f := list (list "destination_ports" "destinationPorts") (list "source_addresses" "sourceAddresses") (list "source_ip_groups" "sourceIpGroups") }}
+              {{- with (index $r (index $f 0)) }}
+              {{ index $f 1 }}:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- end }}
+              {{- with $r.translated_address }}
+              translatedAddress: {{ . | quote }}
+              {{- end }}
+              {{- with $r.translated_fqdn }}
+              translatedFqdn: {{ . | quote }}
+              {{- end }}
+              translatedPort: {{ $r.translated_port | toString | quote }}
+          {{- end }}
+    {{- end }}
+    {{- range $c := ($g.network_rule_collection | default list) }}
+    - firewallPolicyFilterRuleCollection:
+        ruleCollectionType: FirewallPolicyFilterRuleCollection
+        name: {{ $c.name | quote }}
+        priority: {{ $c.priority }}
+        action:
+          type: {{ $c.action }}
+        rules:
+          {{- range $r := $c.rule }}
+          - networkRule:
+              ruleType: NetworkRule
+              name: {{ $r.name | quote }}
+              {{- with $r.description }}
+              description: {{ . | quote }}
+              {{- end }}
+              ipProtocols:
+                {{- toYaml $r.protocols | nindent 16 }}
+              destinationPorts:
+                {{- toYaml $r.destination_ports | nindent 16 }}
+              {{- range $f := list (list "destination_addresses" "destinationAddresses") (list "destination_fqdns" "destinationFqdns") (list "destination_ip_groups" "destinationIpGroups") (list "source_addresses" "sourceAddresses") (list "source_ip_groups" "sourceIpGroups") }}
+              {{- with (index $r (index $f 0)) }}
+              {{ index $f 1 }}:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}

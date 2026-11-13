@@ -1,0 +1,59 @@
+---
+# Source: avm-res-network-loadbalancer/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: LoadBalancer
+metadata:
+  name: basic-lb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-loadbalancer
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "load_balancer"
+spec:
+  azureName: "lb-example"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  sku:
+    name: Standard
+    tier: Regional
+  frontendIPConfigurations:
+    - name: "myFrontend"
+      privateIPAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-lb"
+      zones:
+        - "1"
+        - "2"
+        - "3"
+  backendAddressPools:
+    - name: "myBackendPool"
+  probes:
+    - name: "tcp1"
+      intervalInSeconds: 15
+      numberOfProbes: 2
+      port: 80
+      probeThreshold: 1
+      protocol: Tcp
+  loadBalancingRules:
+    - name: "myHTTPRule"
+      backendAddressPool:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/loadBalancers/lb-example/backendAddressPools/myBackendPool"
+      backendPort: 80
+      disableOutboundSnat: false
+      enableFloatingIP: false
+      enableTcpReset: false
+      frontendIPConfiguration:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/loadBalancers/lb-example/frontendIPConfigurations/myFrontend"
+      frontendPort: 80
+      idleTimeoutInMinutes: 4
+      loadDistribution: Default
+      probe:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/loadBalancers/lb-example/probes/tcp1"
+      protocol: Tcp

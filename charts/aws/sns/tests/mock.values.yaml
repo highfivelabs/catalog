@@ -1,0 +1,18 @@
+# Applied to the fake AWS (hack/mock-apply-aws.sh): a topic with the
+# default topic policy and a statement taking the topic's own ARN, in the
+# fake's own account (account_id, tests/mock.set.yaml: the emulator answers
+# as 000000000000, moto as 123456789012), and an SQS subscription to a
+# queue from tests/mock.needs.yaml (SQS subscriptions confirm themselves;
+# an email one stays pending, and AWS refuses to delete a pending
+# subscription).
+name: catalog-test-topic
+region: us-east-1
+account_id: "000000000000"
+display_name: catalog test
+topic_policy_statements:
+  publish:
+    actions: ["sns:Publish"]
+    principals: [{type: Service, identifiers: [events.amazonaws.com]}]
+subscriptions:
+  queue: {protocol: sqs, endpoint: "arn:aws:sqs:us-east-1:000000000000:catalog-test-topic-subscriber", raw_message_delivery: true}
+tags: {catalog-test: "true"}
