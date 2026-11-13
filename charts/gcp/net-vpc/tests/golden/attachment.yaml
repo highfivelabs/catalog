@@ -1,0 +1,136 @@
+---
+# Source: net-vpc/templates/network.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: attachment
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attachment"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "network"
+    cnrm.cloud.google.com/project-id: "p"
+spec:
+  resourceID: my-network
+  description: "Terraform-managed."
+  autoCreateSubnetworks: false
+  deleteDefaultRoutesOnCreate: false
+  routingMode: GLOBAL
+  networkFirewallPolicyEnforcementOrder: AFTER_CLASSIC_FIREWALL
+---
+# Source: net-vpc/templates/network-attachments.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkAttachment
+metadata:
+  name: attachment-attachment-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attachment"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "network_attachment:a"
+    cnrm.cloud.google.com/project-id: "p"
+spec:
+  resourceID: "a"
+  projectRef:
+    external: "p"
+  region: "europe-west1"
+  description: "Consumers of the shared services."
+  connectionPreference: ACCEPT_MANUAL
+  subnetworks:
+    - "projects/p/regions/europe-west1/subnetworks/s"
+  producerAcceptLists:
+    - producer-project
+  producerRejectLists:
+    - "123456789012"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: attachment-route-directpath-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attachment"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "route:directpath-googleapis"
+    cnrm.cloud.google.com/project-id: "p"
+spec:
+  resourceID: my-network-directpath-googleapis
+  networkRef:
+    name: attachment
+  destRange: "34.126.0.0/18"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: attachment-route-private-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attachment"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "route:private-googleapis"
+    cnrm.cloud.google.com/project-id: "p"
+spec:
+  resourceID: my-network-private-googleapis
+  networkRef:
+    name: attachment
+  destRange: "199.36.153.8/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/routes.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRoute
+metadata:
+  name: attachment-route-restricted-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attachment"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "route:restricted-googleapis"
+    cnrm.cloud.google.com/project-id: "p"
+spec:
+  resourceID: my-network-restricted-googleapis
+  networkRef:
+    name: attachment
+  destRange: "199.36.153.4/30"
+  description: "Terraform-managed."
+  priority: 1000
+  nextHopGateway: "default-internet-gateway"
+---
+# Source: net-vpc/templates/subnets.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: attachment-subnet-europe-west1-s
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attachment"
+    app.kubernetes.io/name: net-vpc
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "subnet:europe-west1/s"
+    cnrm.cloud.google.com/project-id: "p"
+spec:
+  resourceID: s
+  region: europe-west1
+  networkRef:
+    name: attachment
+  ipCidrRange: "10.0.0.0/24"
+  description: "Terraform-managed."
+  privateIpGoogleAccess: true
