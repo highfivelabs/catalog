@@ -288,9 +288,17 @@ spec:
       enable: {{ eq .enabled true }}
       notBeforeTimeout: {{ .timeout | default "PT5M" | quote }}
   {{- end }}
+  {{- /* As azurerm: encryptionAtHost only when true (Azure refuses the
+  property, even false, unless the subscription has the EncryptionAtHost
+  feature; found live), a security type only with UEFI settings or
+  confidential disk encryption. */}}
   {{- $uefi := or (not (kindIs "invalid" $v.secure_boot_enabled)) (not (kindIs "invalid" $v.vtpm_enabled)) }}
+  {{- $eah := ne $v.encryption_at_host_enabled false }}
+  {{- if or $eah $uefi $od.security_encryption_type }}
   securityProfile:
-    encryptionAtHost: {{ ne $v.encryption_at_host_enabled false }}
+    {{- if $eah }}
+    encryptionAtHost: true
+    {{- end }}
     {{- if $od.security_encryption_type }}
     securityType: ConfidentialVM
     {{- else if or $v.secure_boot_enabled $v.vtpm_enabled }}
@@ -305,6 +313,7 @@ spec:
       vTpmEnabled: {{ $v.vtpm_enabled }}
       {{- end }}
     {{- end }}
+  {{- end }}
   storageProfile:
     {{- $dds := list }}
     {{- range $k, $d := ($v.data_disk_managed_disks | default dict) }}

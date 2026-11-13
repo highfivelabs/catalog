@@ -10,7 +10,7 @@
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip vm)
-# applies only those; the default is all. Only on
+# applies only those; the default is all but vm. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
 # `task test-live-azure` runs it:
@@ -46,7 +46,9 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip vm}"
+# vm is opt-in: Azure has refused the sandbox subscription every VM size
+# tried ("Capacity Restrictions", 2026-11-13; docs/azure.md, "8. Charts").
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -230,16 +232,24 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
-# A Linux machine of a small burstable size with an SSH public key made here
-# for the run (the private key never leaves this VM and goes with the work
-# directory), Standard disks, no encryption at host (it needs a
-# subscription feature), one interface with a public IP it makes, a small
-# data disk and a script extension. Its subnet comes from the network
-# chart, rendered beside it (vm-net.yaml): the module takes a subnet ID.
+# vm: a Linux machine of a small general-purpose size (Standard_D2s_v3)
+# with an SSH public key made here for the run (the private key never
+# leaves this VM and goes with the work directory), Standard disks, no
+# encryption at host (it needs a subscription feature), one interface with
+# a public IP it makes, a small data disk and a script extension. Its
+# subnet comes from the network chart, rendered beside it (vm-net.yaml):
+# the module takes a subnet ID. AZURE_LIVE_VM_SIZE and
+# AZURE_LIVE_VM_LOCATION pick another size or region. On 2026-11-13 Azure
+# refused the sandbox subscription every size tried with "Capacity
+# Restrictions" (Standard_B1s, Standard_B2s and Standard_D2s_v3, in
+# eastus2 and eastus; it has no quota for the v2 B families), so the
+# machine never became Ready; its interface, public IP, disk and network
+# did, and were deleted.
+VM_LOCATION="${AZURE_LIVE_VM_LOCATION:-${LOCATION}}"
 ssh-keygen -q -t ed25519 -N '' -C "catalog-run-${RUN}" -f "${WORK}/vm-key"
 cat >"${WORK}/vm-net.yaml" <<EOF
 name: ${RUN}-vmnet
-location: ${LOCATION}
+location: ${VM_LOCATION}
 parent_id: ${RG}
 address_space: [10.251.0.0/24]
 tags: {catalog-run: ${RUN}}
@@ -248,11 +258,11 @@ subnets:
 EOF
 cat >"${WORK}/vm.yaml" <<EOF
 name: ${RUN}-vm
-location: ${LOCATION}
+location: ${VM_LOCATION}
 resource_group_name: ${RG}
 zone: null
 os_type: Linux
-sku_size: ${AZURE_LIVE_VM_SIZE:-Standard_B1s}
+sku_size: ${AZURE_LIVE_VM_SIZE:-Standard_D2s_v3}
 encryption_at_host_enabled: false
 source_image_reference: {publisher: Canonical, offer: ubuntu-24_04-lts, sku: server, version: latest}
 os_disk: {caching: ReadWrite, storage_account_type: Standard_LRS}
