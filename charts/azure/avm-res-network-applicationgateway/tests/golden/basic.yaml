@@ -1,0 +1,95 @@
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: ApplicationGateway
+metadata:
+  name: basic-appgw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "application_gateway"
+spec:
+  azureName: appgw-example
+  backendAddressPools:
+  - backendAddresses:
+    - ipAddress: 10.0.1.4
+    name: pool-web
+  backendHttpSettingsCollection:
+  - cookieBasedAffinity: Disabled
+    name: http-80
+    port: 80
+    protocol: Http
+    requestTimeout: 30
+  frontendIPConfigurations:
+  - name: fe-public
+    publicIPAddress:
+      reference:
+        group: network.azure.com
+        kind: PublicIPAddress
+        name: basic-pip-pub
+  frontendPorts:
+  - name: port-80
+    port: 80
+  gatewayIPConfigurations:
+  - name: gw-ip
+    subnet:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw
+  httpListeners:
+  - frontendIPConfiguration:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-example/frontendIPConfigurations/fe-public
+    frontendPort:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-example/frontendPorts/port-80
+    name: listener-80
+    protocol: Http
+  location: eastus2
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+  requestRoutingRules:
+  - backendAddressPool:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-example/backendAddressPools/pool-web
+    backendHttpSettings:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-example/backendHttpSettingsCollection/http-80
+    httpListener:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-example/httpListeners/listener-80
+    name: rule-basic
+    priority: 100
+    ruleType: Basic
+  sku:
+    capacity: 1
+    name: Standard_v2
+    tier: Standard_v2
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: basic-pip-pub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:pub"
+spec:
+  azureName: "pip-appgw-example"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional

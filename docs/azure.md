@@ -469,7 +469,27 @@ authentication only (section 8).
 | --- | --- | --- |
 | root | `CognitiveServices/accounts@2025-06-01`, customer-managed key | `cognitiveservices/Account` (the key is inline) |
 | `deployment` | `accounts/deployments` | `cognitiveservices/Deployment` |
-| `rai_policy` | `accounts/raiPolicies@2024-10-01` | **GAP** |
+| `rai_policy` | `accounts/raiPolicies@2024-10-01` | **GAP** in ASO; `aso-ext` `cognitiveservices.azure.hfl.dev/AccountsRaiPolicy` |
+
+Chart `charts/azure/avm-res-cognitiveservices-account` (2026-11-13): 38 of
+41 variables (`retry`, `timeouts` by design; the search service key, a
+secret value, not ported; a user-assigned identity for the customer
+managed key and a deployment's dynamic throttling refused: field gaps), 7
+of 11 outputs (not the access keys, the sensitive object or the whole
+account). Private endpoints, deployments and RAI policies are mapped.
+Not applied live yet: the sandbox subscription has not registered the
+`Microsoft.CognitiveServices` provider, and ASO's attempt to register it
+(`POST /subscriptions/<id>/providers/Microsoft.CognitiveServices/register`)
+is a subscription-scope action the live identity is refused (403
+`AuthorizationFailed`, run `cat11130328999c`; nothing was created). The
+`cog` case of `hack/azure-live.sh` (a free Language account, no
+deployments) is ready and out of the default cases until someone with
+subscription rights registers the provider (`az provider register
+--namespace Microsoft.CognitiveServices --subscription <sandbox>`). Its
+`tests/mock.values.yaml` passed against the fake cloud (stock ASO and
+aso-extensions' manager against fakearm at `b9beb5b`, with PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113030744-29467`: the account, a
+deployment and its RAI policy Ready and deleted, outputs evaluated).
 
 ### 19. avm-ptn-alz-sub-vending (v0.3.4; azapi; a pattern)
 
@@ -559,7 +579,7 @@ public IP it makes as a `PublicIPAddress`.
 | avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links. Covered |
 | avm-res-cache-redis (38) | `cache/Redis`, access policies, assignments, firewall rules, linked servers (2024-11-01). Covered |
 | avm-res-app-managedenvironment (40) | `app/ManagedEnvironment`. **GAP**: all nine child types (Dapr components and subscriptions, storages, certificates, managed certificates, Java and .NET components, HTTP route configs, maintenance configurations) |
-| avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old) |
+| avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old). Chart `charts/azure/avm-res-network-applicationgateway` (2026-11-12): 41 of 50 variables, everything 2022-07-01 carries; what later versions added is refused by name (section 8) |
 
 ## 5. Gaps ranked for aso-extensions
 
@@ -810,11 +830,36 @@ copied in `crds/aso-extensions`); a local user's `ssh_password_enabled`
 stays refused (Azure generates the password and returns it once, the
 builder's decision).
 
+**The application gateway's ARM version.** ASO v2.22.0's
+`ApplicationGateway` is at ARM 2022-07-01 only (gap 18 in section 5), where
+the module sends 2025-03-01. `avm-res-network-applicationgateway` maps
+everything 2022-07-01 carries and refuses each later field by name when set:
+`entra_jwt_validation_configs` (and a rule's `entra_jwt_validation_config`);
+HTTP settings' `dedicated_backend_connection`, `sni_name`,
+`validate_cert_chain_and_expiry` and `validate_sni`; backend settings'
+`enable_l4_client_ip_preservation`; a TLS listener's `host_names`; a probe's
+`enable_probe_proxy_protocol_header`; a rewrite header's
+`header_value_matcher`; an SSL profile's `verify_client_auth_mode`; `sku.family`
+and the Basic SKU; the `default_predefined_ssl_policy` output. ASO's
+2022-07-01 type also takes a load distribution target only by reference (no
+name, pool or weight) and has no `id` on a Private Link IP configuration or
+a path rule. A new ASO version of the kind (upstream, a `$supportedFrom`
+entry) closes all of them. Its certificates stay refused: ASO takes a
+certificate's `data` and an SSL certificate's `password` only from a
+Kubernetes Secret, and `key_vault_secret_id` is Key Vault secret material,
+which waits on how a component supplies a secret (as the Key Vault
+module's `secrets`).
+
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
 (`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
-flag (`avm-res-keyvault-vault`'s `keys`). And ASO's `UserAssignedIdentity`
+flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` has no
+`dynamicThrottlingEnabled` (`avm-res-cognitiveservices-account`'s
+`cognitive_deployments`), and its `Account` takes the customer managed
+key's `identityClientId` only as a literal, with no `FromConfig` form, so
+a user-assigned identity's client ID, which the module reads from Azure,
+cannot be given (`customer_managed_key.user_assigned_identity`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
 
@@ -856,7 +901,8 @@ chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
 identity, Log Analytics workspace, container registry, firewall policy, load
-balancer, bastion host and private endpoint charts are applied
+balancer, bastion host, private endpoint and application gateway charts
+are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -911,6 +957,19 @@ address from its DNS configurations), deleted, Azure answering 404. Its
 against aso-extensions' fakearm at `b9beb5b`, with PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
 its zone group Ready and deleted, outputs evaluated).
+
+The application gateway (Standard_v2,
+capacity 1, the public IP it makes, on a subnet the case first makes with
+the virtual network chart, a pool, HTTP settings with a probe, a listener
+and a basic rule, every reference by key) passed in run `cat111303093fb2`
+on 2026-11-13: 4 objects Ready, outputs evaluated (operational state
+Running, the allocated address), deleted, Azure answering 404. Neither cost
+nor time forbids it: Standard_v2 at capacity 1 is about 0.25 USD an hour,
+and the whole case (network, gateway, deletes) took about 20 minutes, most
+of it the gateway's create and delete, so the case has a 40-minute limit.
+Its `tests/mock.values.yaml` passed against the fake cloud too (PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113030418-6345`: 2 objects Ready
+and deleted, outputs evaluated).
 
 The Application Insights component (`avm-res-insights-component`, case
 `appi`: workspace-based, a 1 GB daily cap, with a workspace the case makes

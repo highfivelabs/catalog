@@ -1,0 +1,79 @@
+---
+# Source: avm-res-cognitiveservices-account/templates/deployments.yaml
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Deployment
+metadata:
+  name: mock-account-deploy-gpt
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "deployment:gpt"
+spec:
+  azureName: "gpt"
+  owner:
+    name: mock-account
+  properties:
+    model:
+      format: "OpenAI"
+      name: "gpt-4o-mini"
+      version: "2024-07-18"
+    raiPolicyName: "catalog-policy"
+    versionUpgradeOption: "OnceNewDefaultVersionAvailable"
+  sku:
+    name: "GlobalStandard"
+    capacity: 1
+---
+# Source: avm-res-cognitiveservices-account/templates/main.yaml
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Account
+metadata:
+  name: mock-account
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "catalog-cog"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  kind: "OpenAI"
+  sku:
+    name: "S0"
+  identity:
+    type: "SystemAssigned"
+  properties:
+    allowProjectManagement: false
+    customSubDomainName: "catalog-cog"
+    dynamicThrottlingEnabled: false
+    disableLocalAuth: false
+    publicNetworkAccess: Enabled
+    restrictOutboundNetworkAccess: false
+  tags:
+    catalog: mock
+---
+# Source: avm-res-cognitiveservices-account/templates/deployments.yaml
+apiVersion: cognitiveservices.azure.hfl.dev/v20250601
+kind: AccountsRaiPolicy
+metadata:
+  name: mock-account-rai-p
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rai_policy:p"
+spec:
+  azureName: "catalog-policy"
+  owner:
+    name: mock-account
+  properties:
+    basePolicyName: "Microsoft.DefaultV2"
+    mode: "Default"
