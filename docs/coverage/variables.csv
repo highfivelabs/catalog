@@ -1219,20 +1219,20 @@ gcp,geap-agent-gateway,project_number,string,no,,no-chart
 gcp,geap-agent-gateway,proxy_uri,string,no,,no-chart
 gcp,geap-agent-gateway,region,string,no,,no-chart
 gcp,geap-agent-gateway,registries,list(string),no,,no-chart
-gcp,geap-agent-runtime,agent_runtime_config,"object({agent_framework, class_methods, container_concurrency, environment_variables, identity_type, max_instances, +4})",no,,no-chart
-gcp,geap-agent-runtime,bucket_config,"object({create, name, uniform_bucket_level_access})",no,,no-chart
-gcp,geap-agent-runtime,context,"object({agent_gateways, custom_roles, iam_principals, kms_keys, locations, models, +3})",no,,no-chart
-gcp,geap-agent-runtime,deployment_config,"object({container_config, package_config, source_files_config})",no,,no-chart
-gcp,geap-agent-runtime,description,string,no,,no-chart
-gcp,geap-agent-runtime,enable_deletion_protection,bool,no,,no-chart
-gcp,geap-agent-runtime,encryption_key,string,no,,no-chart
-gcp,geap-agent-runtime,managed,bool,no,,no-chart
-gcp,geap-agent-runtime,memory_bank_config,"object({disable_memory_revisions, generation_config, similarity_search_config, ttl_config})",no,,no-chart
-gcp,geap-agent-runtime,name,string,no,,no-chart
-gcp,geap-agent-runtime,networking_config,"object({agent_gateways, dns_peering_configs, network_attachment_id})",no,,no-chart
-gcp,geap-agent-runtime,project_id,string,no,,no-chart
-gcp,geap-agent-runtime,region,string,no,,no-chart
-gcp,geap-agent-runtime,service_account_config,"object({create, display_name, email, name, roles})",no,,no-chart
+gcp,geap-agent-runtime,agent_runtime_config,"object({agent_framework, class_methods, container_concurrency, environment_variables, identity_type, max_instances, +4})",partial,"AIPlatformReasoningEngine has no spec.identityType (so identity_type AGENT_IDENTITY, the default, is refused; SERVICE_ACCOUNT is what the kind does) and no classMethods",gap
+gcp,geap-agent-runtime,bucket_config,"object({create, name, uniform_bucket_level_access})",yes,,
+gcp,geap-agent-runtime,context,"object({agent_gateways, custom_roles, iam_principals, kms_keys, locations, models, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,geap-agent-runtime,deployment_config,"object({container_config, package_config, source_files_config})",partial,"AIPlatformReasoningEngine has no containerSpec or sourceCodeSpec; package_config is accepted with GCS URIs only (are_paths_local: false), since a chart cannot read files from the caller's disk",gap
+gcp,geap-agent-runtime,description,string,yes,,
+gcp,geap-agent-runtime,enable_deletion_protection,bool,partial,"false (Terraform's deletion_policy FORCE, which deletes the engine's sessions and memories, and the bucket's force_destroy) is refused: AIPlatformReasoningEngine has no force deletion",gap
+gcp,geap-agent-runtime,encryption_key,string,yes,,
+gcp,geap-agent-runtime,managed,bool,partial,"false (fabric's unmanaged engine, whose code Terraform ignores after create) is refused: Config Connector reconciles every field it is given and has no ignore_changes",gap
+gcp,geap-agent-runtime,memory_bank_config,"object({disable_memory_revisions, generation_config, similarity_search_config, ttl_config})",no,"AIPlatformReasoningEngine (config-connector-extensions, v1beta1) has no contextSpec, so no memory bank",gap
+gcp,geap-agent-runtime,name,string,yes,,
+gcp,geap-agent-runtime,networking_config,"object({agent_gateways, dns_peering_configs, network_attachment_id})",partial,AIPlatformReasoningEngine's deploymentSpec has no agentGatewayConfig,gap
+gcp,geap-agent-runtime,project_id,string,yes,,
+gcp,geap-agent-runtime,region,string,yes,,
+gcp,geap-agent-runtime,service_account_config,"object({create, display_name, email, name, roles})",yes,,
 gcp,geap-workbench,accelerator_config,"object({core_count, type})",no,,no-chart
 gcp,geap-workbench,boot_disk,"object({disk_encryption, disk_size_gb, disk_type, kms_key})",no,,no-chart
 gcp,geap-workbench,confidential_instance_config,object({confidential_instance_type}),no,,no-chart
