@@ -33,8 +33,10 @@ refused:
   fields:
   - amd_sev_snp
 - variable: create_eip
-  kind: gap
-  reason: "aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain"
+  kind: alpha
+  reason: "the association of the Elastic IP with the instance is ack-extensions' EIPAssociation (Cloud Control, outside ACK's releases): needs allow_alpha: true"
+  partial: true
+  needs_allow_alpha: true
 - variable: create_security_group
   kind: gap
   reason: "accepted false; true (the default) is refused: ACK's Instance takes security group IDs only, with no reference, so a group this component made cannot be attached in one render. Set create_security_group: false and pass a security-group component's id output in vpc_security_group_ids"
@@ -47,10 +49,8 @@ refused:
   reason: "ack-extensions' VolumeAttachment takes the instance's ID with no reference to an Instance, and a Volume needs the instance's Availability Zone, which only its status has: they cannot be wired in one render"
 - variable: eip_domain
   kind: gap
-  reason: "aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain"
-- variable: eip_tags
-  kind: gap
-  reason: "aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain"
+  reason: "accepted as vpc (the default) only: ACK's ElasticIPAddress has no domain, and AllocateAddress allocates for VPC (EC2-Classic's standard domain is retired)"
+  partial: true
 - variable: enable_primary_ipv6
   kind: gap
   reason: "ACK's Instance has no field for a primary IPv6 address"

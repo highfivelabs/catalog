@@ -19,6 +19,10 @@ namePrefix: ""
 # Kubernetes labels on every object. They stay in Kubernetes: ACK does not
 # copy labels to AWS (AWS tags are the module's tags variable).
 labels: {}
+# Kinds outside ACK's released controllers (ack-extensions'
+# SecurityGroupVpcAssociation, for vpc_associations) render only with
+# allow_alpha: true (docs/design.md, "Alpha kinds").
+allow_alpha: false
 # DELETE (default): deleting the component deletes the security group.
 # ABANDON keeps it (services.k8s.aws/deletion-policy: retain).
 deletion_policy: DELETE
@@ -72,9 +76,8 @@ timeouts: null
 # between plans; the namePrefix value keeps two Instances' groups apart.
 use_name_prefix: true
 # Map of VPC IDs to associate the security group to
-# Not supported (gap): ack-extensions' SecurityGroupVpcAssociation (Cloud
-# Control) takes the group's ID, with no reference to this chart's group
-# (groupRef), so it cannot be wired in one render.
+# In part: SecurityGroupVpcAssociation is an ack-extensions kind (Cloud
+# Control, outside ACK's releases): needs allow_alpha: true.
 vpc_associations: {}
 # ID of the VPC where the security group is created
 # In part: accepted when set; unset (Terraform's default, the account's default

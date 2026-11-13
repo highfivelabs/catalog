@@ -132,9 +132,9 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 617 of 1478 (41.7%) |
-| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 290 of 2348 (12.4%) |
+| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 295 of 2348 (12.6%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 180 of 1170 (15.4%) |
-| **All** | **177** | | **1087 of 4996 (21.8%)** |
+| **All** | **177** | | **1092 of 4996 (21.9%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -215,11 +215,11 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`s3-bucket`](https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/tree/v5.17.0) ([chart](charts/aws/s3-bucket)) | ![s3-bucket](docs/coverage/bars/aws-s3-bucket.svg) 27 of 78 | 8 of 21 | 38 of 45 | partial |
-| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 110 of 236 | 53 of 119 | 24 of 35 | partial |
+| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 111 of 236 | 54 of 119 | 24 of 35 | partial |
 | [`kms`](https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2) ([chart](charts/aws/kms)) | ![kms](docs/coverage/bars/aws-kms.svg) 30 of 41 | 4 of 9 | 3 of 6 | partial |
-| [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) ([chart](charts/aws/security-group)) | ![security-group](docs/coverage/bars/aws-security-group.svg) 10 of 14 | 5 of 5 | 4 of 5 | partial |
+| [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) ([chart](charts/aws/security-group)) | ![security-group](docs/coverage/bars/aws-security-group.svg) 11 of 14 | 5 of 5 | 4 of 5 | partial |
 | [`acm`](https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1) ([chart](charts/aws/acm)) | ![acm](docs/coverage/bars/aws-acm.svg) 23 of 24 | 7 of 7 | 2 of 3 | partial |
-| [`ec2-instance`](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1) ([chart](charts/aws/ec2-instance)) | ![ec2-instance](docs/coverage/bars/aws-ec2-instance.svg) 53 of 83 | 20 of 30 | 8 of 12 | partial |
+| [`ec2-instance`](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1) ([chart](charts/aws/ec2-instance)) | ![ec2-instance](docs/coverage/bars/aws-ec2-instance.svg) 56 of 83 | 20 of 30 | 8 of 12 | partial |
 | [`iam-role`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-role) ([chart](charts/aws/iam-role)) | ![iam-role](docs/coverage/bars/aws-iam-role.svg) 31 of 31 | 7 of 7 | 4 of 4 | partial |
 | [`iam-policy`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-policy) ([chart](charts/aws/iam-policy)) | ![iam-policy](docs/coverage/bars/aws-iam-policy.svg) 6 of 7 | 4 of 4 | 1 of 1 | partial |
 

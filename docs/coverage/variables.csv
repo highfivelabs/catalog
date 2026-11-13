@@ -1778,7 +1778,7 @@ aws,vpc,secondary_cidr_blocks,list(string),yes,,
 aws,vpc,single_nat_gateway,bool,yes,,
 aws,vpc,tags,map(string),yes,,
 aws,vpc,use_ipam_pool,bool,no,"VPC.cidrBlocks is required in ACK's VPC, so a VPC cannot take its whole block from an IPAM pool by netmask length; ipv4_ipam_pool_id with cidr is supported",gap
-aws,vpc,vpc_block_public_access_exclusions,map(any),no,"aws_vpc_block_public_access_exclusion takes this chart's VPC's or subnets' IDs, and ack-extensions' VPCBlockPublicAccessExclusion (Cloud Control) has no reference to either (vpcRef, subnetRef)",gap
+aws,vpc,vpc_block_public_access_exclusions,map(any),partial,"VPCBlockPublicAccessExclusion is an ack-extensions kind (Cloud Control, outside ACK's releases): needs allow_alpha: true; redshift and outpost subnets (refused) cannot be excluded",alpha
 aws,vpc,vpc_block_public_access_options,map(string),partial,"VPCBlockPublicAccessOptions is an ack-extensions kind (Cloud Control, outside ACK's releases): needs allow_alpha: true",alpha
 aws,vpc,vpc_flow_log_iam_policy_name,string,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
 aws,vpc,vpc_flow_log_iam_policy_use_name_prefix,bool,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
@@ -2093,7 +2093,7 @@ aws,security-group,revoke_rules_on_delete,bool,no,ACK's SecurityGroup has no fie
 aws,security-group,tags,map(string),yes,,
 aws,security-group,timeouts,"object({create, delete})",no,"Terraform's create and delete timeouts: ACK retries until the group is synced, and Bundt waits for it",by-design
 aws,security-group,use_name_prefix,bool,partial,"accepted: true (the default) names the group name as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' groups apart",gap
-aws,security-group,vpc_associations,map(object({vpc_id})),no,"ack-extensions' SecurityGroupVpcAssociation (Cloud Control) takes the group's ID, with no reference to this chart's group (groupRef), so it cannot be wired in one render",gap
+aws,security-group,vpc_associations,map(object({vpc_id})),partial,"SecurityGroupVpcAssociation is an ack-extensions kind (Cloud Control, outside ACK's releases): needs allow_alpha: true",alpha
 aws,security-group,vpc_id,string,partial,"accepted when set; unset (Terraform's default, the account's default VPC) is refused: ACK's SecurityGroup needs its VPC's ID (vpcID or vpcRef) and the chart cannot look the default VPC up",gap
 aws,rds,allocated_storage,number,no,,no-chart
 aws,rds,allow_major_version_upgrade,bool,no,,no-chart
@@ -2352,7 +2352,7 @@ aws,ec2-instance,capacity_reservation_specification,"object({capacity_reservatio
 aws,ec2-instance,cpu_credits,string,yes,,
 aws,ec2-instance,cpu_options,"object({amd_sev_snp, core_count, nested_virtualization, threads_per_core})",partial,"accepted, except amd_sev_snp: ACK's CpuOptions has no field for it",gap
 aws,ec2-instance,create,bool,yes,,
-aws,ec2-instance,create_eip,bool,no,aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain,gap
+aws,ec2-instance,create_eip,bool,partial,"the association of the Elastic IP with the instance is ack-extensions' EIPAssociation (Cloud Control, outside ACK's releases): needs allow_alpha: true",alpha
 aws,ec2-instance,create_iam_instance_profile,bool,yes,,
 aws,ec2-instance,create_security_group,bool,partial,"accepted false; true (the default) is refused: ACK's Instance takes security group IDs only, with no reference, so a group this component made cannot be attached in one render. Set create_security_group: false and pass a security-group component's id output in vpc_security_group_ids",gap
 aws,ec2-instance,create_spot_instance,bool,no,aws_spot_instance_request has no ACK or ack-extensions kind; instance_market_options (market_type spot) requests a Spot instance through RunInstances,gap
@@ -2360,8 +2360,8 @@ aws,ec2-instance,disable_api_stop,bool,yes,,
 aws,ec2-instance,disable_api_termination,bool,yes,,
 aws,ec2-instance,ebs_optimized,bool,yes,,
 aws,ec2-instance,ebs_volumes,"map(object({device_name, encrypted, final_snapshot, force_detach, iops, kms_key_id, +10}))",no,"ack-extensions' VolumeAttachment takes the instance's ID with no reference to an Instance, and a Volume needs the instance's Availability Zone, which only its status has: they cannot be wired in one render",gap
-aws,ec2-instance,eip_domain,string,no,aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain,gap
-aws,ec2-instance,eip_tags,map(string),no,aws_eip with an instance: ACK's ElasticIPAddress has no instance association (AssociateAddress) and no domain,gap
+aws,ec2-instance,eip_domain,string,partial,"accepted as vpc (the default) only: ACK's ElasticIPAddress has no domain, and AllocateAddress allocates for VPC (EC2-Classic's standard domain is retired)",gap
+aws,ec2-instance,eip_tags,map(string),yes,,
 aws,ec2-instance,enable_primary_ipv6,bool,no,ACK's Instance has no field for a primary IPv6 address,gap
 aws,ec2-instance,enable_volume_tags,bool,partial,"accepted: ACK tags the volumes an instance launches with the instance's tags (tags, instance_tags and Name), so they are tagged either way, without volume_tags",gap
 aws,ec2-instance,enclave_options_enabled,bool,yes,,

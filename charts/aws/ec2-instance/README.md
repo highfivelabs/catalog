@@ -35,13 +35,14 @@ renders one `ec2.services.k8s.aws/v1alpha1` `Instance` (`hfl.dev/id`
 | `aws_instance` | `create` | `ec2/Instance` `instance`: `imageID` (`ami`, or `resolve:ssm:<ami_ssm_parameter>`, which EC2 resolves at launch, where the module reads the parameter itself), `instanceType`, `subnetID`, `securityGroupIDs`, `keyName`, `iamInstanceProfile`, `placement` (`availability_zone`, `placement_group`, `placement_partition_number`, `host_id`, `host_resource_group_arn`, `tenancy`), `privateIPAddress`, `ipv6AddressCount`, `ipv6Addresses`, `networkInterfaces` (`network_interface`), `blockDeviceMappings` (`ephemeral_block_device`), `capacityReservationSpecification`, `cpuOptions`, `creditSpecification` (T instances), `disableAPIStop`, `disableAPITermination`, `ebsOptimized`, `enclaveOptions`, `hibernationOptions`, `instanceInitiatedShutdownBehavior`, `instanceMarketOptions`, `launchTemplate`, `maintenanceOptions`, `metadataOptions` (the module's defaults: IMDSv2 required, hop limit 1), `monitoring`, `privateDNSNameOptions`, `sourceDestCheckEnabled`, `userData` (base64, as EC2 takes it), `tags` (`tags`, `instance_tags`, `Name`) |
 | `aws_iam_role`, `aws_iam_role_policy_attachment` | `create_iam_instance_profile` | `iam/Role` `iam-role`: named `iam_role_name` (or `name`), trusting EC2 (`EC2AssumeRole`), `path`, `description`, `permissionsBoundary`, `policies` (`iam_role_policies`), `tags` (`tags`, `iam_role_tags`) |
 | `aws_iam_instance_profile` | `create_iam_instance_profile` | `iam/InstanceProfile` `iam-instance-profile`: named as the role, `roleRef` to it; the instance takes it by name |
+| `aws_eip` | `create_eip`, with `allow_alpha: true` | `ec2/ElasticIPAddress` `eip` (`tags`, `eip_tags`), and its association with the instance, ack-extensions' `ec2.cloudcontrol.aws.hfl.dev/EIPAssociation` `eip-association` (`allocationRef`, `instanceRef`); `public_ip` is then the address's |
 
 ## Values
 
 Every module variable is a value of the same name, type and default. The
 chart adds `names` (`iamRole`, which the instance profile shares),
 `namePrefix` (on the role's name and the instance's `Name` tag), `labels`
-(Kubernetes only) and `deletion_policy`; `tags` is the module's own, and
+(Kubernetes only), `allow_alpha` (for `create_eip`) and `deletion_policy`; `tags` is the module's own, and
 `region` becomes the annotation `services.k8s.aws/region` on the instance.
 
 Refused or accepted in part (`upstream.yaml`):
@@ -54,8 +55,11 @@ Refused or accepted in part (`upstream.yaml`):
   refused with it.
 - `ebs_volumes`: ack-extensions' `VolumeAttachment` takes the instance's ID
   with no reference, and a `Volume` needs the instance's Availability Zone.
-- `create_eip`, `eip_domain`, `eip_tags`: ACK's `ElasticIPAddress` has no
-  instance association.
+- `create_eip`, in part: the association is ack-extensions'
+  `EIPAssociation` (Cloud Control, outside ACK's releases), so only with
+  `allow_alpha: true`.
+- `eip_domain`, in part: `vpc` (the default) only; ACK's `ElasticIPAddress`
+  has no domain, and EC2-Classic's `standard` is retired.
 - `create_spot_instance` and `spot_*`: no Spot request kind;
   `instance_market_options` requests Spot through `RunInstances`.
 - `root_block_device`: the root device's name depends on the AMI.

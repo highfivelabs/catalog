@@ -611,14 +611,14 @@ Config Connector. What differs:
 
 | Chart | Module | Notes |
 | --- | --- | --- |
-| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, the default resources are refused; Block Public Access options through ack-extensions (Cloud Control, `allow_alpha`), its exclusions refused (no reference from the exclusion kind to the VPC or subnet) (the chart's README) |
-| `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations, `revoke_rules_on_delete` and non-exclusive rules are refused |
+| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, the default resources are refused; Block Public Access options and exclusions through ack-extensions (Cloud Control, `allow_alpha`; an exclusion takes the chart's VPC or subnet by `vpcRef` or `subnetRef`) (the chart's README) |
+| `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations through ack-extensions' `SecurityGroupVpcAssociation` (Cloud Control, `allow_alpha`, `groupRef` to the chart's group); `revoke_rules_on_delete` and non-exclusive rules are refused |
 | `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
 | `charts/aws/iam-role` | `terraform-aws-iam` v6.8.2, `modules/iam-role` | partial: every variable carried; the trust policy and inline policy built as the submodule builds them (generic, GitHub and Bitbucket OIDC, SAML, statements, source and override documents merged by `Sid`, with `account_id`), policy attachments, instance profile; `use_name_prefix` names the role without Terraform's random suffix |
 | `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
 | `charts/aws/acm` | `terraform-aws-acm` v6.3.1 | partial: the certificate, or (`create_route53_records_only`) its DNS validation records from a certificate component's outputs: DNS validation with Route 53 is two components, since the records exist only in the certificate's status; EMAIL validation and the wait for `ISSUED` are gaps |
-| `charts/aws/ec2-instance` | `terraform-aws-ec2-instance` v6.4.1 | partial: the instance (AMI by ID or by SSM parameter, resolved by EC2 at launch) with most launch options, and its IAM role and instance profile; the security group the module makes by default is refused (no reference from `Instance`), as are extra EBS volumes, the Elastic IP, the Spot request and the root block device |
+| `charts/aws/ec2-instance` | `terraform-aws-ec2-instance` v6.4.1 | partial: the instance (AMI by ID or by SSM parameter, resolved by EC2 at launch) with most launch options, and its IAM role and instance profile; the Elastic IP as ACK's `ElasticIPAddress` with ack-extensions' `EIPAssociation` (Cloud Control, `allow_alpha`, `allocationRef` and `instanceRef`); the security group the module makes by default is refused (no reference from `Instance`), as are extra EBS volumes, the Spot request and the root block device |
 
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
@@ -691,6 +691,21 @@ the case now takes the fake's account from `tests/mock.set.yaml`). With
 those two cases fixed, both pass on the emulator (`off-catalog-1112210701-7084`): all
 eight charts on main pass on AWS Emulator, moto unused.
 
+**ack-extensions at `2cdca6c`** (2026-11-12; `ACKX_COMMIT`, the fake-AWS
+runs' snapshot). Its Cloud Control kinds now take references, which closes
+three gaps this section listed: `VPCBlockPublicAccessExclusion` (`vpcRef`,
+`subnetRef`; the vpc chart's `vpc_block_public_access_exclusions`),
+`SecurityGroupVpcAssociation` (`groupRef`, `vpcRef`; the security-group
+chart's `vpc_associations`) and `EIPAssociation` (`allocationRef`,
+`instanceRef`; the ec2-instance chart's `create_eip`), each behind
+`allow_alpha`. Its generated `s3control.aws.hfl.dev` `PublicAccessBlock`
+maps `aws_s3_account_public_access_block` (the s3-bucket module's
+`account-public-access` submodule; no chart renders it yet). The CRDs are
+copied in `crds/ack-extensions`. The emulator's Cloud Control is a generic
+store that does not reach EC2 (ack-extensions' `docs/aws-emulator.md`): a
+Cloud Control object Ready on the emulator proves the chart's wiring and
+the references' resolution, not that EC2 made the association.
+
 Gaps the charts found, for ack-extensions (beyond section 5):
 
 | Gap | Needed by | Shape |
@@ -700,8 +715,6 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | `egressOnlyInternetGatewayRef` on a route; a subnet's IPv6 block from its VPC's (`ipv6CIDRBlock` derived from the VPC's Amazon-provided block) | vpc (IPv6) | reference fields on ACK's `RouteTable` and `Subnet` (upstream) |
 | Adopting a VPC's default security group, network ACL and main route table by their VPC | vpc (`default_security_group_*`, `default_network_acl_*`, `default_route_table_*`) | kinds that take a `vpcRef` and manage the VPC's default object |
 | Redshift `ClusterSubnetGroup` | vpc (redshift subnets) | generated, or ACK's redshift-controller released |
-| References on ack-extensions' `VPCBlockPublicAccessExclusion` (`vpcRef`, `subnetRef`) and `SecurityGroupVpcAssociation` (`groupRef`): the kinds exist (Cloud Control) but take IDs a chart cannot know in one render | vpc (`vpc_block_public_access_exclusions`), security-group (`vpc_associations`) | reference fields on ack-extensions' Cloud Control kinds |
-| `SecurityGroupVPCAssociation` (`AssociateSecurityGroupVpc`) | security-group (`vpc_associations`) | generated |
 | Standalone security group rules with tags (section 5, gap 6) | security-group (each rule's `name` and `tags`) | design question, as in section 5 |
 | KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |
 | `Key` fields: `pendingWindowInDays` (on delete), `rotationPeriodInDays`, `enabled` | kms (`deletion_window_in_days`, `rotation_period_in_days`, `is_enabled`) | fields on ACK's `Key` (upstream) or a patch |
@@ -710,5 +723,5 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | A `RecordSet` that may overwrite a record already there (Route 53's `UPSERT` on create) | acm (`validation_allow_overwrite_records`) | a field on ACK's `RecordSet` (upstream) |
 | `securityGroupRefs` on ACK's `Instance` (it takes IDs only) | ec2-instance (`create_security_group`, the default) | a reference field on ACK's `Instance` (upstream) |
 | `instanceRef` on ack-extensions' `VolumeAttachment`, and a `Volume` that takes its Availability Zone from an instance | ec2-instance (`ebs_volumes`) | reference fields on ack-extensions' kinds |
-| An Elastic IP association with an instance (`AssociateAddress`, with `instanceRef` and `allocationRef`), and `domain` on `ElasticIPAddress` | ec2-instance (`create_eip`) | a new kind (ack-extensions) |
+| `domain` on `ElasticIPAddress` (only `vpc` is carried; EC2-Classic's `standard` is retired) | ec2-instance (`eip_domain`) | a field on ACK's `ElasticIPAddress` (upstream); low value |
 | `groups` on `Instance.networkInterfaces` (so a public IP or secondary IPs can be asked for with the instance's groups), `enablePrimaryIPv6`, `placement.groupID`, `cpuOptions.amdSevSnp` | ec2-instance | fields on ACK's `Instance` (upstream) |
