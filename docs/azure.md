@@ -559,6 +559,20 @@ in section 4 need it, then by downloads.
 | 17 | Key Vault certificate import and certificate contacts | 1 (keyvault); App Service certificates from Key Vault | data plane | n/a | aso-extensions b6, after `VaultSecret`'s shape |
 | 18 | Stale ARM versions (VirtualMachine 2022-03-01, ApplicationGateway 2022-07-01, DNS zones 2018-05-01) | 3 (virtual machine, application gateway, dnszone) | ARM version | n/a | upstream (a new `$supportedFrom` version) |
 
+**Where these stand at aso-extensions `b9beb5b` (2026-11-12, 232
+CRDs).** Built there, as kinds the charts can render: 1 (`ManagementLock`),
+2 (`VaultSecret`), 3 (`ManagedEnvironments*` and `ConnectedEnvironments*`:
+Dapr components, storages, certificates, managed certificates and more),
+4 in part (slots, hostname bindings, certificates; not config sections or
+publishing policies), 5 (tables, data exports, linked services, linked
+storage, query packs, solutions), 6, 8 (management groups, Azure Policy,
+budgets, vWAN hub connections, tags), 9, 10 (run commands, DevTest Labs
+schedules, maintenance assignments, Recovery Services vaults and backup
+policies), 11, 12, 13 (Gremlin, dedicated gateway services), 14, 15, 16
+and the certificate import of 17. Still open: 7 (ASO's own `VaultKey`),
+Key Vault certificate contacts (17), App Service config sections and
+publishing policies (4) and the stale ARM versions (18).
+
 Already built in aso-extensions and needed by the top modules:
 
 - `VaultSecret` for keyvault, virtual machine, storage account and
@@ -700,19 +714,36 @@ aso-extensions:
 
 | Chart | Variable | ARM type with no kind |
 | --- | --- | --- |
-| `avm-res-storage-storageaccount` | `local_user` | `Microsoft.Storage/storageAccounts/localUsers` (SFTP and NFSv3 local users) |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
-| `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
-| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `Microsoft.ContainerRegistry/registries/credentialSets` |
-| `avm-res-containerregistry-registry` | `scope_maps` | `Microsoft.ContainerRegistry/registries/scopeMaps`, `.../tokens` (a token's passwords are secrets returned once) |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `Microsoft.OperationalInsights/workspaces/linkedServices` (the module links a dedicated cluster with one) |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `Microsoft.OperationalInsights/workspaces/linkedStorageAccounts` |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `Microsoft.OperationalInsights/workspaces/tables` |
-| `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `Microsoft.Insights/privateLinkScopes`, `.../scopedResources` |
-| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `Microsoft.Network/networkSecurityPerimeters/resourceAssociations` |
+
+The private DNS zone's `soa_record` maps to aso-extensions'
+`PrivateDnsZonesSOARecord` (`network.azure.hfl.dev/v20240601`, its CRD
+copied in `crds/aso-extensions`), which updates the SOA record set Azure
+makes with the zone and leaves it when deleted.
+
+The rest of what the charts refused for want of a kind now has one in
+aso-extensions (at `b9beb5b`, the commit `ASOX_COMMIT` pins; 232 CRDs).
+Each is a mapping still to land or landing, not a gap:
+
+| Chart | Variable | aso-extensions kind | Mapped in |
+| --- | --- | --- | --- |
+| `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | not yet (its SSH keys are public keys; a password Azure generates would stay refused) |
+| `avm-res-network-privatednszone` | `soa_record` | `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev`) | #97 |
+| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | the registry follow-up to #91 |
+| `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | the registry follow-up to #91 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `WorkspacesDataExport` (`operationalinsights.azure.hfl.dev`) | the workspace follow-up to #88 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `WorkspacesLinkedService` (the module links a dedicated cluster with one) | the workspace follow-up to #88 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `WorkspacesLinkedStorageAccount` | the workspace follow-up to #88 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `WorkspacesTable` | the workspace follow-up to #88 |
+| `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `PrivateLinkScope`, `PrivateLinkScopesScopedResource` (`insights.azure.hfl.dev`) | the workspace follow-up to #88 (an existing scope's `exclusions` stay refused: the module updates a scope it does not own) |
+| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `NetworkSecurityPerimetersResourceAssociation` (`network.azure.hfl.dev`) | the workspace follow-up to #88 |
+| `avm-res-containerservice-managedcluster` | `namespace` | `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`) | #102 |
+
+The fake-cloud and live runs install aso-extensions' manager beside ASO
+(`hack/asox-manager.sh`, below), so these kinds are applied and
+reconciled, not only rendered.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
@@ -766,7 +797,7 @@ the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
 deleted and Azure must answer 404 for it; anything of the run left is
 swept. The resource group chart (subscription scope) and the
-aso-extensions lock (its manager is not installed) are not applied. A
+aso-extensions lock (Contributor cannot write locks) are not applied. A
 deleted key vault stays soft-deleted for 7 days (purging needs a
 subscription-scope right). First passed on 2026-11-12; the network
 security group (two rules), route table (two routes, the group by name
@@ -803,6 +834,43 @@ serves Key Vault keys in the vault's data plane, which ASO's `VaultKey`
 reads (`<vault>.vault.azure.net` is `fakearm` inside the cluster, through
 a second CoreDNS rewrite; `fakearm` is given ASO's tenant, which Key
 Vault's challenge names). Run `off-catalog-1112232041-31702`: 26 of 26
-objects Ready and deleted, every chart's outputs evaluated. Not applied
-to the fake: anything needing the
-aso-extensions manager (the lock).
+objects Ready and deleted, every chart's outputs evaluated.
+
+**aso-extensions' manager in both runs** (`hack/asox-manager.sh`, sourced
+by `hack/azure-mock.sh` and `hack/azure-live.sh`). aso-extensions at
+`ASOX_COMMIT` is built once per run: its manager from `cmd/manager` (the
+stock build: it reads ASO's `aso-controller-settings`, so it talks to the
+Resource Manager ASO talks to) into a scratch image with the host's CA
+bundle, loaded into kind and installed from its `config/default` (its 232
+CRDs, its RBAC, the manager under its own service account
+`aso-extensions-manager` in ASO's namespace). The manager starts an
+informer for every ASO kind its kinds name as owners and exits when one's
+CRD is missing, so ASO's `crdPattern` takes those groups too
+(`ASOX_OWNER_GROUPS`). Its token is ASO's: against
+the fake, a projected service account token for Entra's audience
+(`fakearm` trusts that subject too) and the fake cloud's CA through
+`SSL_CERT_FILE`; live, the node's directory holding the VM's Google ID
+token. So the charts' aso-extensions kinds (a lock, an SOA record, an AKS
+managed namespace, a registry's scope maps and tokens, a workspace's
+tables ...) are applied and reconciled in both runs, not only rendered.
+The identity chart's `tests/mock.values.yaml` carries a `CanNotDelete`
+lock, which the fake honours: the identity's delete is refused with 409
+`ScopeLocked` until the lock is gone. Live, a lock is still not applied:
+writing `Microsoft.Authorization/locks` needs Owner or User Access
+Administrator, and the live identity is Contributor on its group. First
+run on 2026-11-13, with this branch merged with the charts that map
+aso-extensions kinds (the registry and workspace follow-ups, the storage
+account's local users, #97's SOA record, #102's AKS managed namespace):
+fake cloud `off-catalog-1113015422-30541`, 43 of 43 objects Ready and
+deleted and every chart's outputs evaluated, the aso-extensions objects
+among them (the lock, which held the identity's delete until it went; the
+SOA record; the managed namespace; a credential set, scope map and token;
+a table, a table update, a data export, linked storage, a Monitor Private
+Link Scope and its scoped resource; a local user). Live run
+`cat1113015728ca` (storage, DNS, workspace and registry cases): 17 of 18
+objects Ready, deleted and gone from Azure, nothing left; the SOA record,
+the SFTP local user, the custom table, the Monitor Private Link Scope with
+the workspace's scoped resource, the scope map and the token passed. The
+credential set did not: Azure resolves its Key Vault secret URIs' host
+when it is created ("Cannot resolve host"), so a live credential set needs
+a real vault and secrets, which the case did not make.

@@ -21,15 +21,20 @@
 #
 #   ../scripts/offload/offload run --sa "$AZURE_LIVE_SA" --hours 2 -- \
 #     env AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... AZURE_CLIENT_ID=... \
-#     AZURE_LIVE_RESOURCE_GROUP=... hack/azure-live.sh
+#     AZURE_LIVE_RESOURCE_GROUP=... ASOX_TARBALL=gs://.../asox-<commit>.tar.gz \
+#     hack/azure-live.sh
 #
 # How: a kind cluster runs Azure Service Operator v2.22.0 from its own Helm
 # chart (with cert-manager for its webhooks, which convert between CRD
 # versions), its credential the Google ID token of the VM's service
 # account, which Entra exchanges for the sandbox identity (workload
 # identity: the token file, refreshed every 20 minutes, is mounted where
-# ASO reads it). The identity is Contributor on one resource group, so the
-# resource group chart and the aso-extensions lock are not applied here.
+# ASO reads it). Beside ASO, aso-extensions' manager (hack/asox-manager.sh,
+# from ASOX_TARBALL or ASOX_DIR) reconciles the charts' aso-extensions kinds
+# with the same token. The identity is Contributor on one resource group,
+# so the resource group chart (subscription scope) and the lock (writing
+# Microsoft.Authorization/locks needs Owner or User Access Administrator)
+# are not applied here.
 #
 # Rules: one resource group (AZURE_LIVE_RESOURCE_GROUP); every name starts
 # with this run's ID (cat<month day hour minute><4 hex>) and every resource
@@ -115,6 +120,10 @@ cleanup() {
   rm -rf "${WORK}"
 }
 trap cleanup EXIT
+# shellcheck source=hack/asox-manager.sh
+source "${ROOT}/hack/asox-manager.sh"
+asox_fetch "${WORK}"
+asox_build_manager "${WORK}"
 arm_token >/dev/null || { echo "azure-live: Entra refused the federated token" >&2; exit 1; }
 echo "== Entra issued a Resource Manager token for ${AZURE_CLIENT_ID}"
 
@@ -140,7 +149,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*' \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -162,6 +171,14 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
+echo "== aso-extensions' manager beside ASO, from ${ASOX_TARBALL:-${ASOX_DIR}}"
+# Its token where ASO's credential reads it: the node's directory holding
+# the Google ID token, as ASO's.
+asox_install_manager "${CLUSTER}" '{
+  "spec": {"template": {"spec": {
+    "volumes": [{"name": "azure-identity", "hostPath": {"path": "/azure-tokens", "type": "Directory"}}],
+    "containers": [{"name": "manager",
+      "volumeMounts": [{"name": "azure-identity", "mountPath": "/var/run/secrets/tokens", "readOnly": true}]}]}}}}'
 kubectl create namespace "${NS}" >/dev/null
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
@@ -286,7 +303,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); run ${RUN}; Azure Service Operator v${ASO_VERSION} on kind; one resource group of the sandbox subscription."
+  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); run ${RUN}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager (${ASOX_TARBALL:-${ASOX_DIR}}) on kind; one resource group of the sandbox subscription."
   echo
   echo "| Chart | Object | Ready | Deleted | Gone from Azure | Message |"
   echo "| --- | --- | --- | --- | --- | --- |"
@@ -354,6 +371,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
 done
 
 kubectl -n azureserviceoperator-system logs deployment/azureserviceoperator-controller-manager --tail=-1 >"${OUT}/aso.log" 2>&1 || true
+asox_manager_logs "${OUT}/asox-manager.log"
 {
   echo
   echo "${total} objects; ${failed} failures (an object not Ready, not deleted or still in Azure, or a chart's outputs not evaluated)."
