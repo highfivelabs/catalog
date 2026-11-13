@@ -35,6 +35,7 @@ renders one `ec2.services.k8s.aws/v1alpha1` `SecurityGroup`
 | `aws_security_group` | `SecurityGroup`: `name`, `description` (unset, the Terraform provider's default, `Managed by Terraform`, since AWS cannot change a group's description later), `vpcID`, `tags` |
 | `aws_vpc_security_group_ingress_rule`, `aws_vpc_security_group_egress_rule` | `SecurityGroup.ingressRules` and `egressRules`, one entry per rule, in key order: `ipProtocol` (default `tcp`), `fromPort`/`toPort` (each defaulting to the other, as the module does), and the source as `ipRanges` (`cidr_ipv4`), `ipv6Ranges` (`cidr_ipv6`), `prefixListIDs` (`prefix_list_id`) or `userIDGroupPairs` (`referenced_security_group_id`; `self` is a pair with no group ID, which ACK fills with the group's own) |
 | `aws_vpc_security_group_rules_exclusive` (`enable_exclusive_rules`, default `true`) | inherent: ACK keeps the rules inline and reverts rules added elsewhere |
+| `aws_vpc_security_group_vpc_association` (`vpc_associations`, with `allow_alpha: true`) | ack-extensions' `ec2.cloudcontrol.aws.hfl.dev/SecurityGroupVpcAssociation` (Cloud Control), `vpc-association-<key>`: `groupRef` to the group, `vpcId` |
 
 ACK removes the default allow-all egress rule from a new group, as the
 Terraform provider does. The module's validation (each rule sets exactly
@@ -44,7 +45,7 @@ one source) stops the render with the module's message.
 
 Every module variable is a value of the same name, type and default. The
 chart adds `names` (`securityGroup`), `namePrefix`, `labels` (Kubernetes
-only) and `deletion_policy` (`ABANDON` renders
+only), `allow_alpha` (for `vpc_associations`) and `deletion_policy` (`ABANDON` renders
 `services.k8s.aws/deletion-policy: retain`); `tags` is the module's own,
 and `region` becomes the annotation `services.k8s.aws/region`.
 
@@ -58,8 +59,8 @@ Refused or accepted in part (`upstream.yaml`):
   rule resource's tags) are not carried; ACK's inline rules have no tags.
 - `enable_exclusive_rules: false`: ACK always owns the whole rule set.
 - `revoke_rules_on_delete`: no ACK field.
-- `vpc_associations`: ack-extensions' `SecurityGroupVpcAssociation` takes the
-  group's ID with no reference, so it cannot be wired in one render.
+- `vpc_associations`, in part: ack-extensions' `SecurityGroupVpcAssociation`
+  (Cloud Control, outside ACK's releases), so only with `allow_alpha: true`.
 - `vpc_id`, in part: required. Unset, Terraform takes the account's default
   VPC; ACK's `SecurityGroup` needs its VPC's ID, and the chart cannot look
   the default VPC up (found by the fake-AWS run: ACK leaves such a group

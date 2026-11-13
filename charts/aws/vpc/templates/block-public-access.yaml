@@ -6,9 +6,11 @@ main.tf, "VPC Block Public Access": the account's and Region's options
 (aws_vpc_block_public_access_options), as ack-extensions' Cloud Control
 kind VPCBlockPublicAccessOptions, which ACK has no kind for: only with
 allow_alpha: true (docs/design.md, "Alpha kinds"). The exclusions
-(aws_vpc_block_public_access_exclusion) take this chart's VPC's or
-subnets' IDs, and their kind has no reference to either: refused
-(refusals.yaml).
+(aws_vpc_block_public_access_exclusion), one per entry of
+vpc_block_public_access_exclusions, as ack-extensions' Cloud Control kind
+VPCBlockPublicAccessExclusion, also alpha: exclude_vpc takes this chart's
+VPC (vpcRef), exclude_subnet one of its subnets by subnet_type and
+subnet_index (subnetRef), as the module looks them up.
 */ -}}
 {{- $p := include "vpc.plan" . | fromJson -}}
 {{- $v := .Values -}}
@@ -25,4 +27,50 @@ metadata:
 {{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "block-public-access")) "id" "vpc-block-public-access-options" "region" $v.region) | nindent 2 }}
 spec:
   internetGatewayBlockMode: {{ $mode | quote }}
+{{- end }}
+{{- if $p.create }}
+{{- include "ack.alpha" (list $ "vpc_block_public_access_exclusions" $v.vpc_block_public_access_exclusions "VPCBlockPublicAccessExclusion (ack-extensions, Cloud Control)") }}
+{{- range $key := keys ($v.vpc_block_public_access_exclusions | default dict) | sortAlpha }}
+{{- $e := index $v.vpc_block_public_access_exclusions $key }}
+{{- $mode := get $e "internet_gateway_exclusion_mode" }}
+{{- if not $mode }}
+{{- fail (printf "vpc: vpc_block_public_access_exclusions.%s needs internet_gateway_exclusion_mode (allow-bidirectional or allow-egress)" $key) }}
+{{- end }}
+{{- $vpcEx := get $e "exclude_vpc" | default false }}
+{{- $subnetEx := get $e "exclude_subnet" | default false }}
+{{- if eq $vpcEx $subnetEx }}
+{{- fail (printf "vpc: vpc_block_public_access_exclusions.%s needs exactly one of exclude_vpc and exclude_subnet (AWS excludes a VPC or a subnet)" $key) }}
+{{- end }}
+{{- $subnet := "" }}
+{{- if $subnetEx }}
+{{- $t := get $e "subnet_type" | default "" | toString }}
+{{- if not (has $t (list "public" "private" "database" "elasticache" "intra")) }}
+{{- fail (printf "vpc: vpc_block_public_access_exclusions.%s: subnet_type %q is not one of this chart's subnet types (public, private, database, elasticache, intra; redshift and outpost subnets are refused)" $key $t) }}
+{{- end }}
+{{- $i := int (get $e "subnet_index" | default 0) }}
+{{- $list := index $p.subnets $t }}
+{{- if ge $i (len $list) }}
+{{- fail (printf "vpc: vpc_block_public_access_exclusions.%s: subnet_index %d, and there are %d %s subnets (Terraform: index out of range)" $key $i (len $list) $t) }}
+{{- end }}
+{{- $subnet = (index $list $i).k8s }}
+{{- end }}
+---
+apiVersion: ec2.cloudcontrol.aws.hfl.dev/v1alpha1
+kind: VPCBlockPublicAccessExclusion
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "bpa-exclusion" $key)) "id" (printf "vpc-block-public-access-exclusion-%s" $key) "region" $v.region) | nindent 2 }}
+spec:
+  internetGatewayExclusionMode: {{ $mode | quote }}
+{{- if $vpcEx }}
+  vpcRef:
+{{- include "vpc.ref" (include "ack.name" (list $.Release.Name "vpc")) | nindent 4 }}
+{{- else }}
+  subnetRef:
+{{- include "vpc.ref" $subnet | nindent 4 }}
+{{- end }}
+{{- with include "ack.tags" (list $ dict $v.tags (get $e "tags" | default dict)) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
 {{- end }}
