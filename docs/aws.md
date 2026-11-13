@@ -622,6 +622,21 @@ Config Connector. What differs:
 | `charts/aws/sqs` | `terraform-aws-sqs` v5.2.2 | partial: the queue, with the queue policy (built as the module builds it, merged by `Sid`), the redrive and redrive allow policies inline on ACK's `Queue`; `account_id` and `region` are needed for a policy statement without resources; the dead-letter queue (`create_dlq`, every `dlq_` variable) is refused, as no reference lets the queue wait for it (make it its own component), and `use_name_prefix` (a random suffix) |
 | `charts/aws/eks-pod-identity` | `terraform-aws-eks-pod-identity` v2.10.0 | partial: the role trusting EKS Pod Identity, the custom policy (source, statements, override merged by Sid), policy ARNs, and the pod identity associations (`roleRef`); the module's preset policies (63 variables) are not ported yet |
 
+**notify-slack has no chart** (2026-11-12). The module is a Lambda
+function (its `functions/notify_slack.py`, packaged by terraform-aws-lambda
+from a local `source_path` into a zip, uploaded inline or to S3) subscribed
+to an SNS topic, with the function's role, policy, log group and
+permission for SNS. Everything but the package has a stable kind
+(`lambda/Function`, `sns/Topic`, `sns/Subscription`, `iam/Role`,
+`cloudwatchlogs/LogGroup`) or an ack-extensions one (`lambda.aws.hfl.dev`
+`Permission`), but a chart cannot build the package: Helm renders text,
+and ACK's `Function` takes code as an S3 object or zip bytes. Without the
+function the topic notifies nothing, so a chart of the rest would mislead.
+What it needs is a published package (an S3 object a chart names by
+bucket and key, built once per module release by a build step outside the
+chart, or an image for `packageType: Image`); the lambda module's local
+packaging is the same gap.
+
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
 variables. Its user and account submodules, gaps in section 3, map to
