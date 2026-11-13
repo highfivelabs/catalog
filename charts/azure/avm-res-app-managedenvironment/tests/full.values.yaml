@@ -1,0 +1,129 @@
+# Every input the chart maps.
+name: cae-full
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+resource_group_name: rg-example
+kind: containerapps
+tags: {env: test, owner: platform}
+labels: {team: platform}
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids:
+    - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+app_logs_configuration: {destination: azure-monitor}
+custom_domain_configuration:
+  dns_suffix: apps.example.com
+  certificate_key_vault_properties:
+    identity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+    key_vault_url: https://kv-example.vault.azure.net/secrets/wildcard
+dapr_configuration: {}
+keda_configuration: {}
+infrastructure_resource_group: ME_cae-full
+peer_authentication: {mtls: {enabled: true}}
+peer_traffic_configuration: {encryption: {enabled: true}}
+vnet_configuration:
+  infrastructure_subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/cae
+  internal: true
+  docker_bridge_cidr: 10.2.0.1/16
+  platform_reserved_cidr: 10.1.0.0/16
+  platform_reserved_dns_ip: 10.1.0.2
+workload_profiles:
+  - {name: Consumption, workload_profile_type: Consumption}
+  - {name: Dedicated, workload_profile_type: D4, minimum_count: 1, maximum_count: 3}
+zone_redundant: true
+certificates:
+  wildcard:
+    name: wildcard
+    location: eastus2
+    tags: {cert: "yes"}
+    certificate_key_vault_properties:
+      identity: System
+      key_vault_url: https://kv-example.vault.azure.net/secrets/wildcard
+dapr_components:
+  state:
+    name: statestore
+    component_type: state.azure.blobstorage
+    dapr_components_version: v1
+    ignore_errors: false
+    init_timeout: 30s
+    metadata:
+      - {name: accountName, value: stexample}
+      - {name: containerName, value: state}
+      - {name: accountKey, secret_ref: account-key}
+    scopes: [api, worker]
+    secrets:
+      - name: account-key
+        key_vault_url: https://kv-example.vault.azure.net/secrets/account-key
+        identity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+    secrets_version: 1
+  pubsub:
+    name: pubsub
+    component_type: pubsub.azure.servicebus.topics
+    dapr_components_version: v1
+    secret_store_component: secretstore
+storages:
+  files:
+    name: files
+    azure_file: {access_mode: ReadOnly, account_name: stexample, share_name: share}
+  nfs:
+    name: nfs
+    nfs_azure_file: {access_mode: ReadWrite, server: stexample.file.core.windows.net, share_name: /stexample/nfs}
+managed_certificates:
+  www:
+    name: www-example-com
+    location: eastus2
+    subject_name: www.example.com
+    domain_control_validation: CNAME
+    tags: {cert: managed}
+java_components:
+  config:
+    name: config
+    component_type: SpringCloudConfig
+    configurations:
+      - {property_name: spring.cloud.config.server.git.uri, value: "https://github.com/example/config"}
+    scale: {min_replicas: 1, max_replicas: 1}
+  eureka:
+    name: eureka
+    component_type: SpringCloudEureka
+    service_binds:
+      - {name: config, service_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/config}
+http_route_configs:
+  api:
+    name: api
+    custom_domains:
+      - {name: api.example.com, binding_type: SniEnabled, certificate_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/managedCertificates/www-example-com}
+    rules:
+      - description: api to the api app
+        routes:
+          - match: {prefix: /api, case_sensitive: false}
+            action: {prefix_rewrite: /}
+          - match: {path: /health}
+        targets:
+          - {container_app: api, label: blue}
+maintenance_configurations:
+  default:
+    name: default
+    scheduled_entries:
+      - {week_day: Sunday, start_hour_utc: 2, duration_hours: 8}
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader:
+    role_definition_id_or_name: Reader
+    principal_id: 11111111-1111-1111-1111-111111111111
+    skip_service_principal_aad_check: true
+  owner:
+    name: 22222222-2222-2222-2222-222222222222
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635
+    principal_id: 33333333-3333-3333-3333-333333333333
+    principal_type: Group
+    description: owners
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law
+  named:
+    name: to-storage
+    log_groups: []
+    log_categories: [ContainerAppConsoleLogs]
+    metric_categories: []
+    log_analytics_destination_type: AzureDiagnostics
+    storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample
