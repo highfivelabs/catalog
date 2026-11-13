@@ -3,7 +3,8 @@
 An Azure Container Apps environment with its virtual network, workload
 profiles, logs destination, custom domain, peer authentication and
 encryption, identities, and its certificates, managed certificates, Dapr
-components, storages, Java components, HTTP route configurations,
+components and subscriptions, storages, Java and .NET components, HTTP
+route configurations,
 maintenance configurations, lock, role assignments and diagnostic
 settings, as Azure Service Operator (ASO) and aso-extensions objects. A
 port of the Azure Verified Module
@@ -35,15 +36,16 @@ module's default `zone_redundant: true` needs an infrastructure subnet
 | `azapi_resource.this` | always | `ManagedEnvironment` (`app.azure.com/v20250101`), `managed_environment`, owned by the resource group |
 | `module.certificates` | one per entry | `ManagedEnvironmentsCertificate` (aso-extensions, `app.azure.hfl.dev/v20250101`), `certificate:<key>` |
 | `module.dapr_components` | one per entry | `ManagedEnvironmentsDaprComponent` (aso-extensions, `v20250101`), `dapr_component:<key>` |
-| `module.storages` | one per entry | `ManagedEnvironmentsStorage` (aso-extensions, `v20250101`), `storage:<key>` |
+| `module.dapr_subscriptions` | one per entry | `ManagedEnvironmentsDaprSubscription` (aso-extensions, `v20260302preview`), `dapr_subscription:<key>` |
+| `module.storages` | one per entry | `ManagedEnvironmentsStorage` (aso-extensions, `v20260101`), `storage:<key>` |
 | `module.managed_certificates` | one per entry | `ManagedEnvironmentsManagedCertificate` (aso-extensions, `v20250101`), `managed_certificate:<key>` |
-| `module.java_components` | one per entry | `ManagedEnvironmentsJavaComponent` (aso-extensions, `v20250101`), `java_component:<key>` |
+| `module.java_components` | one per entry | `ManagedEnvironmentsJavaComponent` (aso-extensions, `v20260302preview`), `java_component:<key>` |
+| `module.dot_net_components` | one per entry | `ManagedEnvironmentsDotNetComponent` (aso-extensions, `v20260701`), `dot_net_component:<key>` |
 | `module.http_route_configs` | one per entry | `ManagedEnvironmentsHttpRouteConfig` (aso-extensions, `v20260101`), `http_route_config:<key>` |
 | `module.maintenance_configurations` | one per entry | `ManagedEnvironmentsMaintenanceConfiguration` (aso-extensions, `v20260101`), `maintenance_configuration:<key>` |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock`, named `lock-<kind>` and with the module's notes unless given |
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
-| `module.dapr_subscriptions`, `module.dot_net_components` | never | refused: no kind (below) |
 | `time_sleep.lock_removal`, the role definition lookup, the workspace's customer ID and shared key lookups, telemetry | never | not ported: ASO retries a delete a lock still blocks and resolves a role by name itself; the shared key is a secret (below) |
 
 Every child is owned by the environment and named as the module names it
@@ -75,9 +77,11 @@ Where the module folds a deprecated input into a newer one (its
 | `tags` | `spec.tags` (the environment's only; a certificate's and a managed certificate's own `tags` are theirs, as in the module) |
 | `certificates` | `ManagedEnvironmentsCertificate`: `name`, `location`, `tags`, the Key Vault certificate (`certificate_key_vault_properties`). `password` and `value` are refused; `password_version` and `value_version` are accepted and do nothing, as in the module without a value |
 | `dapr_components` | `ManagedEnvironmentsDaprComponent`: `component_type`, `dapr_components_version` (`version`), `ignore_errors`, `init_timeout`, `metadata` (a value or a secret's name), `scopes`, `secret_store_component`, `secrets` as Key Vault references (`key_vault_url`, `identity`). A secret's `value` is refused. `secrets_version` is required with `secrets`, as in the module, and does nothing: ASO sends the whole body on every change |
-| `storages` | `ManagedEnvironmentsStorage`: `azure_file` (`access_mode`, `account_name`, `share_name`) and `nfs_azure_file` (`access_mode`, `server`, `share_name`). The account key and `azure_file.account_key_vault_properties` are refused, so an Azure Files share cannot be given a credential: use NFS |
+| `dapr_subscriptions` | `ManagedEnvironmentsDaprSubscription`: `pubsub_name`, `topic`, `dead_letter_topic`, `metadata`, `scopes`, `bulk_subscribe` and `routes` (`default`, `rules`) |
+| `storages` | `ManagedEnvironmentsStorage`: `azure_file` (`access_mode`, `account_name`, `share_name`, and the account key as a Key Vault reference, `account_key_vault_properties`: `key_vault_url` and `identity`) and `nfs_azure_file` (`access_mode`, `server`, `share_name`). The account key itself is refused (a secret value) |
 | `managed_certificates` | `ManagedEnvironmentsManagedCertificate`: `name`, `location`, `subject_name`, `domain_control_validation`, `tags` |
-| `java_components` | `ManagedEnvironmentsJavaComponent`: `SpringBootAdmin`, `SpringCloudConfig` or `SpringCloudEureka` (the kind's three component types), with `configurations`, `scale` and `service_binds` (the service by ID) |
+| `java_components` | `ManagedEnvironmentsJavaComponent`: `Nacos`, `SpringBootAdmin`, `SpringCloudConfig`, `SpringCloudEureka` or `SpringCloudGateway`, with `configurations`, `scale` and `service_binds` (the service by ID). `ingress` is refused: the kind has no ingress in its spec (the module sends an empty object, whose one property, `fqdn`, is read-only) |
+| `dot_net_components` | `ManagedEnvironmentsDotNetComponent`: `component_type` (`AspireDashboard`), `configurations` and `service_binds` (the service by ID) |
 | `http_route_configs` | `ManagedEnvironmentsHttpRouteConfig`: `custom_domains` (the certificate by ID) and `rules` (routes and their targets) |
 | `maintenance_configurations` | `ManagedEnvironmentsMaintenanceConfiguration`: `scheduled_entries` |
 | `lock` | the AVM lock interface, with the module's default name (`lock-<kind>`) and notes |
@@ -113,8 +117,6 @@ is not settled); Key Vault references, which hold no value, are taken.
 | `ingress_configuration` | gap | likewise no `ingressConfiguration` |
 | `open_telemetry_configuration`, `key`, `key_version` | gap | likewise no `openTelemetryConfiguration` |
 | `public_network_access`, `public_network_access_enabled` | gap | likewise no `publicNetworkAccess` |
-| `dapr_subscriptions` | gap | no ASO or aso-extensions kind for `Microsoft.App/managedEnvironments/daprSubscriptions` |
-| `dot_net_components` | gap | no ASO or aso-extensions kind for `Microsoft.App/managedEnvironments/dotNetComponents` |
 | `log_analytics_workspace` | not-ported | the module reads the workspace's primary shared key and sends it: a secret |
 | `shared_key`, `shared_key_version`, `log_analytics_workspace_primary_shared_key`, `log_analytics_workspace_customer_id` | not-ported | a Log Analytics destination needs the workspace's shared key: a secret |
 | `certificate_password`, `certificate_value` (and their `_version`), `custom_domain_certificate_password`, `custom_domain_certificate_value` | not-ported | the custom domain certificate's password and blob: secrets (reference the certificate in Key Vault instead) |
@@ -124,11 +126,10 @@ Accepted in part: `app_logs_configuration` and
 `log_analytics_workspace_destination` (not `log-analytics`, which needs the
 shared key), `custom_domain_configuration` (not `certificate_value`),
 `certificates` (not `password` or `value`), `dapr_components` (not a
-secret's `value`), `storages` (not the account key, a secret, nor
-`azure_file.account_key_vault_properties`, which aso-extensions'
-`ManagedEnvironmentsStorage` at 2025-01-01 lacks), `java_components` (not
-`Nacos` or `SpringCloudGateway`, nor `ingress`, which aso-extensions'
-`ManagedEnvironmentsJavaComponent` at 2025-01-01 lacks).
+secret's `value`), `storages` (not the account key, a secret; its Key
+Vault reference is mapped), `java_components` (not `ingress`, which
+aso-extensions' `ManagedEnvironmentsJavaComponent` at 2026-03-02-preview
+has no spec field for).
 
 Logs without a secret: `app_logs_configuration: {destination:
 azure-monitor}` and a `diagnostic_settings` entry to the workspace.
@@ -178,7 +179,11 @@ maintenance configuration and a lock) to aso-extensions' fake cloud: passed
 on 2026-11-13 (stock ASO against fakearm at `b9beb5b`, run
 `off-catalog-1113080132-28448`: 9 objects Ready and deleted, the outputs
 evaluated; the fake computes no domain or static IP, so those are null
-there).
+there). 0.2.0 adds a Dapr subscription, the Aspire dashboard .NET
+component, a Spring Cloud Gateway Java component and an Azure Files
+storage with its key by Key Vault reference: run `off-catalog-1113155314-18721` (aso-extensions
+`3d9ba27`, 2026-11-13), all 13 objects Ready and deleted, the outputs
+evaluated.
 
 `task test-live-azure` (case `cae`) applies a Consumption-only environment
 (no network, no logs destination, not zone redundant) with one Dapr
@@ -198,4 +203,10 @@ made first does not have, and errexit ended the run (fixed in
 
 ## Changes
 
+- **0.2.0** (2026-11-13): `dapr_subscriptions` and `dot_net_components`
+  render aso-extensions' `ManagedEnvironmentsDaprSubscription` and
+  `ManagedEnvironmentsDotNetComponent`; `java_components` take `Nacos` and
+  `SpringCloudGateway` (`ManagedEnvironmentsJavaComponent` at
+  `v20260302preview`); a storage's `azure_file.account_key_vault_properties`
+  is mapped (`ManagedEnvironmentsStorage` at `v20260101`).
 - **0.1.0** (2026-11-13): the port.

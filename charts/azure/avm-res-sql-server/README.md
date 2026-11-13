@@ -47,6 +47,7 @@ to `resource.fully_qualified_domain_name` with an Entra token.
 | a database's `short_term_retention_policy` block | set | `ServersDatabasesBackupShortTermRetentionPolicy`, `database:<key>/short_term_retention_policy` |
 | a database's `threat_detection_policy` block | set | `ServersDatabasesSecurityAlertPolicy`, `database:<key>/threat_detection_policy` |
 | a database's `transparent_data_encryption_enabled` | `false` (Azure's default is on) | `ServersDatabasesTransparentDataEncryption` (`state: Disabled`), `database:<key>/transparent_data_encryption` |
+| the server's `express_vulnerability_assessment_enabled` | `true` | `ServersSqlVulnerabilityAssessment` (aso-extensions, `sql.azure.hfl.dev/v20250101`; `state: Enabled`), `express_vulnerability_assessment` |
 | `azurerm_mssql_firewall_rule.this` | one per `firewall_rules` entry, named by its key | `ServersFirewallRule`, `firewall_rule:<key>` |
 | `azurerm_private_endpoint.this` / `this_unmanaged_dns_zone_groups` | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`, sub-resource `sqlServer`), `private_endpoint:<key>`; a `PrivateEndpointsPrivateDnsZoneGroup` (`private_endpoint:<key>/dns_zone_group`) when `private_endpoints_manage_dns_zone_group` and zones are given |
 | `azurerm_private_endpoint_application_security_group_association.this` | one per association | the endpoint's `applicationSecurityGroups` |
@@ -110,25 +111,25 @@ Not as in the module:
   database-level administrator), not an Azure role assignment.
   `administrator_login` is kept and passed through; Azure decides whether
   it takes one without a password.
-- **`express_vulnerability_assessment_enabled: true`** is refused (gap):
-  the express configuration, `Microsoft.Sql/servers/sqlVulnerabilityAssessments`,
-  has no ASO or aso-extensions kind (ASO's `ServersVulnerabilityAssessment`
-  is the classic, storage-backed one). `false`, the default, is accepted.
 - **A database's `import`** is refused: a `.bacpac` import is an action
   with a storage key and an administrator password (secret values) and no
   ASO kind. **`threat_detection_policy.storage_account_access_key`** is
   refused (a secret value; ASO takes it only from a Kubernetes Secret).
   **`geo_backup_enabled: false` on a DataWarehouse (`DW...`) SKU** is
-  refused (gap: `Microsoft.Sql/servers/databases/geoBackupPolicies` has no
-  ASO or aso-extensions kind); azurerm sets the policy only for DW SKUs, so
-  on any other SKU the value has no effect, as in the module. A database's
+  refused (gap 19): aso-extensions' `ServersDatabasesGeoBackupPolicy` at
+  `3d9ba27` names its owner as `sql.azure.hfl.dev` `Servers_Database`
+  instead of ASO's `ServersDatabase`, so it never reconciles ("failed to
+  get owner", fake cloud run `off-catalog-1113155314-18721`); azurerm sets
+  the policy only for DW SKUs, so on any other SKU the value has no
+  effect, as in the module. A database's
   `managed_identities.system_assigned` is accepted and ignored, as the
   module ignores it (Azure has no system identity on a database).
 - **A firewall rule's `timeouts`** are refused: ASO has no per-request
   timeouts; Bundt sets a component's time limit.
 - **Settings detached on delete.** The connection policy, a database's
-  retention policies, its threat detection policy and its transparent data
-  encryption setting are settings of their parent with no delete in Azure
+  retention policies, its threat detection policy, its transparent data
+  encryption setting and the server's express
+  vulnerability assessment are settings of their parent with no delete in Azure
   (blocks of the azurerm resource in the module), so their objects always
   carry `reconcile-policy: detach-on-delete`. Removing one from the values
   leaves the setting as it was in Azure; set it back to undo it.
@@ -175,9 +176,15 @@ manager against aso-extensions' fakearm at `b9beb5b`, run
 `off-catalog-1113081050-1496`): `tests/mock.values.yaml`'s 6 objects (the
 server, its connection policy, a Basic database with its short-term
 retention policy, a Basic elastic pool and a firewall rule) Ready and
-deleted, the outputs evaluated. The fake Resource Manager does not compute
+deleted, the outputs evaluated. The fake Resource Manager at `b9beb5b` did not compute
 a server's `fullyQualifiedDomainName`, so `resource.fully_qualified_domain_name`
-is null there (a gap of aso-extensions' `pkg/fakecloud/arm/computed.go`).
+was null there. 0.2.0 against aso-extensions `3d9ba27` (run
+`off-catalog-1113161553-22079`): the same 6 objects and the express
+vulnerability assessment (`ServersSqlVulnerabilityAssessment`) Ready and
+deleted, the outputs evaluated, `resource.fully_qualified_domain_name`
+(`catalog-sql.database.windows.net`) among them. A DataWarehouse
+database's geo-backup policy, tried in run `off-catalog-1113155314-18721`,
+never became Ready (the kind's owner is broken at `3d9ba27`, above).
 The first fake run (`off-catalog-1113075959-109`) had every object Ready
 and the outputs evaluated, but stopped at the delete: Kubernetes had
 already collected a firewall rule its server owned when `kubectl delete -f`
@@ -201,3 +208,10 @@ made and evaluated the same, then stopped in the script's report: a `cat`
 of a case's prerequisites file, which only cases with prerequisites have,
 failed under `pipefail` (fixed in `hack/azure-live.sh`); its server was
 deleted.
+
+## Changes
+
+- **0.2.0** (2026-11-13): `express_vulnerability_assessment_enabled: true`
+  renders aso-extensions' `ServersSqlVulnerabilityAssessment` and is no
+  longer refused.
+- **0.1.0** (2026-11-13): the port.

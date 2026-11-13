@@ -177,6 +177,9 @@ evaluated. `endpoint` and `geo_location` were not: the fake Resource
 Manager's account has no `documentEndpoint`, no `readLocations` or
 `writeLocations`, and no `id` on a location (computed fields Azure
 returns; a gap of aso-extensions' fakearm, not faked in the chart).
+aso-extensions `3d9ba27` computes them: run `off-catalog-1113155314-18721` (2026-11-13), all 9
+objects Ready and deleted and all 43 outputs evaluated (`endpoint`,
+`read_endpoints` and `write_endpoints` among them).
 
 `task test-live-azure` with `AZURE_LIVE_CASES=cosmos` (not in the
 default) applies a serverless SQL account in one region, not zone

@@ -12,8 +12,10 @@ inputs folded in as the module's effective_* locals fold them.
 The child modules: aso-extensions kinds (app.azure.hfl.dev), each owned by
 the environment: ManagedEnvironmentsCertificate (certificates),
 ManagedEnvironmentsDaprComponent (dapr_components),
+ManagedEnvironmentsDaprSubscription (dapr_subscriptions),
 ManagedEnvironmentsStorage (storages), ManagedEnvironmentsManagedCertificate
 (managed_certificates), ManagedEnvironmentsJavaComponent (java_components),
+ManagedEnvironmentsDotNetComponent (dot_net_components),
 ManagedEnvironmentsHttpRouteConfig (http_route_configs) and
 ManagedEnvironmentsMaintenanceConfiguration (maintenance_configurations).
 azapi_resource.lock: an aso-extensions ManagementLock, with the module's
@@ -67,7 +69,7 @@ wellKnownName: {{ . | quote }}
 {{- else if include "cae.set" $x }}{{ $ibc = true }}{{ end }}
 {{- end }}
 {{- include "aso.unsupported" (list $ "ignore_body_changes" $ibc "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)") }}
-{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01 or 2026-01-01)") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01)") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- /* What ASO's ManagedEnvironment (2025-01-01) has no field for, and the
@@ -84,8 +86,6 @@ child types with no kind. */ -}}
 {{- include "aso.unsupported" (list $ "connection_string_version" (include "cae.set" $v.connection_string_version) (printf $newer "appInsightsConfiguration")) }}
 {{- include "aso.unsupported" (list $ "key" (include "cae.set" $v.key) (printf $newer "openTelemetryConfiguration")) }}
 {{- include "aso.unsupported" (list $ "key_version" (include "cae.set" $v.key_version) (printf $newer "openTelemetryConfiguration")) }}
-{{- include "aso.unsupported" (list $ "dapr_subscriptions" $v.dapr_subscriptions "no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/daprSubscriptions") }}
-{{- include "aso.unsupported" (list $ "dot_net_components" $v.dot_net_components "no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/dotNetComponents") }}
 {{- /* Secret values: the builder's decision (docs/azure.md, "Charts"). */ -}}
 {{- $secret := "%s is a secret value, which would sit in the component's inputs; how a component supplies one (a Kubernetes Secret for ASO's SecretReference) is not settled" }}
 {{- range $n := list "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
@@ -364,16 +364,67 @@ spec:
   version: {{ . | quote }}
   {{- end }}
 {{- end }}
+{{- range $k, $d := ($v.dapr_subscriptions | default dict) }}
+{{- if not $d.name }}{{ fail (printf "avm-res-app-managedenvironment: dapr_subscriptions.%s needs a name" $k) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsDaprSubscription
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "daprsub" $k)) "id" (printf "dapr_subscription:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $d.bulk_subscribe }}
+  {{- $b := dict }}
+  {{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $b "enabled" .enabled }}{{ end }}
+  {{- if not (kindIs "invalid" .max_await_duration_ms) }}{{ $_ := set $b "maxAwaitDurationMs" (.max_await_duration_ms | int) }}{{ end }}
+  {{- if not (kindIs "invalid" .max_messages_count) }}{{ $_ := set $b "maxMessagesCount" (.max_messages_count | int) }}{{ end }}
+  bulkSubscribe:
+    {{- toYaml $b | nindent 4 }}
+  {{- end }}
+  {{- with $d.dead_letter_topic }}
+  deadLetterTopic: {{ . | quote }}
+  {{- end }}
+  {{- with $d.metadata }}
+  metadata:
+    {{- range $mk, $mv := . }}
+    {{ $mk | quote }}: {{ $mv | toString | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $d.pubsub_name }}
+  pubsubName: {{ . | quote }}
+  {{- end }}
+  {{- with $d.routes }}
+  {{- $r := dict }}
+  {{- with .default }}{{ $_ := set $r "default" . }}{{ end }}
+  {{- with .rules }}
+  {{- $rules := list }}
+  {{- range . }}
+  {{- $rule := dict }}
+  {{- with .match }}{{ $_ := set $rule "match" . }}{{ end }}
+  {{- with .path }}{{ $_ := set $rule "path" . }}{{ end }}
+  {{- $rules = append $rules $rule }}
+  {{- end }}
+  {{- $_ := set $r "rules" $rules }}
+  {{- end }}
+  routes:
+    {{- toYaml $r | nindent 4 }}
+  {{- end }}
+  {{- with $d.scopes }}
+  scopes: {{ toJson . }}
+  {{- end }}
+  {{- with $d.topic }}
+  topic: {{ . | quote }}
+  {{- end }}
+{{- end }}
 {{- range $k, $s := ($v.storages | default dict) }}
 {{- if not $s.name }}{{ fail (printf "avm-res-app-managedenvironment: storages.%s needs a name" $k) }}{{ end }}
 {{- if or (include "cae.set" $s.account_key) (and $s.azure_file (include "cae.set" $s.azure_file.account_key)) }}
 {{- fail (printf "avm-res-app-managedenvironment: storages.%s: account_key is not supported: %s (docs/azure.md, \"Charts\")" $k (printf $secret "a storage account key")) }}
 {{- end }}
-{{- if and $s.azure_file (include "cae.set" $s.azure_file.account_key_vault_properties) }}
-{{- fail (printf "avm-res-app-managedenvironment: storages.%s: azure_file.account_key_vault_properties is not supported: aso-extensions' ManagedEnvironmentsStorage is at ARM API version 2025-01-01, which has no accountKeyVaultProperties (docs/azure.md, \"Charts\")" $k) }}
-{{- end }}
 ---
-apiVersion: app.azure.hfl.dev/v20250101
+apiVersion: app.azure.hfl.dev/v20260101
 kind: ManagedEnvironmentsStorage
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "storage" $k)) "id" (printf "storage:%s" $k) "abandon" $abandon) | nindent 2 }}
@@ -385,6 +436,12 @@ spec:
   {{- with $s.azure_file }}
   {{- $f := dict }}
   {{- with .access_mode }}{{ $_ := set $f "accessMode" . }}{{ end }}
+  {{- with .account_key_vault_properties }}
+  {{- $kv := dict }}
+  {{- with .identity }}{{ $_ := set $kv "identityReference" (include "cae.identityRef" . | fromYaml) }}{{ end }}
+  {{- with .key_vault_url }}{{ $_ := set $kv "keyVaultUrl" . }}{{ end }}
+  {{- $_ := set $f "accountKeyVaultProperties" $kv }}
+  {{- end }}
   {{- with .account_name }}{{ $_ := set $f "accountName" . }}{{ end }}
   {{- with .share_name }}{{ $_ := set $f "shareName" . }}{{ end }}
   {{- $_ := set $p "azureFile" $f }}
@@ -428,17 +485,14 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
-{{- $javaTypes := dict "SpringBootAdmin" "springBootAdmin" "SpringCloudConfig" "springCloudConfig" "SpringCloudEureka" "springCloudEureka" }}
+{{- $javaTypes := dict "Nacos" "nacos" "SpringBootAdmin" "springBootAdmin" "SpringCloudConfig" "springCloudConfig" "SpringCloudEureka" "springCloudEureka" "SpringCloudGateway" "springCloudGateway" }}
 {{- range $k, $j := ($v.java_components | default dict) }}
 {{- if not $j.name }}{{ fail (printf "avm-res-app-managedenvironment: java_components.%s needs a name" $k) }}{{ end }}
 {{- if not (has $j.component_type (list "Nacos" "SpringBootAdmin" "SpringCloudConfig" "SpringCloudEureka" "SpringCloudGateway")) }}
 {{- fail "avm-res-app-managedenvironment: component_type must be one of: [\"Nacos\", \"SpringBootAdmin\", \"SpringCloudConfig\", \"SpringCloudEureka\", \"SpringCloudGateway\"]." }}
 {{- end }}
-{{- if not (hasKey $javaTypes $j.component_type) }}
-{{- fail (printf "avm-res-app-managedenvironment: java_components.%s: component_type %s is not supported: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2025-01-01) takes SpringBootAdmin, SpringCloudConfig and SpringCloudEureka (docs/azure.md, \"Charts\")" $k $j.component_type) }}
-{{- end }}
 {{- if not (kindIs "invalid" $j.ingress) }}
-{{- fail (printf "avm-res-app-managedenvironment: java_components.%s: ingress is not supported: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2025-01-01) has no ingress to set (docs/azure.md, \"Charts\")" $k) }}
+{{- fail (printf "avm-res-app-managedenvironment: java_components.%s: ingress is not supported: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2026-03-02-preview) has no ingress in its spec (the module sends an empty object; its one property, fqdn, is read-only) (docs/azure.md, \"Charts\")" $k) }}
 {{- end }}
 {{- $p := dict "componentType" $j.component_type }}
 {{- with $j.configurations }}
@@ -468,7 +522,7 @@ spec:
 {{- $_ := set $p "serviceBinds" $sb }}
 {{- end }}
 ---
-apiVersion: app.azure.hfl.dev/v20250101
+apiVersion: app.azure.hfl.dev/v20260302preview
 kind: ManagedEnvironmentsJavaComponent
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "java" $k)) "id" (printf "java_component:%s" $k) "abandon" $abandon) | nindent 2 }}
@@ -479,6 +533,40 @@ spec:
   properties:
     {{ get $javaTypes $j.component_type }}:
       {{- toYaml $p | nindent 6 }}
+{{- end }}
+{{- range $k, $c := ($v.dot_net_components | default dict) }}
+{{- if not $c.name }}{{ fail (printf "avm-res-app-managedenvironment: dot_net_components.%s needs a name" $k) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ManagedEnvironmentsDotNetComponent
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "dotnet" $k)) "id" (printf "dot_net_component:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $c.component_type }}
+  componentType: {{ . | quote }}
+  {{- end }}
+  {{- with $c.configurations }}
+  configurations:
+    {{- range . }}
+    - {{- with .property_name }} propertyName: {{ . | quote }}{{ end }}
+      {{- if not (kindIs "invalid" .value) }}
+      value: {{ .value | toString | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $c.service_binds }}
+  serviceBinds:
+    {{- range . }}
+    - {{- with .name }} name: {{ . | quote }}{{ end }}
+      {{- with .service_id }}
+      serviceReference:
+        armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}
 {{- range $k, $h := ($v.http_route_configs | default dict) }}
 {{- if not $h.name }}{{ fail (printf "avm-res-app-managedenvironment: http_route_configs.%s needs a name" $k) }}{{ end }}
