@@ -1,0 +1,66 @@
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: attach-nic-nic0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attach"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:nic0"
+spec:
+  azureName: "win-restored-nic"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  enableAcceleratedNetworking: false
+  enableIPForwarding: false
+  ipConfigurations:
+    - name: "ipconfig1"
+      primary: true
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default"
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachine
+metadata:
+  name: attach-vm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "attach"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_machine"
+spec:
+  azureName: "win-restored"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  extensionsTimeBudget: "PT1H30M"
+  hardwareProfile:
+    vmSize: "Standard_D2ds_v5"
+  networkProfile:
+    networkInterfaces:
+      - reference:
+          group: network.azure.com
+          kind: NetworkInterface
+          name: attach-nic-nic0
+        primary: true
+  priority: Regular
+  storageProfile:
+    osDisk:
+      caching: ReadWrite
+      createOption: Attach
+      managedDisk:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Compute/disks/win-os"
+      osType: Windows
+      writeAcceleratorEnabled: false

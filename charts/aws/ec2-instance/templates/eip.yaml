@@ -1,0 +1,42 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "Elastic IP": with create_eip, an Elastic IP (aws_eip, ACK's
+ec2/ElasticIPAddress) associated with the instance. The module sets the
+instance on the aws_eip itself; ACK's ElasticIPAddress has no instance, so
+the association is ack-extensions' Cloud Control kind EIPAssociation
+(allocationRef to the address, instanceRef to the instance): only with
+allow_alpha: true (docs/design.md, "Alpha kinds"). ElasticIPAddress has
+no domain: AllocateAddress allocates for VPC, the module's default
+eip_domain, and any other domain is refused (refusals.yaml).
+*/ -}}
+{{- $v := .Values -}}
+{{- if and $v.create $v.putin_khuylo $v.create_eip (not $v.create_spot_instance) }}
+{{- include "ack.alpha" (list $ "create_eip" $v.create_eip "EIPAssociation (ack-extensions, Cloud Control)") }}
+{{- $eip := include "ack.name" (list .Release.Name "eip") }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: ElasticIPAddress
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $eip "id" "eip" "region" $v.region) | nindent 2 }}
+spec:
+{{- with include "ack.tags" (list $ $v.tags $v.eip_tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- else }}
+  {}
+{{- end }}
+---
+apiVersion: ec2.cloudcontrol.aws.hfl.dev/v1alpha1
+kind: EIPAssociation
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "eip-association")) "id" "eip-association" "region" $v.region) | nindent 2 }}
+spec:
+  allocationRef:
+    from:
+      name: {{ $eip }}
+  instanceRef:
+    from:
+      name: {{ include "ack.name" (list .Release.Name "instance") }}
+{{- end }}

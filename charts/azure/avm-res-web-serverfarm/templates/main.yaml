@@ -1,0 +1,161 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-web-serverfarm main.tf and locals.tf
+(v2.0.8), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.Web/serverfarms): one ASO ServerFarm
+(web.azure.com/v20250501; the module sends 2025-03-01), owned by the
+resource group parent_id names, with the kind, SKU, capacity and properties
+the module derives from os_type and sku_name (locals.tf). azapi_resource.lock,
+role_assignment and diagnostic_setting: the AVM interfaces
+(avm-utl-interfaces 0.6.0: the lock without notes, diagnostic settings v2).
+The telemetry is not ported. Not ported either: the module's region check
+for a zone-redundant Flex Consumption plan (a geoRegions query at plan
+time); Azure refuses such a plan where it is not offered.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- if and $v.server_farm_resource_type (ne $v.server_farm_resource_type "Microsoft.Web/serverfarms@2025-03-01") }}
+{{- include "aso.unsupported" (list $ "server_farm_resource_type" $v.server_farm_resource_type "the API version is the ASO kind's: ServerFarm 2025-05-01") }}
+{{- end }}
+{{- include "aso.names" (list $ (list "serverFarm")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- if not (regexMatch "^[a-zA-Z0-9-_]{1,60}$" $v.name) }}
+{{- fail (printf "%s: The name must be between 1 and 60 characters long and can only contain letters, numbers, hyphens, underscores and Unicode characters." $chart) }}
+{{- end }}
+{{- if not $v.location }}{{ fail (printf "%s: location is required" $chart) }}{{ end }}
+{{- $os := toString $v.os_type }}
+{{- if not (has $os (list "Windows" "Linux" "WindowsContainer" "WindowsManagedInstance")) }}
+{{- fail (printf "%s: The operating system type must be one of: `Windows`, `Linux`, or `WindowsContainer`." $chart) }}
+{{- end }}
+{{- $sku := $v.sku_name | default "P1v2" }}
+{{- if not (regexMatch "^(B1|B2|B3|D1|F1|I1|I2|I3|I1v2|I2v2|I3v2|I4v2|I5v2|I6v2|P1v2|P2v2|P3v2|P0v3|P1v3|P2v3|P3v3|P1mv3|P2mv3|P3mv3|P4mv3|P5mv3|P0v4|P1v4|P2v4|P3v4|P1mv4|P2mv4|P3mv4|P4mv4|P5mv4|S1|S2|S3|SHARED|EP1|EP2|EP3|FC1|WS1|WS2|WS3|Y1)$" $sku) }}
+{{- fail (printf "%s: The SKU name must be B1, B2, B3, D1, F1, I1, I2, I3, I1v2, I2v2, I3v2, I4v2, I5v2, I6v2, P1v2, P2v2, P3v2, P0v3, P1v3, P2v3, P3v3, P1mv3, P2mv3, P3mv3, P4mv3, P5mv3, S1, S2, S3, SHARED, EP1, EP2, EP3, FC1, WS1, WS2, WS3, or Y1." $chart) }}
+{{- end }}
+{{- range ($v.registry_adapters | default list) }}
+{{- if not (has .type (list "DWORD" "String")) }}{{ fail (printf "%s: The registry adapter type must be one of: `DWORD` or `String`." $chart) }}{{ end }}
+{{- end }}
+{{- with $v.lock }}
+{{- if not (has .kind (list "CanNotDelete" "ReadOnly")) }}{{ fail (printf "%s: Lock kind must be either `\"CanNotDelete\"` or `\"ReadOnly\"`." $chart) }}{{ end }}
+{{- end }}
+{{- /* locals.tf */ -}}
+{{- $flex := eq $sku "FC1" }}
+{{- $ws := hasPrefix "WS" $sku }}
+{{- $wmi := eq $os "WindowsManagedInstance" }}
+{{- $kind := ternary "functionapp" (ternary "elastic" (ternary "linux" "windows" (eq $os "Linux")) $ws) $flex }}
+{{- $elastic := false }}
+{{- if $ws }}{{ $elastic = true }}{{ else if regexMatch "^(EP|P)" $sku }}{{ $elastic = eq (toString $v.premium_plan_auto_scale_enabled) "true" }}{{ end }}
+{{- $maxElastic := ternary $v.maximum_elastic_worker_count $v.worker_count (regexMatch "^(EP|WS|FC)" $sku) }}
+{{- $capacity := ternary 0 $v.worker_count $flex }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "plan") }}
+---
+apiVersion: web.azure.com/v20250501
+kind: ServerFarm
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "server_farm" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "serverFarm" "App Service plan" $v.name 60 "^[a-zA-Z0-9-_]{1,60}$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  kind: {{ $kind }}
+  {{- if not (kindIs "invalid" $v.async_scaling_enabled) }}
+  asyncScalingEnabled: {{ $v.async_scaling_enabled }}
+  {{- end }}
+  elasticScaleEnabled: {{ $elastic }}
+  {{- with $v.app_service_environment_id }}
+  hostingEnvironmentProfile:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  hyperV: {{ eq $os "WindowsContainer" }}
+  {{- with $v.managed_identities }}
+  {{- $uai := uniq (.user_assigned_resource_ids | default list) | sortAlpha }}
+  {{- $sa := eq (toString .system_assigned) "true" }}
+  {{- if or $sa $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned, UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" $sa | quote }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range . }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if and $wmi (not (kindIs "invalid" $v.install_scripts)) }}
+  installScripts:
+    {{- range $v.install_scripts }}
+    - name: {{ .name | quote }}
+      source:
+        type: {{ .source.type | default "RemoteAzureBlob" }}
+        sourceUri: {{ .source.source_uri | quote }}
+    {{- end }}
+  {{- end }}
+  isCustomMode: {{ $wmi }}
+  {{- if and (not $flex) (not (kindIs "invalid" $maxElastic)) }}
+  maximumElasticWorkerCount: {{ $maxElastic | int }}
+  {{- end }}
+  {{- with $v.virtual_network_subnet_id }}
+  network:
+    virtualNetworkSubnetReference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.per_site_scaling_enabled) }}
+  perSiteScaling: {{ $v.per_site_scaling_enabled }}
+  {{- end }}
+  {{- if and $wmi $v.plan_default_identity }}
+  planDefaultIdentity:
+    identityType: {{ $v.plan_default_identity.identity_type | default "UserAssigned" | quote }}
+    userAssignedIdentityResourceReference:
+      armId: {{ $v.plan_default_identity.user_assigned_identity_resource_id | quote }}
+  {{- end }}
+  {{- if and $wmi (not (kindIs "invalid" $v.rdp_enabled)) }}
+  rdpEnabled: {{ $v.rdp_enabled }}
+  {{- end }}
+  {{- if and $wmi (not (kindIs "invalid" $v.registry_adapters)) }}
+  registryAdapters:
+    {{- range $v.registry_adapters }}
+    - registryKey: {{ .registry_key | quote }}
+      {{- /* ARM's enum spells it DWord; the module's validation DWORD. */}}
+      type: {{ ternary "DWord" .type (eq .type "DWORD") }}
+      keyVaultSecretReference:
+        secretUri: {{ .key_vault_secret_reference.secret_uri | quote }}
+    {{- end }}
+  {{- end }}
+  reserved: {{ eq $os "Linux" }}
+  sku:
+    name: {{ $sku }}
+    {{- if not (kindIs "invalid" $capacity) }}
+    capacity: {{ $capacity | int }}
+    {{- end }}
+  {{- if and $wmi (not (kindIs "invalid" $v.storage_mounts)) }}
+  storageMounts:
+    {{- range $v.storage_mounts }}
+    - name: {{ .name | quote }}
+      type: {{ .type | default "LocalStorage" }}
+      source: {{ .source | default "" | quote }}
+      destinationPath: {{ .destination_path | quote }}
+      credentialsKeyVaultReference:
+        {{- with (.credentials_key_vault_reference | default dict).secret_uri }}
+        secretUri: {{ . | quote }}
+        {{- else }} {}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with (include "aso.tags" (list $ dict) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.zone_balancing_enabled) }}
+  zoneRedundant: {{ $v.zone_balancing_enabled }}
+  {{- end }}
+{{- $owner := dict "group" "web.azure.com" "kind" "ServerFarm" "name" $obj }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.lock) }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettingsV2" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "what" "diagnostic_settings") }}

@@ -1,9 +1,10 @@
 # Copyright 2026 High Five Labs
 # SPDX-License-Identifier: Apache-2.0
 #
-# What tests/mock.values.yaml needs and the chart does not make: a VPC and
-# a subnet for the instance (hack/mock-apply-aws.sh applies them first,
-# deletes them last).
+# What tests/mock.values.yaml needs and the chart does not make: a VPC, a
+# subnet for the instance and an internet gateway (AWS associates an
+# Elastic IP with an instance only in a VPC with one); hack/mock-apply-aws.sh
+# applies them first, deletes them last.
 apiVersion: ec2.services.k8s.aws/v1alpha1
 kind: VPC
 metadata:
@@ -22,6 +23,17 @@ metadata:
 spec:
   cidrBlock: 10.40.1.0/24
   availabilityZone: us-east-1a
+  vpcRef:
+    from:
+      name: instance-vpc
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: InternetGateway
+metadata:
+  name: instance-igw
+  annotations:
+    services.k8s.aws/region: us-east-1
+spec:
   vpcRef:
     from:
       name: instance-vpc

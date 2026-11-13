@@ -1,0 +1,54 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). resource_id is the machine's ARM ID from
+# ASO's status; name its Azure name. admin_ssh_keys are the public keys the
+# machine was given, admin_username its administrator (null with an
+# attached OS disk, as in the module). data_disks, network_interfaces and
+# public_ips are keyed like the module's (a public IP by
+# "<interface key>-<IP configuration key>") with each object's id and name
+# (and a public IP's address), not the whole azurerm object.
+# virtual_machine_azurerm carries the id, identity, virtual_machine_id and
+# private IP addresses azurerm exports. Not provided: admin_password and
+# admin_generated_ssh_private_key (secret values the chart never makes),
+# and resource and virtual_machine (the whole azurerm object).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-compute-virtualmachine
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    resource_id: resources.virtual_machine.status.id
+    name: resources.virtual_machine.spec.azureName
+    admin_username: >-
+      'osProfile' in resources.virtual_machine.spec ? resources.virtual_machine.spec.osProfile.adminUsername : null
+    admin_ssh_keys: >-
+      'osProfile' in resources.virtual_machine.spec
+      ? resources.virtual_machine.spec.osProfile.linuxConfiguration.ssh.publicKeys.map(k, {'public_key': k.keyData, 'username': k.path.split('/')[2]})
+      : []
+    system_assigned_mi_principal_id: >-
+      inputs.managed_identities != null && 'system_assigned' in inputs.managed_identities && inputs.managed_identities.system_assigned == true
+      ? resources.virtual_machine.status.identity.principalId : ''
+    data_disks: >-
+      resources.transformMapEntry(k, v, k.startsWith('data_disk:') && !k.contains('/'),
+      {k.substring(10): {'id': v.status.id, 'name': v.spec.azureName}})
+    network_interfaces: >-
+      resources.transformMapEntry(k, v, k.startsWith('network_interface:') && !k.contains('/'),
+      {k.substring(18): {'id': v.status.id, 'name': v.spec.azureName,
+      'private_ip_addresses': 'ipConfigurations' in v.status ? v.status.ipConfigurations.filter(c, 'privateIPAddress' in c).map(c, c.privateIPAddress) : []}})
+    public_ips: >-
+      resources.transformMapEntry(k, v, k.startsWith('public_ip:') && !k.contains('/'),
+      {k.substring(10): {'id': v.status.id, 'name': v.spec.azureName, 'ip_address': 'ipAddress' in v.status ? v.status.ipAddress : null}})
+    virtual_machine_azurerm: >-
+      {'id': resources.virtual_machine.status.id,
+      'identity': 'identity' in resources.virtual_machine.status ? resources.virtual_machine.status.identity : null,
+      'virtual_machine_id': 'vmId' in resources.virtual_machine.status ? resources.virtual_machine.status.vmId : null,
+      'private_ip_addresses': resources.filter(k, k.startsWith('network_interface:') && !k.contains('/') && 'ipConfigurations' in resources[k].status)
+      .map(k, resources[k].status.ipConfigurations.filter(c, 'privateIPAddress' in c).map(c, c.privateIPAddress)).flatten(),
+      'public_ip_addresses': resources.filter(k, k.startsWith('public_ip:') && !k.contains('/') && 'ipAddress' in resources[k].status)
+      .map(k, resources[k].status.ipAddress)}
