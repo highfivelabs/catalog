@@ -419,27 +419,27 @@ gcp,bigquery-dataset,routines,"map(object({arguments, data_governance_type, defi
 gcp,bigquery-dataset,tables,"map(object({deletion_protection, description, external_data_configuration, friendly_name, labels, options, +4}))",yes,,
 gcp,bigquery-dataset,tag_bindings,map(string),yes,,
 gcp,bigquery-dataset,views,"map(object({deletion_protection, description, friendly_name, labels, query, schema, +1}))",yes,,
-gcp,cloud-run-v2,binary_authorization,"object({breakglass_justification, policy, use_default})",no,,no-chart
-gcp,cloud-run-v2,containers,"map(object({args, command, depends_on, env, env_from_key, image, +5}))",no,,no-chart
-gcp,cloud-run-v2,context,"object({cidr_ranges, condition_vars, custom_roles, iam_principals, kms_keys, locations, +5})",no,,no-chart
-gcp,cloud-run-v2,deletion_protection,string,no,,no-chart
-gcp,cloud-run-v2,encryption_key,string,no,,no-chart
-gcp,cloud-run-v2,iam,map(list(string)),no,,no-chart
-gcp,cloud-run-v2,job_config,"object({max_retries, task_count, timeout})",no,,no-chart
-gcp,cloud-run-v2,labels,map(string),no,,no-chart
-gcp,cloud-run-v2,launch_stage,string,no,,no-chart
-gcp,cloud-run-v2,managed_revision,bool,no,,no-chart
-gcp,cloud-run-v2,name,string,no,,no-chart
-gcp,cloud-run-v2,project_id,string,no,,no-chart
-gcp,cloud-run-v2,region,string,no,,no-chart
-gcp,cloud-run-v2,revision,"object({gen2_execution_environment, gpu_zonal_redundancy_disabled, job, labels, max_concurrency, max_instance_count, +5})",no,,no-chart
-gcp,cloud-run-v2,service_account_config,"object({create, display_name, email, name, roles})",no,,no-chart
-gcp,cloud-run-v2,service_config,"object({custom_audiences, default_uri_disabled, eventarc_triggers, gen2_execution_environment, iap_config, ingress, +7})",no,,no-chart
-gcp,cloud-run-v2,tag_bindings,map(string),no,,no-chart
-gcp,cloud-run-v2,type,string,no,,no-chart
-gcp,cloud-run-v2,volumes,"map(object({cloud_sql_instances, empty_dir_size, gcs, nfs, secret}))",no,,no-chart
-gcp,cloud-run-v2,vpc_connector_create,"object({instances, ip_cidr_range, machine_type, name, network, subnet, +1})",no,,no-chart
-gcp,cloud-run-v2,workerpool_config,object({scaling}),no,,no-chart
+gcp,cloud-run-v2,binary_authorization,"object({breakglass_justification, policy, use_default})",partial,"policy is refused: RunService, RunJob and RunWorkerPool have no binaryAuthorization.policy",gap
+gcp,cloud-run-v2,containers,"map(object({args, command, depends_on, env, env_from_key, image, +5}))",partial,startup_probe.grpc is refused for a JOB: RunJob's startupProbe has no grpc,gap
+gcp,cloud-run-v2,context,"object({cidr_ranges, condition_vars, custom_roles, iam_principals, kms_keys, locations, +5})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,cloud-run-v2,deletion_protection,string,yes,,
+gcp,cloud-run-v2,encryption_key,string,yes,,
+gcp,cloud-run-v2,iam,map(list(string)),yes,,
+gcp,cloud-run-v2,job_config,"object({max_retries, task_count, timeout})",yes,,
+gcp,cloud-run-v2,labels,map(string),yes,,
+gcp,cloud-run-v2,launch_stage,string,yes,,
+gcp,cloud-run-v2,managed_revision,bool,partial,"false is refused: Config Connector has no ignore_changes, so it would put back the containers, revision name and labels of every revision deployed outside Bundt. true, the default, is accepted",gap
+gcp,cloud-run-v2,name,string,yes,,
+gcp,cloud-run-v2,project_id,string,yes,,
+gcp,cloud-run-v2,region,string,yes,,
+gcp,cloud-run-v2,revision,"object({gen2_execution_environment, gpu_zonal_redundancy_disabled, job, labels, max_concurrency, max_instance_count, +5})",partial,gpu_zonal_redundancy_disabled is refused (no kind has it); node_selector is refused for a SERVICE or JOB (only RunWorkerPool has nodeSelector); labels are refused for a JOB or WORKERPOOL (RunJob and RunWorkerPool have no template labels),gap
+gcp,cloud-run-v2,service_account_config,"object({create, display_name, email, name, roles})",yes,,
+gcp,cloud-run-v2,service_config,"object({custom_audiences, default_uri_disabled, eventarc_triggers, gen2_execution_environment, iap_config, ingress, +7})",partial,"default_uri_disabled, iap_config, invoker_iam_disabled, multi_region_settings and workload_identity_config are refused: RunService has no defaultUriDisabled, iapEnabled, invokerIamDisabled, multiRegionSettings or workloadIdentityConfig",gap
+gcp,cloud-run-v2,tag_bindings,map(string),yes,,
+gcp,cloud-run-v2,type,string,partial,"WORKERPOOL is a RunWorkerPool, which is v1alpha1: needs allow_alpha: true. SERVICE and JOB need nothing",alpha
+gcp,cloud-run-v2,volumes,"map(object({cloud_sql_instances, empty_dir_size, gcs, nfs, secret}))",partial,"gcs is refused (RunService has no gcs volume; RunJob and RunWorkerPool send bucketRef.external, which must be projects/<p>/buckets/<b> or gs://<b>, to Cloud Run as the bucket name); nfs is refused for a SERVICE (RunService has no nfs volume)",gap
+gcp,cloud-run-v2,vpc_connector_create,"object({instances, ip_cidr_range, machine_type, name, network, subnet, +1})",yes,,
+gcp,cloud-run-v2,workerpool_config,object({scaling}),partial,"scaling.mode, scaling.max_instance_count and scaling.min_instance_count are refused: RunWorkerPool's scaling has manualInstanceCount only",gap
 gcp,billing-account,budget_notification_channels,"map(object({description, display_name, enabled, force_delete, labels, project_id, +3}))",partial,"sensitive_labels are refused (secret values: the builder's open SECV question); display_name is refused, since Config Connector takes a channel's display name from its object's name (<release>-channel-<key>)",gap
 gcp,billing-account,budgets,"map(object({amount, display_name, filter, ownership_scope, threshold_rules, update_rules}))",partial,ownership_scope and filter.resource_ancestors are refused: BillingBudgetsBudget has no ownershipScope or budgetFilter.resourceAncestors,gap
 gcp,billing-account,context,"object({custom_roles, folder_ids, folder_sets, iam_principals, notification_channels, project_ids, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design

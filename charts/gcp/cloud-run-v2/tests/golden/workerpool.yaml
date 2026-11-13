@@ -1,0 +1,114 @@
+---
+# Source: cloud-run-v2/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: workerpool-iam-roles-run-developer-2d15a914
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/run.developer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/locations/europe-west1/workerPools/worker
+    kind: RunWorkerPool
+  role: "roles/run.developer"
+  members:
+    - "group:team@example.com"
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: workerpool-sa-roles-logging-logwriter-6f582df4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: workerpool-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: workerpool-sa-roles-monitoring-metricwriter-d04d89a5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: workerpool-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: workerpool-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "worker"
+  displayName: "worker"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1alpha1
+kind: RunWorkerPool
+metadata:
+  name: workerpool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "worker"
+  template:
+    nodeSelector:
+      accelerator: "nvidia-l4"
+    serviceAccountRef:
+      external: "worker@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "hello"
+        image: "us-docker.pkg.dev/cloudrun/container/hello"
+        resources:
+          limits:
+            "cpu": "4000m"
+            "memory": "16Gi"
+            "nvidia.com/gpu": "1"

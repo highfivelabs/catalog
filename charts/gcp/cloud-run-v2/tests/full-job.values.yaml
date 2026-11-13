@@ -1,0 +1,52 @@
+# Every field the chart carries for a job.
+project_id: my-project
+region: europe-west1
+name: full-job
+type: JOB
+labels: {env: test}
+binary_authorization: {use_default: true}
+encryption_key: projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k
+launch_stage: GA
+job_config: {max_retries: 2, task_count: 5, timeout: 3.5s}
+containers:
+  worker:
+    image: europe-docker.pkg.dev/my-project/repo/worker:1.0
+    command: [/worker]
+    args: [--batch]
+    env: {MODE: batch}
+    env_from_key:
+      TOKEN: {secret: token, version: "3"}
+      OTHER: {secret: projects/other/secrets/shared, version: latest}
+    ports:
+      http: {container_port: 8080}
+    resources:
+      limits: {cpu: "1", memory: 512Mi}
+      cpu_idle: true
+    liveness_probe:
+      http_get: {path: /ignored}
+    startup_probe:
+      http_get: {path: /ready, port: 8080}
+      initial_delay_seconds: 2
+    volume_mounts:
+      cloudsql: /cloudsql
+      share: /share
+      creds: /creds
+iam:
+  roles/run.invoker: ["serviceAccount:scheduler@my-project.iam.gserviceaccount.com"]
+revision:
+  vpc_access:
+    network: projects/my-project/global/networks/vpc
+    subnet: projects/my-project/regions/europe-west1/subnetworks/jobs
+    egress: ALL_TRAFFIC
+    tags: [jobs]
+service_account_config:
+  create: false
+  email: jobs@my-project.iam.gserviceaccount.com
+tag_bindings:
+  env: tagValues/1234
+volumes:
+  share: {nfs: {server: 10.0.0.2, path: /exports/share, is_read_only: true}}
+  creds:
+    secret: {name: creds, path: creds.json, version: latest}
+  cloudsql:
+    cloud_sql_instances: ["my-project:europe-west1:db1"]

@@ -1,0 +1,60 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"). The service, job or worker pool is resources.resource. Names
+# and IDs from the rendered objects, as fabric's resources compute them:
+# id is projects/<p>/locations/<r>/<services|jobs|workerPools>/<name>.
+# service_uri is the service's status.uri; invoke_command is fabric's: a
+# curl to that URI for a service (null until it is known), gcloud run jobs
+# execute for a job, "" for a worker pool. Emails from the service
+# account's status, else the email given in the inputs. Not outputs:
+# fabric's whole objects (job, resource, service, service_account).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-cloud-run-v2
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + resources.resource.spec.projectRef.external
+      + '/locations/' + resources.resource.spec.location
+      + (inputs.type == 'JOB' ? '/jobs/' : inputs.type == 'WORKERPOOL' ? '/workerPools/' : '/services/')
+      + resources.resource.spec.resourceID
+    invoke_command: >-
+      inputs.type == 'JOB'
+      ? dyn('gcloud run jobs execute \\\n  --project ' + resources.resource.spec.projectRef.external
+        + ' \\\n  --region ' + resources.resource.spec.location
+        + ' \\\n  --wait ' + resources.resource.spec.resourceID + ' \\\n  --args=\n')
+      : inputs.type == 'WORKERPOOL' ? dyn('')
+      : has(resources.resource.status) && has(resources.resource.status.uri)
+      ? dyn('curl -H "Authorization: bearer $(gcloud auth print-identity-token)" \\\n    '
+        + resources.resource.status.uri + ' \\\n    -X POST -d \'data\'\n')
+      : null
+    resource_name: resources.resource.spec.resourceID
+    service_account_email: >-
+      'service_account' in resources
+      ? dyn(has(resources.service_account.status) && has(resources.service_account.status.email)
+        ? resources.service_account.status.email : null)
+      : inputs.service_account_config.email
+    service_account_iam_email: >-
+      'serviceAccount:' + ('service_account' in resources
+        ? (has(resources.service_account.status) && has(resources.service_account.status.email)
+          ? resources.service_account.status.email : '')
+        : (inputs.service_account_config.email != null ? inputs.service_account_config.email : ''))
+    service_name: >-
+      inputs.type == 'SERVICE' ? dyn(resources.resource.spec.resourceID) : null
+    service_uri: >-
+      inputs.type != 'SERVICE' ? dyn('')
+      : has(resources.resource.status) && has(resources.resource.status.uri)
+      ? dyn(resources.resource.status.uri) : null
+    vpc_connector: >-
+      'vpc_connector' in resources
+      ? dyn('projects/' + resources.vpc_connector.spec.projectRef.external
+        + '/locations/' + resources.vpc_connector.spec.location
+        + '/connectors/' + resources.vpc_connector.spec.resourceID)
+      : null

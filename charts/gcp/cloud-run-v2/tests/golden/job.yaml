@@ -1,0 +1,114 @@
+---
+# Source: cloud-run-v2/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: job-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: run.cnrm.cloud.google.com/v1beta1
+    kind: RunJob
+    name: job
+  bindings:
+    - role: "roles/run.invoker"
+      members:
+        - member: "group:team@example.com"
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: job-sa-roles-logging-logwriter-db05a468
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: job-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: job-sa-roles-monitoring-metricwriter-15062f17
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: job-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: job-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "example-hello"
+  displayName: "example-hello"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunJob
+metadata:
+  name: job
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "example-hello"
+  template:
+    template:
+      serviceAccountRef:
+        external: "example-hello@my-project.iam.gserviceaccount.com"
+      containers:
+        - name: "hello"
+          image: "us-docker.pkg.dev/cloudrun/container/hello"
+          env:
+            - name: "VAR1"
+              value: "VALUE1"
+            - name: "VAR2"
+              value: "VALUE2"
