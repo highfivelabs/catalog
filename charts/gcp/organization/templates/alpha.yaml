@@ -1,0 +1,238 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization (v60.0.0):
+deny-policies.tf, main.tf, context_aware_access.tf, model-armor.tf and
+scc-sha-custom-modules.tf, Copyright 2025 Google LLC, Apache-2.0.
+
+The parts whose only Config Connector kind is v1alpha1: each needs
+allow_alpha: true (docs/design.md, "Alpha kinds").
+google_iam_deny_policy.default: an IAMDenyPolicy per entry of
+iam_deny_policies on the organization, its ID the key, with fabric's rules.
+google_compute_organization_security_policy_association.default
+(cloud_armor_policy): a ComputeOrganizationSecurityPolicyAssociation of the
+hierarchical Cloud Armor policy with the organization, named
+organization-<id> unless named; excluded folders and projects are refused
+(the kind has no such fields).
+google_access_context_manager_gcp_user_access_binding.binding: an
+AccessContextManagerGCPUserAccessBinding per entry of
+context_aware_access_bindings ("$access_levels:<key>" is this chart's
+access level); scoped_access_settings are refused (no such field).
+google_model_armor_floorsetting.default (model_armor_floor_setting): a
+ModelArmorFloorSetting on the organization, as fabric builds it; integrated
+services are refused, as fabric refuses them on an organization. The floor
+setting is a singleton that always exists, so the object is always
+abandoned: deleting it leaves the setting, as removing fabric's variable
+does.
+google_scc_management_organization_security_health_analytics_custom_module:
+a SecurityCenterManagementSecurityHealthAnalyticsCustomModule per entry of
+scc_sha_custom_modules, its display name the key (Google Cloud assigns its
+ID).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $org := include "organization.id" . }}
+{{- $number := include "organization.number" . }}
+{{- include "kcc.alpha" (list $ "iam_deny_policies" $v.iam_deny_policies "IAMDenyPolicy") }}
+{{- include "kcc.alpha" (list $ "cloud_armor_policy" $v.cloud_armor_policy "ComputeOrganizationSecurityPolicyAssociation") }}
+{{- include "kcc.alpha" (list $ "context_aware_access_bindings" $v.context_aware_access_bindings "AccessContextManagerGCPUserAccessBinding") }}
+{{- include "kcc.alpha" (list $ "model_armor_floor_setting" $v.model_armor_floor_setting "ModelArmorFloorSetting") }}
+{{- include "kcc.alpha" (list $ "scc_sha_custom_modules" $v.scc_sha_custom_modules "SecurityCenterManagementSecurityHealthAnalyticsCustomModule") }}
+{{- $deny := $v.iam_deny_policies | default dict }}
+{{- range $key := keys $deny | sortAlpha }}
+{{- $d := index $deny $key }}
+{{- range $r := $d.rules }}
+{{- if not (and $r.denied_principals $r.denied_permissions) }}
+{{- fail "organization: Each rule in iam_deny_policies must have at least one denied principal and one denied permission." }}
+{{- end }}
+{{- end }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1alpha1
+kind: IAMDenyPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "deny" $key)) "id" (printf "deny-policy:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "IAM deny policy" $key 63) | quote }}
+  organizationRef:
+    external: {{ $org | quote }}
+  {{- with $d.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  rules:
+    {{- range $r := $d.rules }}
+    - {{- with $r.description }}
+      description: {{ . | quote }}
+      {{- end }}
+      denyRule:
+        deniedPrincipals: {{ toJson $r.denied_principals }}
+        deniedPermissions: {{ toJson $r.denied_permissions }}
+        {{- with $r.exception_principals }}
+        exceptionPrincipals: {{ toJson . }}
+        {{- end }}
+        {{- with $r.exception_permissions }}
+        exceptionPermissions: {{ toJson . }}
+        {{- end }}
+        {{- with $r.denial_condition }}
+        denialCondition:
+          expression: {{ .expression | quote }}
+          {{- range $f := list "title" "description" "location" }}
+          {{- with (index $r.denial_condition $f) }}
+          {{ $f }}: {{ . | quote }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- with $v.cloud_armor_policy }}
+{{- include "kcc.unsupported" (list $ "cloud_armor_policy.excluded_folders" .excluded_folders "ComputeOrganizationSecurityPolicyAssociation has no excludedFolders") }}
+{{- include "kcc.unsupported" (list $ "cloud_armor_policy.excluded_projects" .excluded_projects "ComputeOrganizationSecurityPolicyAssociation has no excludedProjects") }}
+{{- include "organization.context" (list $ "cloud_armor_policy.policy_id" .policy_id) }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeOrganizationSecurityPolicyAssociation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "cloud-armor")) "id" "cloud_armor_policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "Cloud Armor policy association" (.name | default (printf "organization-%s" $number)) 63) | quote }}
+  attachmentId: {{ $org | quote }}
+  policyId: {{ .policy_id | quote }}
+{{- end }}
+{{- $caa := $v.context_aware_access_bindings | default dict }}
+{{- range $key := keys $caa | sortAlpha }}
+{{- $b := index $caa $key }}
+{{- include "kcc.unsupported" (list $ (printf "context_aware_access_bindings.%s.scoped_access_settings" $key) $b.scoped_access_settings "AccessContextManagerGCPUserAccessBinding has no scopedAccessSettings") }}
+{{- include "organization.context" (list $ (printf "context_aware_access_bindings.%s.group_key" $key) $b.group_key) }}
+---
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1alpha1
+kind: AccessContextManagerGCPUserAccessBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "access-binding" $key)) "id" (printf "access-binding:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  organizationRef:
+    external: {{ $number | quote }}
+  groupKey: {{ $b.group_key | quote }}
+  accessLevels:
+    {{- range $al := $b.access_levels }}
+    {{- if hasPrefix "$access_levels:" $al }}
+    {{- $k := trimPrefix "$access_levels:" $al }}
+    {{- if not (hasKey ($v.access_levels | default dict) $k) }}
+    {{- fail (printf "organization: context_aware_access_bindings.%s.access_levels: access level %q is not defined in access_levels" $key $k) }}
+    {{- end }}
+    - {{ printf "accessPolicies/%s/accessLevels/%s" (trimPrefix "accessPolicies/" (toString $v.access_policy)) (include "organization.levelName" (list $ $k)) | quote }}
+    {{- else }}
+    {{- include "organization.context" (list $ (printf "context_aware_access_bindings.%s.access_levels" $key) $al) }}
+    - {{ $al | quote }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- with $v.model_armor_floor_setting }}
+{{- $f := .filters }}
+{{- if kindIs "invalid" $f }}
+{{- fail "organization: Filters must not be null, use {} for no filters." }}
+{{- end }}
+{{- $levels := list "LOW_AND_ABOVE" "MEDIUM_AND_ABOVE" "HIGH" }}
+{{- with $f.pi_and_jailbreak }}
+{{- if not (has (.confidence_level | default "MEDIUM_AND_ABOVE") $levels) }}
+{{- fail "organization: Invalid pi_and_jailbreak confidence_level." }}
+{{- end }}
+{{- end }}
+{{- $rai := $f.rai | default dict }}
+{{- range $k, $l := $rai }}
+{{- if not (and (has $k (list "DANGEROUS" "HARASSMENT" "HATE_SPEECH" "SEXUALLY_EXPLICIT")) (has $l $levels)) }}
+{{- fail "organization: Invalid rai filter type or confidence level." }}
+{{- end }}
+{{- end }}
+{{- $sdp := $f.sdp | default dict }}
+{{- if and (not (kindIs "invalid" $sdp.basic)) (or $sdp.inspect_template $sdp.deidentify_template) }}
+{{- fail "organization: SDP basic and template-based settings are exclusive." }}
+{{- end }}
+{{- if and $sdp.deidentify_template (not $sdp.inspect_template) }}
+{{- fail "organization: SDP deidentify_template requires inspect_template." }}
+{{- end }}
+{{- $services := .integrated_services | default dict }}
+{{- range $k := list "ai_platform" "google_mcp_server" }}
+{{- with (index $services $k) }}
+{{- if not (has (.mode | default "inspect_only") (list "inspect_only" "inspect_and_block")) }}
+{{- fail "organization: Mode must be one of inspect_only, inspect_and_block." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if or (not (kindIs "invalid" (index $services "ai_platform"))) (not (kindIs "invalid" (index $services "google_mcp_server"))) }}
+{{- fail "organization: Integrated services are only supported on projects." }}
+{{- end }}
+---
+apiVersion: modelarmor.cnrm.cloud.google.com/v1alpha1
+kind: ModelArmorFloorSetting
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "model-armor")) "id" "model_armor_floor_setting" "abandon" "true") | nindent 2 }}
+spec:
+  organizationRef:
+    external: {{ $org | quote }}
+  location: global
+  enableFloorSettingEnforcement: {{ ternary true .enforce (kindIs "invalid" .enforce) }}
+  filterConfig:
+    {{- if not (or (not (kindIs "invalid" $f.malicious_uris)) $f.pi_and_jailbreak $rai (not (kindIs "invalid" $sdp.basic)) $sdp.inspect_template) }} {}{{ end }}
+    {{- if not (kindIs "invalid" $f.malicious_uris) }}
+    maliciousURIFilterSettings:
+      filterEnforcement: {{ ternary "ENABLED" "DISABLED" $f.malicious_uris }}
+    {{- end }}
+    {{- with $f.pi_and_jailbreak }}
+    piAndJailbreakFilterSettings:
+      filterEnforcement: ENABLED
+      confidenceLevel: {{ .confidence_level | default "MEDIUM_AND_ABOVE" | quote }}
+    {{- end }}
+    {{- if $rai }}
+    raiSettings:
+      raiFilters:
+        {{- range $t := list "SEXUALLY_EXPLICIT" "HATE_SPEECH" "HARASSMENT" "DANGEROUS" }}
+        {{- with (index $rai $t) }}
+        - filterType: {{ $t }}
+          confidenceLevel: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+    {{- end }}
+    {{- if or (not (kindIs "invalid" $sdp.basic)) $sdp.inspect_template }}
+    sdpSettings:
+      {{- if not (kindIs "invalid" $sdp.basic) }}
+      basicConfig:
+        filterEnforcement: {{ ternary "ENABLED" "DISABLED" $sdp.basic }}
+      {{- end }}
+      {{- with $sdp.inspect_template }}
+      advancedConfig:
+        inspectTemplateRef:
+          external: {{ . | quote }}
+        {{- with $sdp.deidentify_template }}
+        deidentifyTemplateRef:
+          external: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  floorSettingMetadata:
+    multiLanguageDetection:
+      enableMultiLanguageDetection: {{ .multi_language_detection | default false }}
+{{- end }}
+{{- $sha := $v.scc_sha_custom_modules | default dict }}
+{{- range $key := keys $sha | sortAlpha }}
+{{- $m := index $sha $key }}
+---
+apiVersion: securitycentermanagement.cnrm.cloud.google.com/v1alpha1
+kind: SecurityCenterManagementSecurityHealthAnalyticsCustomModule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "sha" $key)) "id" (printf "scc-sha-custom-module:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  organizationRef:
+    external: {{ $org | quote }}
+  location: global
+  displayName: {{ $key | quote }}
+  enablementState: {{ $m.enablement_state | default "ENABLED" | quote }}
+  customConfig:
+    predicate:
+      expression: {{ $m.predicate.expression | quote }}
+    resourceSelector:
+      resourceTypes: {{ toJson $m.resource_selector.resource_types }}
+    {{- with $m.description }}
+    description: {{ . | quote }}
+    {{- end }}
+    recommendation: {{ $m.recommendation | quote }}
+    severity: {{ $m.severity | quote }}
+{{- end }}

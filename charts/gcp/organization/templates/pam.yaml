@@ -1,0 +1,76 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization/pam.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_privileged_access_manager_entitlement.default: one
+PrivilegedAccessManagerEntitlement per entry of pam_entitlements, on the
+organization, with fabric's default justification (unstructured). Entitlements
+read from files (factories_config.pam_entitlements) are part of
+factories_config, not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- $ents := $v.pam_entitlements | default dict }}
+{{- range $key := keys $ents | sortAlpha }}
+{{- $e := index $ents $key }}
+{{- $rj := $e.requester_justification_config | default (dict "not_mandatory" false "unstructured" true) }}
+{{- $notMandatory := ternary true $rj.not_mandatory (kindIs "invalid" $rj.not_mandatory) }}
+{{- $unstructured := $rj.unstructured | default false }}
+{{- if and $notMandatory $unstructured }}
+{{- fail (printf "organization: pam_entitlements.%s: Only one of 'not_mandatory' or 'unstructured' can be enabled in 'requester_justification_config'." $key) }}
+{{- end }}
+---
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "pam" $key)) "id" (printf "pam-entitlement:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "PAM entitlement" $key 63 "letter") | quote }}
+  organizationRef:
+    {{- include "organization.ref" $ | nindent 4 }}
+  location: global
+  maxRequestDuration: {{ $e.max_request_duration | quote }}
+  eligibleUsers:
+    - principals: {{ toJson $e.eligible_users }}
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        {{- range $pa := $e.privileged_access }}
+        - role: {{ $pa.role | quote }}
+          {{- with $pa.condition }}
+          conditionExpression: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+  requesterJustificationConfig:
+    {{- if $notMandatory }}
+    notMandatory: {}
+    {{- end }}
+    {{- if $unstructured }}
+    unstructured: {}
+    {{- end }}
+  {{- with $e.manual_approvals }}
+  approvalWorkflow:
+    manualApprovals:
+      requireApproverJustification: {{ .require_approver_justification }}
+      steps:
+        {{- range $s := .steps }}
+        - approvers:
+            - principals: {{ toJson $s.approvers }}
+          approvalsNeeded: {{ $s.approvals_needed | default 1 }}
+          {{- with $s.approver_email_recipients }}
+          approverEmailRecipients: {{ toJson . }}
+          {{- end }}
+        {{- end }}
+  {{- end }}
+  {{- with $e.additional_notification_targets }}
+  additionalNotificationTargets:
+    {{- with .admin_email_recipients }}
+    adminEmailRecipients: {{ toJson . }}
+    {{- end }}
+    {{- with .requester_email_recipients }}
+    requesterEmailRecipients: {{ toJson . }}
+    {{- end }}
+  {{- end }}
+{{- end }}

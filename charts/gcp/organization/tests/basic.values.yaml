@@ -1,0 +1,51 @@
+# The module README's first example: IAM by principals, authoritative and
+# additive IAM, a tag key with two values and organization policies
+# (boolean, conditional, list).
+organization_id: organizations/1122334455
+iam_by_principals:
+  "group:organization-admins@example.org": [roles/owner]
+iam:
+  roles/resourcemanager.projectCreator: ["group:organization-admins@example.org"]
+iam_bindings_additive:
+  am1-storage-admin:
+    member: "group:organization-admins@example.org"
+    role: roles/storage.admin
+tags:
+  allowexternal:
+    description: Allow external identities.
+    values:
+      "true": {}
+      "false": {}
+org_policies:
+  compute.disableGuestAttributesAccess:
+    rules: [{enforce: true}]
+  compute.skipDefaultNetworkCreation:
+    rules: [{enforce: true}]
+  iam.disableServiceAccountKeyCreation:
+    rules: [{enforce: true}]
+  iam.disableServiceAccountKeyUpload:
+    rules:
+      - condition:
+          expression: "resource.matchTagId('tagKeys/1234', 'tagValues/1234')"
+          title: condition
+          description: test condition
+          location: somewhere
+        enforce: true
+      - enforce: false
+  iam.allowedPolicyMemberDomains:
+    rules:
+      - allow: {all: true}
+        condition:
+          expression: "resource.matchTag('1234567890/allowexternal', 'true')"
+          title: Allow external identities
+          description: Allow external identities when resource has the `allowexternal` tag set to true.
+      - allow: {values: [C0xxxxxxx, C0yyyyyyy]}
+        condition:
+          expression: "!resource.matchTag('1234567890/allowexternal', 'true')"
+          title: ""
+          description: For any resource without allowexternal=true, only allow identities from restricted domains.
+  compute.trustedImageProjects:
+    rules:
+      - allow: {values: [projects/my-project]}
+  compute.vmExternalIpAccess:
+    rules: [{deny: {all: true}}]

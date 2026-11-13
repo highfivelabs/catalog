@@ -1,0 +1,180 @@
+---
+# Source: organization/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: alpha-level-trusted-ips-698c164b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "access-level:trusted_ips"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/1234567890"
+  resourceID: "trusted_ips"
+  title: "Trusted Corporate IPs"
+  basic:
+    conditions:
+      -
+        ipSubnetworks: ["203.0.113.0/24","198.51.100.0/24"]
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1alpha1
+kind: AccessContextManagerGCPUserAccessBinding
+metadata:
+  name: alpha-access-binding-developers-binding-84c98e46
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "access-binding:developers_binding"
+spec:
+  organizationRef:
+    external: "1122334455"
+  groupKey: "gcp-developers@example.com"
+  accessLevels:
+    - "accessPolicies/1234567890/accessLevels/trusted_ips"
+    - "accessPolicies/1234567890/accessLevels/other"
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeOrganizationSecurityPolicyAssociation
+metadata:
+  name: alpha-cloud-armor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "cloud_armor_policy"
+spec:
+  resourceID: "org-baseline"
+  attachmentId: "organizations/1122334455"
+  policyId: "1234567890"
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1alpha1
+kind: IAMDenyPolicy
+metadata:
+  name: alpha-deny-conditional-key-deny
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "deny-policy:conditional-key-deny"
+spec:
+  resourceID: "conditional-key-deny"
+  organizationRef:
+    external: "organizations/1122334455"
+  displayName: "Conditional SA Key Deny"
+  rules:
+    -
+      description: "Deny key creation outside of authorized IPs using a condition."
+      denyRule:
+        deniedPrincipals: ["principalSet://goog/public:all"]
+        deniedPermissions: ["iam.serviceAccountKeys.create"]
+        denialCondition:
+          expression: "!inIpRange(request.auth.access_levels, 'accessPolicies/123456789/accessLevels/trusted_ips')"
+          title: "ip-restriction"
+          description: "Restrict access to specific IP ranges"
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1alpha1
+kind: IAMDenyPolicy
+metadata:
+  name: alpha-deny-prevent-sa-token-creation
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "deny-policy:prevent-sa-token-creation"
+spec:
+  resourceID: "prevent-sa-token-creation"
+  organizationRef:
+    external: "organizations/1122334455"
+  displayName: "Prevent SA token creation"
+  rules:
+    -
+      description: "Deny service account token creation to all except the central admin group."
+      denyRule:
+        deniedPrincipals: ["principalSet://goog/public:all"]
+        deniedPermissions: ["iam.serviceAccounts.getAccessToken"]
+        exceptionPrincipals: ["principalSet://goog/group/gcp-admins@example.com"]
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: modelarmor.cnrm.cloud.google.com/v1alpha1
+kind: ModelArmorFloorSetting
+metadata:
+  name: alpha-model-armor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "model_armor_floor_setting"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  organizationRef:
+    external: "organizations/1122334455"
+  location: global
+  enableFloorSettingEnforcement: true
+  filterConfig:
+    maliciousURIFilterSettings:
+      filterEnforcement: ENABLED
+    piAndJailbreakFilterSettings:
+      filterEnforcement: ENABLED
+      confidenceLevel: "MEDIUM_AND_ABOVE"
+    raiSettings:
+      raiFilters:
+        - filterType: SEXUALLY_EXPLICIT
+          confidenceLevel: "MEDIUM_AND_ABOVE"
+        - filterType: HATE_SPEECH
+          confidenceLevel: "MEDIUM_AND_ABOVE"
+        - filterType: HARASSMENT
+          confidenceLevel: "MEDIUM_AND_ABOVE"
+        - filterType: DANGEROUS
+          confidenceLevel: "MEDIUM_AND_ABOVE"
+    sdpSettings:
+      basicConfig:
+        filterEnforcement: ENABLED
+  floorSettingMetadata:
+    multiLanguageDetection:
+      enableMultiLanguageDetection: false
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: securitycentermanagement.cnrm.cloud.google.com/v1alpha1
+kind: SecurityCenterManagementSecurityHealthAnalyticsCustomModule
+metadata:
+  name: alpha-sha-cloudkmkeyrotationperiod-ea569cd0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "scc-sha-custom-module:cloudkmKeyRotationPeriod"
+spec:
+  organizationRef:
+    external: "organizations/1122334455"
+  location: global
+  displayName: "cloudkmKeyRotationPeriod"
+  enablementState: "ENABLED"
+  customConfig:
+    predicate:
+      expression: "resource.rotationPeriod > duration(\"2592000s\")"
+    resourceSelector:
+      resourceTypes: ["cloudkms.googleapis.com/CryptoKey"]
+    description: "The rotation period of the identified cryptokey resource exceeds 30 days."
+    recommendation: "Set the rotation period to at most 30 days."
+    severity: "MEDIUM"

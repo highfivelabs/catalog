@@ -1,0 +1,45 @@
+---
+# Source: organization/templates/access-levels.yaml
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  name: access-levels-level-trusted-ips-12b61c89
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-levels"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "access-level:trusted_ips"
+spec:
+  accessPolicyRef:
+    external: "accessPolicies/1234567890"
+  resourceID: "trusted_ips"
+  title: "Trusted Corporate IPs"
+  basic:
+    conditions:
+      -
+        ipSubnetworks: ["203.0.113.0/24","198.51.100.0/24"]
+---
+# Source: organization/templates/asset-feeds.yaml
+apiVersion: asset.cnrm.cloud.google.com/v1beta1
+kind: AssetFeed
+metadata:
+  name: access-levels-feed-all-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-levels"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "asset-feed:all-iam"
+spec:
+  resourceID: "all-iam"
+  organizationRef:
+    external: "organizations/1122334455"
+  contentType: "IAM_POLICY"
+  assetTypes: ["cloudresourcemanager.googleapis.com/Project"]
+  feedOutputConfig:
+    pubsubDestination:
+      topicRef:
+        external: "projects/my-project/topics/feeds"

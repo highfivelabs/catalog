@@ -1,0 +1,135 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization/identity-providers.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_iam_workforce_pool.default: one IAMWorkforcePool per entry of
+workforce_identity_pools on the organization, in location global, its ID
+the key. google_iam_workforce_pool_provider.default: one
+IAMWorkforcePoolProvider per provider of a pool, its ID the provider's key,
+with fabric's attribute mapping templates (azuread, okta) under the
+provider's attribute_mapping, and an OIDC (issuer, client ID, JWKS, web SSO
+config) or SAML identity provider (fabric's checks). Refused, by name:
+access_restrictions (IAMWorkforcePool has no accessRestrictions);
+detailed_audit_logging: true, scim_usage and oauth2_client_config
+(IAMWorkforcePoolProvider has no such fields); scim_tenant
+(google_iam_workforce_pool_provider_scim_tenant has no Config Connector
+kind); an OIDC client_secret (its value would be in the rendered manifest,
+and path names a file on the caller's machine).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $org := include "organization.id" . }}
+{{- $templates := dict
+  "azuread" (dict "google.subject" "assertion.subject" "google.display_name" "assertion.attributes.userprincipalname[0]" "google.groups" "assertion.attributes.groups" "attribute.first_name" "assertion.attributes.givenname[0]" "attribute.last_name" "assertion.attributes.surname[0]" "attribute.user_email" "assertion.attributes.mail[0]")
+  "okta" (dict "google.subject" "assertion.subject" "google.display_name" "assertion.subject" "google.groups" "assertion.attributes.groups" "attribute.first_name" "assertion.attributes.firstName[0]" "attribute.last_name" "assertion.attributes.lastName[0]" "attribute.user_email" "assertion.attributes.email[0]") }}
+{{- $pools := $v.workforce_identity_pools | default dict }}
+{{- range $pk := keys $pools | sortAlpha }}
+{{- $p := index $pools $pk | default dict }}
+{{- $w := printf "workforce_identity_pools.%s" $pk }}
+{{- include "kcc.unsupported" (list $ (printf "%s.access_restrictions" $w) $p.access_restrictions "IAMWorkforcePool has no accessRestrictions") }}
+{{- $poolName := include "kcc.name" (list $.Release.Name "workforce-pool" $pk) }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkforcePool
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $poolName "id" (printf "workforce-pool:%s" $pk) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "workforce pool" $pk 63 "letter") | quote }}
+  organizationRef:
+    external: {{ $org | quote }}
+  location: global
+  {{- with $p.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $p.disabled) }}
+  disabled: {{ $p.disabled }}
+  {{- end }}
+  {{- with $p.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $p.session_duration }}
+  sessionDuration: {{ . | quote }}
+  {{- end }}
+{{- $providers := $p.providers | default dict }}
+{{- range $prk := keys $providers | sortAlpha }}
+{{- $pr := index $providers $prk }}
+{{- $pw := printf "%s.providers.%s" $w $prk }}
+{{- $tpl := $pr.attribute_mapping_template }}
+{{- if and $tpl (not (hasKey $templates $tpl)) }}
+{{- fail "organization: Supported mapping templates are: azuread, okta." }}
+{{- end }}
+{{- $idp := $pr.identity_provider | default dict }}
+{{- if ne (add (ternary 1 0 (not (empty $idp.oidc))) (ternary 1 0 (not (empty $idp.saml)))) 1 }}
+{{- fail "organization: Only one of identity_provider.oidc or identity_provider.saml can be defined." }}
+{{- end }}
+{{- with $idp.oidc }}{{ with .web_sso_config }}
+{{- if and .response_type (not (has .response_type (list "CODE" "ID_TOKEN"))) }}
+{{- fail "organization: Supported OIDC web SSO config response types are: CODE, ID_TOKEN." }}
+{{- end }}
+{{- if and .assertion_claims_behavior (not (has .assertion_claims_behavior (list "MERGE_USER_INFO_OVER_ID_TOKEN_CLAIMS" "ONLY_ID_TOKEN_CLAIMS"))) }}
+{{- fail "organization: Supported OIDC web SSO config assertion claims behaviors are: MERGE_USER_INFO_OVER_ID_TOKEN_CLAIMS, ONLY_ID_TOKEN_CLAIMS." }}
+{{- end }}
+{{- end }}{{ end }}
+{{- if and $pr.scim_usage (ne $pr.scim_usage "ENABLED_FOR_GROUPS") }}
+{{- fail "organization: Supported scim_usage values are: ENABLED_FOR_GROUPS." }}
+{{- end }}
+{{- with $idp.oidc }}
+{{- include "kcc.unsupported" (list $ (printf "%s.identity_provider.oidc.client_secret" $pw) .client_secret "its value would be in the rendered manifest (IAMWorkforcePoolProvider reads it from a Kubernetes Secret, which fabric's variable cannot name), and path names a file on the caller's machine") }}
+{{- end }}
+{{- if $pr.detailed_audit_logging }}
+{{- include "kcc.unsupported" (list $ (printf "%s.detailed_audit_logging" $pw) true "IAMWorkforcePoolProvider has no detailedAuditLogging") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "%s.scim_usage" $pw) $pr.scim_usage "IAMWorkforcePoolProvider has no scimUsage") }}
+{{- $oauth := $pr.oauth2_client_config | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "%s.oauth2_client_config" $pw) (or $oauth.extended_attributes $oauth.extra_attributes) "IAMWorkforcePoolProvider has no extraAttributesOauth2Client or extendedAttributesOauth2Client") }}
+{{- include "kcc.unsupported" (list $ (printf "%s.scim_tenant" $pw) $pr.scim_tenant "Config Connector has no kind for a workforce pool provider's SCIM tenant (IAMWorkforcePoolProviderScimTenant)") }}
+{{- $mapping := merge (deepCopy ($pr.attribute_mapping | default dict)) (ternary (index $templates (toString $tpl)) dict (not (empty $tpl))) }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkforcePoolProvider
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "workforce-provider" $pk $prk)) "id" (printf "workforce-provider:%s/%s" $pk $prk) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $prk | quote }}
+  workforcePoolRef:
+    name: {{ $poolName }}
+  location: global
+  {{- with $pr.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $pr.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $pr.attribute_condition }}
+  attributeCondition: {{ . | quote }}
+  {{- end }}
+  disabled: {{ $pr.disabled | default false }}
+  attributeMapping:
+    {{- if not $mapping }} {}{{ end }}
+    {{- range $mk := keys $mapping | sortAlpha }}
+    {{ $mk | quote }}: {{ index $mapping $mk | quote }}
+    {{- end }}
+  {{- with $idp.saml }}
+  saml:
+    idpMetadataXml: {{ .idp_metadata_xml | quote }}
+  {{- end }}
+  {{- with $idp.oidc }}
+  oidc:
+    issuerUri: {{ .issuer_uri | quote }}
+    clientId: {{ .client_id | quote }}
+    {{- with .jwks_json }}
+    jwksJson: {{ . | quote }}
+    {{- end }}
+    {{- with .web_sso_config }}
+    webSsoConfig:
+      responseType: {{ .response_type | default "CODE" | quote }}
+      assertionClaimsBehavior: {{ .assertion_claims_behavior | default "ONLY_ID_TOKEN_CLAIMS" | quote }}
+      {{- with .additional_scopes }}
+      additionalScopes: {{ toJson . }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
