@@ -16,6 +16,7 @@ validate Config Connector's own kinds against its CRDs.
 | `dataplex.gcp.hfl.dev_dataplexaspecttypes.yaml` | `DataplexAspectType` (`dataplex.gcp.hfl.dev/v1beta1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12, the pin) |
 | `dataplex.gcp.hfl.dev_dataplexdatascans.yaml` | `DataplexDataScan` (`dataplex.gcp.hfl.dev/v1beta1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12, the pin) |
 | `iam.gcp.hfl.dev_iammembers.yaml` | `IAMMember` (`iam.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12, the pin) |
+| `compute.gcp.hfl.dev_computenetworkendpoints.yaml` | `ComputeNetworkEndpoint` (`compute.gcp.hfl.dev/v1beta1`; Config Connector's own is `v1alpha1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12, the pin) |
 
 `Taskfile.yml`'s `CCE_COMMIT`, which the fake-cloud and live runs use, is
 `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12), at or after every
