@@ -1,0 +1,55 @@
+---
+# Source: geap-agent-gateway/templates/connectivity-template.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentConnectivityTemplate
+metadata:
+  name: mock-template
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "connectivity_template"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-agw"
+  accessPath: AGENT_TO_ANYWHERE
+  accessTypes:
+    - "PRIVATE"
+  description: "Terraform managed."
+  labels:
+    env: "test"
+  egressNetworkConfig:
+    networkAttachment: "projects/mock-project/regions/us-central1/networkAttachments/cat-mock-agw-na"
+    vpcEgress: "PRIVATE_RANGES_ONLY"
+---
+# Source: geap-agent-gateway/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentGateway
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-agw"
+  agentConnectivityTemplate: "projects/123456789/locations/us-central1/agentConnectivityTemplates/cat-mock-agw"
+  description: "Terraform managed."
+  labels:
+    env: "test"
+  googleManaged:
+    governedAccessPath: AGENT_TO_ANYWHERE

@@ -20,13 +20,18 @@ rule's credential_set_key becomes the set's ARM ID, computed from the
 registry's (ASO cannot reference an aso-extensions object by name).
 module.scope_maps: one aso-extensions RegistriesScopeMap per entry and one
 RegistriesToken per registry_tokens entry, referencing its scope map. A
-token's passwords (azurerm_container_registry_token_password, secrets
-Azure returns once), the customer-managed key and private endpoints are
-refused; the telemetry is not ported.
+azurerm_private_endpoint (either of the module's two): one ASO
+PrivateEndpoint (network.azure.com/v20250301) per entry, its
+private_dns_zone_group block a PrivateEndpointsPrivateDnsZoneGroup when the
+module manages it, the application security group associations its
+applicationSecurityGroups, and azurerm_management_lock.private_endpoint an
+aso-extensions ManagementLock (the entry's lock, else the registry's when
+private_endpoints_inherit_lock). A token's passwords
+(azurerm_container_registry_token_password, secrets Azure returns once) and
+the customer-managed key are refused; the telemetry is not ported.
 */ -}}
 {{- $v := .Values }}
 {{- include "aso.unsupported" (list $ "customer_managed_key" $v.customer_managed_key "ASO's Registry takes the key's URI and the identity's client ID, which the module looks up from the vault and identity IDs and a render cannot") }}
-{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
 {{- include "aso.unsupported" (list $ "resource_types" (ternary "" "set" (empty (compact (values ($v.resource_types | default dict))))) "ASO's kinds fix the API versions (RegistryCacheRule 2025-11-01)") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
@@ -220,6 +225,84 @@ spec:
     kind: RegistriesScopeMap
     name: {{ $smObj }}
   status: {{ ternary "enabled" "disabled" (ne $t.enabled false) }}
+{{- end }}
+{{- end }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peRg := toString ($p.resource_group_name | default $rg) }}
+{{- $peParent := $parent }}
+{{- if hasPrefix "/" $peRg }}
+{{- $peParent = $peRg }}
+{{- else if $p.resource_group_name }}
+{{- if not $v.subscription_id }}{{ fail (printf "avm-res-containerregistry-registry: private_endpoints.%s.resource_group_name is a name: set subscription_id too" $k) }}{{ end }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $peRg }}
+{{- end }}
+{{- $group := $p.subresource_name | default "registry" }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pe-%s" $v.name)) 80 false) | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [{{ $group | quote }}]
+      privateLinkServiceReference:
+        group: containerregistry.azure.com
+        kind: Registry
+        name: {{ $obj }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: {{ $group | quote }}
+      memberName: registry
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $id := (values . | uniq | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- $peLock := $p.lock }}
+{{- if and (not $peLock) (ne $v.private_endpoints_inherit_lock false) }}{{ $peLock = $v.lock }}{{ end }}
+{{- with $peLock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" (dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe) "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" .kind)) "notes" $notes)) }}
 {{- end }}
 {{- end }}
 {{- $owner := dict "group" "containerregistry.azure.com" "kind" "Registry" "name" $obj }}

@@ -1,0 +1,71 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-ptn-alz
+repo: https://github.com/Azure/terraform-azurerm-avm-ptn-alz
+path: .
+version: v0.22.0
+commit: e2a318c3eba91967c4ce3cd2738b2b2569db994e
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-ptn-alz/tree/v0.22.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-ptn-alz/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the ARM type when a kind is missing), not-ported
+# (one exists, the chart does not map it yet) or by-design. partial: the
+# variable is accepted, the reason says what is refused.
+#
+# The module's architecture comes from the alz provider's library: the
+# alz_architecture data source resolves architecture_name, with the
+# data source arguments below, when Terraform plans. A render fetches
+# nothing, so the chart takes that data source's result (the architecture
+# value, not a module variable) and refuses the arguments that shape it.
+refused:
+  - variable: architecture_name
+    kind: gap
+    partial: true
+    reason: "accepted as the name of the given architecture (checked against architecture.name); the module resolves it from the alz provider's library when Terraform plans (data alz_architecture), which a render cannot: the resolved architecture is given as the architecture value"
+  - variable: override_policy_definition_parameter_assign_permissions_set
+    kind: gap
+    reason: "an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved"
+  - variable: override_policy_definition_parameter_assign_permissions_unset
+    kind: gap
+    reason: "an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved"
+  - variable: policy_default_values
+    kind: gap
+    reason: "an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved"
+  - variable: policy_assignment_non_compliance_message_settings
+    kind: gap
+    reason: "an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved"
+  - variable: policy_assignments_to_modify
+    kind: gap
+    partial: true
+    reason: "creation_enabled and role_assignments_enabled are applied, as the module applies them; every other field is an argument of the alz provider's architecture resolution (data alz_architecture), refused: the given architecture is already resolved"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's and aso-extensions' kinds fix the API versions (ManagementGroup and its settings and subscriptions 2023-04-01, PolicyDefinition, PolicySetDefinition and PolicyAssignment 2026-07-01, RoleDefinition and RoleAssignment 2022-04-01)"
+  - variable: retries
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: schema_validation_enabled
+    kind: by-design
+    partial: true
+    reason: "true is accepted with no effect; false is refused: ASO's and aso-extensions' CRD schemas always validate an object"
+  - variable: subscription_placement_destroy_behavior
+    kind: gap
+    partial: true
+    reason: "default is mapped (deleting the placement moves the subscription to the tenant's default management group), as is intermediate_root when the architecture has no existing intermediate root (the module then falls back to default); parent, custom and intermediate_root with one are refused: the module moves the subscription with a PUT when it is destroyed, an action ASO cannot take at delete"
+  - variable: subscription_placement_destroy_custom_target_management_group_id
+    kind: gap
+    reason: "the target of the custom destroy behavior, a PUT at destroy that ASO cannot make; deleting ASO's placement moves a subscription to the tenant's default management group"

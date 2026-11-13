@@ -1,0 +1,99 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azure-avm-ptn-alz-sub-vending
+main.user-assigned-managed-identity.tf, main.role-assignment.tf
+(module.roleassignment_umi), locals.tf and
+modules/user-assigned-managed-identity (v0.3.4), Copyright (c) Microsoft
+Corporation, MIT.
+
+module.usermanagedidentity: an ASO UserAssignedIdentity each
+(managedidentity.azure.com/v1api20230131, the module's version), exporting
+its principal ID to a ConfigMap; its federated credentials (GitHub
+branch, tag, environment and pull request, Terraform Cloud, advanced) ASO
+FederatedIdentityCredential objects, named and shaped as the module's.
+module.roleassignment_umi: an ASO RoleAssignment for each of an identity's
+role_assignments, its principal read from that ConfigMap
+(principalIdFromConfig), where the module reads the identity's output.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $base := include "aso.name" (list .Release.Name) }}
+{{- $gh := "https://token.actions.githubusercontent.com" }}
+{{- if eq $v.umi_enabled true }}
+{{- range $k, $u := ($v.user_managed_identities | default dict) }}
+{{- $what := printf "user_managed_identities.%s" $k }}
+{{- $p := include "subv.parent" (list $ $what $u.resource_group_key $u.resource_group_name_existing true) | fromJson }}
+{{- $obj := include "aso.name" (list $base "umi" $k) }}
+{{- $cm := include "aso.name" (list $base "umi" $k "principal") }}
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "user_managed_identity:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "user-assigned identity" $u.name 128 false) | quote }}
+  location: {{ $u.location | default $v.location | quote }}
+  owner:
+    {{- toYaml $p.owner | nindent 4 }}
+  {{- if $u.role_assignments }}
+  operatorSpec:
+    configMaps:
+      principalId:
+        name: {{ $cm }}
+        key: principalId
+  {{- end }}
+  {{- with (include "aso.tags" (list $ $u.tags) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- /* The federated credentials, by kind. */ -}}
+{{- $fics := list }}
+{{- range $fk, $f := ($u.federated_credentials_github | default dict) }}
+{{- $issuer := ternary (printf "%s/%s" $gh $f.enterprise_slug) $gh (not (empty $f.enterprise_slug)) }}
+{{- $repo := printf "repo:%s/%s" $f.organization $f.repository }}
+{{- if eq $f.entity "branch" }}
+{{- $fics = append $fics (dict "id" (printf "github_branch:%s" $fk) "name" ($f.name | default (printf "github-%s-%s-branch-%s" $f.organization $f.repository $f.value)) "issuer" $issuer "subject" (printf "%s:ref:refs/heads/%s" $repo $f.value)) }}
+{{- else if eq $f.entity "tag" }}
+{{- $fics = append $fics (dict "id" (printf "github_tag:%s" $fk) "name" ($f.name | default (printf "github-%s-%s-tag-%s" $f.organization $f.repository $f.value)) "issuer" $issuer "subject" (printf "%s:ref:refs/tags/%s" $repo $f.value)) }}
+{{- else if eq $f.entity "environment" }}
+{{- $fics = append $fics (dict "id" (printf "github_environment:%s" $fk) "name" ($f.name | default (printf "github-%s-%s-environment-%s" $f.organization $f.repository $f.value)) "issuer" $issuer "subject" (printf "%s:environment:%s" $repo $f.value)) }}
+{{- else if eq $f.entity "pull_request" }}
+{{- $fics = append $fics (dict "id" (printf "github_pull_request:%s" $fk) "name" ($f.name | default (printf "github-%s-%s-pull-request" $f.organization $f.repository)) "issuer" $issuer "subject" (printf "%s:pull_request" $repo)) }}
+{{- else }}
+{{- fail (printf "%s: %s.federated_credentials_github.%s.entity %q must be one of 'environment', 'pull_request', 'tag', or 'branch'" $n $what $fk (toString $f.entity)) }}
+{{- end }}
+{{- end }}
+{{- range $fk, $f := ($u.federated_credentials_terraform_cloud | default dict) }}
+{{- $fics = append $fics (dict "id" (printf "terraform_cloud:%s" $fk) "name" ($f.name | default (printf "terraformcloud-%s-%s-%s-%s" $f.organization $f.project $f.workspace $f.run_phase)) "issuer" "https://app.terraform.io" "subject" (printf "organization:%s:project:%s:workspace:%s:run_phase:%s" $f.organization $f.project $f.workspace $f.run_phase)) }}
+{{- end }}
+{{- range $fk, $f := ($u.federated_credentials_advanced | default dict) }}
+{{- $fics = append $fics (dict "id" (printf "advanced:%s" $fk) "name" $f.name "issuer" $f.issuer_url "subject" $f.subject_identifier "audiences" ($f.audiences | default (list "api://AzureADTokenExchange"))) }}
+{{- end }}
+{{- range $f := $fics }}
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "umi" $k "fic" $f.id)) "id" (printf "user_managed_identity:%s/federated_credential:%s" $k $f.id) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $f.name | quote }}
+  owner:
+    name: {{ $obj }}
+  audiences:
+    {{- range (($f.audiences | default (list "api://AzureADTokenExchange")) | uniq | sortAlpha) }}
+    - {{ . | quote }}
+    {{- end }}
+  issuer: {{ $f.issuer | quote }}
+  subject: {{ $f.subject | quote }}
+{{- end }}
+{{- /* local.user_managed_identity_role_assignments. */ -}}
+{{- range $rk, $r := ($u.role_assignments | default dict) }}
+{{- $rwhat := printf "%s.role_assignments.%s" $what $rk }}
+{{- $scope := include "subv.scope" (list $ $rwhat $r.resource_group_scope_key $r.relative_scope) | fromJson }}
+{{- $role := include "subv.roleDefinition" (list $ $rwhat $r.definition) }}
+{{- include "subv.roleAssignment" (dict "root" $ "name" (include "aso.name" (list $base "umi" $k "role" $rk)) "id" (printf "user_managed_identity:%s/role_assignment:%s" $k $rk) "scope" $scope "r" $r "role" $role "principal" "" "cm" $cm) }}
+{{- end }}
+{{- end }}
+{{- end }}

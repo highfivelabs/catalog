@@ -46,6 +46,8 @@ validate Config Connector's own kinds against its CRDs.
 | `iam.gcp.hfl.dev_iampolicybindings.yaml` | `IAMPolicyBinding` (`iam.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (2026-11-13, the pin) |
 | `networkservices.gcp.hfl.dev_networkservicesgateways.yaml` | `NetworkServicesGateway` (`networkservices.gcp.hfl.dev/v1beta1`; Config Connector's own cannot make a `SECURE_WEB_GATEWAY`) | `config/crds/` at `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (2026-11-13, the pin) |
 | `servicemanagement.gcp.hfl.dev_endpointsservices.yaml` | `EndpointsService` (`servicemanagement.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (2026-11-13, the pin) |
+| `networkservices.gcp.hfl.dev_networkservicesagentgateways.yaml` | `NetworkServicesAgentGateway` (`networkservices.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (2026-11-13, the pin) |
+| `networkservices.gcp.hfl.dev_networkservicesagentconnectivitytemplates.yaml` | `NetworkServicesAgentConnectivityTemplate` (`networkservices.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (2026-11-13, the pin) |
 
 `Taskfile.yml`'s `CCE_COMMIT`, which the fake-cloud and live runs use, is
 `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (2026-11-13), at or after every

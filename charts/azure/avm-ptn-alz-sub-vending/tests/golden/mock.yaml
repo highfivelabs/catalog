@@ -1,0 +1,397 @@
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: consumption.azure.hfl.dev/v20260601
+kind: Budget
+metadata:
+  name: mock-budget-monthly
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "budget:monthly"
+spec:
+  azureName: "budget-subv-mock"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: mock-rg-vending
+  amount: 100
+  category: Cost
+  notifications:
+    "eighty":
+      enabled: true
+      operator: GreaterThan
+      threshold: 80
+      thresholdType: Actual
+      contactEmails:
+        - finops@example.com
+      locale: en-us
+  timeGrain: Monthly
+  timePeriod:
+    startDate: "2026-12-01T00:00:00Z"
+    endDate: "2027-11-30T00:00:00Z"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: mock-umi-deploy-fic-github-branch-main-21046b91
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:github_branch:main"
+spec:
+  azureName: "github-contoso-infra-branch-main"
+  owner:
+    name: mock-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://token.actions.githubusercontent.com"
+  subject: "repo:contoso/infra:ref:refs/heads/main"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-rg-vending-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource_group:vending/lock"
+spec:
+  azureName: "lock-rg-subv-mock"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: mock-rg-vending
+  level: CanNotDelete
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  name: mock-nsg-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_security_group:app"
+spec:
+  azureName: "nsg-subv-mock"
+  location: "eastus2"
+  owner:
+    name: mock-rg-vending
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: mock-nsg-app-rule-https
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_security_group:app/security_rule:https"
+spec:
+  azureName: "allow-https"
+  owner:
+    name: mock-nsg-app
+  access: Allow
+  direction: Inbound
+  priority: 100
+  protocol: "Tcp"
+  sourceAddressPrefix: "*"
+  sourcePortRange: "*"
+  destinationAddressPrefix: "*"
+  destinationPortRange: "443"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: mock-rg-vending
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource_group:vending"
+spec:
+  azureName: "rg-subv-mock"
+  location: "eastus2"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: mock-umi-deploy-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/role_assignment:reader"
+spec:
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: mock-rg-vending
+  principalIdFromConfig:
+    name: mock-umi-deploy-principal
+    key: principalId
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: mock-role-contributor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role_assignment:contributor"
+spec:
+  azureName: "c6b3154e-0715-50f6-b9ff-88056651036c"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: mock-rg-vending
+  principalId: "0a0a0a0a-0000-4000-8000-000000000001"
+  principalType: "User"
+  roleDefinitionReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  name: mock-rt-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_table:egress"
+spec:
+  azureName: "rt-subv-mock"
+  location: "eastus2"
+  owner:
+    name: mock-rg-vending
+  disableBgpRoutePropagation: false
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: mock-rt-egress-route-internet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_table:egress/route:internet"
+spec:
+  azureName: "internet"
+  owner:
+    name: mock-rt-egress
+  addressPrefix: "0.0.0.0/0"
+  nextHopType: Internet
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.hfl.dev/v20250401
+kind: TagSet
+metadata:
+  name: mock-subscription-tags
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscription_tags"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000"
+  properties:
+    tags:
+      catalog: mock
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: mock-umi-deploy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy"
+spec:
+  azureName: "id-subv-mock"
+  location: "eastus2"
+  owner:
+    name: mock-rg-vending
+  operatorSpec:
+    configMaps:
+      principalId:
+        name: mock-umi-deploy-principal
+        key: principalId
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: mock-vnet-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:one"
+spec:
+  azureName: "vnet-subv-mock-1"
+  location: "eastus2"
+  owner:
+    name: mock-rg-vending
+  addressSpace:
+    addressPrefixes:
+      - "10.10.0.0/24"
+  enableDdosProtection: false
+  enableVmProtection: false
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: mock-vnet-two
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:two"
+spec:
+  azureName: "vnet-subv-mock-2"
+  location: "eastus2"
+  owner:
+    name: mock-rg-vending
+  addressSpace:
+    addressPrefixes:
+      - "10.10.1.0/24"
+  enableDdosProtection: false
+  enableVmProtection: false
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: mock-vnet-one-subnet-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:one/subnet:app"
+spec:
+  azureName: "snet-app"
+  owner:
+    name: mock-vnet-one
+  addressPrefix: "10.10.0.0/26"
+  defaultOutboundAccess: false
+  networkSecurityGroup:
+    reference:
+      group: network.azure.com
+      kind: NetworkSecurityGroup
+      name: mock-nsg-app
+  privateEndpointNetworkPolicies: "Enabled"
+  privateLinkServiceNetworkPolicies: Enabled
+  routeTable:
+    reference:
+      group: network.azure.com
+      kind: RouteTable
+      name: mock-rt-egress
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: mock-vnet-one-mesh-two
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:one/peering_mesh:two"
+spec:
+  azureName: "peer-a353f7ba-5d76-5c0b-bdd3-6e8b7b447b9c"
+  owner:
+    name: mock-vnet-one
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: mock-vnet-two
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: false
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: mock-vnet-two-mesh-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:two/peering_mesh:one"
+spec:
+  azureName: "peer-b65e8eff-6a38-5d17-bfc6-2d1535bb4246"
+  owner:
+    name: mock-vnet-two
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: mock-vnet-one
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: false
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true

@@ -1,17 +1,17 @@
 # avm-res-storage-storageaccount
 
-An Azure storage account with its containers, queues, tables and file
-shares, and its lock, role assignments and diagnostic settings, as Azure
+An Azure storage account with its containers, queues, tables, file
+shares, local users, services' properties, lifecycle rules, Data Lake
+filesystems and private endpoints, and its lock, role assignments and
+diagnostic settings, as Azure
 Service Operator (ASO) objects. A port of the Azure Verified Module
 [`avm-res-storage-storageaccount`](https://github.com/Azure/terraform-azurerm-avm-res-storage-storageaccount/tree/226f9bbefcc9299ad46f6263fc9005edb39a38e5)
 at v0.11.0 (`226f9bbe`), MIT, Copyright (c) Microsoft Corporation
 (`LICENSE.avm`). Bundt Package `azure-avm-res-storage-storageaccount`
 (`package.yaml`). Checked against ASO v2.22.0's CRDs.
 
-Partial: the account and its children are ported; the services'
-properties, lifecycle rules, Data Lake filesystems, private endpoints and
-the customer-managed key are not mapped yet, and local users and the static
-website have no ASO kind (below).
+Partial: the customer-managed key (applied by the module in a second
+step, below), the static website (no kind) and a few fields are refused.
 
 ## Example
 
@@ -39,6 +39,10 @@ rules that deny all but Azure services (`tests/golden/basic.yaml`).
 | each child's `role_assignments` | one per assignment | `RoleAssignment`, `<child id>/role-assignment-<k>`, owned by the child |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock`: `lock-<name>` with the module's notes |
 | `module.role_assignments` | one per entry | `RoleAssignment`, `role-assignment-<key>` |
+| `module.blob_service`, `file_service`, `queue_service`, `table_service` (`azapi_update_resource` on `<account>/<svc>Services/default`) | `blob_properties`, `file_service_properties`, `queue_properties`, `table_properties` set | `StorageAccountsBlobService`, `StorageAccountsFileService`, `StorageAccountsQueueService`, `StorageAccountsTableService`, `blob_service` ... `table_service`, owned by the account, with `detach-on-delete`: deleting one leaves the service, as removing an update resource does |
+| `module.management_policy` | `storage_management_policy_rule` not empty | `StorageAccountsManagementPolicy` (`default`), `management_policy`, one rule per entry (`Lifecycle`) |
+| `module.data_lake_filesystems` (`.../blobServices/default/containers`) | one per `storage_data_lake_gen2_filesystems` entry | `StorageAccountsBlobServicesContainer`, `data_lake_gen2_filesystem:<key>`, owned by the blob service by ARM ID |
+| `module.private_endpoints` | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`), `private_endpoint:<key>`: `pe-<name>` unless named, owned by `parent_id` or the entry's `resource_group_name` (in the account's subscription), in the account's `edge_zone`; its `PrivateEndpointsPrivateDnsZoneGroup` (`private_endpoint:<key>/dns_zone_group`, zones `config-0`, `config-1` ... as the module names them) when `private_endpoints_manage_dns_zone_group`; its `ManagementLock` (`lock-<endpoint name>`, the module's notes unless given) and `RoleAssignment`s, owned by the endpoint |
 | `module.diagnostic_setting_*` | one per entry | `DiagnosticSetting`, `diagnostic-setting-<key>` on the account, `<svc>-service/diagnostic-setting-<key>` on the blob, file, queue or table service (by ARM ID) |
 | telemetry | never | not ported |
 
@@ -46,11 +50,12 @@ ASO's `StorageAccount` is at API version 2025-06-01, the module's default
 2025-08-01 (`resource_types`): every property the module sends exists in
 2025-06-01 except the `Smart` access tier.
 
-Like the module, the chart does not create the blob, file, queue or table
-service objects: Azure gives every account a `default` of each, and the
+Like the module, the chart creates no blob, file, queue or table service
+objects of its own: Azure gives every account a `default` of each, and the
 children name them by ARM ID (`<account>/blobServices/default`). So
 `parent_id` and the account's name must be known at render time, as they
-are.
+are. A service's properties, when set, are an ASO object for that
+`default` service that changes it in place.
 
 ## Values: module inputs to ASO
 
@@ -74,7 +79,13 @@ Every module variable is a value of the same name, type and default
 | `shares` | `shareQuota`, `accessTier`, `enabledProtocols`, `metadata`, `provisionedBandwidthMibps`, `provisionedIops`, `rootSquash`, `role_assignments`; `signed_identifiers` refused |
 | `diagnostic_settings_storage_account`, `_blob`, `_file`, `_queue`, `_table` | the v2 interface: logs and metrics as given, each with its retention policy; an entry needs a `name`, as the module's azapi resource does |
 | `lock`, `role_assignments` | the AVM interfaces (`docs/azure.md`, "8. Charts") |
-| `enable_telemetry`, `role_assignment_definition_lookup_enabled`, `private_endpoints_manage_dns_zone_group`, `table_service_cors_propagation_wait` | accepted, no effect: no telemetry is sent; ASO always resolves a role name; private endpoints and the table service's CORS rules are refused |
+| `blob_properties` | every property the module sends, each only when set: `automaticSnapshotPolicyEnabled`, `changeFeed`, `containerDeleteRetentionPolicy`, `cors.corsRules`, `defaultServiceVersion`, `deleteRetentionPolicy`, `isVersioningEnabled`, `lastAccessTimeTrackingPolicy`, `restorePolicy`; the module's validations (day ranges, restore days below delete days, the policy name) stop the render with its messages |
+| `file_service_properties` | `cors.corsRules`, `protocolSettings.smb` (the sets joined with `;`, as the module joins them; `multichannel.enabled`), `shareDeleteRetentionPolicy` (7 days, enabled, unless given) |
+| `queue_properties`, `table_properties` | `cors.corsRules` |
+| `storage_management_policy_rule` | per rule: `name`, `enabled`, `type: Lifecycle`; `baseBlob`, `snapshot` and `version` actions (each tier or delete action only when one of its days is set), `filters` (`blobTypes`, `prefixMatch`, `blobIndexMatch` with `op` `==` unless given) |
+| `storage_data_lake_gen2_filesystems` | `name`, `defaultEncryptionScope` when set, `properties` as `metadata`; the key `legacy` stops the render with the module's message; an entry's `timeouts` refused |
+| `private_endpoints` | per entry: `subnet.reference.armId`, `customNetworkInterfaceName`, one `privateLinkServiceConnections` entry (`pse-<endpoint name>` unless named, `groupIds` the required `subresource_name`), `ipConfigurations` (`memberName` the subresource unless given) and `applicationSecurityGroups`, sent empty when unset as the module sends them, `location`, `tags`; the zone group, lock and role assignments above |
+| `enable_telemetry`, `role_assignment_definition_lookup_enabled`, `table_service_cors_propagation_wait` | accepted, no effect: no telemetry is sent; ASO always resolves a role name; ASO reads back until Azure agrees, so no wait is needed |
 
 ### Not module inputs
 
@@ -93,13 +104,9 @@ Every module variable is a value of the same name, type and default
 | `static_website` | gap | set on the blob service's data plane, which ASO does not call |
 | `access_tier: Smart` | gap | needs API version 2025-08-01; ASO's `StorageAccount` is at 2025-06-01 |
 | a table's or share's `signed_identifiers` | gap | ASO renders a signed identifier's `id` as an ARM reference |
-| `blob_properties`, `file_service_properties`, `queue_properties`, `table_properties` | not ported | ASO has the service kinds |
-| `storage_management_policy_rule` | not ported | ASO has `StorageAccountsManagementPolicy` |
-| `storage_data_lake_gen2_filesystems` | not ported | a container with its ACLs |
-| `private_endpoints` | not ported | ASO has `PrivateEndpoint` and its DNS zone group |
-| `customer_managed_key` | not ported | ASO has `encryption.keyvaultproperties` |
+| `customer_managed_key` | gap | the module creates the account with Microsoft-managed keys and patches the key in afterwards (Azure rejects one PUT that both gives the account its identity and names it for encryption), reading the vault's URI from Azure; ASO applies a `StorageAccount` in one PUT, and a render cannot read the URI |
 | `resource_types` | by design | ASO's kinds fix the API versions |
-| `retry`, `timeouts`, `storage_management_policy_timeouts`, any entry's or `network_rules`' `timeouts` | by design | ASO retries itself and has no per-request timeouts |
+| `retry`, `timeouts`, `storage_management_policy_timeouts`, any entry's (a filesystem's too) or `network_rules`' `timeouts` | by design | ASO retries itself and has no per-request timeouts |
 
 ## Outputs
 
@@ -110,10 +117,10 @@ Every module variable is a value of the same name, type and default
 | `fqdn` | `{blob, queue, table}` (each when the account has containers, queues or tables, as the module lists them) to the host of the account's `status.primaryEndpoints` |
 | `containers`, `queues`, `tables`, `shares` | `{<key>: {id, name}}` from each child's `status.id` and `azureName`, as the module outputs them |
 | `local_users` | `{<key>: {id, name, home_directory, sid, ssh_key_enabled, ssh_password_enabled}}`, the `sid` from the local user's status |
+| `data_lake_gen2_filesystems` | `{<key>: {id, name}}`, as the module outputs them |
+| `private_endpoints` | `{<key>: {id, name, edge_zone, private_dns_zone_group_id, role_assignments}}`, as the module outputs them (`role_assignments` `{<key>: {id, name}}`) |
 
-Not outputs: `resource` (the module's whole azapi object), and
-`private_endpoints` and `data_lake_gen2_filesystems`, which the chart
-refuses.
+Not output: `resource` (the module's whole azapi object).
 
 ## From Terraform
 
@@ -134,13 +141,24 @@ refusal.
 ## Tests
 
 `task test CHART=avm-res-storage-storageaccount`: render cases `basic`,
-`full`, `premium`, `names` and `mock`, each validated against ASO
+`full`, `premium`, `names`, `services` and `mock`, each validated against ASO
 v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD, and the
 refusals in `tests/*.fail.yaml`. `task test-live-azure` applies a Standard_LRS account with a container and a queue to the Azure sandbox with
 Azure Service Operator, evaluates the outputs, deletes it and checks Azure
 no longer has it: passed on 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
 fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113104327-27737` (2026-11-13): the account, container, queue, local user, blob and queue services, lifecycle policy, Data Lake filesystem, private endpoint and its DNS zone group
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
+- **0.2.0** (2026-11-13): `blob_properties`, `file_service_properties`,
+  `queue_properties`, `table_properties` (ASO service objects),
+  `storage_management_policy_rule`, `storage_data_lake_gen2_filesystems`
+  and `private_endpoints` (with `private_endpoints_manage_dns_zone_group`)
+  are mapped; new outputs `data_lake_gen2_filesystems` and
+  `private_endpoints`. `customer_managed_key` is a gap, not a mapping to
+  come.
 - **0.1.0** (2026-11-12): the port.

@@ -1,7 +1,8 @@
 # A Linux container web app with two deployment slots: staging (its own
 # settings, identity and a custom domain, the site's lock inherited) and
 # canary (on another plan, with its own lock and role assignment, tags not
-# inherited).
+# inherited, and two private endpoints: one by default names inheriting the
+# slot's lock, one named in another resource group with its own).
 name: app-slots
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
@@ -38,3 +39,16 @@ deployment_slots:
     lock: {kind: ReadOnly, name: canary-ro}
     role_assignments:
       reader: {role_definition_id_or_name: Reader, principal_id: 55555555-5555-5555-5555-555555555555}
+    private_endpoints:
+      hub:
+        subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe
+        private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net]
+        ip_configurations:
+          one: {name: ipconfig-canary, private_ip_address: 10.0.3.10}
+      spoke:
+        name: pep-canary-spoke
+        resource_group_name: rg-spoke
+        subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe
+        lock: {kind: CanNotDelete, name: pe-lock}
+        role_assignments:
+          net: {role_definition_id_or_name: Network Contributor, principal_id: 55555555-5555-5555-5555-555555555555}

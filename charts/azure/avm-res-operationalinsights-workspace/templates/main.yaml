@@ -25,12 +25,21 @@ Link Scope, a PrivateLinkScopesScopedResource per existing scope, and a
 NetworkSecurityPerimetersResourceAssociation. The workspace is referenced
 by the ARM ID it will have (computed from the group's and its name), as
 ASO cannot reference an object of another operator's by name. An existing
-scope's exclusions (an update of a scope the chart does not own) and
-private endpoints are refused; the telemetry is not ported.
+scope's exclusions (an update of a scope the chart does not own) are
+refused. azurerm_private_endpoint (either of the module's two): one ASO
+PrivateEndpoint (network.azure.com/v20250301) per entry, connected to the
+Monitor Private Link Scope the module picks (the extension's
+monitor_private_link_scope_key, else the entry's own key, else the only
+scope) by ARM ID, its private_dns_zone_group block a
+PrivateEndpointsPrivateDnsZoneGroup unless the extension leaves it to
+others, the application security group associations its
+applicationSecurityGroups. The exclusion azapi_update_resource.amplscope_update
+adds for an endpoint on a scope the chart makes names the scope's private
+endpoint connection, which Azure names; it is rendered only when it
+changes nothing (the scope's own access modes), else refused. The
+telemetry is not ported.
 */ -}}
 {{- $v := .Values }}
-{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
-{{- include "aso.unsupported" (list $ "private_endpoint_extensions" $v.private_endpoint_extensions "this chart does not map private endpoints yet") }}
 {{- include "aso.unsupported" (list $ "log_analytics_workspace_timeouts" $v.log_analytics_workspace_timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- include "aso.names" (list $ (list "workspace")) }}
 {{- if not $v.name }}{{ fail "avm-res-operationalinsights-workspace: name is required" }}{{ end }}
@@ -261,6 +270,114 @@ spec:
     {{- include "aso.owner" (list $ (printf "monitor_private_link_scoped_resource.%s.resource_id" $key) $r.resource_id) | nindent 4 }}
   linkedResourceReference:
     armId: {{ $workspaceID | quote }}
+{{- end }}
+{{- $pes := $v.private_endpoints | default dict }}
+{{- $exts := $v.private_endpoint_extensions | default dict }}
+{{- $scoped := $v.monitor_private_link_scoped_resource | default dict }}
+{{- range $k, $_ := $exts }}
+{{- if not (hasKey $pes $k) }}{{ fail (printf "avm-res-operationalinsights-workspace: private_endpoint_extensions.%s is not a key of private_endpoints" $k) }}{{ end }}
+{{- end }}
+{{- range $k, $p := $pes }}
+{{- $ext := get $exts $k | default dict }}
+{{- $scopeKey := "" }}
+{{- $scopeID := "" }}
+{{- $ownScope := false }}
+{{- range $cand := (list (toString ($ext.monitor_private_link_scope_key | default "")) $k) }}
+{{- if and $cand (not $scopeID) }}
+{{- if hasKey $pls $cand }}
+{{- $x := get $pls $cand }}
+{{- $scopeKey = $cand }}{{ $ownScope = true }}
+{{- $scopeID = printf "%s/providers/Microsoft.Insights/privateLinkScopes/%s" $x.resource_id (include "aso.cloudName" (list $ "Monitor Private Link Scope" ($x.name | default "law_pl_scope") 255 false)) }}
+{{- else if hasKey $scoped $cand }}
+{{- $scopeID = (get $scoped $cand).resource_id }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if and (not $scopeID) (eq (add (len $pls) (len $scoped)) 1) }}
+{{- range $sk, $x := $pls }}
+{{- $scopeKey = $sk }}{{ $ownScope = true }}
+{{- $scopeID = printf "%s/providers/Microsoft.Insights/privateLinkScopes/%s" $x.resource_id (include "aso.cloudName" (list $ "Monitor Private Link Scope" ($x.name | default "law_pl_scope") 255 false)) }}
+{{- end }}
+{{- range $_, $r := $scoped }}{{ $scopeID = $r.resource_id }}{{ end }}
+{{- end }}
+{{- if not $scopeID }}{{ fail (printf "avm-res-operationalinsights-workspace: private_endpoints.%s connects to no Monitor Private Link Scope: set private_endpoint_extensions.%s.monitor_private_link_scope_key to a key of monitor_private_link_scope or monitor_private_link_scoped_resource, or give the endpoint one of their keys" $k $k) }}{{ end }}
+{{- if $ownScope }}
+{{- $x := get $pls $scopeKey }}
+{{- $ex := $ext.monitor_private_link_scope_exclusion }}
+{{- $exclude := or (kindIs "invalid" $ex) (ne ($ex | default dict).exclude false) }}
+{{- $exIn := "PrivateOnly" }}{{ $exQ := "PrivateOnly" }}
+{{- if not (kindIs "invalid" $ex) }}{{ $exIn = $ex.ingestion_access_mode | default "PrivateOnly" }}{{ $exQ = $ex.query_access_mode | default "PrivateOnly" }}{{ end }}
+{{- if and $exclude (or (ne $exIn ($x.ingestion_access_mode | default "PrivateOnly")) (ne $exQ ($x.query_access_mode | default "PrivateOnly"))) }}
+{{- include "aso.unsupported" (list $ (printf "private_endpoint_extensions.%s.monitor_private_link_scope_exclusion" $k) "set" (printf "the module excludes the endpoint from scope %s's access modes (ingestion %s, query %s) by the name of the scope's private endpoint connection, which Azure gives and a render cannot read; set exclude: false, or access modes equal to the scope's" $scopeKey $exIn $exQ)) }}
+{{- end }}
+{{- end }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peRg := toString ($p.resource_group_name | default $rg) }}
+{{- $peParent := $parent }}
+{{- if hasPrefix "/" $peRg }}
+{{- $peParent = $peRg }}
+{{- else if $p.resource_group_name }}
+{{- if not $v.subscription_id }}{{ fail (printf "avm-res-operationalinsights-workspace: private_endpoints.%s.resource_group_name is a name: set subscription_id too" $k) }}{{ end }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $peRg }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pep-%s" $v.name)) 80 false) | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [azuremonitor]
+      privateLinkServiceReference:
+        armId: {{ $scopeID | quote }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: privatelink
+      memberName: privatelink
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $id := (values . | uniq | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and (ne $ext.manage_dns_zone_group false) $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
 {{- end }}
 {{- with $v.network_security_perimeter_association }}
 ---

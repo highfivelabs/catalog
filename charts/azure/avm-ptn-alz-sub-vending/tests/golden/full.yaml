@@ -1,0 +1,1087 @@
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: consumption.azure.hfl.dev/v20260601
+kind: Budget
+metadata:
+  name: full-budget-monthly
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "budget:monthly"
+spec:
+  azureName: "budget-monthly"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000
+  amount: 1500
+  category: Cost
+  notifications:
+    "eighty":
+      enabled: true
+      operator: GreaterThan
+      threshold: 80
+      thresholdType: Actual
+      contactEmails:
+        - finops@contoso.com
+      locale: en-us
+    "forecast":
+      enabled: true
+      operator: GreaterThanOrEqualTo
+      threshold: 120
+      thresholdType: Forecasted
+      contactEmails: []
+      contactRoles:
+        - Owner
+      contactGroupsReferences:
+        - armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Insights/actionGroups/ag1"
+      locale: en-gb
+  timeGrain: Monthly
+  timePeriod:
+    startDate: "2026-12-01T00:00:00Z"
+    endDate: "2027-11-30T23:59:59Z"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: consumption.azure.hfl.dev/v20260601
+kind: Budget
+metadata:
+  name: full-budget-network
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "budget:network"
+spec:
+  azureName: "budget-network"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg-network
+  amount: 200
+  category: Cost
+  timeGrain: Quarterly
+  timePeriod:
+    startDate: "2026-12-01T00:00:00Z"
+    endDate: "2027-11-30T23:59:59Z"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: full-umi-deploy-fic-github-branch-main-8a237a82
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:github_branch:main"
+spec:
+  azureName: "github-contoso-infra-branch-main"
+  owner:
+    name: full-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://token.actions.githubusercontent.com"
+  subject: "repo:contoso/infra:ref:refs/heads/main"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: full-umi-deploy-fic-github-pull-request-pr-10a5ea54
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:github_pull_request:pr"
+spec:
+  azureName: "github-contoso-infra-pull-request"
+  owner:
+    name: full-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://token.actions.githubusercontent.com"
+  subject: "repo:contoso/infra:pull_request"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: full-umi-deploy-fic-github-environment-prod-0a755b33
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:github_environment:prod"
+spec:
+  azureName: "github-contoso-infra-environment-prod"
+  owner:
+    name: full-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://token.actions.githubusercontent.com/contoso-ent"
+  subject: "repo:contoso/infra:environment:prod"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: full-umi-deploy-fic-github-tag-release-a58623e3
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:github_tag:release"
+spec:
+  azureName: "gh-release"
+  owner:
+    name: full-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://token.actions.githubusercontent.com"
+  subject: "repo:contoso/infra:ref:refs/tags/v1"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: full-umi-deploy-fic-terraform-cloud-plan-d1df46a1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:terraform_cloud:plan"
+spec:
+  azureName: "terraformcloud-contoso-landing-app1-plan"
+  owner:
+    name: full-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://app.terraform.io"
+  subject: "organization:contoso:project:landing:workspace:app1:run_phase:plan"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: full-umi-deploy-fic-advanced-aks-0f2a26d9
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/federated_credential:advanced:aks"
+spec:
+  azureName: "aks-workload"
+  owner:
+    name: full-umi-deploy
+  audiences:
+    - "api://AzureADTokenExchange"
+    - "api://other"
+  issuer: "https://eastus2.oic.prod-aks.azure.com/tenant/guid/"
+  subject: "system:serviceaccount:app:deployer"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  name: full-mg-subscription
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "management_group_subscription_association"
+spec:
+  azureName: "00000000-0000-0000-0000-000000000000"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/corp"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-rg-identity-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "resource_group:identity/lock"
+spec:
+  azureName: "lock-rg-identity"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg-identity
+  level: CanNotDelete
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-rg-watcher-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "resource_group:watcher/lock"
+spec:
+  azureName: "keep-watcher"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg-watcher
+  level: CanNotDelete
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  name: full-nsg-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "network_security_group:app"
+spec:
+  azureName: "nsg-app"
+  location: "eastus2"
+  owner:
+    name: full-rg-network
+  tags:
+    managed-by: catalog
+    tier: app
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  name: full-nsg-shared
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "network_security_group:shared"
+spec:
+  azureName: "nsg-shared"
+  location: "westus2"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: full-nsg-app-rule-asg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "network_security_group:app/security_rule:asg"
+spec:
+  azureName: "allow-asg"
+  owner:
+    name: full-nsg-app
+  access: Deny
+  direction: Outbound
+  priority: 200
+  protocol: "*"
+  sourcePortRange: "*"
+  destinationAddressPrefix: "*"
+  destinationPortRange: "*"
+  sourceApplicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/applicationSecurityGroups/asg1"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  name: full-nsg-app-rule-https
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "network_security_group:app/security_rule:https"
+spec:
+  azureName: "allow-https"
+  owner:
+    name: full-nsg-app
+  access: Allow
+  description: "HTTPS in"
+  direction: Inbound
+  priority: 100
+  protocol: "Tcp"
+  sourceAddressPrefix: "Internet"
+  sourcePortRange: "*"
+  destinationAddressPrefixes:
+    - "10.1.0.0/26"
+    - "10.1.0.64/26"
+  destinationPortRanges:
+    - "443"
+    - "8443"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: full-rg-identity
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "resource_group:identity"
+spec:
+  azureName: "rg-identity"
+  location: "westus2"
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: full-rg-network
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "resource_group:network"
+spec:
+  azureName: "rg-network"
+  location: "eastus2"
+  tags:
+    managed-by: catalog
+    role: network
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: full-rg-watcher
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "resource_group:watcher"
+spec:
+  azureName: "NetworkWatcherRG"
+  location: "eastus2"
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-umi-deploy-role-rg-contributor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/role_assignment:rg-contributor"
+spec:
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg-network
+  principalIdFromConfig:
+    name: full-umi-deploy-principal
+    key: principalId
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-umi-deploy-role-sub-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy/role_assignment:sub-owner"
+spec:
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000
+  principalIdFromConfig:
+    name: full-umi-deploy-principal
+    key: principalId
+  roleDefinitionReference:
+    wellKnownName: "Owner"
+  condition: "((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})))"
+  conditionVersion: "2.0"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-role-network-contributor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "role_assignment:network-contributor"
+spec:
+  azureName: "b0ae105a-16cf-53a6-b47a-c3a4fe23b599"
+  owner:
+    group: resources.azure.com
+    kind: ResourceGroup
+    name: full-rg-network
+  principalId: "22222222-2222-2222-2222-222222222222"
+  roleDefinitionReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-role-readers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "role_assignment:readers"
+spec:
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-role-shared-rg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "role_assignment:shared-rg"
+spec:
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared
+  principalId: "33333333-3333-3333-3333-333333333333"
+  roleDefinitionReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  name: full-rt-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "route_table:egress"
+spec:
+  azureName: "rt-egress"
+  location: "eastus2"
+  owner:
+    name: full-rg-network
+  disableBgpRoutePropagation: true
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-rt-egress-route-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "route_table:egress/route:default"
+spec:
+  azureName: "default"
+  owner:
+    name: full-rt-egress
+  addressPrefix: "0.0.0.0/0"
+  nextHopType: VirtualAppliance
+  nextHopIpAddress: "10.100.0.4"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  name: full-rt-egress-route-local
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "route_table:egress/route:local"
+spec:
+  azureName: "local"
+  owner:
+    name: full-rt-egress
+  addressPrefix: "10.1.0.0/16"
+  nextHopType: VnetLocal
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.hfl.dev/v20250401
+kind: TagSet
+metadata:
+  name: full-subscription-tags
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "subscription_tags"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000"
+  properties:
+    tags:
+      environment: prod
+      managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: full-umi-deploy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:deploy"
+spec:
+  azureName: "id-deploy"
+  location: "eastus2"
+  owner:
+    name: full-rg-identity
+  operatorSpec:
+    configMaps:
+      principalId:
+        name: full-umi-deploy-principal
+        key: principalId
+  tags:
+    managed-by: catalog
+    use: cicd
+---
+# Source: avm-ptn-alz-sub-vending/templates/identities.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  name: full-umi-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "user_managed_identity:reader"
+spec:
+  azureName: "id-reader"
+  location: "westus2"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.hfl.dev/v20260301
+kind: VirtualHubsHubVirtualNetworkConnection
+metadata:
+  name: full-vnet-ipam-vhc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:ipam/vhub_connection"
+spec:
+  azureName: "vhc-ipam"
+  owner:
+    armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2"
+  enableInternetSecurity: false
+  remoteVirtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-ipam"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.hfl.dev/v20260301
+kind: VirtualHubsHubVirtualNetworkConnection
+metadata:
+  name: full-vnet-spoke2-vhc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke2/vhub_connection"
+spec:
+  azureName: "vhc-2877ae1c-efac-5e30-b1e3-fe97dac9205e"
+  owner:
+    armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2"
+  enableInternetSecurity: true
+  remoteVirtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/virtualNetworks/vnet-spoke2"
+  routingConfiguration:
+    associatedRouteTable:
+      reference:
+        armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2/hubRouteTables/defaultRouteTable"
+    propagatedRouteTables:
+      ids:
+        - reference:
+            armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2/hubRouteTables/noneRouteTable"
+      labels:
+        - "none"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: full-vnet-ipam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:ipam"
+spec:
+  azureName: "vnet-ipam"
+  location: "eastus2"
+  owner:
+    name: full-rg-network
+  addressSpace:
+    ipamPoolPrefixAllocations:
+      - numberOfIpAddresses: "256"
+        reference:
+          armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-avnm/providers/Microsoft.Network/networkManagers/avnm/ipamPools/pool1"
+  enableDdosProtection: false
+  enableVmProtection: false
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: full-vnet-spoke1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke1"
+spec:
+  azureName: "vnet-spoke1"
+  location: "eastus2"
+  owner:
+    name: full-rg-network
+  addressSpace:
+    addressPrefixes:
+      - "10.1.0.0/24"
+      - "10.1.1.0/24"
+  dhcpOptions:
+    dnsServers:
+      - "10.100.0.4"
+      - "10.100.0.5"
+  ddosProtectionPlan:
+    reference:
+      armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ddosProtectionPlans/ddos"
+  enableDdosProtection: true
+  enableVmProtection: false
+  flowTimeoutInMinutes: 10
+  tags:
+    managed-by: catalog
+    spoke: "1"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: full-vnet-spoke2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke2"
+spec:
+  azureName: "vnet-spoke2"
+  location: "westus2"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared
+  addressSpace:
+    addressPrefixes:
+      - "10.2.0.0/24"
+  enableDdosProtection: false
+  enableVmProtection: false
+  tags:
+    managed-by: catalog
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: full-vnet-ipam-subnet-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:ipam/subnet:pool"
+spec:
+  azureName: "snet-pool"
+  owner:
+    name: full-vnet-ipam
+  ipamPoolPrefixAllocations:
+    - reference:
+        armId: "/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-avnm/providers/Microsoft.Network/networkManagers/avnm/ipamPools/pool1"
+      numberOfIpAddresses: "64"
+  defaultOutboundAccess: false
+  privateEndpointNetworkPolicies: "Enabled"
+  privateLinkServiceNetworkPolicies: Enabled
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: full-vnet-spoke1-subnet-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke1/subnet:app"
+spec:
+  azureName: "snet-app"
+  owner:
+    name: full-vnet-spoke1
+  addressPrefixes:
+    - "10.1.0.0/26"
+  defaultOutboundAccess: true
+  networkSecurityGroup:
+    reference:
+      group: network.azure.com
+      kind: NetworkSecurityGroup
+      name: full-nsg-app
+  privateEndpointNetworkPolicies: "Disabled"
+  privateLinkServiceNetworkPolicies: Disabled
+  routeTable:
+    reference:
+      group: network.azure.com
+      kind: RouteTable
+      name: full-rt-egress
+  serviceEndpoints:
+    - service: "Microsoft.KeyVault"
+    - service: "Microsoft.Storage"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: full-vnet-spoke1-subnet-web
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke1/subnet:web"
+spec:
+  azureName: "snet-web"
+  owner:
+    name: full-vnet-spoke1
+  addressPrefix: "10.1.0.64/26"
+  delegations:
+    - name: "aci"
+      serviceName: "Microsoft.ContainerInstance/containerGroups"
+  defaultOutboundAccess: false
+  natGateway:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/natGateways/ng"
+  networkSecurityGroup:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/networkSecurityGroups/nsg-web"
+  privateEndpointNetworkPolicies: "Enabled"
+  privateLinkServiceNetworkPolicies: Enabled
+  routeTable:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/routeTables/rt-web"
+  serviceEndpointPolicies:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/serviceEndpointPolicies/sep"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-vnet-ipam-fromhub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:ipam/peering_fromhub"
+spec:
+  azureName: "peer-9c3fcfce-8897-5c32-b77b-149abf710dc4"
+  owner:
+    armId: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: full-vnet-ipam
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: true
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-vnet-spoke1-tohub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke1/peering_tohub"
+spec:
+  azureName: "peer-13c92a85-2b6e-5b0d-8e5c-6c8697e0f261"
+  owner:
+    name: full-vnet-spoke1
+  remoteVirtualNetwork:
+    reference:
+      armId: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-vnet-spoke1-fromhub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke1/peering_fromhub"
+spec:
+  azureName: "peer-d4336125-6194-5330-9921-e1abae401133"
+  owner:
+    armId: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: full-vnet-spoke1
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: true
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-vnet-spoke1-mesh-spoke2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke1/peering_mesh:spoke2"
+spec:
+  azureName: "peer-2877ae1c-efac-5e30-b1e3-fe97dac9205e"
+  owner:
+    name: full-vnet-spoke1
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: full-vnet-spoke2
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-vnet-spoke2-tohub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke2/peering_tohub"
+spec:
+  azureName: "spoke2-to-hub"
+  owner:
+    name: full-vnet-spoke2
+  remoteVirtualNetwork:
+    reference:
+      armId: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: true
+  allowGatewayTransit: false
+  useRemoteGateways: true
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksVirtualNetworkPeering
+metadata:
+  name: full-vnet-spoke2-mesh-spoke1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "virtual_network:spoke2/peering_mesh:spoke1"
+spec:
+  azureName: "peer-d4336125-6194-5330-9921-e1abae401133"
+  owner:
+    name: full-vnet-spoke2
+  remoteVirtualNetwork:
+    reference:
+      group: network.azure.com
+      kind: VirtualNetwork
+      name: full-vnet-spoke1
+  allowVirtualNetworkAccess: true
+  allowForwardedTraffic: false
+  allowGatewayTransit: false
+  useRemoteGateways: false
+  doNotVerifyRemoteGateways: false
+  enableOnlyIPv6Peering: false
+  peerCompleteVnets: true

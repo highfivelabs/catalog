@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "diagnostic-setting-law"
 spec:
@@ -30,12 +30,54 @@ spec:
 apiVersion: authorization.azure.hfl.dev/v1
 kind: ManagementLock
 metadata:
+  name: full-acr-pe-hub-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-acr-pe-hub
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-acr-pe-spoke-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:spoke/lock"
+spec:
+  azureName: "pe-readonly"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-acr-pe-spoke
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
   name: full-acr-lock
   labels:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "lock"
 spec:
@@ -48,6 +90,115 @@ spec:
   notes: "Cannot delete the resource or its child resources."
 ---
 # Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-acr-pe-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub"
+spec:
+  azureName: "pe-acrplatform"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe"
+  customNetworkInterfaceName: "nic-pe-acrplatform"
+  privateLinkServiceConnections:
+    - name: "pse-acrplatform"
+      groupIds: ["registry"]
+      privateLinkServiceReference:
+        group: containerregistry.azure.com
+        kind: Registry
+        name: full-acr
+  ipConfigurations:
+    - name: "ipconfig-registry"
+      groupId: "registry"
+      memberName: registry
+      privateIPAddress: "10.0.1.20"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app"
+  tags:
+    tier: private
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-acr-pe-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:spoke"
+spec:
+  azureName: "pe-acr-spoke"
+  location: "northeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "psc-acr-spoke"
+      groupIds: ["registry"]
+      privateLinkServiceReference:
+        group: containerregistry.azure.com
+        kind: Registry
+        name: full-acr
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-acr-pe-hub-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-acr-pe-hub
+  privateDnsZoneConfigs:
+    - name: "privatelink.azurecr.io"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-acr-pe-spoke-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:spoke/dns_zone_group"
+spec:
+  azureName: "zones"
+  owner:
+    name: full-acr-pe-spoke
+  privateDnsZoneConfigs:
+    - name: "privatelink.azurecr.io"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
 apiVersion: containerregistry.azure.hfl.dev/v20251101
 kind: RegistriesCredentialSet
 metadata:
@@ -56,7 +207,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "credential_set:hub"
 spec:
@@ -80,7 +231,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "scope_map:pull"
 spec:
@@ -101,7 +252,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "scope_map:pull:token:ci"
 spec:
@@ -123,7 +274,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "scope_map:pull:token:old"
 spec:
@@ -145,7 +296,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "registry"
 spec:
@@ -198,7 +349,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "cache_rule:hub"
 spec:
@@ -219,7 +370,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "cache_rule:mcr"
 spec:
@@ -240,7 +391,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "georeplication:northeurope"
 spec:
@@ -262,7 +413,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "georeplication:swedencentral"
 spec:
@@ -282,7 +433,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "role-assignment-pull"
 spec:

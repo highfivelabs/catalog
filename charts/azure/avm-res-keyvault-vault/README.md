@@ -1,15 +1,15 @@
 # avm-res-keyvault-vault
 
-An Azure Key Vault with its keys, and its lock, role assignments and
-diagnostic settings, as Azure Service Operator (ASO) objects. A port of
+An Azure Key Vault with its keys and private endpoints, and its lock,
+role assignments and diagnostic settings, as Azure Service Operator (ASO) objects. A port of
 the Azure Verified Module
 [`avm-res-keyvault-vault`](https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/tree/7c53adbc7f4f716fa00b21af90e1a120db5e19ef)
 at v0.13.0 (`7c53adbc`), MIT, Copyright (c) Microsoft Corporation
 (`LICENSE.avm`). Bundt Package `azure-avm-res-keyvault-vault`
 (`package.yaml`). Checked against ASO v2.22.0's CRDs.
 
-Partial: secrets and private endpoints are not mapped yet, and certificate
-contacts have no kind (below).
+Partial: secrets are not mapped (a secret's value is the builder's
+decision), and certificate contacts have no kind (below).
 
 ## Example
 
@@ -34,6 +34,9 @@ firewall that denies all (`tests/golden/basic.yaml`).
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock`: `lock-<name>` |
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment`, `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting`, `diagnostic-setting-<key>`: `diag-<name>` unless named |
+| `azapi_resource.private_endpoints` (or `_unmanaged_dns_zone_groups`) | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`), `private_endpoint:<key>`: `pe-<name>` unless named, owned by `parent_id` or the entry's `resource_group_name` (in the vault's subscription), its connection to the vault by reference |
+| `azapi_resource.private_dns_zone_groups` | an entry with `private_dns_zone_resource_ids`, when `private_endpoints_manage_dns_zone_group` | `PrivateEndpointsPrivateDnsZoneGroup`, `private_endpoint:<key>/dns_zone_group`, one zone configuration per zone, named for it |
+| `azapi_resource.private_endpoint_locks` | an entry with a `lock` | `ManagementLock` (aso-extensions), `private_endpoint:<key>/lock`: `lock-<endpoint name>` unless named, its notes when set |
 | `time_sleep.wait_for_rbac_*` | never | ASO retries until a role assignment has propagated |
 | telemetry | never | not ported |
 
@@ -61,7 +64,9 @@ Every module variable is a value of the same name, type and default
 | `public_network_access_enabled`, `soft_delete_retention_days` | `publicNetworkAccess`, `softDeleteRetentionInDays` |
 | `keys` | per key: `kty`, `keyOps` (`["sign", "verify"]`), `keySize`, `curveName`, `attributes.nbf` and `exp` (the dates as Unix times), `tags`, `release_policy` (the JSON base64url-encoded, as azurerm sends it), `rotationPolicy` (`expire_after` as `attributes.expiryTime`, `automatic` as a `rotate` action, `notify_before_expiry` as a `notify` action), `role_assignments`; `release_policy.immutable` refused |
 | `lock`, `role_assignments`, `diagnostic_settings` | the AVM interfaces (`docs/azure.md`, "8. Charts"); a role assignment with `skip_service_principal_aad_check` and no `principal_type` is `ServicePrincipal`, as the module sets it. The module lists every diagnostic category Azure offers, the unused ones disabled; the chart lists the enabled ones, the same setting |
-| `enable_telemetry`, `wait_for_rbac_before_key_operations`, `_secret_operations`, `_contact_operations`, `private_endpoints_manage_dns_zone_group` | accepted, no effect: no telemetry is sent; ASO retries until RBAC has propagated; private endpoints are refused |
+| `private_endpoints` | per entry: `subnet.reference.armId`, `customNetworkInterfaceName`, one `privateLinkServiceConnections` entry (`pse-<name>` unless named, `groupIds` the `subresource_name`, default `vault`), `ipConfigurations` (`groupId` as the connection's, `memberName` default `default`) and `applicationSecurityGroups`, sent empty when unset as the module sends them, `location`, `tags`; the zone group and lock above. An entry's `role_assignments` are accepted and ignored, as the module ignores them |
+| `private_endpoints_manage_dns_zone_group` | false: no zone groups, for zones managed elsewhere (Azure Policy) |
+| `enable_telemetry`, `wait_for_rbac_before_key_operations`, `_secret_operations`, `_contact_operations` | accepted, no effect: no telemetry is sent; ASO retries until RBAC has propagated |
 
 The module's validations stop the render with its messages: the vault's
 name (3 to 24 letters, digits and dashes, a letter first, no `--`), the
@@ -83,7 +88,6 @@ tenant ID (a lower-case GUID), the SKU and the retention days.
 | `contacts` | gap | certificate contacts are a Key Vault data-plane setting, with no ASO or aso-extensions kind |
 | a key's `release_policy.immutable` | gap | ASO's `VaultKey` release policy has `contentType` and `data` only |
 | `secrets`, `secrets_value`, `secrets_value_wo`, `secrets_value_wo_version` | not ported | aso-extensions has `VaultSecret`, whose value comes from a Kubernetes Secret; how a component supplies that Secret is not settled |
-| `private_endpoints` | not ported | ASO has `PrivateEndpoint` and its DNS zone group |
 | `ignore_body_changes` | gap | ASO cannot leave a path to another writer |
 | `resource_types`, `retry`, `timeouts` | by design | ASO's kinds fix the API versions; ASO retries itself and has no per-request timeouts |
 
@@ -95,9 +99,10 @@ tenant ID (a lower-case GUID), the SKU and the retention days.
 | `resource_id`, `uri` | the vault's `status.id` and `status.properties.vaultUri` |
 | `keys_resource_ids` | `{<key>: {id, name, resource_id, resource_versionless_id, versionless_id}}`, from each key's status, as the module outputs them |
 | `keys` | the same map: the module's key objects also carry the public key material (`n`, `e`, `x`, `y`, PEM, OpenSSH), which ASO's status does not |
+| `private_endpoints` | `{<key>: {id, name, location, subnet_id}}`, from each endpoint; the module's azurerm-shaped object also carries Azure's DNS configurations and network interface, which are not outputs here |
 
-Not outputs: `secrets`, `secrets_resource_ids` and `private_endpoints`,
-which the chart refuses.
+Not outputs: `secrets` and `secrets_resource_ids`, which the chart
+refuses.
 
 ## From Terraform
 
@@ -118,13 +123,21 @@ licence, the date last synced and every refusal.
 ## Tests
 
 `task test CHART=avm-res-keyvault-vault`: render cases `basic`, `full`,
-`legacy`, `names` and `mock`, each validated against ASO v2.22.0's CRD
+`legacy`, `names`, `pe-unmanaged` and `mock`, each validated against ASO v2.22.0's CRD
 schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` applies a standard vault without purge protection (no keys) to the Azure sandbox with
 Azure Service Operator, evaluates the outputs, deletes it and checks Azure
 no longer has it: passed on 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
 fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113104327-27737` (2026-11-13): the vault, key, private endpoint and its DNS zone group
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
+- **0.2.0** (2026-11-13): `private_endpoints` (with
+  `private_endpoints_manage_dns_zone_group`) render ASO `PrivateEndpoint`,
+  `PrivateEndpointsPrivateDnsZoneGroup` and a lock each; new output
+  `private_endpoints`.
 - **0.1.0** (2026-11-12): the port.

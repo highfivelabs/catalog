@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "diagnostic-setting-law"
 spec:
@@ -31,12 +31,33 @@ spec:
 apiVersion: authorization.azure.hfl.dev/v1
 kind: ManagementLock
 metadata:
+  name: full-kv-pe-hub-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/lock"
+spec:
+  azureName: "lock-pe-kv-platform-001"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-kv-pe-hub
+  level: CanNotDelete
+  notes: "keep the endpoint"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
   name: full-kv-lock
   labels:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "lock"
 spec:
@@ -47,6 +68,117 @@ spec:
     name: full-kv
   level: CanNotDelete
 ---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-kv-pe-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub"
+spec:
+  azureName: "pe-kv-platform-001"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sec"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe"
+  customNetworkInterfaceName: "nic-pe-kv-platform"
+  privateLinkServiceConnections:
+    - name: "pse-kv-platform-001"
+      groupIds: ["vault"]
+      privateLinkServiceReference:
+        group: keyvault.azure.com
+        kind: Vault
+        name: full-kv
+  ipConfigurations:
+    - name: "ipconfig-kv"
+      groupId: "vault"
+      memberName: "default"
+      privateIPAddress: "10.0.1.10"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app"
+  tags:
+    tier: private
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-kv-pe-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:spoke"
+spec:
+  azureName: "pe-kv-spoke"
+  location: "northeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "psc-kv-spoke"
+      groupIds: ["vault"]
+      privateLinkServiceReference:
+        group: keyvault.azure.com
+        kind: Vault
+        name: full-kv
+  ipConfigurations: []
+  applicationSecurityGroups: []
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-kv-pe-hub-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-kv-pe-hub
+  privateDnsZoneConfigs:
+    - name: "privatelink.vaultcore.azure.net"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-kv-pe-spoke-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:spoke/dns_zone_group"
+spec:
+  azureName: "zones"
+  owner:
+    name: full-kv-pe-spoke
+  privateDnsZoneConfigs:
+    - name: "privatelink.vaultcore.azure.net"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+---
 # Source: avm-res-keyvault-vault/templates/keys.yaml
 apiVersion: authorization.azure.com/v20220401
 kind: RoleAssignment
@@ -56,7 +188,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "key:cmk/role-assignment-storage"
 spec:
@@ -77,7 +209,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "role-assignment-admins"
 spec:
@@ -99,7 +231,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "role-assignment-app"
 spec:
@@ -121,7 +253,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "vault"
 spec:
@@ -161,7 +293,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "key:cmk"
 spec:
@@ -198,7 +330,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "key:hsm"
 spec:
@@ -224,7 +356,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "key:sign"
 spec:

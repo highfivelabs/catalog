@@ -1,0 +1,56 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-gateway/connectivity-template.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_network_services_agent_connectivity_template.default: one
+NetworkServicesAgentConnectivityTemplate (config-connector-extensions,
+networkservices.gcp.hfl.dev/v1alpha1) when
+networking_config.psc_i_network_attachment_id is set. data.google_project
+(the project's number) is project_number, which main.yaml requires then.
+*/ -}}
+{{- $v := .Values }}
+{{- $nc := $v.networking_config | default dict }}
+{{- if $nc.psc_i_network_attachment_id }}
+{{- $cloud := include "geapAgentGateway.cloudLabels" (list . ($nc.labels | default dict)) | fromJson }}
+---
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentConnectivityTemplate
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "template")) "id" "connectivity_template" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "geapAgentGateway.template" . | quote }}
+  accessPath: {{ include "geapAgentGateway.accessPath" . }}
+  {{- with $nc.access_types }}
+  accessTypes:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $nc.description) }}
+  description: {{ $nc.description | quote }}
+  {{- end }}
+  {{- with $cloud }}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+  egressNetworkConfig:
+    networkAttachment: {{ $nc.psc_i_network_attachment_id | quote }}
+    {{- with $nc.vpc_egress }}
+    vpcEgress: {{ . | quote }}
+    {{- end }}
+    {{- with $nc.dns_peering_config }}
+    dnsPeeringConfig:
+      domains:
+        {{- range .domains }}
+        - {{ . | quote }}
+        {{- end }}
+      targetNetwork: {{ .target_network | quote }}
+    {{- end }}
+{{- end }}
