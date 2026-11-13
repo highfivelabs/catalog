@@ -1,0 +1,18 @@
+# IAM deny policies on a new folder and fabric's rule fields: an
+# IAMDenyPolicy (config-connector-extensions) per policy.
+parent: organizations/123456789012
+name: f
+iam_deny_policies:
+  no-sa-keys:
+    display_name: No service account keys
+    rules:
+      - description: Nobody but the admins creates keys.
+        denied_principals: ["principalSet://goog/public:all"]
+        denied_permissions: ["iam.googleapis.com/serviceAccountKeys.create"]
+        exception_principals: ["principalSet://goog/group/admins@example.com"]
+        denial_condition:
+          title: Outside dev
+          expression: "!resource.matchTag('123456789012/env', 'dev')"
+      - denied_principals: ["principal://goog/subject/one@example.com"]
+        denied_permissions: ["cloudresourcemanager.googleapis.com/projects.delete"]
+        exception_permissions: ["cloudresourcemanager.googleapis.com/projects.update"]
