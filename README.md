@@ -128,18 +128,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 10 ported, 73 partial, 69 blocked, 25 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 10 ported, 74 partial, 68 blocked, 25 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 748 of 1478 (50.6%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 750 of 1478 (50.7%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 509 of 2348 (21.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 419 of 1170 (35.8%) |
-| **All** | **177** | | **1676 of 4996 (33.5%)** |
+| **All** | **177** | | **1678 of 4996 (33.6%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-8 ported, 43 partial, 44 blocked, 3 not started.
+8 ported, 44 partial, 43 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -188,6 +188,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`dataplex-datascan`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-datascan) ([chart](charts/gcp/dataplex-datascan)) | ![dataplex-datascan](docs/coverage/bars/gcp-dataplex-datascan.svg) 16 of 16 | 4 of 4 | 0 of 3 | partial |
 | [`dataplex-aspect-types`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-aspect-types) ([chart](charts/gcp/dataplex-aspect-types)) | ![dataplex-aspect-types](docs/coverage/bars/gcp-dataplex-aspect-types.svg) 4 of 5 | 4 of 4 | 0 of 3 | partial |
 | [`data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag) ([chart](charts/gcp/data-catalog-policy-tag)) | ![data-catalog-policy-tag](docs/coverage/bars/gcp-data-catalog-policy-tag.svg) 11 of 12 | 2 of 2 | 6 of 6 | partial |
+| [`data-catalog-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-tag) ([chart](charts/gcp/data-catalog-tag)) | ![data-catalog-tag](docs/coverage/bars/gcp-data-catalog-tag.svg) 2 of 2 | 1 of 1 | 0 of 1 | partial |
 | [`api-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/api-gateway) ([chart](charts/gcp/api-gateway)) | ![api-gateway](docs/coverage/bars/gcp-api-gateway.svg) 8 of 8 | 10 of 10 | 4 of 9 | ported |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 137 of 162 | 30 of 36 | 0 of 0 | partial |
 | [`network-firewall-rules`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/firewall-rules) ([chart](charts/gcp/firewall-rules)) | ![network-firewall-rules](docs/coverage/bars/gcp-network-firewall-rules.svg) 5 of 5 | 2 of 2 | 0 of 0 | ported |
@@ -197,7 +198,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 44, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 43, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |

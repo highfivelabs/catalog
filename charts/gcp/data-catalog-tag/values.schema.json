@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "data-catalog-tag",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "tag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "parent",
+        "location",
+        "template",
+        "fields"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The project of the BigQuery resource (and its Data Catalog entry)."
+        },
+        "parent": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The BigQuery resource tagged: projects/<p>/datasets/<d> or projects/<p>/datasets/<d>/tables/<t>."
+        },
+        "column": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A column of the table, to tag it alone (nested: column.nested)."
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry's (and the template's) location."
+        },
+        "template": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The tag template: projects/<p>/locations/<l>/tagTemplates/<id>."
+        },
+        "fields": {
+          "type": "object",
+          "description": "Field ID => value, one of the value keys.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "bool_value": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "double_value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "string_value": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "timestamp_value": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "enum_value": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "description": "Not a Terraform variable. A tag's ID is the API's, so this chart gives no cloud name and takes no key here (docs/design.md, \"Names, labels and tags\")."
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable). This chart gives no cloud name, so it changes nothing. A DNS label.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "factories_config": {
+      "description": "Paths to data files and folders that enable factory functionality. Accepted and ignored; the files' contents go under factories_data.tags.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tags": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "tags": {
+      "description": "Tags definitions in the form {TAG => TAG_DEFINITION}.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/tag"
+      }
+    },
+    "factories_data": {
+      "description": "The factory's files as data (not a Terraform variable): tags.<file name> is that file's content.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tags": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/definitions/tag"
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}
