@@ -1,0 +1,210 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-ptn-network-private-link-private-dns-zones
+main.tf and locals.tf (v0.23.2, 4d2214f162806d48ea9a157de4b904f879fc61d4),
+Copyright (c) Microsoft Corporation, MIT, and the two modules it calls:
+avm-res-network-privatednszone 0.4.3 (the zone and its
+private_dns_virtual_network_link submodule) and avm-utl-regions 0.12.0
+(templates/_data.tpl).
+
+locals.tf, step by step as the module computes it:
+  1. private_link_private_dns_zones (null: the module's default list,
+     plpdz.defaultZones) merged with private_link_private_dns_zones_additional,
+     an entry of the latter replacing one of the same key;
+  2. kept only when its zone_name matches
+     private_link_private_dns_zones_regex_filter.regex_filter, when enabled;
+  3. dropped when private_link_excluded_zones names its key or its
+     zone_name (before the region is put in);
+  4. {regionCode} and {regionName} in the zone name replaced with the
+     location's region code and name (the regions module's data);
+  5. its virtual network links: virtual_network_link_default_virtual_networks,
+     then virtual_network_link_additional_virtual_networks, then the zone's
+     virtual_network_link_by_zone_and_virtual_network, a later one replacing
+     a link of the same key; each link's name and resolution policy from the
+     overrides by zone and network, by zone and by network, in that order,
+     then the link's own, then (the policy) the zone's and
+     virtual_network_link_resolution_policy_default, the name from
+     virtual_network_link_name_template; a link any override disables is
+     not made;
+  6. a zone with a custom_iterator made once per replacement value, its key
+     <key>_<value key> and {<placeholder>} in its name replaced with the
+     value's key; each link's name template filled with ${zone_key},
+     ${vnet_key}, ${vnet_name} and ${location}.
+
+module.avm_res_network_privatednszone: one ASO PrivateDnsZone per zone
+(location global, owned by the resource group parent_id names, the tags)
+and one PrivateDnsZonesVirtualNetworkLink per link (owned by the zone,
+registration off, the resolution policy only for a zone that supports
+Private Link, the tags). azapi_resource.lock: an aso-extensions
+ManagementLock on the resource group, named lock-<resource group name>
+unless the lock names itself. azapi_resource.role_assignments: one ASO
+RoleAssignment each on the resource group. The telemetry and the regions
+module's live location list are not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ list) }}
+{{- $pid := toString $v.parent_id }}
+{{- if not (and (regexMatch "^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]*[A-Za-z0-9_()-]$" $pid) (le (len (index (splitList "/" $pid) 4)) 90)) }}
+{{- fail (printf "%s: The provided parent_id_existing_resource_group must be a valid resource group resource ID with a name that is 1-90 characters, uses only letters, numbers, `.`, `_`, `(', ')`, or `-`, and does not end with a period, or `null`. e.g. `/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}`." $chart) }}
+{{- end }}
+{{- $rgName := index (splitList "/" $pid) 4 }}
+{{- /* The location: a region's name or display name (avm-utl-regions'
+regions_by_name_or_display_name). */}}
+{{- $regions := include "plpdz.regions" . | fromYaml }}
+{{- $loc := toString $v.location }}
+{{- $region := dict }}
+{{- $regionName := "" }}
+{{- if hasKey $regions $loc }}
+{{- $region = index $regions $loc }}{{ $regionName = $loc }}
+{{- else }}
+{{- range $n, $r := $regions }}
+{{- if eq (toString $r.display_name) $loc }}{{ $region = $r }}{{ $regionName = $n }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if not $regionName }}
+{{- fail (printf "%s: location %q is not a region the chart knows: a region's name or display name from avm-utl-regions v0.12.0's data (templates/_data.tpl). The module reads the subscription's live location list instead; a region missing here is refused" $chart $loc) }}
+{{- end }}
+{{- if not $region.geo_code }}
+{{- fail (printf "%s: location %q has no region code in avm-utl-regions v0.12.0's data, so the module cannot put one in a zone name ({regionCode}) and fails for it" $chart $loc) }}
+{{- end }}
+{{- $geo := $region.geo_code }}
+{{- /* 1. The zones, merged. */}}
+{{- $zonesIn := $v.private_link_private_dns_zones }}
+{{- if kindIs "invalid" $zonesIn }}{{ $zonesIn = include "plpdz.defaultZones" . | fromYaml }}{{ end }}
+{{- $merged := dict }}
+{{- range $k, $z := $zonesIn }}{{ $_ := set $merged $k $z }}{{ end }}
+{{- range $k, $z := ($v.private_link_private_dns_zones_additional | default dict) }}{{ $_ := set $merged $k $z }}{{ end }}
+{{- $rf := $v.private_link_private_dns_zones_regex_filter | default dict }}
+{{- $rfOn := eq $rf.enabled true }}
+{{- $rfRegex := $rf.regex_filter | default "{regionName}|{regionCode}" }}
+{{- $excluded := $v.private_link_excluded_zones | default list }}
+{{- $rpDefault := $v.virtual_network_link_resolution_policy_default | default "Default" }}
+{{- $tmplDefault := $v.virtual_network_link_name_template }}
+{{- $byVnet := $v.virtual_network_link_overrides_by_virtual_network | default dict }}
+{{- $byZone := $v.virtual_network_link_overrides_by_zone | default dict }}
+{{- $byZoneVnet := $v.virtual_network_link_overrides_by_zone_and_virtual_network | default dict }}
+{{- $linksByZone := $v.virtual_network_link_by_zone_and_virtual_network | default dict }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $made := dict }}
+{{- range $zk, $z := $merged }}
+{{- $z = $z | default dict }}
+{{- if not $z.zone_name }}
+{{- fail (printf "%s: private_link_private_dns_zones.%s has no zone_name (the module cannot name the zone)" $chart $zk) }}
+{{- end }}
+{{- /* 2. The regex filter; 3. the exclusions. */}}
+{{- $keep := true }}
+{{- if $rfOn }}{{ $keep = mustRegexMatch $rfRegex $z.zone_name }}{{ end }}
+{{- if or (has $z.zone_name $excluded) (has $zk $excluded) }}{{ $keep = false }}{{ end }}
+{{- if $keep }}
+{{- /* 4. The region. */}}
+{{- $zoneName := $z.zone_name | replace "{regionCode}" $geo | replace "{regionName}" $regionName }}
+{{- $pl := ne $z.private_dns_zone_supports_private_link false }}
+{{- /* 5. The links of this zone. */}}
+{{- $links := dict }}
+{{- range $vk, $l := ($v.virtual_network_link_default_virtual_networks | default dict) }}
+{{- $l = $l | default dict }}
+{{- $_ := set $links $vk (dict "id" $l.virtual_network_resource_id "tmpl" $l.virtual_network_link_name_template_override "rp" $l.resolution_policy) }}
+{{- end }}
+{{- range $vk, $l := ($v.virtual_network_link_additional_virtual_networks | default dict) }}
+{{- $l = $l | default dict }}
+{{- $_ := set $links $vk (dict "id" $l.virtual_network_resource_id "tmpl" $l.virtual_network_link_name_template_override "rp" $l.resolution_policy) }}
+{{- end }}
+{{- range $vk, $l := (index $linksByZone $zk | default dict) }}
+{{- $l = $l | default dict }}
+{{- $_ := set $links $vk (dict "id" $l.virtual_network_resource_id "tmpl" $l.name "rp" $l.resolution_policy) }}
+{{- end }}
+{{- $final := dict }}
+{{- range $vk, $l := $links }}
+{{- $ovn := index $byVnet $vk | default dict }}
+{{- $ovz := index $byZone $zk | default dict }}
+{{- $ozv := index (index $byZoneVnet $zk | default dict) $vk | default dict }}
+{{- if and (ne $ovn.enabled false) (ne $ovz.enabled false) (ne $ozv.enabled false) }}
+{{- if not $l.id }}
+{{- fail (printf "%s: virtual network link %s of zone %s has no virtual_network_resource_id" $chart $vk $zk) }}
+{{- end }}
+{{- if not (regexMatch "^/subscriptions/[a-fA-F0-9-]+/resourceGroups/[a-zA-Z0-9-_.()]+/providers/Microsoft.Network/virtualNetworks/[a-zA-Z0-9-_.]+$" $l.id) }}
+{{- fail (printf "%s: The virtual_network_id must be a valid Azure Virtual Network resource ID. (link %s of zone %s: %q)" $chart $vk $zk $l.id) }}
+{{- end }}
+{{- $name := coalesce $ozv.name $ovz.virtual_network_link_name_template_override $ovn.virtual_network_link_name_template_override $l.tmpl $tmplDefault }}
+{{- $rp := coalesce $ozv.resolution_policy $ovz.resolution_policy $ovn.resolution_policy $l.rp $z.resolution_policy $rpDefault }}
+{{- if not (has $rp (list "Default" "NxDomainRedirect")) }}
+{{- fail (printf "%s: The resolution_policy must be either 'Default' or 'NxDomainRedirect'. (link %s of zone %s: %q)" $chart $vk $zk $rp) }}
+{{- end }}
+{{- $_ := set $final $vk (dict "id" $l.id "name" $name "rp" $rp) }}
+{{- end }}
+{{- end }}
+{{- /* 6. The custom iterator. */}}
+{{- $items := list (dict "key" $zk "name" $zoneName) }}
+{{- with $z.custom_iterator }}
+{{- $items = list }}
+{{- range $ik, $iv := (.replacement_values | default dict) }}
+{{- if kindIs "invalid" $iv }}
+{{- $items = append $items (dict "key" $zk "name" $zoneName) }}
+{{- else }}
+{{- $items = append $items (dict "key" (printf "%s_%s" $zk $ik) "name" (replace (printf "{%s}" $z.custom_iterator.replacement_placeholder) $ik $zoneName)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $it := $items }}
+{{- if hasKey $made $it.key }}
+{{- fail (printf "%s: two zones have the key %s (a custom_iterator's <key>_<value key> or a null value): the module fails with a duplicate key" $chart $it.key) }}
+{{- end }}
+{{- $_ := set $made $it.key true }}
+{{- $zoneObj := include "aso.name" (list $.Release.Name "zone" $it.key) }}
+---
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZone
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $zoneObj "id" (printf "private_dns_zone:%s" $it.key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $it.name | quote }}
+  location: global
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $pid) | nindent 4 }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $vk, $l := $final }}
+{{- $vnetName := last (splitList "/" $l.id) }}
+{{- $linkName := $l.name | replace "${zone_key}" $it.key | replace "${vnet_key}" $vk | replace "${vnet_name}" $vnetName | replace "${location}" $loc }}
+{{- if or (contains "${" $linkName) (contains "%{" $linkName) }}
+{{- fail (printf "%s: virtual network link name %q (link %s of zone %s): a name template takes only ${zone_key}, ${vnet_key}, ${vnet_name} and ${location}, the module's documented placeholders; another template expression is not supported" $chart $l.name $vk $it.key) }}
+{{- end }}
+{{- if not $linkName }}
+{{- fail (printf "%s: The name must not be empty. (link %s of zone %s)" $chart $vk $it.key) }}
+{{- end }}
+---
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZonesVirtualNetworkLink
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "link" $it.key $vk)) "id" (printf "virtual_network_link:%s/%s" $it.key $vk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $linkName | quote }}
+  location: global
+  owner:
+    name: {{ $zoneObj }}
+  registrationEnabled: false
+  {{- if $pl }}
+  resolutionPolicy: {{ $l.rp | quote }}
+  {{- end }}
+  virtualNetwork:
+    reference:
+      armId: {{ $l.id | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $rgOwner := dict "armId" $pid }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $.Release.Name "idPrefix" "" "owner" $rgOwner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $rgName)))) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $.Release.Name "idPrefix" "" "owner" $rgOwner "v" $v.resource_group_role_assignments) }}
