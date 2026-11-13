@@ -1,0 +1,72 @@
+# Every variable: addresses, a described backend service with every
+# backend kind (an instance group, a zonal NEG in another project, a PSC
+# NEG, an existing instance group by self link), logging, an HTTP health
+# check, a named target proxy with a proxy header, labels and ABANDON.
+# Render only: the API refuses a backend service whose backends mix
+# instance groups and NEGs, which this case does to render every field.
+name: ilb-proxy
+project_id: my-project
+port: 8443
+description: Cross-region TCP proxy.
+deletion_policy: ABANDON
+labels: {hfl.dev/team: net, env: prod}
+tags: {cost-center: c42}
+addresses:
+  europe-west1: 10.0.0.10
+  europe-west4: projects/my-project/regions/europe-west4/addresses/ilb-proxy-ew4
+vpc_config:
+  network: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-vpc
+  subnetworks:
+    europe-west1: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+    europe-west4: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
+backend_service_config:
+  name: ilb-proxy-bs
+  description: The backends.
+  affinity_cookie_ttl_sec: 60
+  connection_draining_timeout_sec: 30
+  port_name: tcp
+  session_affinity: CLIENT_IP
+  timeout_sec: 45
+  log_config: {enable: true, sample_rate: 0.5}
+  backends:
+    - {group: ig-a, balancing_mode: UTILIZATION, capacity_scaler: 0.5, max_utilization: 0.8, description: the group}
+    - {group: neg-other, max_connections: {per_endpoint: 50}}
+    - {group: psc-api, max_connections: {per_group: 1000}}
+    - {group: "https://www.googleapis.com/compute/v1/projects/my-project/zones/europe-west4-a/instanceGroups/legacy", max_connections: {per_instance: 10}}
+group_configs:
+  ig-a:
+    zone: europe-west1-b
+    description: Unmanaged group.
+    instances: [projects/my-project/zones/europe-west1-b/instances/vm-1]
+    named_ports: {tcp: 8443}
+  ig-b:
+    name: custom-group
+    zone: europe-west4-a
+    project_id: other-project
+neg_configs:
+  neg-other:
+    project_id: other-project
+    hybrid:
+      zone: europe-west4-a
+      endpoints:
+        on-prem-1: {ip_address: 192.168.0.10, port: 8443}
+        on-prem-2: {ip_address: 192.168.0.11, port: 8443}
+  psc-api:
+    psc:
+      region: europe-west1
+      target_service: projects/producer/regions/europe-west1/serviceAttachments/api
+      network: projects/my-project/global/networks/my-vpc
+      subnetwork: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+health_check_config:
+  name: ilb-proxy-hc
+  description: HTTP check.
+  check_interval_sec: 10
+  healthy_threshold: 2
+  timeout_sec: 5
+  unhealthy_threshold: 3
+  enable_logging: true
+  http: {port_specification: USE_NAMED_PORT, port_name: tcp, request_path: /healthz, host: example.com, proxy_header: NONE, response: ok}
+target_proxy_config:
+  name: ilb-proxy-tp
+  description: The proxy.
+  proxy_header: PROXY_V1

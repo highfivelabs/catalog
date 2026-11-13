@@ -1,0 +1,315 @@
+---
+# Source: gke-cluster-autopilot/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "cluster-full"
+  location: "europe-west1"
+  description: "everything"
+  nodeLocations: ["europe-west1-b","europe-west1-c"]
+  minMasterVersion: "1.33"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gke"
+  disableL4LbFirewallReconciliation: true
+  enableMultiNetworking: false
+  enableL4IlbSubsetting: true
+  enableTpu: false
+  initialNodeCount: 1
+  enableAutopilot: true
+  allowNetAdmin: true
+  enableCiliumClusterwideNetworkPolicy: false
+  enableFqdnNetworkPolicy: true
+  defaultSnatStatus:
+    disabled: true
+  nodePoolAutoConfig:
+    networkTags:
+      tags: ["gke","nap"]
+    resourceManagerTags: {"tagKeys/1":"tagValues/2"}
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    cloudrunConfig:
+      disabled: false
+    kalmConfig:
+      enabled: true
+    configConnectorConfig:
+      enabled: true
+    gkeBackupAgentConfig:
+      enabled: true
+  authenticatorGroupsConfig:
+    securityGroup: "gke-security-groups@example.com"
+  binaryAuthorization:
+    evaluationMode: PROJECT_SINGLETON_POLICY_ENFORCE
+  costManagementConfig:
+    enabled: true
+  clusterAutoscaling:
+    autoProvisioningDefaults:
+      bootDiskKMSKeyRef:
+        external: "projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/gke"
+      serviceAccountRef:
+        external: "nodes@my-project.iam.gserviceaccount.com"
+  controlPlaneEndpointsConfig:
+    dnsEndpointConfig:
+      allowExternalTraffic: false
+      enableK8sTokensViaDns: true
+    ipEndpointsConfig:
+      enabled: true
+  databaseEncryption:
+    state: "ENCRYPTED"
+    keyName: "projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/etcd"
+  dnsConfig:
+    clusterDns: "CLOUD_DNS"
+    clusterDnsScope: "CLUSTER_SCOPE"
+    clusterDnsDomain: "cluster.local"
+  enableK8sBetaApis:
+    enabledApis: ["authentication.k8s.io/v1beta1/selfsubjectreviews"]
+  gatewayApiConfig:
+    channel: CHANNEL_STANDARD
+  identityServiceConfig:
+    enabled: true
+  ipAllocationPolicy:
+    clusterIpv4CidrBlock: "10.4.0.0/14"
+    servicesIpv4CidrBlock: "10.0.32.0/20"
+    stackType: "IPV4"
+    additionalPodRangesConfig:
+      podRangeNames: ["pods-2"]
+  loggingConfig:
+    enableComponents: ["APISERVER","SYSTEM_COMPONENTS","WORKLOADS"]
+  maintenancePolicy:
+    recurringWindow:
+      startTime: "2025-01-01T00:00:00Z"
+      endTime: "2025-01-01T04:00:00Z"
+      recurrence: "FREQ=WEEKLY;BYDAY=SA"
+    maintenanceExclusion:
+      - exclusionName: "holidays"
+        startTime: "2025-12-20T00:00:00Z"
+        endTime: "2026-01-05T00:00:00Z"
+        exclusionOptions:
+          scope: "NO_UPGRADES"
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  masterAuthorizedNetworksConfig:
+    gcpPublicCidrsAccessEnabled: false
+  meshCertificates:
+    enableCertificates: true
+  monitoringConfig:
+    enableComponents: ["SYSTEM_COMPONENTS","APISERVER","POD"]
+    managedPrometheus:
+      enabled: true
+    advancedDatapathObservabilityConfig:
+      - enableMetrics: true
+  notificationConfig:
+    pubsub:
+      enabled: true
+      filter:
+        eventType: ["UPGRADE_EVENT"]
+      topicRef:
+        name: full-notifications
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: true
+    privateEndpointSubnetworkRef:
+      external: "projects/my-project/regions/europe-west1/subnetworks/cp"
+    masterGlobalAccessConfig:
+      enabled: true
+  securityPostureConfig:
+    mode: "BASIC"
+    vulnerabilityMode: "VULNERABILITY_BASIC"
+  releaseChannel:
+    channel: "STABLE"
+  resourceUsageExportConfig:
+    enableNetworkEgressMetering: true
+    bigqueryDestination:
+      datasetId: "gke_usage"
+  serviceExternalIpsConfig:
+    enabled: false
+  verticalPodAutoscaling:
+    enabled: true
+---
+# Source: gke-cluster-autopilot/templates/backup.yaml
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupBackupChannel
+metadata:
+  name: full-backup-channel-to-dr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_channel:to-dr"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "to-dr"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  destinationProject: "projects/dr-project"
+  labels: {"team":"ops"}
+---
+# Source: gke-cluster-autopilot/templates/backup.yaml
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupBackupPlan
+metadata:
+  name: full-backup-plan-daily
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_plan:daily"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "daily"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  cluster: "projects/my-project/locations/europe-west1/clusters/cluster-full"
+  retentionPolicy:
+    backupRetainDays: 7
+    locked: false
+  backupSchedule:
+    cronSchedule: "0 3 * * *"
+  backupConfig:
+    includeVolumeData: true
+    includeSecrets: true
+    encryptionKey:
+      gcpKmsEncryptionKey: "projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/backup"
+    selectedApplications:
+      namespacedNames:
+        - {namespace: "app", name: "web"}
+        - {namespace: "app", name: "api"}
+---
+# Source: gke-cluster-autopilot/templates/backup.yaml
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupBackupPlan
+metadata:
+  name: full-backup-plan-ns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_plan:ns"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ns"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  cluster: "projects/my-project/locations/europe-west1/clusters/cluster-full"
+  retentionPolicy:
+    backupDeleteLockDays: 2
+    locked: true
+  backupConfig:
+    includeVolumeData: true
+    includeSecrets: false
+    selectedNamespaces:
+      namespaces: ["default"]
+---
+# Source: gke-cluster-autopilot/templates/backup.yaml
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupRestoreChannel
+metadata:
+  name: full-restore-channel-from-dr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "restore_channel:from-dr"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "from-dr"
+  projectRef:
+    external: "my-project"
+  location: "europe-west4"
+  destinationProject: "projects/dr-project"
+---
+# Source: gke-cluster-autopilot/templates/backup.yaml
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupRestorePlan
+metadata:
+  name: full-restore-plan-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "restore_plan:all"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "all"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  cluster: "projects/my-project/locations/europe-west1/clusters/cluster-full"
+  backupPlan: "projects/my-project/locations/europe-west1/backupPlans/daily"
+  restoreConfig:
+    namespacedResourceRestoreMode: "FAIL_ON_CONFLICT"
+    clusterResourceConflictPolicy: "USE_EXISTING_VERSION"
+    clusterResourceRestoreScope:
+      selectedGroupKinds: [{"resourceGroup":"storage.k8s.io","resourceKind":"StorageClass"}]
+    volumeDataRestorePolicy: "RESTORE_VOLUME_DATA_FROM_BACKUP"
+    volumeDataRestorePolicyBindings:
+      - volumeType: "GCE_PERSISTENT_DISK"
+        policy: "NO_VOLUME_DATA_RESTORATION"
+    selectedNamespaces:
+      namespaces: ["default"]
+    restoreOrder:
+      groupKindDependencies:
+        - requiring: {"resourceKind":"Pod"}
+          satisfying: {"resourceKind":"ConfigMap"}
+    transformationRules:
+      - fieldActions:
+          - op: "REMOVE"
+            path: "/metadata/annotations"
+        description: "drop annotations"
+        resourceFilter:
+          namespaces: ["default"]
+          groupKinds: [{"resourceKind":"Deployment"}]
+---
+# Source: gke-cluster-autopilot/templates/cluster.yaml
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubTopic
+metadata:
+  name: full-notifications
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+    content: "gke-notifications"
+  annotations:
+    hfl.dev/id: "notifications"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "gke-pubsub-notifications"
+  kmsKeyRef:
+    external: "projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/topic"

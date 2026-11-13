@@ -1,0 +1,77 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/biglake-catalog/main.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_biglake_catalog.catalog: one BigLakeCatalog
+(config-connector-extensions, biglake.gcp.hfl.dev/v1beta1).
+google_biglake_database.databases: one BigLakeDatabase
+(config-connector-extensions, biglake.gcp.hfl.dev/v1beta1) per key of
+databases.
+google_biglake_table.tables: one BigLakeTable (Config Connector, v1beta1)
+per table of each database, keyed <database>-<table> as fabric keys them.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "catalog")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := printf "projects/%s" $v.project_id }}
+{{- $catalog := include "kcc.resourceName" (list $ "catalog" "catalog" $v.name 63) }}
+{{- $catalogID := printf "%s/locations/%s/catalogs/%s" $project $v.location $catalog }}
+---
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeCatalog
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "catalog" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ $catalog | quote }}
+{{- range $db, $d := $v.databases }}
+---
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeDatabase
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "database" $db)) "id" (printf "database:%s" $db) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.location | quote }}
+  catalog: {{ $catalog | quote }}
+  resourceID: {{ $db | quote }}
+  type: {{ $d.type | quote }}
+  hiveOptions:
+    locationUri: {{ $d.hive_options.location_uri | quote }}
+    {{- with $d.hive_options.parameters }}
+    parameters:
+      {{- range $k, $p := . }}
+      {{ $k | quote }}: {{ $p | quote }}
+      {{- end }}
+    {{- end }}
+{{- range $t, $tb := $d.tables }}
+{{- $h := $tb.hive_options }}
+---
+apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+kind: BigLakeTable
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "table" $db $t)) "id" (printf "table:%s-%s" $db $t) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  parentDatabaseRef:
+    external: {{ printf "%s/databases/%s" $catalogID $db | quote }}
+  resourceID: {{ $t | quote }}
+  type: {{ $tb.type | quote }}
+  hiveOptions:
+    tableType: {{ $h.table_type | quote }}
+    storageDescriptor:
+      locationURI: {{ $h.location_uri | quote }}
+      inputFormat: {{ $h.input_format | quote }}
+      outputFormat: {{ $h.output_format | quote }}
+    {{- with $h.parameters }}
+    parameters:
+      {{- range $k, $p := . }}
+      {{ $k | quote }}: {{ $p | quote }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

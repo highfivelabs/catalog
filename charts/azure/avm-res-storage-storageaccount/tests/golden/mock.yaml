@@ -25,9 +25,10 @@ spec:
   allowSharedKeyAccess: false
   encryption:
     keySource: Microsoft.Storage
-  isLocalUserEnabled: false
+  isHnsEnabled: true
+  isLocalUserEnabled: true
   isNfsV3Enabled: false
-  isSftpEnabled: false
+  isSftpEnabled: true
   minimumTlsVersion: TLS1_2
   networkAcls:
     bypass: "AzureServices"
@@ -58,6 +59,34 @@ spec:
   defaultEncryptionScope: "$account-encryption-key"
   denyEncryptionScopeOverride: false
   publicAccess: None
+---
+# Source: avm-res-storage-storageaccount/templates/children.yaml
+apiVersion: storage.azure.hfl.dev/v20260601
+kind: StorageAccountsLocalUser
+metadata:
+  name: mock-localuser-sftp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "local_user:sftp"
+spec:
+  azureName: "sftpuser"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Storage/storageAccounts/catalogst001"
+  homeDirectory: "assets"
+  hasSharedKey: false
+  hasSshKey: true
+  hasSshPassword: false
+  permissionScopes:
+    - service: "blob"
+      resourceName: "assets"
+      permissions: "rwl"
+  sshAuthorizedKeys:
+    - key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGRvTE5dTh9cJm1ON6P1kHGlPg5ndp0V0ZOfyQ6Y9Gzr catalog-mock"
+      description: "ci"
 ---
 # Source: avm-res-storage-storageaccount/templates/children.yaml
 apiVersion: storage.azure.com/v20250601

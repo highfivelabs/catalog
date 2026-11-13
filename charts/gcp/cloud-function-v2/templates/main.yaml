@@ -1,0 +1,284 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-function-v2/main.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_cloudfunctions2_function.function: the CloudFunctions2Function
+(config-connector-extensions, cloudfunctions2.gcp.hfl.dev/v1beta1), its
+source the Cloud Storage object bundle_config.path names in the bucket
+fabric's local.bucket names.
+google_cloudfunctions2_function_iam_binding.binding: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per iam role but
+roles/run.invoker, on the function.
+google_cloud_run_service_iam_binding.invoker: roles/run.invoker as an
+IAMBinding on the function's Cloud Run service (same name and location),
+with the trigger's service account when the chart creates it.
+google_cloud_run_service_iam_member.invoker: without roles/run.invoker in
+iam, the created trigger account's IAMPolicyMember on that service.
+google_service_account.trigger_service_account: an IAMServiceAccount
+tf-cf-trigger-<name> (trigger_config.service_account_create).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "function" "bucket" "serviceAccount" "triggerServiceAccount" "vpcConnector")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $fc := $v.function_config | default dict }}
+{{- if and $fc.automatic_update_policy $fc.on_deploy_update_policy }}
+{{- fail "cloud-function-v2: Cannot set both automatic_update_policy and on_deploy_update_policy to true." }}
+{{- end }}
+{{- /* bundle_config: only a Cloud Storage object. Terraform zips a local
+folder or uploads a local zip from the machine it runs on; a chart has no
+files, and StorageBucketObject (config-connector-extensions, v1alpha1)
+takes text content, not an archive. */}}
+{{- $b := $v.bundle_config }}
+{{- $path := $b.path }}
+{{- if not (hasPrefix "gs://" $path) }}
+{{- include "kcc.unsupported" (list $ (printf "bundle_config.path %q (a local zip or folder)" $path) true "a chart has no local files to zip or upload; upload the bundle and give its Cloud Storage URI, gs://<bucket>/<object>.zip") }}
+{{- end }}
+{{- if not (hasSuffix ".zip" $path) }}
+{{- fail "cloud-function-v2: Bundle path must be set to a GCS object URI, a local folder or a local zip file." }}
+{{- end }}
+{{- $fo := dict }}
+{{- range $k, $x := ($b.folder_options | default dict) }}{{ if not (empty $x) }}{{ $_ := set $fo $k $x }}{{ end }}{{ end }}
+{{- include "kcc.unsupported" (list $ "bundle_config.folder_options" $fo "options for zipping a local folder, and the chart takes only a Cloud Storage object") }}
+{{- $fn := include "cloudFunctionV2.function" . }}
+{{- $bucket := include "cloudFunctionV2.bucket" . }}
+{{- $saEmail := include "cloudFunctionV2.serviceAccountEmail" . }}
+{{- $triggerEmail := include "cloudFunctionV2.triggerServiceAccountEmail" . }}
+{{- $cloudLabels := include "cloudFunctionV2.cloudLabels" . | fromJson }}
+---
+apiVersion: cloudfunctions2.gcp.hfl.dev/v1beta1
+kind: CloudFunctions2Function
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "function" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $fn | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $v.kms_key }}
+  kmsKeyName: {{ . | quote }}
+  {{- end }}
+  buildConfig:
+    {{- with $v.build_service_account }}
+    serviceAccount: {{ . | quote }}
+    {{- end }}
+    {{- with $v.build_worker_pool }}
+    workerPool: {{ . | quote }}
+    {{- end }}
+    {{- with $fc.runtime }}
+    runtime: {{ . | quote }}
+    {{- end }}
+    {{- with $fc.entry_point }}
+    entryPoint: {{ . | quote }}
+    {{- end }}
+    {{- with $v.build_environment_variables }}
+    environmentVariables:
+      {{- range $k, $x := . }}
+      {{ $k | quote }}: {{ $x | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.docker_repository_id }}
+    dockerRepository: {{ . | quote }}
+    {{- end }}
+    {{- if $fc.automatic_update_policy }}
+    automaticUpdatePolicy: {}
+    {{- end }}
+    {{- if $fc.on_deploy_update_policy }}
+    onDeployUpdatePolicy: {}
+    {{- end }}
+    source:
+      storageSource:
+        bucket: {{ $bucket | quote }}
+        object: {{ regexReplaceAll "^gs://[^/]+/" $path "" | quote }}
+  {{- with $v.trigger_config }}
+  eventTrigger:
+    eventType: {{ .event_type | quote }}
+    {{- with .pubsub_topic }}
+    pubsubTopic: {{ . | quote }}
+    {{- end }}
+    triggerRegion: {{ .region | default $v.region | quote }}
+    {{- with .event_filters }}
+    eventFilters:
+      {{- range . }}
+      - attribute: {{ .attribute | quote }}
+        value: {{ .value | quote }}
+        {{- with .operator }}
+        operator: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- with $triggerEmail }}
+    serviceAccountEmail: {{ . | quote }}
+    {{- end }}
+    retryPolicy: {{ .retry_policy | default "RETRY_POLICY_DO_NOT_RETRY" | quote }}
+  {{- end }}
+  serviceConfig:
+    allTrafficOnLatestRevision: true
+    {{- with $fc.cpu }}
+    availableCpu: {{ . | quote }}
+    {{- end }}
+    availableMemory: {{ printf "%vM" ($fc.memory_mb | default 256) | quote }}
+    {{- with $fc.binary_authorization_policy }}
+    binaryAuthorizationPolicy: {{ . | quote }}
+    {{- end }}
+    {{- with $v.environment_variables }}
+    environmentVariables:
+      {{- range $k, $x := . }}
+      {{ $k | quote }}: {{ $x | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.ingress_settings }}
+    ingressSettings: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $fc.instance_count) }}
+    maxInstanceCount: {{ int $fc.instance_count }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $fc.max_instance_request_concurrency) }}
+    maxInstanceRequestConcurrency: {{ int $fc.max_instance_request_concurrency }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $fc.min_instance_count) }}
+    minInstanceCount: {{ int $fc.min_instance_count }}
+    {{- end }}
+    {{- with $saEmail }}
+    serviceAccountEmail: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $fc.timeout_seconds) }}
+    timeoutSeconds: {{ int $fc.timeout_seconds }}
+    {{- end }}
+    {{- if $v.vpc_connector_create }}
+    vpcConnector: {{ printf "projects/%s/locations/%s/connectors/%s" $v.project_id $v.region (include "cloudFunctionV2.vpcConnector" .) | quote }}
+    {{- else }}
+    {{- with ($v.vpc_connector | default dict).name }}
+    vpcConnector: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    {{- with ($v.vpc_connector | default dict).egress_settings }}
+    vpcConnectorEgressSettings: {{ . | quote }}
+    {{- end }}
+    {{- with $v.direct_vpc_egress }}
+    directVpcEgress: {{ .mode | quote }}
+    directVpcNetworkInterface:
+      - network: {{ .network | quote }}
+        subnetwork: {{ .subnetwork | quote }}
+        {{- with .tags }}
+        tags: {{ toJson . }}
+        {{- end }}
+    {{- end }}
+    {{- $envSecrets := list }}{{ $volSecrets := list }}
+    {{- range $k := keys ($v.secrets | default dict) | sortAlpha }}
+    {{- $s := index $v.secrets $k }}
+    {{- if $s.is_volume }}{{ $volSecrets = append $volSecrets $k }}{{ else }}{{ $envSecrets = append $envSecrets $k }}{{ end }}
+    {{- end }}
+    {{- with $envSecrets }}
+    secretEnvironmentVariables:
+      {{- range $k := . }}
+      {{- $s := index $v.secrets $k }}
+      - key: {{ $k | quote }}
+        projectId: {{ $s.project_id | quote }}
+        secret: {{ $s.secret | quote }}
+        version: {{ (first $s.versions) | default "latest" | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $volSecrets }}
+    secretVolumes:
+      {{- range $k := . }}
+      {{- $s := index $v.secrets $k }}
+      - mountPath: {{ $k | quote }}
+        projectId: {{ $s.project_id | quote }}
+        secret: {{ $s.secret | quote }}
+        {{- with $s.versions }}
+        versions:
+          {{- range $ver := . }}
+          {{- $parts := splitList ":" $ver }}
+          {{- if ne (len $parts) 2 }}
+          {{- fail (printf "cloud-function-v2: secrets.%s.versions %q must be version:path" $k $ver) }}
+          {{- end }}
+          - version: {{ index $parts 0 | quote }}
+            path: {{ index $parts 1 | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- with $cloudLabels }}
+  {{- /* config-connector-extensions' kinds take their cloud labels from
+  spec.labels: the unprefixed ones of the chart's tags and labels. */}}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+{{- $iam := $v.iam | default dict }}
+{{- range $role := keys $iam | sortAlpha }}
+{{- if ne $role "roles/run.invoker" }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam" $role)) "id" (printf "iam:%s" $role)) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: cloudfunctions2.gcp.hfl.dev/v1beta1
+    kind: CloudFunctions2Function
+    name: {{ $.Release.Name }}
+  role: {{ $role | quote }}
+  members:
+    {{- range $m := (index $iam $role | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- $runService := printf "projects/%s/locations/%s/services/%s" $v.project_id $v.region $fn }}
+{{- $triggerCreate := include "cloudFunctionV2.triggerCreate" . }}
+{{- if hasKey $iam "roles/run.invoker" }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "invoker")) "id" "invoker") | nindent 2 }}
+spec:
+  resourceRef:
+    kind: RunService
+    external: {{ $runService | quote }}
+  role: roles/run.invoker
+  {{- with (index $iam "roles/run.invoker" | uniq | sortAlpha) }}
+  members:
+    {{- range $m := . }}
+    - {{ $m | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if $triggerCreate }}
+  membersFrom:
+    - serviceAccountRef:
+        name: {{ include "kcc.name" (list .Release.Name "trigger") }}
+  {{- end }}
+{{- else if $triggerCreate }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "invoker")) "id" "invoker") | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: run.cnrm.cloud.google.com/v1beta1
+    kind: RunService
+    external: {{ $runService | quote }}
+  role: roles/run.invoker
+  memberFrom:
+    serviceAccountRef:
+      name: {{ include "kcc.name" (list .Release.Name "trigger") }}
+{{- end }}
+{{- if $triggerCreate }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "trigger")) "id" "trigger_service_account" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "cloudFunctionV2.triggerServiceAccount" . | quote }}
+  displayName: {{ printf "Terraform trigger for Cloud Function %s." $v.name | quote }}
+{{- end }}
