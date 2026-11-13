@@ -19,12 +19,13 @@
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
-# avm-res-network-azurefirewall)
+# avm-res-network-azurefirewall,
+# avm-res-sql-server)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw sql)
 # applies only those; the default is all but cog, vm and asp (asp: the
 # sandbox has no App Service quota, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
@@ -79,7 +80,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw sql}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -204,7 +205,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
     serverfarms.web.azure.com \
-    azurefirewalls.network.azure.com; do
+    azurefirewalls.network.azure.com \
+    servers.sql.azure.com serversdatabases.sql.azure.com serversfirewallrules.sql.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -621,6 +623,28 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
+# The smallest Azure SQL server: Entra-only authentication (the chart takes
+# no password), the live identity itself as its Entra administrator (a
+# login on this server, not an Azure role assignment; its object ID is the
+# oid of the identity's own token, as the psql case's), one Basic database
+# (5 DTUs, about 0.007 USD an hour) with locally redundant backups, and a
+# firewall rule for one documentation address (TEST-NET-3).
+# The region is AZURE_LIVE_SQL_LOCATION, else centralus: eastus2 refuses
+# Azure SQL servers for the sandbox subscription ("Provisioning is
+# restricted in this region", 2026-11-13; the chart's README).
+cat >"${WORK}/sql.yaml" <<EOF
+name: ${RUN}-sql
+location: ${AZURE_LIVE_SQL_LOCATION:-centralus}
+resource_group_name: ${RG}
+server_version: "12.0"
+public_network_access_enabled: true
+azuread_administrator: {azuread_authentication_only: true, login_username: aso-extensions-live-tests, object_id: ${SP_OID}, tenant_id: ${AZURE_TENANT_ID}}
+tags: {catalog-run: ${RUN}}
+databases:
+  app: {name: app, sku_name: Basic, storage_account_type: Local, tags: {catalog-run: ${RUN}}}
+firewall_rules:
+  doc: {start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.10}
+EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
 declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
@@ -749,7 +773,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
-    afw:avm-res-network-azurefirewall; do
+    afw:avm-res-network-azurefirewall \
+    sql:avm-res-sql-server; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -813,7 +838,10 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     outputs_ok=no
   fi
   echo "-- outputs (${outputs_ok})"; cat "${OUT}/${chart}/outputs.json" "${OUT}/${chart}/outputs.err"
-  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
+  # --ignore-not-found: deleting an owner lets Kubernetes collect the
+  # children ASO gave it as owner references, which can go before
+  # kubectl reaches them in the file (the fake cloud deletes fast).
+  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false --ignore-not-found >/dev/null
   # Until every object is gone (kubectl get -f fails as soon as one is),
   # then what the case needed first.
   wait_gone "${limit}" "${objects[@]}"
@@ -823,7 +851,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))
-    msg="$(cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
+    # pre-live.json exists only for a case with prerequisites: cat fails
+    # without it, which pipefail and errexit would make fatal.
+    msg="$({ cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null || true; } | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then
