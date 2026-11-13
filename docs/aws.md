@@ -706,6 +706,20 @@ store that does not reach EC2 (ack-extensions' `docs/aws-emulator.md`): a
 Cloud Control object Ready on the emulator proves the chart's wiring and
 the references' resolution, not that EC2 made the association.
 
+The fake-AWS run of the three charts with these kinds (offload VM
+`off-catalog-1113031213-4415`, 2026-11-13, ack-extensions `2cdca6c`, AWS
+Emulator then moto) did **not** pass: every ACK object synced and was
+deleted, but no Cloud Control object became Ready on either fake, though
+a CloudControlContext in each chart's namespace was Ready and its manager
+ran. `VPCBlockPublicAccessExclusion` and `SecurityGroupVpcAssociation`
+never got a status at all (nothing reconciled them; the vpc chart's
+`vpc_block_public_access_exclusions` output then fails, "no such key:
+status"); `EIPAssociation` reconciled on the emulator but stayed "Unable to
+determine if desired resource state matches latest observed state" and was
+not deleted. The run keeps no log of the Cloud Control manager (it runs in
+`ack-extensions-system`), so the cause is open: an ack-extensions question.
+Until it is settled these three features are proven by render tests only.
+
 Gaps the charts found, for ack-extensions (beyond section 5):
 
 | Gap | Needed by | Shape |
