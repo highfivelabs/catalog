@@ -1,0 +1,27 @@
+# Every value the chart carries on a partner attachment without IPsec:
+# disabled, MTU 1440, a router with keepalive and custom advertisements,
+# and route policies (allow_alpha). bgp_peer is accepted and, as in fabric,
+# unused without a dedicated attachment.
+allow_alpha: true
+project_id: my-project
+region: europe-west8
+network: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-network
+name: vlan-full
+description: full
+admin_enabled: false
+mtu: 1440
+peer_asn: 65000
+bgp_peer: {custom_advertise: {all_subnets: true, ip_ranges: {}}}
+partner_interconnect_config: {edge_availability_domain: AVAILABILITY_DOMAIN_ANY}
+router_config:
+  asn: 16550
+  name: my-router
+  keepalive: 20
+  custom_advertise: {all_subnets: true, ip_ranges: {10.0.0.0/8: all}}
+  route_policies:
+    import:
+      type: IMPORT
+      terms:
+        - priority: 1
+          match: {expression: "destination == '10.0.0.0/8'", title: t, description: d, location: l}
+          actions: [{expression: "drop()"}]

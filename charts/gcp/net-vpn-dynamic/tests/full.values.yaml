@@ -1,0 +1,28 @@
+# Every value the chart carries: a given address, a named router with
+# keepalive and custom advertisements, and import and export route
+# policies (allow_alpha).
+allow_alpha: true
+project_id: my-project
+region: europe-west1
+network: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-network
+name: vpn-full
+gateway_address_create: false
+gateway_address: 34.1.2.3
+router_config:
+  asn: 64514
+  name: my-router
+  keepalive: 30
+  custom_advertise: {all_subnets: true, ip_ranges: {10.0.0.0/8: all}}
+  route_policies:
+    import-onprem:
+      type: IMPORT
+      terms:
+        - priority: 1
+          match: {expression: "destination == '10.0.0.0/8'", title: onprem, description: on-premises range, location: here}
+          actions: [{expression: "drop()", title: drop}]
+    export-all:
+      type: EXPORT
+      terms:
+        - priority: 0
+          match: {expression: "true"}
+          actions: [{expression: "accept()"}]
