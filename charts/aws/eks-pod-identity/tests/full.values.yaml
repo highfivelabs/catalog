@@ -1,0 +1,40 @@
+# Every ported feature: trust conditions and an extra trust statement, a
+# custom policy from a source document, statements and an override, merged
+# by Sid; policy ARNs beside it (so the custom policy is attached by its
+# ARN, built from account_id); the role's options; two associations taking
+# defaults; a region and ABANDON.
+name: full
+region: us-west-2
+account_id: "111122223333"
+path: /eks/
+description: Pod identity for the app
+max_session_duration: 7200
+permissions_boundary_arn: arn:aws:iam::111122223333:policy/boundary
+trust_policy_conditions:
+  - {test: StringEquals, variable: "aws:SourceAccount", values: ["111122223333"]}
+trust_policy_statements:
+  - sid: Ci
+    actions: ["sts:AssumeRole"]
+    principals: [{type: AWS, identifiers: ["arn:aws:iam::111122223333:role/ci"]}]
+source_policy_documents:
+  - '{"Version": "2012-10-17", "Statement": [{"Sid": "Read", "Effect": "Allow", "Action": "s3:GetObject", "Resource": "*"}, {"Sid": "Keep", "Effect": "Allow", "Action": "sqs:SendMessage", "Resource": "*"}]}'
+policy_statements:
+  - sid: Read
+    actions: ["s3:GetObject"]
+    resources: ["arn:aws:s3:::app/*"]
+    condition: [{test: StringEquals, variable: "s3:ExistingObjectTag/team", values: ["app"]}]
+override_policy_documents:
+  - '{"Version": "2012-10-17", "Statement": [{"Sid": "Keep", "Effect": "Deny", "Action": "sqs:SendMessage", "Resource": "*"}]}'
+attach_custom_policy: true
+custom_policy_description: The app's policy
+additional_policy_arns:
+  readonly: arn:aws:iam::aws:policy/ReadOnlyAccess
+association_defaults:
+  cluster_name: prod
+  namespace: app
+  tags: {Default: "yes"}
+associations:
+  web: {service_account: web, tags: {Tier: web}}
+  worker: {service_account: worker, namespace: jobs, disable_session_tags: true, target_role_arn: "arn:aws:iam::444455556666:role/target"}
+tags: {Environment: prod}
+deletion_policy: ABANDON

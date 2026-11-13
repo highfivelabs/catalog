@@ -1,0 +1,21 @@
+# Applied to the fake AWS by hack/mock-apply-aws.sh: a state machine of Pass
+# states logging ALL to the log group the chart makes (its ARN built from
+# the fake's account, tests/mock.set.yaml), traced with X-Ray, its role with
+# the X-Ray and Lambda integration policies, a statement policy and the
+# CloudWatch Logs delivery policy.
+name: catalog-sfn
+region: us-east-1
+account_id: "000000000000"
+definition: '{"StartAt": "Hello", "States": {"Hello": {"Type": "Pass", "Result": "Hello", "Next": "World"}, "World": {"Type": "Pass", "Result": "World", "End": true}}}'
+logging_configuration: {level: ALL, include_execution_data: "true"}
+cloudwatch_log_group_retention_in_days: 7
+service_integrations:
+  xray: {xray: true}
+  lambda:
+    lambda: ["arn:aws:lambda:us-east-1:000000000000:function:catalog-none"]
+attach_policy_statements: true
+policy_statements:
+  sqs:
+    actions: ["sqs:SendMessage"]
+    resources: ["*"]
+tags: {catalog-test: "true"}

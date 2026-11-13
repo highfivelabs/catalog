@@ -1,0 +1,107 @@
+---
+# Source: geap-agent-runtime/templates/agent-managed.yaml
+apiVersion: aiplatform.gcp.hfl.dev/v1beta1
+kind: AIPlatformReasoningEngine
+metadata:
+  name: environment
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "environment"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "agent"
+    cnrm.cloud.google.com/project-id: "project-id"
+spec:
+  projectRef:
+    external: "project-id"
+  location: "europe-west8"
+  displayName: "my-agent"
+  description: "Terraform managed."
+  encryptionSpec:
+    kmsKeyRef:
+      external: "projects/project-id/locations/europe-west8/keyRings/my-keyring/cryptoKeys/my-key"
+  spec:
+    agentFramework: "google-adk"
+    serviceAccountRef:
+      name: environment-sa
+    deploymentSpec:
+      env:
+        - name: "FOO"
+          value: "bar"
+      secretEnv:
+        - name: "MY_SECRET"
+          secretRef:
+            secretRef:
+              external: "projects/project-id/secrets/my-secret"
+            versionRef:
+              external: "projects/project-id/secrets/my-secret/versions/latest"
+        - name: "SHORT"
+          secretRef:
+            secretRef:
+              external: "projects/project-id/secrets/other-secret"
+            versionRef:
+              external: "projects/project-id/secrets/other-secret/versions/2"
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: environment-sa-roles-aiplatform-user-86a05c82
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "environment"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-member-sa:roles/aiplatform.user"
+    cnrm.cloud.google.com/project-id: "project-id"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/project-id"
+  role: "roles/aiplatform.user"
+  memberFrom:
+    serviceAccountRef:
+      name: environment-sa
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: environment-sa-roles-storage-objectviewer-889b061e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "environment"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-member-sa:roles/storage.objectViewer"
+    cnrm.cloud.google.com/project-id: "project-id"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/project-id"
+  role: "roles/storage.objectViewer"
+  memberFrom:
+    serviceAccountRef:
+      name: environment-sa
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: environment-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "environment"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "project-id"
+spec:
+  resourceID: my-agent
+  displayName: "my-agent"

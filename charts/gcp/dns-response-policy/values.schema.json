@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dns-response-policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id"
+  ],
+  "definitions": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dns_name"
+      ],
+      "properties": {
+        "dns_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The DNS name (wildcard or exact) the rule applies to."
+        },
+        "behavior": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Used when local_data is empty (default bypassResponsePolicy)."
+        },
+        "local_data": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Record type => {ttl, rrdatas}. Takes precedence over behavior.",
+          "propertyNames": {
+            "enum": [
+              "A",
+              "AAAA",
+              "CAA",
+              "CNAME",
+              "DNSKEY",
+              "DS",
+              "HTTPS",
+              "IPSECVPNKEY",
+              "MX",
+              "NAPTR",
+              "NS",
+              "PTR",
+              "SOA",
+              "SPF",
+              "SRV",
+              "SSHFP",
+              "SVCB",
+              "TLSA",
+              "TXT"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ttl": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "rrdatas": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"): policy, the response policy's name. A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-zA-Z0-9]([-a-zA-Z0-9]*[a-zA-Z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the policy's name (unless set under names) and every rule's. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label on the response policy.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on the response policy (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "clusters": {
+      "description": "Map of GKE clusters to which this policy is applied in name => id format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "context": {
+      "description": "Context-specific interpolations (addresses, dns_names, networks, project_ids). Refused when set (use Bundt expressions).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "description": {
+      "description": "Policy description.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "factories_config": {
+      "description": "Path to the rules data file for the optional factory. Accepted and ignored; the file's contents go under factories_data.rules.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "name": {
+      "description": "Policy name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "networks": {
+      "description": "Map of VPC self links to which this policy is applied in name => self link format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "policy_create": {
+      "description": "Set to false to use the existing policy matching name and only manage rules.",
+      "type": "boolean"
+    },
+    "project_id": {
+      "description": "Project id for the zone.",
+      "type": "string",
+      "minLength": 1
+    },
+    "rules": {
+      "description": "Map of policy rules in name => rule format. Local data takes precedence over behavior and is in the form record type => attributes.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/rule"
+      }
+    },
+    "factories_data": {
+      "description": "The factory's file as data (not a Terraform variable): rules is the rules file's content.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/definitions/rule"
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

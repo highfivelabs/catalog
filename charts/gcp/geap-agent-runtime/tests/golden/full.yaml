@@ -1,0 +1,167 @@
+---
+# Source: geap-agent-runtime/templates/agent-managed.yaml
+apiVersion: aiplatform.gcp.hfl.dev/v1beta1
+kind: AIPlatformReasoningEngine
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "x1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "agent"
+    cnrm.cloud.google.com/project-id: "project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "project-id"
+  location: "europe-west8"
+  displayName: "my-agent"
+  description: "An agent."
+  encryptionSpec:
+    kmsKeyRef:
+      external: "projects/project-id/locations/europe-west8/keyRings/my-keyring/cryptoKeys/my-key"
+  labels:
+    cost-center: "x1"
+    env: "test"
+  spec:
+    agentFramework: "langgraph"
+    serviceAccountRef:
+      name: full-sa
+    deploymentSpec:
+      containerConcurrency: 4
+      maxInstances: 3
+      minInstances: 0
+      resourceLimits:
+        cpu: "2"
+        memory: "4Gi"
+      env:
+        - name: "A"
+          value: "1"
+        - name: "B"
+          value: "two"
+      pscInterfaceConfig:
+        networkAttachmentRef:
+          external: "projects/project-id/regions/europe-west8/networkAttachments/nat"
+        dnsPeeringConfigs:
+          - domain: "example.com."
+            targetNetworkRef:
+              external: "projects/host-project/global/networks/net-a"
+            targetProjectRef:
+              external: "host-project"
+          - domain: "internal."
+            targetNetworkRef:
+              external: "projects/host-project/global/networks/net-b"
+            targetProjectRef:
+              external: "project-id"
+      secretEnv:
+        - name: "TOKEN"
+          secretRef:
+            secretRef:
+              external: "projects/project-id/secrets/token"
+            versionRef:
+              external: "projects/project-id/secrets/token/versions/3"
+    packageSpec:
+      pythonVersion: "3.12"
+      dependencyFilesGCSURI: "gs://b/dependencies.tar.gz"
+      requirementsGCSURI: "gs://b/requirements.txt"
+      pickleObjectGCSURI: "gs://b/pickle.pkl"
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sa-roles-aiplatform-user-cb5fe3df
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "x1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "iam-member-sa:roles/aiplatform.user"
+    cnrm.cloud.google.com/project-id: "project-id"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/project-id"
+  role: "roles/aiplatform.user"
+  memberFrom:
+    serviceAccountRef:
+      name: full-sa
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sa-roles-logging-logwriter-35fbd78d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "x1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "iam-member-sa:roles/logging.logWriter"
+    cnrm.cloud.google.com/project-id: "project-id"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/project-id"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: full-sa
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: full-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "x1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: agent-runtime
+  displayName: "Agent runtime"
+---
+# Source: geap-agent-runtime/templates/main.yaml
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  name: full-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "x1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-agent-staging"
+  location: "europe-west8"
+  uniformBucketLevelAccess: false

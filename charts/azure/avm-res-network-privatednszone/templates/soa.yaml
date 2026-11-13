@@ -1,0 +1,36 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-privatednszone main.tf
+(v0.6.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_update_resource.private_dns_zone_soa_record
+(Microsoft.Network/privateDnsZones/SOA@2024-06-01): an aso-extensions
+PrivateDnsZonesSOARecord (network.azure.hfl.dev/v20240601), owned by the
+zone, with the soaRecord and ttl the module sends and its defaults. Azure
+makes the zone's SOA record set with the zone; the object updates it, and
+deleting the object leaves it (the kind's own Deleter), as the module's
+update resource does. The host and serial number stay Azure's.
+*/ -}}
+{{- $v := .Values }}
+{{- with $v.soa_record }}
+{{- if not .email }}{{ fail "avm-res-network-privatednszone: soa_record.email is required" }}{{ end }}
+{{- if contains "@" .email }}{{ fail "avm-res-network-privatednszone: soa_record.email must use username.corp.com, not username@corp.com" }}{{ end }}
+{{- $abandon := include "aso.abandon" $ }}
+---
+apiVersion: network.azure.hfl.dev/v20240601
+kind: PrivateDnsZonesSOARecord
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "soa")) "id" "soa_record" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ .name | default "@" | quote }}
+  owner:
+    name: {{ include "aso.name" (list $.Release.Name "zone") }}
+  soaRecord:
+    email: {{ .email | quote }}
+    expireTime: {{ ternary 2419200 .expire_time (kindIs "invalid" .expire_time) | int }}
+    minimumTtl: {{ ternary 10 .minimum_ttl (kindIs "invalid" .minimum_ttl) | int }}
+    refreshTime: {{ ternary 3600 .refresh_time (kindIs "invalid" .refresh_time) | int }}
+    retryTime: {{ ternary 300 .retry_time (kindIs "invalid" .retry_time) | int }}
+  ttl: {{ ternary 3600 .ttl (kindIs "invalid" .ttl) | int }}
+{{- end }}

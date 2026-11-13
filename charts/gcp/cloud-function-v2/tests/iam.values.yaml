@@ -1,0 +1,16 @@
+# fabric's "Controlling HTTP access" example, plus a role on the function
+# and a trigger account the chart creates: roles/run.invoker binds the
+# listed members and the trigger account on the Cloud Run service.
+project_id: my-project
+region: europe-west1
+name: test-cf-http
+bucket_name: my-bucket
+bundle_config: {path: "gs://my-bucket/bundles/function.zip"}
+iam:
+  roles/run.invoker: ["allUsers"]
+  roles/cloudfunctions.viewer: ["group:viewers@example.org"]
+trigger_config:
+  event_type: google.cloud.storage.object.v1.finalized
+  event_filters:
+    - {attribute: bucket, value: my-uploads}
+  service_account_create: true

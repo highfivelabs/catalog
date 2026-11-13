@@ -1,0 +1,249 @@
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: zonal-neg-bs-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-default"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP"
+  healthChecks:
+    - healthCheckRef:
+        name: zonal-neg-hc-default
+  backend:
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: zonal-neg-neg-my-neg-ew1
+      maxRatePerEndpoint: 1
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: zonal-neg-neg-my-neg-ew4
+      maxRatePerEndpoint: 1
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: zonal-neg-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-europe-west1"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+  target:
+    targetHTTPProxyRef:
+      name: zonal-neg
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: zonal-neg-fr-europe-west4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west4"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-europe-west4"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+  target:
+    targetHTTPProxyRef:
+      name: zonal-neg
+---
+# Source: net-lb-app-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: zonal-neg-hc-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-default"
+  location: global
+  description: "Terraform managed."
+  httpHealthCheck:
+    portSpecification: USE_SERVING_PORT
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: zonal-neg-ep-my-neg-ew1-e-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:my-neg-ew1-e-0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  networkEndpointGroupRef:
+    name: zonal-neg-neg-my-neg-ew1
+  zone: "europe-west1-b"
+  ipAddress: "10.0.0.10"
+  instanceRef:
+    external: "test-ew1"
+  resourceID: "80"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: zonal-neg-ep-my-neg-ew4-e-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:my-neg-ew4-e-0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  networkEndpointGroupRef:
+    name: zonal-neg-neg-my-neg-ew4
+  zone: "europe-west4-b"
+  ipAddress: "10.0.0.11"
+  instanceRef:
+    external: "test-ew4"
+  resourceID: "80"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: zonal-neg-neg-my-neg-ew1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:my-neg-ew1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-my-neg-ew1"
+  location: "europe-west1-b"
+  description: "Terraform managed."
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: zonal-neg-neg-my-neg-ew4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:my-neg-ew4"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-my-neg-ew4"
+  location: "europe-west4-b"
+  description: "Terraform managed."
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetHTTPProxy
+metadata:
+  name: zonal-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test"
+  location: global
+  description: "Terraform managed."
+  urlMapRef:
+    name: zonal-neg
+---
+# Source: net-lb-app-int-cross-region/templates/urlmap.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeURLMap
+metadata:
+  name: zonal-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "zonal-neg"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "url_map"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test"
+  location: global
+  description: "Terraform managed."
+  defaultService:
+    backendServiceRef:
+      name: zonal-neg-bs-default

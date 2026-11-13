@@ -1,0 +1,55 @@
+# Every variable the chart carries.
+project_id: my-project
+name: ci
+location: us-central1
+annotations: {owner: platform}
+disabled: true
+deletion_policy: ABANDON
+allow_alpha: true
+labels: {env: test}
+connection_config:
+  gitlab:
+    host_uri: https://gitlab.example.com
+    webhook_secret_secret_version: projects/my-project/secrets/webhook/versions/1
+    read_authorizer_credential_secret_version: projects/my-project/secrets/read/versions/2
+    authorizer_credential_secret_version: projects/my-project/secrets/api/versions/3
+    service: projects/my-project/locations/us-central1/namespaces/ns/services/gitlab
+    ssl_ca: "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+repositories:
+  app:
+    remote_uri: https://gitlab.example.com/team/app.git
+    annotations: {team: app}
+    triggers:
+      main:
+        description: Build main.
+        push: {branch: ^main$, invert_regex: "false"}
+        filename: ci/cloudbuild.yaml
+        include_build_logs: INCLUDE_BUILD_LOGS_WITH_STATUS
+        substitutions: {_ENV: prod}
+        service_account: projects/my-project/serviceAccounts/builder@my-project.iam.gserviceaccount.com
+        tags: [app, main]
+      tags:
+        push: {tag: ^v.*, invert_regex: true}
+        filename: ci/release.yaml
+        disabled: true
+      pr:
+        pull_request: {branch: .*, invert_regex: "true", comment_control: COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY}
+        filename: ci/pr.yaml
+        approval_required: true
+  lib:
+    remote_uri: https://gitlab.example.com/team/lib.git
+iam:
+  roles/cloudbuild.connectionViewer: ["group:viewers@example.com"]
+  roles/cloudbuild.connectionAdmin: ["group:admins@example.com"]
+iam_by_principals:
+  "group:viewers@example.com": [roles/cloudbuild.connectionViewer]
+  "user:ops@example.com": [roles/cloudbuild.readTokenAccessor, roles/cloudbuild.connectionViewer]
+iam_bindings:
+  conditional:
+    role: roles/cloudbuild.tokenAccessor
+    members: ["serviceAccount:builder@my-project.iam.gserviceaccount.com"]
+    condition: {title: dropped, expression: "request.time < timestamp('2030-01-01T00:00:00Z')"}
+iam_bindings_additive:
+  one:
+    role: roles/cloudbuild.connectionViewer
+    member: "user:one@example.com"

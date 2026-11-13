@@ -1,0 +1,108 @@
+---
+# Source: net-lb-proxy-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-bs"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: TCP
+  healthChecks:
+    - healthCheckRef:
+        name: names
+  sessionAffinity: "NONE"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: names-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-europe-west1"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+  target:
+    targetTCPProxyRef:
+      name: names
+---
+# Source: net-lb-proxy-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-hc"
+  location: global
+  description: "Terraform managed."
+  tcpHealthCheck:
+    portSpecification: USE_SERVING_PORT
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetTCPProxy
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-tp"
+  location: global
+  description: "Terraform managed."
+  backendServiceRef:
+    name: names

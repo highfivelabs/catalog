@@ -1,0 +1,191 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric
+modules/net-lb-app-int-cross-region/urlmap.tf (v60.0.0), Copyright 2026
+Google LLC, Apache-2.0.
+
+google_compute_url_map.default: one global ComputeURLMap, named name. A
+service anywhere in urlmap_config is the key of one of the chart's backend
+services, or an existing backend service's ID or self link (fabric's
+lookup(local.backend_ids, ...)); a test's service is taken as given, as
+fabric takes it.
+*/ -}}
+{{- $v := .Values }}
+{{- $u := .Values.urlmap_config }}
+{{- if kindIs "invalid" $u }}{{ $u = dict "default_service" "default" }}{{ end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeURLMap
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "url_map" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "urlMap" "URL map" $v.name 63 "letter") | quote }}
+  location: global
+  description: {{ ternary "Terraform managed." $u.description (kindIs "invalid" $u.description) | quote }}
+  {{- with $u.default_service }}
+  defaultService:
+    backendServiceRef:
+      {{- include "netlbaxr.bsRef" (list $ .) | trim | nindent 6 }}
+  {{- end }}
+  {{- with $u.default_url_redirect }}
+  defaultUrlRedirect:
+    {{- include "netlbaxr.redirect" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $u.default_route_action }}
+  defaultRouteAction:
+    {{- include "netlbaxr.routeAction" (list $ .) | trim | nindent 4 }}
+  {{- end }}
+  {{- with $u.header_action }}
+  headerAction:
+    {{- include "netlbaxr.headerAction" . | trim | nindent 4 }}
+  {{- end }}
+  {{- with $u.host_rules }}
+  hostRule:
+    {{- range . }}
+    - hosts: {{ toJson .hosts }}
+      pathMatcher: {{ .path_matcher | quote }}
+      {{- with .description }}
+      description: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $u.path_matchers }}
+  pathMatcher:
+    {{- range $name := keys . | sortAlpha }}
+    {{- $m := index $u.path_matchers $name }}
+    - name: {{ $name | quote }}
+      {{- with $m.description }}
+      description: {{ . | quote }}
+      {{- end }}
+      {{- with $m.default_service }}
+      defaultService:
+        backendServiceRef:
+          {{- include "netlbaxr.bsRef" (list $ .) | trim | nindent 10 }}
+      {{- end }}
+      {{- with $m.default_url_redirect }}
+      defaultUrlRedirect:
+        {{- include "netlbaxr.redirect" . | trim | nindent 8 }}
+      {{- end }}
+      {{- with $m.path_rules }}
+      pathRule:
+        {{- range $r := . }}
+        - paths: {{ toJson $r.paths }}
+          {{- with $r.service }}
+          service:
+            backendServiceRef:
+              {{- include "netlbaxr.bsRef" (list $ .) | trim | nindent 14 }}
+          {{- end }}
+          {{- with $r.route_action }}
+          routeAction:
+            {{- include "netlbaxr.routeAction" (list $ .) | trim | nindent 12 }}
+          {{- end }}
+          {{- with $r.url_redirect }}
+          urlRedirect:
+            {{- include "netlbaxr.redirect" . | trim | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $m.route_rules }}
+      routeRules:
+        {{- range $r := . }}
+        - priority: {{ int $r.priority }}
+          {{- with $r.service }}
+          service: {{ include "netlbaxr.bsID" (list $ .) | quote }}
+          {{- end }}
+          {{- with $r.header_action }}
+          headerAction:
+            {{- include "netlbaxr.headerAction" . | trim | nindent 12 }}
+          {{- end }}
+          {{- with $r.match_rules }}
+          matchRules:
+            {{- range $mr := . }}
+            {{- $pt := "" }}{{ with $mr.path }}{{ $pt = .type | default "prefix" }}{{ end }}
+            - ignoreCase: {{ eq (toString $mr.ignore_case) "true" }}
+              {{- if eq $pt "full" }}
+              fullPathMatch: {{ $mr.path.value | quote }}
+              {{- else if eq $pt "prefix" }}
+              prefixMatch: {{ $mr.path.value | quote }}
+              {{- else if eq $pt "regex" }}
+              regexMatch: {{ $mr.path.value | quote }}
+              {{- else if eq $pt "template" }}
+              pathTemplateMatch: {{ $mr.path.value | quote }}
+              {{- end }}
+              {{- with $mr.headers }}
+              headerMatches:
+                {{- range $h := . }}
+                {{- $ht := $h.type | default "present" }}
+                - headerName: {{ $h.name | quote }}
+                  invertMatch: {{ eq (toString $h.invert_match) "true" }}
+                  {{- if not (kindIs "invalid" $h.value) }}
+                  {{- if eq $ht "exact" }}
+                  exactMatch: {{ $h.value | quote }}
+                  {{- else if eq $ht "prefix" }}
+                  prefixMatch: {{ $h.value | quote }}
+                  {{- else if eq $ht "suffix" }}
+                  suffixMatch: {{ $h.value | quote }}
+                  {{- else if eq $ht "regex" }}
+                  regexMatch: {{ $h.value | quote }}
+                  {{- else if eq $ht "present" }}
+                  presentMatch: {{ eq (toString $h.value) "true" }}
+                  {{- end }}
+                  {{- end }}
+                  {{- if and (eq $ht "range") $h.range_value }}
+                  rangeMatch:
+                    rangeEnd: {{ int $h.range_value.end }}
+                    rangeStart: {{ int $h.range_value.start }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
+              {{- with $mr.metadata_filters }}
+              metadataFilters:
+                {{- range $f := . }}
+                - filterMatchCriteria: {{ ternary "MATCH_ALL" "MATCH_ANY" $f.match_all }}
+                  filterLabels:
+                    {{- range $ln := keys $f.labels | sortAlpha }}
+                    - name: {{ $ln | quote }}
+                      value: {{ index $f.labels $ln | quote }}
+                    {{- end }}
+                {{- end }}
+              {{- end }}
+              {{- with $mr.query_params }}
+              queryParameterMatches:
+                {{- range $q := . }}
+                {{- $qt := $q.type | default "present" }}
+                - name: {{ $q.name | quote }}
+                  {{- if eq $qt "exact" }}
+                  exactMatch: {{ $q.value | quote }}
+                  {{- else if eq $qt "regex" }}
+                  regexMatch: {{ $q.value | quote }}
+                  {{- else }}
+                  presentMatch: {{ eq (toString $q.value) "true" }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- with $r.route_action }}
+          routeAction:
+            {{- include "netlbaxr.routeAction" (list $ .) | trim | nindent 12 }}
+          {{- end }}
+          {{- with $r.url_redirect }}
+          urlRedirect:
+            {{- include "netlbaxr.redirect" . | trim | nindent 12 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $u.test }}
+  test:
+    {{- range $t := . }}
+    - host: {{ $t.host | quote }}
+      path: {{ $t.path | quote }}
+      service:
+        backendServiceRef:
+          external: {{ include "netlbaxr.link" $t.service | quote }}
+      {{- with $t.description }}
+      description: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}

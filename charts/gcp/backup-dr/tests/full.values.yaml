@@ -1,0 +1,45 @@
+# Every variable the chart carries: fabric's "extended options" vault
+# (without backup_retention_inheritance, which is refused), two plans with
+# every schedule field, and a management server on a network.
+project_id: my-project
+location: us-central1
+name: backup-vault
+vault_config:
+  access_restriction: WITHIN_ORGANIZATION
+  annotations: {key: value}
+  backup_minimum_enforced_retention_duration: 200000s
+  description: Backup Vault managed by Terraform IAC.
+  allow_missing: false
+  force_update: false
+  ignore_backup_plan_references: false
+  ignore_inactive_datasources: true
+  labels: {key: value}
+backup_plans:
+  instances:
+    resource_type: compute.googleapis.com/Instance
+    backup_rules:
+      - rule_id: weekly
+        backup_retention_days: 14
+        standard_schedule:
+          recurrence_type: WEEKLY
+          days_of_week: [MONDAY, THURSDAY]
+          time_zone: UTC
+          backup_window: {start_hour_of_day: 0, end_hour_of_day: 6}
+  disks:
+    resource_type: compute.googleapis.com/Disk
+    description: Disks.
+    backup_rules:
+      - rule_id: yearly
+        backup_retention_days: 400
+        standard_schedule:
+          recurrence_type: YEARLY
+          days_of_month: [1, 15]
+          months: [JANUARY, JULY]
+          time_zone: Europe/Berlin
+          backup_window: {start_hour_of_day: 2, end_hour_of_day: 8}
+management_server_config:
+  name: backup-ms
+  type: BACKUP_RESTORE
+  network_config:
+    network: projects/my-project/global/networks/default
+    peering_mode: PRIVATE_SERVICE_ACCESS
