@@ -1,0 +1,200 @@
+# Every variable the chart carries, with the URL map's route actions,
+# route rules, matches, header actions and tests.
+name: ilb-full
+project_id: my-project
+description: A cross-region internal ALB.
+labels: {env: test}
+addresses:
+  europe-west1: 10.0.1.10
+  europe-west4: projects/my-project/regions/europe-west4/addresses/ilb-ew4
+ports: ["8080"]
+protocol: HTTP
+http_proxy_config: {name: ilb-full-proxy, description: Proxy., http_keepalive_timeout: "600"}
+backend_service_configs:
+  default:
+    name: ilb-full-default
+    description: Default service.
+    affinity_cookie_ttl_sec: 60
+    connection_draining_timeout_sec: 30
+    health_checks: [default, projects/my-project/global/healthChecks/other]
+    locality_lb_policy: RING_HASH
+    log_config: {enable: true, sample_rate: 0.5}
+    port_name: http
+    session_affinity: HTTP_COOKIE
+    timeout_sec: 20
+    backends:
+      - group: ig
+        balancing_mode: UTILIZATION
+        capacity_scaler: 0.5
+        description: The group.
+        max_utilization: 0.8
+      - group: ig
+    circuit_breakers:
+      max_connections: 100
+      max_pending_requests: 10
+      max_requests: 1000
+      max_requests_per_connection: 5
+      max_retries: 3
+      connect_timeout: {seconds: 5, nanos: 100}
+    consistent_hash:
+      minimum_ring_size: 1024
+      http_cookie: {name: sticky, path: /, ttl: {seconds: 3600}}
+    iap_config: {oauth2_client_id: client-id, oauth2_client_secret: client-secret}
+    outlier_detection:
+      consecutive_errors: 5
+      consecutive_gateway_failure: 3
+      enforcing_consecutive_errors: 100
+      enforcing_consecutive_gateway_failure: 100
+      enforcing_success_rate: 100
+      max_ejection_percent: 50
+      success_rate_minimum_hosts: 5
+      success_rate_request_volume: 100
+      success_rate_stdev_factor: 1900
+      base_ejection_time: {seconds: 30}
+      interval: {seconds: 10, nanos: 0}
+  api:
+    backends:
+      - {group: neg-a, balancing_mode: RATE, max_rate: {per_endpoint: 10}}
+      - {group: neg-b, balancing_mode: RATE, max_rate: {per_group: 100}}
+    health_checks: [grpc]
+    protocol: HTTP2
+  mirror:
+    backends:
+      - {group: "projects/my-project/zones/europe-west1-b/networkEndpointGroups/other", balancing_mode: RATE, max_rate: {per_instance: 5}}
+    health_checks: []
+group_configs:
+  ig:
+    name: ilb-full-ig
+    description: An unmanaged group.
+    zone: europe-west1-b
+    instances: [projects/my-project/zones/europe-west1-b/instances/vm-a]
+    named_ports: {http: 80}
+    project_id: my-project
+health_check_configs:
+  default:
+    name: ilb-full-hc
+    description: HTTP check.
+    check_interval_sec: 10
+    healthy_threshold: 2
+    timeout_sec: 5
+    unhealthy_threshold: 3
+    enable_logging: true
+    http: {host: example.com, port_specification: USE_SERVING_PORT, proxy_header: NONE, request_path: /healthz, response: ok}
+  grpc:
+    grpc: {port: 9090, service_name: health}
+neg_configs:
+  neg-a:
+    project_id: my-project
+    gce:
+      zone: europe-west4-b
+      network: projects/my-project/global/networks/my-vpc
+      subnetwork: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
+      endpoints:
+        e1: {instance: vm-b, ip_address: 10.0.2.5, port: 8080}
+  neg-b:
+    cloudrun:
+      region: europe-west1
+      target_urlmask: /<service>
+  neg-c:
+    psc: {region: europe-west1, target_service: europe-west1-cloudkms.googleapis.com, network: projects/my-project/global/networks/my-vpc, subnetwork: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1}
+urlmap_config:
+  description: The URL map.
+  default_route_action:
+    request_mirror_backend: mirror
+    cors_policy:
+      allow_credentials: true
+      allow_headers: [x-a]
+      allow_methods: [GET]
+      allow_origin_regexes: [".*\\.example\\.com"]
+      allow_origins: [https://example.com]
+      disabled: false
+      expose_headers: [x-b]
+      max_age: "3600"
+    fault_injection_policy:
+      abort: {percentage: 0.5, status: 503}
+      delay: {fixed: {seconds: 1, nanos: 0}, percentage: 1}
+    retry_policy:
+      num_retries: 2
+      retry_conditions: [5xx]
+      per_try_timeout: {seconds: 3}
+    timeout: {seconds: 30, nanos: 5}
+    url_rewrite: {host: rewritten.example.com, path_prefix: /v2}
+    weighted_backend_services:
+      default:
+        weight: 90
+        header_action:
+          request_add: {x-canary: {value: "no"}}
+          response_remove: [x-internal]
+      api:
+        weight: 10
+  header_action:
+    request_add: {x-lb: {value: ilb, replace: false}}
+    request_remove: [x-remove]
+    response_add: {x-served-by: {value: ilb}}
+    response_remove: [server]
+  host_rules:
+    - hosts: [api.example.com]
+      path_matcher: api
+      description: API hosts.
+    - hosts: [old.example.com]
+      path_matcher: redirect
+  path_matchers:
+    api:
+      description: API.
+      default_service: api
+      path_rules:
+        - paths: [/v1/*]
+          service: api
+          route_action:
+            timeout: {seconds: 10}
+            url_rewrite: {path_prefix: /}
+        - paths: [/old/*]
+          url_redirect: {host: new.example.com, https: false, path: /new, response_code: MOVED_PERMANENTLY_DEFAULT, strip_query: true}
+      route_rules:
+        - priority: 1
+          service: api
+          header_action:
+            request_add: {x-route: {value: "1"}}
+          match_rules:
+            - ignore_case: true
+              path: {value: /api/v1/users, type: full}
+              headers:
+                - {name: x-exact, type: exact, value: a}
+                - {name: x-prefix, type: prefix, value: b, invert_match: true}
+                - {name: x-suffix, type: suffix, value: c}
+                - {name: x-regex, type: regex, value: "d.*"}
+                - {name: x-present, type: present, value: "true"}
+                - {name: x-range, type: range, range_value: {start: "1", end: "10"}}
+              metadata_filters:
+                - labels: {env: prod}
+                  match_all: true
+              query_params:
+                - {name: q1, type: exact, value: v}
+                - {name: q2, type: regex, value: "v.*"}
+                - {name: q3, type: present, value: "true"}
+            - path: {value: /api/}
+            - path: {value: "/api/[a-z]+", type: regex}
+            - path: {value: "/api/{id=*}", type: template}
+          route_action:
+            url_rewrite: {path_template: "/{id}"}
+        - priority: 2
+          service: projects/my-project/global/backendServices/external
+          url_redirect: {prefix: /p}
+    redirect:
+      default_url_redirect: {host: new.example.com, https: false, strip_query: false}
+  test:
+    - {host: api.example.com, path: /v1/x, service: projects/my-project/global/backendServices/ilb-full-api, description: API test.}
+vpc_config:
+  network: projects/my-project/global/networks/my-vpc
+  subnetworks:
+    europe-west1: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+    europe-west4: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
+service_attachment:
+  automatic_connection: true
+  description: Published.
+  consumer_reject_lists: [bad-project]
+  enable_proxy_protocol: true
+  nat_subnets:
+    europe-west1: [projects/my-project/regions/europe-west1/subnetworks/psc-1]
+    europe-west4: [projects/my-project/regions/europe-west4/subnetworks/psc-2]
+deletion_policy: ABANDON

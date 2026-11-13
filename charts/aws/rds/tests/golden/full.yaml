@@ -1,0 +1,123 @@
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBInstance
+metadata:
+  name: full-db-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-instance"
+    services.k8s.aws/region: "eu-west-1"
+    rds.services.k8s.aws/delete-automated-backups: "false"
+    rds.services.k8s.aws/skip-final-snapshot: "true"
+spec:
+  dbInstanceIdentifier: "app"
+  dbInstanceClass: "db.m7g.large"
+  engine: "postgres"
+  engineVersion: "16.4"
+  allocatedStorage: 100
+  storageType: "gp3"
+  storageEncrypted: true
+  kmsKeyID: "arn:aws:kms:eu-west-1:111122223333:key/abc"
+  dbName: "app"
+  masterUsername: "app"
+  manageMasterUserPassword: true
+  masterUserSecretKMSKeyID: "arn:aws:kms:eu-west-1:111122223333:key/def"
+  port: 5432
+  enableIAMDatabaseAuthentication: false
+  vpcSecurityGroupIDs:
+    - "sg-0123456789abcdef0"
+  dbSubnetGroupName: "shared-db"
+  dbParameterGroupName: "app-pg16"
+  networkType: "DUAL"
+  multiAZ: true
+  iops: 12000
+  storageThroughput: 500
+  publiclyAccessible: false
+  caCertificateIdentifier: "rds-ca-rsa2048-g1"
+  autoMinorVersionUpgrade: false
+  preferredMaintenanceWindow: "sun:04:00-sun:05:00"
+  copyTagsToSnapshot: false
+  performanceInsightsEnabled: true
+  performanceInsightsRetentionPeriod: 31
+  backupRetentionPeriod: 14
+  preferredBackupWindow: "02:00-03:00"
+  maxAllocatedStorage: 500
+  monitoringInterval: 60
+  monitoringRoleARN: "arn:aws:iam::111122223333:role/rds-monitoring"
+  databaseInsightsMode: "advanced"
+  enableCloudwatchLogsExports:
+    - "postgresql"
+    - "upgrade"
+  deletionProtection: false
+  tags:
+    - key: "team"
+      value: "shop"
+    - key: "tier"
+      value: "data"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.aws.hfl.dev/v1alpha1
+kind: DBRoleAssociation
+metadata:
+  name: full-role-association-s3import-dd939dac
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-association-s3Import"
+    services.k8s.aws/region: "eu-west-1"
+spec:
+  dbInstanceRef:
+    from:
+      name: full-db-instance
+  featureName: "s3Import"
+  roleARN: "arn:aws:iam::111122223333:role/rds-s3"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+  name: full-log-postgresql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "log-group-postgresql"
+    services.k8s.aws/region: "eu-west-1"
+    services.k8s.aws/deletion-policy: "retain"
+spec:
+  name: "/aws/rds/instance/app/postgresql"
+  retentionDays: 30
+  tags:
+    "logs": "yes"
+    "team": "shop"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+  name: full-log-upgrade
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "log-group-upgrade"
+    services.k8s.aws/region: "eu-west-1"
+    services.k8s.aws/deletion-policy: "retain"
+spec:
+  name: "/aws/rds/instance/app/upgrade"
+  retentionDays: 30
+  tags:
+    "logs": "yes"
+    "team": "shop"

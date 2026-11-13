@@ -1,0 +1,92 @@
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+kind: CloudBuildConnection
+metadata:
+  name: bitbucket-cloud
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "bitbucket-cloud"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "connection"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "my-connection"
+  disabled: false
+  bitbucketCloudConfig:
+    workspace: "my-workspace"
+    webhookSecretSecretVersion: "projects/my-project/secrets/webhook-secret/versions/1"
+    readAuthorizerCredential:
+      userTokenSecretVersion: "projects/my-project/secrets/read-authorizer-credential/versions/1"
+    authorizerCredential:
+      userTokenSecretVersion: "projects/my-project/secrets/authorizer-credential/versions/1"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1alpha1
+kind: CloudBuildRepository
+metadata:
+  name: bitbucket-cloud-repo-my-repository
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "bitbucket-cloud"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "repository:my-repository"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  connection: "my-connection"
+  resourceID: "my-repository"
+  remoteUri: "https://bitbucket.org/my-workspace/my-repository.git"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: bitbucket-cloud-trigger-my-repository-my-trigger
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "bitbucket-cloud"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "trigger:my-repository-my-trigger"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  location: "europe-west1"
+  disabled: false
+  repositoryEventConfig:
+    repository: "projects/my-project/locations/europe-west1/connections/my-connection/repositories/my-repository"
+    push:
+      branch: "main"
+  filename: "cloudbuild.yaml"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: bitbucket-cloud-iam-roles-cloudbuild-connectionviewer-f16dd1c9
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "bitbucket-cloud"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/cloudbuild.connectionViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: bitbucket-cloud
+  role: "roles/cloudbuild.connectionViewer"
+  members:
+    - "group:mygroup@example.com"

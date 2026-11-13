@@ -1,0 +1,54 @@
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+kind: CloudBuildConnection
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "connection"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "shop-dev-github"
+  disabled: false
+  githubConfig:
+    appInstallationId: 1234567
+    authorizerCredential:
+      oauthTokenSecretVersion: "projects/my-project/secrets/gh/versions/1"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: names-iam-roles-cloudbuild-connectionviewer-20e8a1b4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam:roles/cloudbuild.connectionViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: names
+  role: "roles/cloudbuild.connectionViewer"
+  members:
+    - "group:shop@example.com"

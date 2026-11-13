@@ -1,0 +1,198 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-build-v2-connection/main.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_cloudbuildv2_connection.connection: one CloudBuildConnection
+(config-connector-extensions, cloudbuild.gcp.hfl.dev/v1beta1) when
+connection_create, with the one host configuration connection_config sets.
+google_cloudbuildv2_repository.repositories: one CloudBuildRepository
+(config-connector-extensions, cloudbuild.gcp.hfl.dev/v1alpha1, so
+allow_alpha) per repositories key, its ID the key.
+google_cloudbuild_trigger.triggers: one CloudBuildTrigger (Config
+Connector) per trigger of each repository, keyed <repository>-<trigger> as
+fabric keys it, on the repository's events. IAM is in iam.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "connection")) }}
+{{- $cc := $v.connection_config | default dict }}
+{{- $set := 0 }}
+{{- range $k := list "bitbucket_cloud" "bitbucket_data_center" "github" "github_enterprise" "gitlab" }}
+{{- if and (hasKey $cc $k) (not (kindIs "invalid" (index $cc $k))) }}{{ $set = add1 $set }}{{ end }}
+{{- end }}
+{{- if ne (int $set) 1 }}
+{{- fail (printf "%s: One and only one of bitbucket_cloud, bitbucket_data_center, github, github_enterprise, gitlab can be defined." $.Chart.Name) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ "connection_config.github_enterprise" $cc.github_enterprise "CloudBuildConnection's githubEnterpriseConfig requires apiKey, which the module's variable has no field for") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $conn := include "cbConnection.name" . }}
+{{- if $v.connection_create }}
+---
+apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+kind: CloudBuildConnection
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $.Release.Name "id" "connection" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ $conn | quote }}
+  {{- with $v.annotations }}
+  annotations:
+    {{- range $k, $a := . }}
+    {{ $k | quote }}: {{ $a | quote }}
+    {{- end }}
+  {{- end }}
+  disabled: {{ $v.disabled }}
+  {{- with $cc.bitbucket_cloud }}
+  bitbucketCloudConfig:
+    workspace: {{ .workspace | quote }}
+    webhookSecretSecretVersion: {{ .webhook_secret_secret_version | quote }}
+    readAuthorizerCredential:
+      userTokenSecretVersion: {{ .read_authorizer_credential_secret_version | quote }}
+    authorizerCredential:
+      userTokenSecretVersion: {{ .authorizer_credential_secret_version | quote }}
+  {{- end }}
+  {{- with $cc.bitbucket_data_center }}
+  bitbucketDataCenterConfig:
+    hostUri: {{ .host_uri | quote }}
+    {{- /* Required by the API and the kind; fabric's variable makes it optional. */}}
+    {{- if not .webhook_secret_secret_version }}
+    {{- fail (printf "%s: connection_config.bitbucket_data_center.webhook_secret_secret_version is required: the Cloud Build API and CloudBuildConnection require it" $.Chart.Name) }}
+    {{- end }}
+    webhookSecretSecretVersion: {{ .webhook_secret_secret_version | quote }}
+    readAuthorizerCredential:
+      userTokenSecretVersion: {{ .read_authorizer_credential_secret_version | quote }}
+    authorizerCredential:
+      userTokenSecretVersion: {{ .authorizer_credential_secret_version | quote }}
+    {{- with .service }}
+    serviceDirectoryConfig:
+      service: {{ . | quote }}
+    {{- end }}
+    {{- with .ssl_ca }}
+    sslCa: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if and (hasKey $cc "github") (not (kindIs "invalid" $cc.github)) }}
+  {{- $gh := $cc.github }}
+  {{- if and (kindIs "invalid" $gh.app_installation_id) (not $gh.authorizer_credential_secret_version) }}
+  githubConfig: {}
+  {{- else }}
+  githubConfig:
+    {{- if not (kindIs "invalid" $gh.app_installation_id) }}
+    appInstallationId: {{ include "cbConnection.int" (list $ "connection_config.github.app_installation_id" $gh.app_installation_id) }}
+    {{- end }}
+    {{- with $gh.authorizer_credential_secret_version }}
+    authorizerCredential:
+      oauthTokenSecretVersion: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- with $cc.gitlab }}
+  gitlabConfig:
+    {{- with .host_uri }}
+    hostUri: {{ . | quote }}
+    {{- end }}
+    webhookSecretSecretVersion: {{ .webhook_secret_secret_version | quote }}
+    {{- with .ssl_ca }}
+    sslCa: {{ . | quote }}
+    {{- end }}
+    authorizerCredential:
+      userTokenSecretVersion: {{ .authorizer_credential_secret_version | quote }}
+    readAuthorizerCredential:
+      userTokenSecretVersion: {{ .read_authorizer_credential_secret_version | quote }}
+    {{- with .service }}
+    serviceDirectoryConfig:
+      service: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- include "kcc.alpha" (list $ "repositories" $v.repositories "CloudBuildRepository (config-connector-extensions)") }}
+{{- range $rk := keys ($v.repositories | default dict) | sortAlpha }}
+{{- $r := index $v.repositories $rk }}
+{{- $repoName := include "cbConnection.repoName" (list $ $rk) }}
+---
+apiVersion: cloudbuild.gcp.hfl.dev/v1alpha1
+kind: CloudBuildRepository
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "repo" $rk)) "id" (printf "repository:%s" $rk) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.location | quote }}
+  connection: {{ $conn | quote }}
+  resourceID: {{ $repoName | quote }}
+  remoteUri: {{ $r.remote_uri | quote }}
+  {{- with $r.annotations }}
+  annotations:
+    {{- range $k, $a := . }}
+    {{ $k | quote }}: {{ $a | quote }}
+    {{- end }}
+  {{- end }}
+{{- range $tk := keys ($r.triggers | default dict) | sortAlpha }}
+{{- $t := index $r.triggers $tk }}
+{{- $key := printf "%s-%s" $rk $tk }}
+{{- if eq (empty $t.push) (empty $t.pull_request) }}
+{{- fail (printf "%s: One of pull or push needs to be populated for a trigger. (repositories.%s.triggers.%s)" $.Chart.Name $rk $tk) }}
+{{- end }}
+---
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "trigger" $key)) "id" (printf "trigger:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  location: {{ $v.location | quote }}
+  {{- with $t.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  disabled: {{ $t.disabled | default false }}
+  repositoryEventConfig:
+    repository: {{ printf "%s/repositories/%s" (include "cbConnection.id" $) $repoName | quote }}
+    {{- with $t.push }}
+    push:
+      {{- with .branch }}
+      branch: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .invert_regex) }}
+      invertRegex: {{ include "cbConnection.bool" (list $ (printf "repositories.%s.triggers.%s.push.invert_regex" $rk $tk) .invert_regex) }}
+      {{- end }}
+      {{- with .tag }}
+      tag: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $t.pull_request }}
+    pullRequest:
+      {{- with .branch }}
+      branch: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .invert_regex) }}
+      invertRegex: {{ include "cbConnection.bool" (list $ (printf "repositories.%s.triggers.%s.pull_request.invert_regex" $rk $tk) .invert_regex) }}
+      {{- end }}
+      {{- with .comment_control }}
+      commentControl: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- with $t.include_build_logs }}
+  includeBuildLogs: {{ . | quote }}
+  {{- end }}
+  {{- with $t.tags }}
+  tags:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $t.substitutions }}
+  substitutions:
+    {{- range $k, $s := . }}
+    {{ $k | quote }}: {{ $s | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $t.service_account }}
+  serviceAccountRef:
+    external: {{ . | quote }}
+  {{- end }}
+  filename: {{ $t.filename | quote }}
+{{- end }}
+{{- end }}

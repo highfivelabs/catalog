@@ -1,0 +1,126 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-insights-component main.tf,
+main.indexes.tf and locals.tf (v0.5.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+azapi_resource.this (Microsoft.Insights/components): one ASO Component
+(insights.azure.com/v1api20200202), owned by parent_id.
+azapi_update_resource.pricing_plan (components/pricingPlans, current): an
+ASO PricingPlan owned by the component, with the daily cap.
+azapi_resource.monitor_private_link_scope: one aso-extensions
+PrivateLinkScopesScopedResource per entry, owned by the scope, linking the
+component. azapi_resource.linked_storage_account: refused (no kind).
+azapi_resource.lock: an aso-extensions ManagementLock.
+azapi_resource.role_assignment: one ASO RoleAssignment each.
+azapi_resource.diagnostic_settings: one ASO DiagnosticSetting each. The
+telemetry deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $ibc := false }}
+{{- range $k, $paths := ($v.ignore_body_changes | default dict) }}{{ if $paths }}{{ $ibc = true }}{{ end }}{{ end }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" $ibc "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's kinds fix the API versions (Component 2020-02-02, PricingPlan 2017-10-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.unsupported" (list $ "linked_storage_account" $v.linked_storage_account "Microsoft.Insights/components/linkedStorageAccounts (the profiler's storage account) has no Azure Service Operator or aso-extensions kind") }}
+{{- range $k, $s := $v.monitor_private_link_scope }}
+{{- if and $s.kind (ne $s.kind "Resource") }}
+{{- include "aso.unsupported" (list $ (printf "monitor_private_link_scope.%s.kind %s" $k $s.kind) true "aso-extensions' PrivateLinkScopesScopedResource is at API 2021-09-01, which has no kind (Resource only)") }}
+{{- end }}
+{{- include "aso.unsupported" (list $ (printf "monitor_private_link_scope.%s.subscription_location" $k) $s.subscription_location "aso-extensions' PrivateLinkScopesScopedResource is at API 2021-09-01, which has no subscriptionLocation") }}
+{{- end }}
+{{- if not (has $v.application_type (list "web" "other")) }}
+{{- include "aso.unsupported" (list $ (printf "application_type %s" $v.application_type) true "ASO's Component (2020-02-02) takes Application_Type web or other only") }}
+{{- end }}
+{{- include "aso.names" (list $ (list "component")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$" (toString $v.parent_id)) }}
+{{- fail (printf "%s: `parent_id` must be a valid resource group resource ID." $chart) }}
+{{- end }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.OperationalInsights/workspaces/[^/]+$" (toString $v.workspace_id)) }}
+{{- fail (printf "%s: `workspace_id` must be a valid Log Analytics workspace resource ID." $chart) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "appi") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $name := include "aso.resourceName" (list $ "component" "Application Insights component" $v.name 255 "^[A-Za-z0-9._()-]{0,254}[A-Za-z0-9_()-]$") }}
+{{- $owner := dict "group" "insights.azure.com" "kind" "Component" "name" $obj }}
+---
+apiVersion: insights.azure.com/v1api20200202
+kind: Component
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "component" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $name | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  kind: {{ $v.application_type | quote }}
+  Application_Type: {{ $v.application_type }}
+  DisableIpMasking: {{ eq $v.disable_ip_masking true }}
+  DisableLocalAuth: {{ eq $v.local_authentication_disabled true }}
+  ForceCustomerStorageForProfiler: {{ eq $v.force_customer_storage_for_profiler true }}
+  RetentionInDays: {{ int $v.retention_in_days }}
+  SamplingPercentage: {{ $v.sampling_percentage }}
+  publicNetworkAccessForIngestion: {{ ternary "Enabled" "Disabled" (ne $v.internet_ingestion_enabled false) }}
+  publicNetworkAccessForQuery: {{ ternary "Enabled" "Disabled" (ne $v.internet_query_enabled false) }}
+  workspaceResourceReference:
+    armId: {{ $v.workspace_id | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: insights.azure.com/v1api20171001
+kind: PricingPlan
+metadata:
+  {{- /* Always detached on delete: Azure has no delete for a component's plan
+  (it goes with the component; ASO refuses with DeletionNotSupportedInAzure,
+  found live), and the module's azapi_update_resource leaves it on destroy. */}}
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "pricing")) "id" "pricing_plan" "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  {{- /* The module updates the plan Azure makes with the component, keeping
+  its type (Basic, the only plan of a workspace-based component); ASO sends
+  the whole body, so the type is given. */}}
+  planType: Basic
+  cap: {{ $v.daily_data_cap_in_gb }}
+  stopSendNotificationWhenHitCap: {{ eq $v.daily_data_cap_notifications_disabled true }}
+{{- range $k, $s := $v.monitor_private_link_scope }}
+{{- if not $s.resource_id }}{{ fail (printf "%s: monitor_private_link_scope.%s needs a resource_id (the scope's)" $chart $k) }}{{ end }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Insights/privateLinkScopes/[^/]+$" $s.resource_id) }}
+{{- fail (printf "%s: Each `monitor_private_link_scope[*].resource_id` must be a valid Azure Monitor private link scope resource ID." $chart) }}
+{{- end }}
+---
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScopesScopedResource
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "ampls" $k)) "id" (printf "monitor_private_link_scope:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $s.name | default $name | quote }}
+  owner:
+    armId: {{ $s.resource_id | quote }}
+  linkedResourceReference:
+    group: insights.azure.com
+    kind: Component
+    name: {{ $obj }}
+{{- end }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" .notes) "defaultName" (printf "lock-%s" $v.name)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- $diag := dict }}
+{{- range $k, $d := $v.diagnostic_settings }}
+{{- $d2 := deepCopy $d }}
+{{- $_ := set $d2 "name" ($d.name | default (printf "diag-%s" $v.name)) }}
+{{- if and (empty $d.logs) (empty $d.metrics) }}
+{{- $_ := set $d2 "logs" (list (dict "category_group" "allLogs" "enabled" true)) }}
+{{- $_ := set $d2 "metrics" (list (dict "category" "AllMetrics" "enabled" true)) }}
+{{- end }}
+{{- $_ := set $diag $k $d2 }}
+{{- end }}
+{{- include "aso.diagnosticSettingsV2" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $diag "what" "diagnostic_settings") }}

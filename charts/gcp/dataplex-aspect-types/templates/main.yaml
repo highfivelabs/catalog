@@ -1,0 +1,56 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dataplex-aspect-types/main.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_dataplex_aspect_type.default: one DataplexAspectType
+(config-connector-extensions, dataplex.gcp.hfl.dev/v1beta1) per entry of
+aspect_types merged with the factory's files, its ID the entry's key. IAM
+is in iam.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $types := include "dataplexAspectTypes.all" . | fromJson }}
+{{- include "kcc.names" (list $ (keys $types | sortAlpha)) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $key := keys $types | sortAlpha }}
+{{- $t := index $types $key }}
+{{- $labels := include "kcc.labels" (list $ ($t.labels | default dict)) | fromJson }}
+---
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAspectType
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "dataplexAspectTypes.object" (list $ $key)) "id" (printf "aspect-type:%s" $key) "project" $v.project_id "labels" ($t.labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ include "kcc.resourceName" (list $ $key "aspect type" $key 63 "letter") | quote }}
+  {{- with $t.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $t.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- /* Dataplex kinds take their cloud labels from spec.labels: the
+  unprefixed ones of the chart's tags and labels and the entry's own. */}}
+  {{- $cloud := dict }}
+  {{- range $k, $l := $labels }}{{ if not (contains "/" $k) }}{{ $_ := set $cloud $k $l }}{{ end }}{{ end }}
+  {{- with $cloud }}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if $t.metadata_template }}
+  {{- $tpl := $t.metadata_template | fromJson }}
+  {{- if hasKey $tpl "Error" }}
+  {{- fail (printf "dataplex-aspect-types: aspect_types.%s.metadata_template is not valid JSON: %s" $key (get $tpl "Error")) }}
+  {{- end }}
+  metadataTemplate:
+    {{- toYaml $tpl | nindent 4 }}
+  {{- else }}
+  {{- fail (printf "dataplex-aspect-types: aspect_types.%s.metadata_template is required: the Dataplex API refuses an aspect type without one" $key) }}
+  {{- end }}
+{{- end }}
