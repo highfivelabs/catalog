@@ -131,8 +131,10 @@ aso-extensions' `ManagementLock` CRD, and the refusals in
 app from Microsoft's public hello-world image, scaled to zero, with
 external ingress, in a Consumption-only environment the case makes beside
 it, evaluates the outputs, deletes both and checks Azure no longer has
-them. `task test-mock-azure` applies `tests/mock.values.yaml` to
-aso-extensions' fake cloud.
+them; it has not passed yet (`docs/azure.md`, "8. Charts"). `task
+test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions' fake
+cloud: passed on 2026-11-13, the app and its auth config Ready and
+deleted, the outputs evaluated.
 
 ## Changes
 

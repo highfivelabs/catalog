@@ -695,7 +695,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   wait_gone "${limit}" "${objects[@]}"
   if (( ${#pre_objects[@]} > 0 )); then
     kubectl delete -n "${NS}" -f "${OUT}/${chart}/pre.yaml" --wait=false >/dev/null
-    wait_gone "${TIMEOUT}" "${pre_objects[@]}"
+    wait_gone "${limit}" "${pre_objects[@]}"
   fi
   for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))

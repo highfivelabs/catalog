@@ -980,6 +980,24 @@ Its `tests/mock.values.yaml` passed against the fake cloud too (PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113030418-6345`: 2 objects Ready
 and deleted, outputs evaluated).
 
+The container app (`avm-res-app-containerapp`, case `ca`: Microsoft's
+public hello-world image, scaled to zero, external ingress on port 80, in
+a Consumption-only environment the case makes first as an ASO object of
+no chart, `ca-pre.objects.yaml`) has not passed live yet. Its runs found
+two things about the sandbox. ASO retries a container app whose
+environment is still provisioning only "very slowly" (about an hour; run
+`cat111303206064`, where the environment became Ready but the app did
+not), so the environment is made and Ready first. And the subscription
+may hold one Container Apps environment per region ("cannot have more
+than 1 Container App Environments in East US 2"; run `cat11130437ca08`):
+an environment a preempted run leaves blocks the next until it is
+deleted, which takes about 25 minutes, so the case's prerequisites are
+waited on, Ready and gone, as long as the case (its 40-minute limit). Its
+`tests/mock.values.yaml` passed against the fake cloud (PR #118's
+`hack/azure-mock.sh`, aso-extensions `b9beb5b`, run
+`off-catalog-1113030900-10353`: the app and its auth config Ready and
+deleted, outputs evaluated).
+
 The Application Insights component (`avm-res-insights-component`, case
 `appi`: workspace-based, a 1 GB daily cap, with a workspace the case makes
 beside it) passed in run `cat111302020b65`: 3 objects Ready, outputs
