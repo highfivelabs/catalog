@@ -26,8 +26,9 @@
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
 # uai law acr fwp lb bas appi psql pe appgw cog vm asp afw redis)
-# applies only those; the default is all but cog, vm and asp (asp: the
-# sandbox has no App Service quota, docs/azure.md). A case may first apply another
+# applies only those; the default is all but cog, vm, asp and redis (asp: the
+# sandbox has no App Service quota; cog and redis: their providers are not
+# registered, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
 # subnet), or ASO objects of no chart (CASE-pre.objects.yaml: the
 # firewall's network, subnets and public IPs), deleted after the case's own
@@ -80,7 +81,10 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw redis}"
+# redis is not in the default for the same reason: Microsoft.Cache is not
+# registered (run cat11130800eaa5, 2026-11-13: 403 AuthorizationFailed on
+# Microsoft.Cache/register/action).
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -627,8 +631,9 @@ EOF
 # zoneless (a Basic cache takes no zones), TLS 1.2 only, with one firewall
 # rule for one documentation address (TEST-NET-3). No access key leaves
 # Azure: the chart exports none. Creating and deleting a cache takes many
-# minutes (CASE_TIMEOUT). Private endpoints and linked servers (Premium)
-# are not applied.
+# minutes (CASE_TIMEOUT). Not in the default cases until Microsoft.Cache is
+# registered in the sandbox subscription. Private endpoints and linked
+# servers (Premium) are not applied.
 cat >"${WORK}/redis.yaml" <<EOF
 name: ${RUN}-redis
 location: ${LOCATION}
@@ -844,7 +849,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))
-    msg="$(cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
+    # A case with nothing first has no pre-live.json: cat's failure must not
+    # end the run (pipefail).
+    msg="$({ cat "${OUT}/${chart}/live.json"; cat "${OUT}/${chart}/pre-live.json" 2>/dev/null || true; } | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then

@@ -123,3 +123,29 @@ first line. `tests/mock.values.yaml` is applied to aso-extensions' fake
 cloud (`task test-mock-azure`), and the `redis` case of
 `hack/azure-live.sh` to the Azure sandbox (`docs/azure.md`, "8. Charts",
 Testing).
+
+**Fake cloud** (2026-11-13, stock ASO v2.22.0 and aso-extensions' manager
+against fakearm at `b9beb5b`, `cache.azure.com/*` added to
+`hack/azure-mock.sh`'s CRD pattern, offload run
+`off-catalog-1113075628-30638`): the Premium cache with a system-assigned
+identity, its patch schedule, access policy, access policy assignment and
+firewall rule, 5 objects, all Ready and deleted; outputs evaluated (the
+identity's principal ID among them).
+
+**Live: not applied.** The `redis` case (Basic C0, zoneless, about 0.02
+USD an hour, one firewall rule for 203.0.113.10; a 45-minute limit) ran
+in run `cat11130800eaa5` (offload `off-catalog-1113075628-15559`) on
+2026-11-13, and Azure refused it before anything was made: the sandbox
+subscription has not registered the `Microsoft.Cache` provider, and ASO's
+attempt to register it (`POST
+/subscriptions/<id>/providers/Microsoft.Cache/register`) is a
+subscription-scope action the live identity is refused (403
+`AuthorizationFailed`). The cache never became Ready (its firewall rule
+waited for it), so no output was read from Azure. The case is out of the
+default set until someone with subscription rights runs `az provider
+register --namespace Microsoft.Cache --subscription <sandbox>`; then run
+it with `AZURE_LIVE_CASES=redis`. Whether a Basic cache takes a firewall
+rule is therefore not yet checked live. The same run found that
+`hack/azure-live.sh` stopped before its summary rows for a case with
+nothing applied first (its `pre-live.json` missing under `pipefail`);
+that is fixed.
