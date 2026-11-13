@@ -1,0 +1,22 @@
+# Everything else: a custom iterator, additional
+# zones replacing a default one, a name template with every placeholder,
+# the lock and a role assignment on the resource group, ABANDON and labels.
+location: uksouth
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+deletion_policy: ABANDON
+labels: {team: network}
+private_link_private_dns_zones:
+  azure_static_web_apps_partitioned:
+    zone_name: "privatelink.{partitionId}.azurestaticapps.net"
+    custom_iterator: {replacement_placeholder: partitionId, replacement_values: {"1": "1", "2": "2"}}
+  azure_backup: {zone_name: "privatelink.{regionCode}.backup.windowsazure.com"}
+private_link_private_dns_zones_additional:
+  azure_backup: {zone_name: "privatelink.{regionCode}.backup.windowsazure.com", resolution_policy: NxDomainRedirect}
+  azure_key_vault: {zone_name: "privatelink.vaultcore.azure.net"}
+virtual_network_link_name_template: "${zone_key}-${vnet_key}-${vnet_name}-${location}"
+virtual_network_link_default_virtual_networks:
+  hub: {virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet-hub}
+lock: {kind: CanNotDelete}
+resource_group_role_assignments:
+  reader: {role_definition_id_or_name: Reader, principal_id: 11111111-1111-1111-1111-111111111111, principal_type: Group, description: DNS readers}
+tags: {env: prod}

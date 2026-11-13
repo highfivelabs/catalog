@@ -1,0 +1,86 @@
+---
+# Source: avm-res-network-ddosprotectionplan/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: DdosProtectionPlan
+metadata:
+  name: full-ddos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-ddosprotectionplan
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ddos_protection_plan"
+spec:
+  azureName: "ddos-hub"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-ddosprotectionplan/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-ddos-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-ddosprotectionplan
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "keep-ddos"
+  owner:
+    group: network.azure.com
+    kind: DdosProtectionPlan
+    name: full-ddos
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-network-ddosprotectionplan/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-ddos-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-ddosprotectionplan
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DdosProtectionPlan
+    name: full-ddos
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-res-network-ddosprotectionplan/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-ddos-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-ddosprotectionplan
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DdosProtectionPlan
+    name: full-ddos
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
+  description: "Network operators"

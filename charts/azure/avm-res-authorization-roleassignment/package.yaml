@@ -1,0 +1,75 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs. The principal maps are the module's lookups' results, which the
+# chart takes as given (the object IDs in the inputs); all_principals is
+# their merge, a later map winning a key as the module's merge does.
+# role_assignments and entra_id_role_assignments are read from the live
+# objects (resources.<id>), keyed as the module keys them: a role
+# assignment's role definition ID is Azure's (status.roleDefinitionId,
+# resolved by ASO for a role given by name), its scope the object's owner.
+# role_defintions (the module's spelling) gives each definition's ID
+# without a subscription, as the module's data source returns it: from the
+# id given, or for a name, from an assignment that resolved it; the
+# definitions' assignable scopes are not read (no object holds them).
+# entra_id_role_definitions is each definition's template ID. resource_id
+# is null, as in the module.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-authorization-roleassignment
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    users: inputs.users_by_object_id
+    groups: inputs.groups_by_object_id
+    app_registrations: >-
+      inputs.app_registrations_by_principal_id != null ? inputs.app_registrations_by_principal_id : {}
+    system_assigned_managed_identities: inputs.system_assigned_managed_identities_by_principal_id
+    user_assigned_managed_identities: inputs.user_assigned_managed_identities_by_principal_id
+    all_principals: >-
+      (inputs.users_by_object_id.filter(k, !(k in inputs.groups_by_object_id)
+          && (inputs.app_registrations_by_principal_id == null || !(k in inputs.app_registrations_by_principal_id))
+          && !(k in inputs.system_assigned_managed_identities_by_principal_id)
+          && !(k in inputs.user_assigned_managed_identities_by_principal_id)).map(k, [k, inputs.users_by_object_id[k], 'user'])
+      + inputs.groups_by_object_id.filter(k,
+          (inputs.app_registrations_by_principal_id == null || !(k in inputs.app_registrations_by_principal_id))
+          && !(k in inputs.system_assigned_managed_identities_by_principal_id)
+          && !(k in inputs.user_assigned_managed_identities_by_principal_id)).map(k, [k, inputs.groups_by_object_id[k], 'group'])
+      + (inputs.app_registrations_by_principal_id == null ? [] : inputs.app_registrations_by_principal_id.filter(k,
+          !(k in inputs.system_assigned_managed_identities_by_principal_id)
+          && !(k in inputs.user_assigned_managed_identities_by_principal_id)).map(k, [k, inputs.app_registrations_by_principal_id[k], 'app_registration']))
+      + inputs.system_assigned_managed_identities_by_principal_id.filter(k,
+          !(k in inputs.user_assigned_managed_identities_by_principal_id)).map(k, [k, inputs.system_assigned_managed_identities_by_principal_id[k], 'system_assigned_managed_identity'])
+      + inputs.user_assigned_managed_identities_by_principal_id.map(k, [k, inputs.user_assigned_managed_identities_by_principal_id[k], 'user_assigned_managed_identity'])
+      ).transformMapEntry(i, p, {p[0]: {'principal_id': p[1], 'type': p[2]}})
+    role_assignments: >-
+      resources.transformMapEntry(k, v, k.startsWith('role-assignment-'), {k.substring(16): {
+        'key': k.substring(16),
+        'role_definition_id': 'status' in v && 'roleDefinitionId' in v.status ? v.status.roleDefinitionId : null,
+        'principal_id': v.spec.principalId,
+        'scope': v.spec.owner.armId,
+        'principal_type': 'principalType' in v.spec ? v.spec.principalType : null}})
+    role_defintions: >-
+      inputs.role_definitions.transformMapEntry(k, d, {k: {'id':
+        'id' in d && d.id != null && d.id != ''
+        ? '/providers/Microsoft.Authorization/roleDefinitions/' + d.id.substring(d.id.lastIndexOf('/') + 1)
+        : (resources.filter(r, (r.startsWith('role-assignment-') || r.startsWith('arm:role-assignment-'))
+              && 'roleDefinitionReference' in resources[r].spec
+              && 'wellKnownName' in resources[r].spec.roleDefinitionReference
+              && resources[r].spec.roleDefinitionReference.wellKnownName == d.name
+              && 'status' in resources[r] && 'roleDefinitionId' in resources[r].status)
+            .map(r, resources[r].status.roleDefinitionId)
+            .map(s, dyn(s.substring(s.indexOf('/providers/'))))
+            + [dyn(null)])[0]}})
+    entra_id_role_definitions: >-
+      inputs.entra_id_role_definitions.transformMapEntry(k, d, {k: {'id': d.template_id}})
+    entra_id_role_assignments: >-
+      resources.transformMapEntry(k, v, k.startsWith('entra-role-assignment-'), {k.substring(22): {
+        'key': k.substring(22),
+        'role_definition_id': v.spec.roleDefinitionId,
+        'principal_id': v.spec.principalId}})
+    resource_id: "null"

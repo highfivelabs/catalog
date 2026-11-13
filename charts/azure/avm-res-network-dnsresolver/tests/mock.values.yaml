@@ -1,0 +1,20 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
+# resolver in the fake cloud's resource group, its network by ID (the fake
+# keeps any body), a static inbound endpoint (the fake echoes the address,
+# which Azure would allocate for a dynamic one), an outbound endpoint with
+# a ruleset, a rule and the default link, and a lock.
+name: catalog-dnspr
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet
+tags: {catalog: mock}
+inbound_endpoints:
+  a: {subnet_name: snet-inbound, private_ip_allocation_method: Static, private_ip_address: 10.0.0.4}
+outbound_endpoints:
+  a:
+    subnet_name: snet-outbound
+    forwarding_ruleset:
+      corp:
+        rules:
+          corp: {domain_name: corp.example.com., destination_ip_addresses: {"10.0.1.4": "53"}}
+lock: {kind: CanNotDelete}
