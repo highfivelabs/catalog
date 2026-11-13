@@ -315,31 +315,31 @@ gcp,cloudsql-instance,terraform_deletion_protection,bool,yes,,
 gcp,cloudsql-instance,tier,string,yes,,
 gcp,cloudsql-instance,time_zone,string,yes,,
 gcp,cloudsql-instance,users,"map(object({database_roles, password, password_version, type}))",partial,only CLOUD_IAM_USER and CLOUD_IAM_SERVICE_ACCOUNT users are accepted: a BUILT_IN user's password would be in the rendered manifest or made by Terraform's random_password (the same open question as root_password); database_roles and password_version are refused (SQLUser has no such field),gap
-gcp,gke-cluster-standard,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",no,,no-chart
-gcp,gke-cluster-standard,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",no,,no-chart
-gcp,gke-cluster-standard,cluster_autoscaling,"object({accelerator_resources, auto_provisioning_defaults, auto_provisioning_locations, autoscaling_profile, cpu_limits, enabled, +1})",no,,no-chart
-gcp,gke-cluster-standard,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,,no-chart
-gcp,gke-cluster-standard,default_nodepool,"object({initial_node_count, remove_pool})",no,,no-chart
-gcp,gke-cluster-standard,deletion_protection,bool,no,,no-chart
-gcp,gke-cluster-standard,description,string,no,,no-chart
-gcp,gke-cluster-standard,enable_addons,"object({agent_sandbox, cloudrun, config_connector, dns_cache, gce_persistent_disk_csi_driver, gcp_filestore_csi_driver, +7})",no,,no-chart
-gcp,gke-cluster-standard,enable_features,"object({anonymous_authentication, beta_apis, binary_authorization, cilium_clusterwide_network_policy, cost_management, database_encryption, +24})",no,,no-chart
-gcp,gke-cluster-standard,fleet_project,string,no,,no-chart
-gcp,gke-cluster-standard,issue_client_certificate,bool,no,,no-chart
-gcp,gke-cluster-standard,labels,map(string),no,,no-chart
-gcp,gke-cluster-standard,location,string,no,,no-chart
-gcp,gke-cluster-standard,logging_config,"object({enable_api_server_logs, enable_controller_manager_logs, enable_scheduler_logs, enable_system_logs, enable_workloads_logs})",no,,no-chart
-gcp,gke-cluster-standard,maintenance_config,"object({daily_window_start_time, maintenance_exclusions, recurring_window})",no,,no-chart
-gcp,gke-cluster-standard,max_pods_per_node,number,no,,no-chart
-gcp,gke-cluster-standard,min_master_version,string,no,,no-chart
-gcp,gke-cluster-standard,monitoring_config,"object({advanced_datapath_observability, enable_api_server_metrics, enable_cadvisor_metrics, enable_controller_manager_metrics, enable_daemonset_metrics, enable_deployment_metrics, +7})",no,,no-chart
-gcp,gke-cluster-standard,name,string,no,,no-chart
-gcp,gke-cluster-standard,node_config,"object({boot_disk_kms_key, k8s_labels, kubelet_readonly_port_enabled, labels, resource_manager_tags, service_account, +2})",no,,no-chart
-gcp,gke-cluster-standard,node_locations,list(string),no,,no-chart
-gcp,gke-cluster-standard,node_pool_auto_config,"object({cgroup_mode, kubelet_readonly_port_enabled, network_tags, resource_manager_tags})",no,,no-chart
-gcp,gke-cluster-standard,project_id,string,no,,no-chart
-gcp,gke-cluster-standard,release_channel,string,no,,no-chart
-gcp,gke-cluster-standard,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",no,,no-chart
+gcp,gke-cluster-standard,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",partial,accepted; dns_access.enable_k8s_certs and ip_access.private_endpoint_authorized_ranges_enforcement are refused when true: ContainerCluster has no enableK8sCertsViaDns or privateEndpointEnforcementEnabled,gap
+gcp,gke-cluster-standard,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",partial,accepted; a channel's deletion_policy PREVENT is refused (no Config Connector equivalent; ABANDON is carried),gap
+gcp,gke-cluster-standard,cluster_autoscaling,"object({accelerator_resources, auto_provisioning_defaults, auto_provisioning_locations, autoscaling_profile, cpu_limits, enabled, +1})",partial,"accepted; auto_provisioning_locations, and a disk_type other than pd-standard, are refused: clusterAutoscaling has no autoProvisioningLocations, autoProvisioningDefaults no diskType",gap
+gcp,gke-cluster-standard,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,gke-cluster-standard,default_nodepool,"object({initial_node_count, remove_pool})",yes,,
+gcp,gke-cluster-standard,deletion_protection,bool,partial,"accepted and has no effect: it is Terraform's own guard against destroy, and Config Connector has none; deletion_policy: ABANDON keeps the cluster, and a Bundt policy can block deleting it",by-design
+gcp,gke-cluster-standard,description,string,yes,,
+gcp,gke-cluster-standard,enable_addons,"object({agent_sandbox, cloudrun, config_connector, dns_cache, gce_persistent_disk_csi_driver, gcp_filestore_csi_driver, +7})",partial,accepted; agent_sandbox and stateful_ha are refused when true: ContainerCluster's addonsConfig has no agentSandboxConfig or statefulHaConfig,gap
+gcp,gke-cluster-standard,enable_features,"object({anonymous_authentication, beta_apis, binary_authorization, cilium_clusterwide_network_policy, cost_management, database_encryption, +24})",partial,"accepted; refused when set (or true): anonymous_authentication, dns.additive_vpc_scope_dns_domain, managed_opentelemetry, rbac_binding_config, secret_manager_config, secret_sync_config, which ContainerCluster has no field for",gap
+gcp,gke-cluster-standard,fleet_project,string,no,ContainerCluster has no fleet; GKEHubMembership registers a cluster with a fleet,gap
+gcp,gke-cluster-standard,issue_client_certificate,bool,yes,,
+gcp,gke-cluster-standard,labels,map(string),yes,,
+gcp,gke-cluster-standard,location,string,yes,,
+gcp,gke-cluster-standard,logging_config,"object({enable_api_server_logs, enable_controller_manager_logs, enable_scheduler_logs, enable_system_logs, enable_workloads_logs})",yes,,
+gcp,gke-cluster-standard,maintenance_config,"object({daily_window_start_time, maintenance_exclusions, recurring_window})",yes,,
+gcp,gke-cluster-standard,max_pods_per_node,number,yes,,
+gcp,gke-cluster-standard,min_master_version,string,yes,,
+gcp,gke-cluster-standard,monitoring_config,"object({advanced_datapath_observability, enable_api_server_metrics, enable_cadvisor_metrics, enable_controller_manager_metrics, enable_daemonset_metrics, enable_deployment_metrics, +7})",partial,"accepted; advanced_datapath_observability.enable_relay true is refused: ContainerCluster has only the deprecated relayMode, not enableRelay",gap
+gcp,gke-cluster-standard,name,string,yes,,
+gcp,gke-cluster-standard,node_config,"object({boot_disk_kms_key, k8s_labels, kubelet_readonly_port_enabled, labels, resource_manager_tags, service_account, +2})",partial,accepted; kubelet_readonly_port_enabled is refused: neither nodeConfig nor nodePoolDefaults has insecureKubeletReadonlyPortEnabled,gap
+gcp,gke-cluster-standard,node_locations,list(string),yes,,
+gcp,gke-cluster-standard,node_pool_auto_config,"object({cgroup_mode, kubelet_readonly_port_enabled, network_tags, resource_manager_tags})",partial,accepted; kubelet_readonly_port_enabled and cgroup_mode are refused: nodePoolAutoConfig has no nodeKubeletConfig or linuxNodeConfig,gap
+gcp,gke-cluster-standard,project_id,string,yes,,
+gcp,gke-cluster-standard,release_channel,string,yes,,
+gcp,gke-cluster-standard,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",yes,,
 gcp,gke-cluster-autopilot,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",no,,no-chart
 gcp,gke-cluster-autopilot,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",no,,no-chart
 gcp,gke-cluster-autopilot,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,,no-chart
