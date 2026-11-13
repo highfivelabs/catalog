@@ -114,7 +114,7 @@ Every module variable is a value of the same name, type and default
 
 | Output | From |
 | --- | --- |
-| `automation_account` | `{dsc_server_endpoint, hybrid_service_url, id, name, identity: {tenant_id, principal_id}}` from the account's status; all null without the account. `dsc_server_endpoint` is always null: azurerm reads it from the account's `agentRegistrationInformation`, which aso-extensions' `AutomationAccount` status does not carry |
+| `automation_account` | `{dsc_server_endpoint, hybrid_service_url, id, name, identity: {tenant_id, principal_id}}` from the account's status; all null without the account. `dsc_server_endpoint` is derived from `status.automationHybridServiceUrl` (`.jrds.` becomes `.agentsvc.`, `/automationAccounts/` becomes `/accounts/`), the endpoint azurerm reads from the account's `agentRegistrationInformation`; aso-extensions' `AutomationAccount` can export it to a ConfigMap (`operatorSpec.configMaps.dscServerEndpoint`), which outputs do not read |
 | `data_collection_rule_ids` | `{<rule>: {id}}` from each rule's `status.id` |
 | `log_analytics_workspace` | `{id, name, workspace_id}` (`status.id`, `azureName`, `status.customerId`); null fields with an existing workspace, as in the module |
 | `resource_group` | `{id, name}`: the made group's, or the existing group's from the inputs |
@@ -156,7 +156,11 @@ made by the chart, the workspace, the Automation account linked to it, the
 VM insights solution, Sentinel onboarding, the three rules and the AMA
 identity), stock ASO and aso-extensions' manager at `b9beb5b` against
 aso-extensions' fakearm, offload run `off-catalog-1113080555-1354` on
-2026-11-13: 10 objects Ready and deleted, outputs evaluated.
+2026-11-13: 10 objects Ready and deleted, outputs evaluated. Again with
+aso-extensions `3d9ba27`, run `off-catalog-1113155314-18721`: 10 objects Ready and deleted, the
+outputs evaluated, `automation_account.dsc_server_endpoint` derived from
+the fake's hybrid service URL
+(`https://<id>.agentsvc.eastus2.azure-automation.net/accounts/<id>`).
 
 **Live** (`task test-live-azure`, case `alz`), in the sandbox resource
 group with `resource_group_creation_enabled: false` (the live identity
@@ -183,4 +187,6 @@ left. Not applied live:
 
 ## Changes
 
+- **0.2.0** (2026-11-13): `automation_account.dsc_server_endpoint` is
+  derived from the account's hybrid service URL instead of null.
 - **0.1.0** (2026-11-13): the port.

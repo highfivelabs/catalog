@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "diagnostic-setting-law"
@@ -36,7 +36,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "diagnostic-setting-named"
@@ -62,7 +62,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "managed_environment"
@@ -116,7 +116,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "certificate:wildcard"
@@ -142,7 +142,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "dapr_component:pubsub"
@@ -163,7 +163,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "dapr_component:state"
@@ -190,6 +190,65 @@ spec:
   version: "v1"
 ---
 # Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsDaprSubscription
+metadata:
+  name: full-daprsub-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "dapr_subscription:orders"
+spec:
+  azureName: "orders"
+  owner:
+    name: full-cae
+  bulkSubscribe:
+    enabled: true
+    maxAwaitDurationMs: 500
+    maxMessagesCount: 100
+  deadLetterTopic: "orders-dead"
+  metadata:
+    "rawPayload": "true"
+  pubsubName: "pubsub"
+  routes:
+    default: /orders
+    rules:
+    - match: event.type == 'priority'
+      path: /orders/priority
+  scopes: ["worker"]
+  topic: "orders"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ManagedEnvironmentsDotNetComponent
+metadata:
+  name: full-dotnet-aspire
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "dot_net_component:aspire"
+spec:
+  azureName: "aspire-dashboard"
+  owner:
+    name: full-cae
+  componentType: "AspireDashboard"
+  configurations:
+    - propertyName: "DASHBOARD__OTLP__AUTHMODE"
+      value: "Unsecured"
+  serviceBinds:
+    - name: "eureka"
+      serviceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/eureka"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
 apiVersion: app.azure.hfl.dev/v20260101
 kind: ManagedEnvironmentsHttpRouteConfig
 metadata:
@@ -198,7 +257,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "http_route_config:api"
@@ -227,7 +286,7 @@ spec:
         label: blue
 ---
 # Source: avm-res-app-managedenvironment/templates/main.yaml
-apiVersion: app.azure.hfl.dev/v20250101
+apiVersion: app.azure.hfl.dev/v20260302preview
 kind: ManagedEnvironmentsJavaComponent
 metadata:
   name: full-java-config
@@ -235,7 +294,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "java_component:config"
@@ -254,7 +313,7 @@ spec:
         minReplicas: 1
 ---
 # Source: avm-res-app-managedenvironment/templates/main.yaml
-apiVersion: app.azure.hfl.dev/v20250101
+apiVersion: app.azure.hfl.dev/v20260302preview
 kind: ManagedEnvironmentsJavaComponent
 metadata:
   name: full-java-eureka
@@ -262,7 +321,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "java_component:eureka"
@@ -279,6 +338,54 @@ spec:
           armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/config
 ---
 # Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: full-java-gateway
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "java_component:gateway"
+spec:
+  azureName: "gateway"
+  owner:
+    name: full-cae
+  properties:
+    springCloudGateway:
+      componentType: SpringCloudGateway
+      scale:
+        maxReplicas: 2
+        minReplicas: 1
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: full-java-nacos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "java_component:nacos"
+spec:
+  azureName: "nacos"
+  owner:
+    name: full-cae
+  properties:
+    nacos:
+      componentType: Nacos
+      configurations:
+      - propertyName: nacos.core.auth.enabled
+        value: "false"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
 apiVersion: app.azure.hfl.dev/v20260101
 kind: ManagedEnvironmentsMaintenanceConfiguration
 metadata:
@@ -287,7 +394,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "maintenance_configuration:default"
@@ -309,7 +416,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "managed_certificate:www"
@@ -325,7 +432,7 @@ spec:
     cert: managed
 ---
 # Source: avm-res-app-managedenvironment/templates/main.yaml
-apiVersion: app.azure.hfl.dev/v20250101
+apiVersion: app.azure.hfl.dev/v20260101
 kind: ManagedEnvironmentsStorage
 metadata:
   name: full-storage-files
@@ -333,7 +440,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "storage:files"
@@ -348,7 +455,34 @@ spec:
       shareName: share
 ---
 # Source: avm-res-app-managedenvironment/templates/main.yaml
-apiVersion: app.azure.hfl.dev/v20250101
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: full-storage-files-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "storage:files-kv"
+spec:
+  azureName: "files-kv"
+  owner:
+    name: full-cae
+  properties:
+    azureFile:
+      accessMode: ReadWrite
+      accountKeyVaultProperties:
+        identityReference:
+          armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+        keyVaultUrl: https://kv-example.vault.azure.net/secrets/storage-key
+      accountName: stexample
+      shareName: share2
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
 kind: ManagedEnvironmentsStorage
 metadata:
   name: full-storage-nfs
@@ -356,7 +490,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "storage:nfs"
@@ -379,7 +513,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "lock"
@@ -401,7 +535,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "role-assignment-owner"
@@ -426,7 +560,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-app-managedenvironment
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     team: "platform"
   annotations:
     hfl.dev/id: "role-assignment-reader"
