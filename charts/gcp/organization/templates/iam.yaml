@@ -1,0 +1,30 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization/iam.tf (v60.0.0),
+Copyright 2026 Google LLC, Apache-2.0.
+*/ -}}
+{{- /* iam_by_principals_conditional: fabric merges it into iam_bindings,
+one binding per role and condition title, keyed "iam-bpc:<role>-<title>",
+with every principal that has the role under that condition. */}}
+{{- $v := .Values }}
+{{- $bindings := deepCopy ($v.iam_bindings | default dict) }}
+{{- $titles := dict }}
+{{- range $principal := keys ($v.iam_by_principals_conditional | default dict) | sortAlpha }}
+{{- $c := index $v.iam_by_principals_conditional $principal }}
+{{- if not $c.condition }}
+{{- fail "organization: iam_by_principals_conditional: The `condition` attribute is required. Use `iam_by_principals` for non-conditional bindings." }}
+{{- end }}
+{{- $seen := index $titles $c.condition.title }}
+{{- if and $seen (ne (toJson $seen) (toJson $c.condition)) }}
+{{- fail "organization: iam_by_principals_conditional: IAM bindings with the same condition title must have identical expressions and descriptions." }}
+{{- end }}
+{{- $_ := set $titles $c.condition.title $c.condition }}
+{{- range $role := $c.roles }}
+{{- $key := printf "iam-bpc:%s-%s" $role $c.condition.title }}
+{{- $b := index $bindings $key | default (dict "role" $role "condition" $c.condition "members" list) }}
+{{- $_ := set $b "members" (append $b.members $principal) }}
+{{- $_ := set $bindings $key $b }}
+{{- end }}
+{{- end }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (include "organization.iamRef" . | fromYaml) "v" (merge (dict "iam_bindings" $bindings) (omit $v "iam_bindings"))) }}

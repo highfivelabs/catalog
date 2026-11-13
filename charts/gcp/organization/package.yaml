@@ -1,0 +1,57 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs that are not whole objects, for what
+# the chart ports: id and organization_id (organization_id as given),
+# custom_constraint_ids, custom_role_id, organization_policies_ids and
+# sink_writer_identities, keyed as fabric keys them, and tag_keys,
+# tag_values, network_tag_keys and network_tag_values (each key's or
+# value's tagKeys/N or tagValues/N name: TagsTagKey's and TagsTagValue's
+# status.name is the bare number), workforce_identity_pool_ids and
+# workforce_identity_provider_names (each pool's and provider's
+# locations/global/workforcePools/... name). Not outputs:
+# asset_search_results, logging_identities, scc_mute_configs, scim_tenants
+# and service_agents (their variables are refused),
+# scc_custom_sha_modules_ids (Google Cloud assigns a module's ID, and the
+# alpha kind does not report it), and fabric's whole objects
+# (access_levels, context_aware_access_bindings, custom_roles,
+# logging_sinks, workforce_identity_providers; docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-organization
+spec:
+  version: 0.3.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: inputs.organization_id
+    organization_id: inputs.organization_id
+    custom_constraint_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'OrgPolicyCustomConstraint',
+        {v.spec.resourceID: inputs.organization_id + '/customConstraints/' + v.spec.resourceID})
+    custom_role_id: >-
+      resources.transformMapEntry(k, v, v.kind == 'IAMCustomRole',
+        {v.spec.resourceID: inputs.organization_id + '/roles/' + v.spec.resourceID})
+    organization_policies_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'OrgPolicyPolicy',
+        {v.spec.resourceID: inputs.organization_id + '/policies/' + v.spec.resourceID})
+    sink_writer_identities: >-
+      resources.transformMapEntry(k, v, v.kind == 'LoggingLogSink', {k.substring(13): v.status.writerIdentity})
+    tag_keys: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagKey' && k.startsWith('tag-key:'), {k.substring(8): 'tagKeys/' + v.status.name})
+    tag_values: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagValue' && k.startsWith('tag-value:'), {k.substring(10): 'tagValues/' + v.status.name})
+    network_tag_keys: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagKey' && k.startsWith('network-tag-key:'), {k.substring(16): 'tagKeys/' + v.status.name})
+    network_tag_values: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagValue' && k.startsWith('network-tag-value:'), {k.substring(18): 'tagValues/' + v.status.name})
+    workforce_identity_pool_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'IAMWorkforcePool',
+        {k.substring(15): 'locations/global/workforcePools/' + v.spec.resourceID})
+    workforce_identity_provider_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'IAMWorkforcePoolProvider',
+        {k.substring(19): 'locations/global/workforcePools/'
+          + resources['workforce-pool:' + k.substring(19).split('/')[0]].spec.resourceID
+          + '/providers/' + v.spec.resourceID})

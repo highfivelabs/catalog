@@ -1,0 +1,59 @@
+# The module README's examples for the parts that need a v1alpha1 kind,
+# with allow_alpha: IAM deny policies, the hierarchical Cloud Armor policy
+# association (less its exclusions, refused), a user access binding on the
+# chart's access level, the Model Armor floor setting and a Security
+# Health Analytics custom module.
+organization_id: organizations/1122334455
+allow_alpha: true
+iam_deny_policies:
+  prevent-sa-token-creation:
+    display_name: Prevent SA token creation
+    rules:
+      - description: Deny service account token creation to all except the central admin group.
+        denied_principals: ["principalSet://goog/public:all"]
+        denied_permissions: [iam.serviceAccounts.getAccessToken]
+        exception_principals: ["principalSet://goog/group/gcp-admins@example.com"]
+  conditional-key-deny:
+    display_name: Conditional SA Key Deny
+    rules:
+      - description: Deny key creation outside of authorized IPs using a condition.
+        denied_principals: ["principalSet://goog/public:all"]
+        denied_permissions: [iam.serviceAccountKeys.create]
+        denial_condition:
+          title: ip-restriction
+          description: Restrict access to specific IP ranges
+          expression: "!inIpRange(request.auth.access_levels, 'accessPolicies/123456789/accessLevels/trusted_ips')"
+cloud_armor_policy:
+  name: org-baseline
+  policy_id: "1234567890"
+access_policy: "1234567890"
+access_levels:
+  trusted_ips:
+    title: Trusted Corporate IPs
+    conditions:
+      - ip_subnetworks: [203.0.113.0/24, 198.51.100.0/24]
+context_aware_access_bindings:
+  developers_binding:
+    group_key: gcp-developers@example.com
+    access_levels: ["$access_levels:trusted_ips", accessPolicies/1234567890/accessLevels/other]
+model_armor_floor_setting:
+  filters:
+    malicious_uris: true
+    pi_and_jailbreak:
+      confidence_level: MEDIUM_AND_ABOVE
+    rai:
+      DANGEROUS: MEDIUM_AND_ABOVE
+      HARASSMENT: MEDIUM_AND_ABOVE
+      HATE_SPEECH: MEDIUM_AND_ABOVE
+      SEXUALLY_EXPLICIT: MEDIUM_AND_ABOVE
+    sdp:
+      basic: true
+scc_sha_custom_modules:
+  cloudkmKeyRotationPeriod:
+    description: The rotation period of the identified cryptokey resource exceeds 30 days.
+    recommendation: Set the rotation period to at most 30 days.
+    severity: MEDIUM
+    predicate:
+      expression: resource.rotationPeriod > duration("2592000s")
+    resource_selector:
+      resource_types: [cloudkms.googleapis.com/CryptoKey]
