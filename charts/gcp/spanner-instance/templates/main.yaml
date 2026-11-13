@@ -1,0 +1,139 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/spanner-instance/main.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_spanner_instance_config.spanner_instance_config: a
+SpannerInstanceConfig (config-connector-extensions,
+spanner.gcp.hfl.dev/v1beta1) when instance.config.auto_create is set;
+google_spanner_instance.spanner_instance: a SpannerInstance when
+instance_create is true (data.google_spanner_instance otherwise: nothing is
+rendered, and the databases and IAM refer to the existing instance by its
+ID); google_spanner_database.spanner_databases: a SpannerDatabase per
+databases entry. The IAM is in iam.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "instance")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $i := $v.instance }}
+{{- $id := include "spannerInstance.id" . }}
+{{- $config := $i.config | default dict }}
+{{- $auto := $config.auto_create }}
+{{- if $v.instance_create }}
+{{- include "kcc.unsupported" (list $ "instance.force_destroy" $i.force_destroy "SpannerInstance, a direct controller, has no force-destroy: delete the instance's backups first") }}
+{{- if not $config.name }}
+{{- fail "spanner-instance: instance.config.name is required when instance_create is true (fabric's google_spanner_instance takes config from it)" }}
+{{- end }}
+{{- end }}
+{{- if $auto }}
+{{- $base := $auto.base_config }}
+{{- if and $base (not (contains "/" $base)) }}
+{{- $base = printf "projects/%s/instanceConfigs/%s" $v.project_id $base }}
+{{- end }}
+{{- $cloud := include "spannerInstance.cloudLabels" (list $ ($auto.labels | default dict)) | fromJson }}
+---
+apiVersion: spanner.gcp.hfl.dev/v1beta1
+kind: SpannerInstanceConfig
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "config")) "id" "instance_config" "project" $v.project_id "labels" ($auto.labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  resourceID: {{ $config.name | quote }}
+  displayName: {{ coalesce $auto.display_name $config.name | quote }}
+  {{- with $base }}
+  baseConfigRef:
+    external: {{ . | quote }}
+  {{- end }}
+  replicas:
+  {{- range $r := $auto.replicas }}
+    - location: {{ $r.location | quote }}
+      type: {{ $r.type | quote }}
+      defaultLeaderLocation: {{ $r.default_leader_location }}
+  {{- end }}
+  {{- with $cloud }}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- if $v.instance_create }}
+---
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "instance" "project" $v.project_id "labels" ($i.labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $id | quote }}
+  config: {{ $config.name | quote }}
+  displayName: {{ coalesce $i.display_name $i.name | quote }}
+  {{- if not (kindIs "invalid" $i.num_nodes) }}
+  numNodes: {{ int $i.num_nodes }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $i.processing_units) }}
+  processingUnits: {{ int $i.processing_units }}
+  {{- end }}
+  {{- with $i.edition }}
+  edition: {{ . | quote }}
+  {{- end }}
+  {{- with $i.default_backup_schedule_type }}
+  defaultBackupScheduleType: {{ . | quote }}
+  {{- end }}
+  {{- with $i.autoscaling }}
+  autoscalingConfig:
+    {{- with .limits }}
+    autoscalingLimits:
+      {{- if not (kindIs "invalid" .max_processing_units) }}
+      maxProcessingUnits: {{ int .max_processing_units }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .min_processing_units) }}
+      minProcessingUnits: {{ int .min_processing_units }}
+      {{- end }}
+    {{- end }}
+    {{- with .targets }}
+    autoscalingTargets:
+      {{- if not (kindIs "invalid" .high_priority_cpu_utilization_percent) }}
+      highPriorityCpuUtilizationPercent: {{ int .high_priority_cpu_utilization_percent }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .storage_utilization_percent) }}
+      storageUtilizationPercent: {{ int .storage_utilization_percent }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- range $db, $d := ($v.databases | default dict) }}
+{{- $d = $d | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "databases.%s.default_time_zone" $db) $d.default_time_zone "SpannerDatabase has no defaultTimeZone field") }}
+---
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerDatabase
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "db" $db)) "id" (printf "database:%s" $db) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $db | quote }}
+  instanceRef:
+    {{- if $v.instance_create }}
+    name: {{ $.Release.Name }}
+    {{- else }}
+    external: {{ $id | quote }}
+    {{- end }}
+  {{- with $d.ddl }}
+  ddl:
+  {{- range . }}
+    - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.enable_drop_protection) }}
+  enableDropProtection: {{ $d.enable_drop_protection }}
+  {{- end }}
+  {{- with $d.version_retention_period }}
+  versionRetentionPeriod: {{ . | quote }}
+  {{- end }}
+  {{- with $d.kms_key_name }}
+  encryptionConfig:
+    kmsKeyRef:
+      external: {{ . | quote }}
+  {{- end }}
+{{- end }}

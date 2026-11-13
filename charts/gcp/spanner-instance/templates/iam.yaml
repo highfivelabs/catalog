@@ -1,0 +1,32 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/spanner-instance/iam.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+On the instance: google_spanner_instance_iam_binding.authoritative (iam)
+and .bindings (iam_bindings), authoritative per role, are one
+IAMPartialPolicy; google_spanner_instance_iam_member.bindings
+(iam_bindings_additive) an IAMPolicyMember each (docs/design.md, "IAM").
+On each database, the same from its own iam, iam_bindings (with their
+conditions) and iam_bindings_additive, keyed "<database>.<key>" as fabric
+keys them. With instance_create false the instance is referred to by its
+ID.
+*/ -}}
+{{- $v := .Values }}
+{{- $ref := dict "apiVersion" "spanner.cnrm.cloud.google.com/v1beta1" "kind" "SpannerInstance" }}
+{{- if $v.instance_create }}
+{{- $_ := set $ref "name" .Release.Name }}
+{{- else }}
+{{- $_ := set $ref "external" (printf "projects/%s/instances/%s" $v.project_id (include "spannerInstance.id" .)) }}
+{{- end }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" $ref "v" (dict "iam" $v.iam "iam_bindings" $v.iam_bindings "iam_bindings_additive" $v.iam_bindings_additive)) }}
+{{- range $db, $d := ($v.databases | default dict) }}
+{{- $d = $d | default dict }}
+{{- $dref := dict "apiVersion" "spanner.cnrm.cloud.google.com/v1beta1" "kind" "SpannerDatabase" "name" (include "kcc.name" (list $.Release.Name "db" $db)) }}
+{{- $bindings := dict }}
+{{- range $k, $b := ($d.iam_bindings | default dict) }}{{ $_ := set $bindings (printf "%s.%s" $db $k) $b }}{{ end }}
+{{- $additive := dict }}
+{{- range $k, $b := ($d.iam_bindings_additive | default dict) }}{{ $_ := set $additive (printf "%s.%s" $db $k) $b }}{{ end }}
+{{- include "kcc.iam" (dict "root" $ "base" (include "kcc.name" (list $.Release.Name "db" $db)) "idPrefix" (printf "database:%s/" $db) "resourceRef" $dref "v" (dict "iam" $d.iam "iam_bindings" $bindings "iam_bindings_additive" $additive)) }}
+{{- end }}
