@@ -1,0 +1,91 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-documentdb-databaseaccount
+main.mongo.tf, local.mongo.tf and variables.mongo.tf (v0.12.0),
+Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_cosmosdb_mongo_database: ASO MongodbDatabase, owned by the
+account. azurerm_cosmosdb_mongo_collection: MongodbDatabaseCollection,
+owned by its database (documentdb.azure.com/v1api20240815), its indexes as
+azurerm sends them: the entry's index, the module's unique _id index, and
+a _ts index expiring after default_ttl_seconds when set; its shard key
+hashed.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "cosmos") }}
+{{- $dbNames := list }}
+{{- range $dk, $db := ($v.mongo_databases | default dict) }}
+{{- if has $db.name $dbNames }}{{ fail (printf "%s: The 'name' in the sql database value must be unique." $chart) }}{{ end }}
+{{- $dbNames = append $dbNames $db.name }}
+{{- $dbAuto := ($db.autoscale_settings | default dict).max_throughput }}
+{{- if and $dbAuto (not (kindIs "invalid" $db.throughput)) }}
+{{- fail (printf "%s: The 'throughput' and 'autoscale_settings.max_throughput' cannot be specified at the same time at database level." $chart) }}
+{{- end }}
+{{- $dbObj := include "aso.name" (list $obj "mongodb" $dk) }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: MongodbDatabase
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $dbObj "id" (printf "mongo_database:%s" $dk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $db.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- if or $dbAuto (not (kindIs "invalid" $db.throughput)) }}
+  options:
+    {{- if $dbAuto }}
+    autoscaleSettings:
+      maxThroughput: {{ int $dbAuto }}
+    {{- else }}
+    throughput: {{ int $db.throughput }}
+    {{- end }}
+  {{- end }}
+  resource:
+    id: {{ $db.name | quote }}
+{{- range $ck, $c := ($db.collections | default dict) }}
+{{- $cAuto := ($c.autoscale_settings | default dict).max_throughput }}
+{{- if and $cAuto (not (kindIs "invalid" $c.throughput)) }}
+{{- fail (printf "%s: The 'throughput' and 'autoscale_settings.max_throughput' cannot be specified at the same time at collection level." $chart) }}
+{{- end }}
+{{- /* The index blocks are a set in azurerm: the module's _id index and an
+entry's identical one are one. */ -}}
+{{- $indexes := list }}
+{{- with $c.index }}
+{{- $indexes = append $indexes (dict "key" (dict "keys" .keys) "options" (dict "unique" (eq .unique true))) }}
+{{- end }}
+{{- $id := dict "key" (dict "keys" (list "_id")) "options" (dict "unique" true) }}
+{{- if not (has $id $indexes) }}{{ $indexes = append $indexes $id }}{{ end }}
+{{- if not (kindIs "invalid" $c.default_ttl_seconds) }}
+{{- $indexes = append $indexes (dict "key" (dict "keys" (list "_ts")) "options" (dict "expireAfterSeconds" (int64 $c.default_ttl_seconds))) }}
+{{- end }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: MongodbDatabaseCollection
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "mongoc" $dk $ck)) "id" (printf "mongo_collection:%s/%s" $dk $ck) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  owner:
+    name: {{ $dbObj }}
+  {{- if or $cAuto (not (kindIs "invalid" $c.throughput)) }}
+  options:
+    {{- if $cAuto }}
+    autoscaleSettings:
+      maxThroughput: {{ int $cAuto }}
+    {{- else }}
+    throughput: {{ int $c.throughput }}
+    {{- end }}
+  {{- end }}
+  resource:
+    id: {{ $c.name | quote }}
+    indexes:
+      {{- toYaml $indexes | nindent 6 }}
+    {{- with $c.shard_key }}
+    shardKey:
+      {{ . | quote }}: Hash
+    {{- end }}
+{{- end }}
+{{- end }}

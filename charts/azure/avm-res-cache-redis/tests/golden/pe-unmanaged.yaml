@@ -1,0 +1,62 @@
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: pe-unmanaged-redis-pe-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a"
+spec:
+  azureName: "pep-redis-pe"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  privateLinkServiceConnections:
+    - name: "pse-redis-pe"
+      groupIds: ["redisCache"]
+      privateLinkServiceReference:
+        group: cache.azure.com
+        kind: Redis
+        name: pe-unmanaged-redis
+  ipConfigurations:
+    - name: "ipc1"
+      groupId: "redisCache"
+      memberName: "redisCache"
+      privateIPAddress: "10.0.2.10"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: Redis
+metadata:
+  name: pe-unmanaged-redis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache"
+spec:
+  azureName: "redis-pe"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data"
+  sku:
+    name: Premium
+    family: P
+    capacity: 1
+  enableNonSslPort: false
+  minimumTlsVersion: "1.2"
+  publicNetworkAccess: Enabled
+  zones:
+    - "1"
+    - "2"
+    - "3"

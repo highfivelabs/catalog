@@ -1,0 +1,264 @@
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: slots-site-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: web.azure.com
+    kind: Site
+    name: slots-site
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: slots-site-slot-canary-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "slot:canary/lock"
+spec:
+  azureName: "canary-ro"
+  owner:
+    group: web.azure.hfl.dev
+    kind: SitesSlot
+    name: slots-site-slot-canary
+  level: ReadOnly
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: slots-site-slot-staging-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "slot:staging/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: web.azure.hfl.dev
+    kind: SitesSlot
+    name: slots-site-slot-staging
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: slots-site-slot-canary-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "slot:canary/role-assignment-reader"
+spec:
+  owner:
+    group: web.azure.hfl.dev
+    kind: SitesSlot
+    name: slots-site-slot-canary
+  principalId: "55555555-5555-5555-5555-555555555555"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: web.azure.com/v20250501
+kind: Site
+metadata:
+  name: slots-site
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "site"
+spec:
+  azureName: "app-slots"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "app,linux,container"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  enabled: true
+  httpsOnly: true
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Disabled
+  reserved: true
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverfarms/asp-p1
+  siteConfig:
+    acrUseManagedIdentityCreds: true
+    alwaysOn: true
+    appSettings:
+    - name: WEBSITES_PORT
+      value: "8080"
+    ftpsState: FtpsOnly
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    linuxFxVersion: DOCKER|acr.azurecr.io/shop/web:1.0
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    use32BitWorkerProcess: false
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+  tags:
+    env: prod
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesSlot
+metadata:
+  name: slots-site-slot-canary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "slot:canary"
+spec:
+  azureName: "canary-1"
+  location: "eastus2"
+  owner:
+    name: slots-site
+  kind: "app,linux,container"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  clientCertMode: Required
+  enabled: true
+  httpsOnly: true
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Disabled
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverfarms/asp-canary
+  siteConfig:
+    alwaysOn: true
+    ftpsState: FtpsOnly
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    scmType: None
+    use32BitWorkerProcess: false
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesSlot
+metadata:
+  name: slots-site-slot-staging
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "slot:staging"
+spec:
+  azureName: "staging"
+  location: "eastus2"
+  owner:
+    name: slots-site
+  kind: "app,linux,container"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  clientCertMode: Required
+  enabled: true
+  httpsOnly: true
+  identity:
+    type: SystemAssigned
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Enabled
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverfarms/asp-p1
+  siteConfig:
+    alwaysOn: false
+    appSettings:
+    - name: SLOT
+      value: staging
+    - name: WEBSITES_PORT
+      value: "8080"
+    ftpsState: FtpsOnly
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    linuxFxVersion: DOCKER|acr.azurecr.io/shop/web:1.1
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    scmType: None
+    use32BitWorkerProcess: false
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+  tags:
+    slot: staging
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesSlotsHostNameBinding
+metadata:
+  name: slots-site-slot-staging-host-staging
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "slot:staging/hostname_binding:staging"
+spec:
+  azureName: "staging.example.com"
+  owner:
+    name: slots-site-slot-staging

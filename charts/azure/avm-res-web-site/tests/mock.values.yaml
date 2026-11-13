@@ -1,0 +1,33 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): a Linux
+# Python web app with a system-assigned identity and app settings, on a
+# plan by ARM ID in the fake cloud's resource group (the fake keeps the
+# references as sent), with a deployment slot, a custom domain, a Key
+# Vault certificate and a lock.
+name: catalog-app
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+service_plan_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Web/serverfarms/catalog-asp
+ftp_publish_basic_authentication_enabled: true
+public_network_access_enabled: true
+managed_identities: {system_assigned: true}
+app_settings: {CATALOG: mock}
+site_config:
+  always_on: false
+  application_stack:
+    python: {python_version: "3.12"}
+tags: {catalog: mock}
+lock: {kind: CanNotDelete}
+deployment_slots:
+  staging:
+    ftp_publish_basic_authentication_enabled: true
+    webdeploy_publish_basic_authentication_enabled: true
+    managed_identities: {system_assigned: true}
+    app_settings: {CATALOG: mock-staging}
+    site_config: {always_on: false}
+custom_domains:
+  www: {hostname: www.catalog.example}
+certificates:
+  www:
+    name: catalog-app-www
+    key_vault_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.KeyVault/vaults/catalog-kv
+    key_vault_secret_name: www-catalog-example

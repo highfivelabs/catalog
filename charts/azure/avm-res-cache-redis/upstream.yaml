@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-cache-redis
+repo: https://github.com/Azure/terraform-azurerm-avm-res-cache-redis
+path: .
+version: v0.5.0
+commit: 7469021fb795f8ee3dce2ed2dba2f41b91c4785c
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-cache-redis/tree/v0.5.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-cache-redis/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  - variable: redis_configuration
+    kind: by-design
+    reason: "accepted, but the storage connection strings for persistence (aof_storage_connection_string_0, aof_storage_connection_string_1, rdb_storage_connection_string) are refused: a connection string carries the storage account's key, a secret value, which does not belong in a component's inputs (the builder's decision); ASO's redisConfiguration takes them only as plain strings"
+    partial: true
+    fields: [aof_storage_connection_string_0, aof_storage_connection_string_1, rdb_storage_connection_string]

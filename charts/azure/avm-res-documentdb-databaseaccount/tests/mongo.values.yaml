@@ -1,0 +1,28 @@
+# The module's mongo example (examples/mongo), in part: a MongoDB 4.2
+# account (any database makes the account MongoDB; local authentication
+# stays on, as the module forces), a database with a collection with its
+# TTL, shard key and unique index, and one with autoscale throughput.
+name: cosmos-mongo
+location: eastus2
+resource_group_name: rg-example
+subscription_id: 00000000-0000-0000-0000-000000000000
+mongo_server_version: "4.2"
+capabilities: [{name: EnableMongo}]
+mongo_databases:
+  database_collection:
+    name: database_mongoDb_collections
+    throughput: 400
+    collections:
+      collection:
+        name: MongoDBcollection
+        default_ttl_seconds: "3600"
+        shard_key: _id
+        throughput: 400
+        index: {keys: [_id], unique: true}
+      other:
+        name: other
+        autoscale_settings: {max_throughput: 1000}
+        index: {keys: [tenant, createdAt]}
+  autoscale:
+    name: autoscale
+    autoscale_settings: {max_throughput: 4000}

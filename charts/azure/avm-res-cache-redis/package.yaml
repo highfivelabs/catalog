@@ -1,0 +1,28 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs): name and resource_id are the cache's Azure
+# name and ARM ID; system_assigned_mi_principal_id is its system-assigned
+# identity's principal ID ("" without one, as the module's);
+# private_endpoints is each endpoint's ID, keyed like the value (the module
+# gives the whole azurerm object). Not an output: resource, the module's
+# sensitive azurerm_redis_cache object, which carries the access keys and
+# connection strings (secret values, which do not belong in outputs).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-cache-redis
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.cache.spec.azureName
+    resource_id: resources.cache.status.id
+    system_assigned_mi_principal_id: >-
+      'system_assigned' in inputs.managed_identities && inputs.managed_identities.system_assigned == true
+      ? resources.cache.status.identity.principalId : ''
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): v.status.id})

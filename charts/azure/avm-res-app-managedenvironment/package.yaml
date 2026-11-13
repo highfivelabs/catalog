@@ -1,0 +1,59 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs): the environment's status as ASO reads it
+# back from Azure. A status field Azure has not filled (a network's CIDRs
+# on an environment without one) is null. The module's *_resource_ids
+# outputs are maps of the child's key to {id: <ARM ID>}, as the module
+# gives them. managed_identities is the identity Azure reports (type,
+# principalId, tenantId, userAssignedIdentities), {} without one. Not
+# outputs: dapr_ai_instrumentation_key (ASO's status has none; a secret
+# besides) and resource (the whole azapi object).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-app-managedenvironment
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.managed_environment.spec.azureName
+    resource_id: resources.managed_environment.status.id
+    id: resources.managed_environment.status.id
+    default_domain: >-
+      'defaultDomain' in resources.managed_environment.status ? resources.managed_environment.status.defaultDomain : null
+    static_ip_address: >-
+      'staticIp' in resources.managed_environment.status ? resources.managed_environment.status.staticIp : null
+    event_stream_endpoint: >-
+      'eventStreamEndpoint' in resources.managed_environment.status ? resources.managed_environment.status.eventStreamEndpoint : null
+    infrastructure_resource_group: >-
+      'infrastructureResourceGroup' in resources.managed_environment.status ? resources.managed_environment.status.infrastructureResourceGroup : null
+    custom_domain_verification_id: >-
+      'customDomainConfiguration' in resources.managed_environment.status
+      && 'customDomainVerificationId' in resources.managed_environment.status.customDomainConfiguration
+      ? resources.managed_environment.status.customDomainConfiguration.customDomainVerificationId : null
+    docker_bridge_cidr: >-
+      'vnetConfiguration' in resources.managed_environment.status
+      && 'dockerBridgeCidr' in resources.managed_environment.status.vnetConfiguration
+      ? resources.managed_environment.status.vnetConfiguration.dockerBridgeCidr : null
+    platform_reserved_cidr: >-
+      'vnetConfiguration' in resources.managed_environment.status
+      && 'platformReservedCidr' in resources.managed_environment.status.vnetConfiguration
+      ? resources.managed_environment.status.vnetConfiguration.platformReservedCidr : null
+    platform_reserved_dns_ip_address: >-
+      'vnetConfiguration' in resources.managed_environment.status
+      && 'platformReservedDnsIP' in resources.managed_environment.status.vnetConfiguration
+      ? resources.managed_environment.status.vnetConfiguration.platformReservedDnsIP : null
+    managed_identities: >-
+      'identity' in resources.managed_environment.status ? resources.managed_environment.status.identity : dyn({})
+    certificate_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('certificate:'), {k.substring(12): {'id': v.status.id}})
+    dapr_component_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('dapr_component:'), {k.substring(15): {'id': v.status.id}})
+    managed_certificate_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('managed_certificate:'), {k.substring(20): {'id': v.status.id}})
+    storage_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('storage:'), {k.substring(8): {'id': v.status.id}})

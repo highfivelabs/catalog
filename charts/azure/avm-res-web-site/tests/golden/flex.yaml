@@ -1,0 +1,63 @@
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: web.azure.com/v20250501
+kind: Site
+metadata:
+  name: flex-site
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "flex"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "site"
+spec:
+  azureName: "func-flex"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "functionapp,linux"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  enabled: true
+  functionAppConfig:
+    deployment:
+      storage:
+        authentication:
+          type: SystemAssignedIdentity
+        type: blobContainer
+        value: https://stflex.blob.core.windows.net/deployments
+    runtime:
+      name: node
+      version: "20"
+    scaleAndConcurrency:
+      alwaysReady:
+      - instanceCount: 1
+        name: http
+      instanceMemoryMB: 2048
+      maximumInstanceCount: 40
+  httpsOnly: true
+  identity:
+    type: SystemAssigned
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Disabled
+  reserved: true
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverfarms/asp-flex
+  siteConfig:
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    loadBalancing: LeastRequests
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false

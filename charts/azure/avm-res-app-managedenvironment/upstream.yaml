@@ -1,0 +1,165 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-app-managedenvironment
+repo: https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment
+path: .
+version: v0.6.0
+commit: c6709095a923c7c3d1fb54da0d43cb56d95b731e
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-app-managedenvironment/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  # The azapi provider's mechanics.
+  - variable: ignore_body_changes
+    kind: gap
+    reason: "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01 or 2026-01-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  # Fields after ASO's ManagedEnvironment API version 2025-01-01 (the module
+  # sends 2025-10-02-preview).
+  - variable: app_insights_configuration
+    kind: gap
+    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no appInsightsConfiguration"
+  - variable: connection_string
+    kind: gap
+    reason: "the Application Insights connection string of appInsightsConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides"
+  - variable: connection_string_version
+    kind: gap
+    reason: "tracks connection_string, whose appInsightsConfiguration ASO's ManagedEnvironment (2025-01-01) does not have"
+  - variable: availability_zones
+    kind: gap
+    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no availabilityZones"
+  - variable: disk_encryption_configuration
+    kind: gap
+    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no diskEncryptionConfiguration"
+  - variable: ingress_configuration
+    kind: gap
+    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no ingressConfiguration"
+  - variable: open_telemetry_configuration
+    kind: gap
+    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no openTelemetryConfiguration"
+  - variable: key
+    kind: gap
+    reason: "the DataDog key of openTelemetryConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides"
+  - variable: key_version
+    kind: gap
+    reason: "tracks key, whose openTelemetryConfiguration ASO's ManagedEnvironment (2025-01-01) does not have"
+  - variable: public_network_access
+    kind: gap
+    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no publicNetworkAccess"
+  - variable: public_network_access_enabled
+    kind: gap
+    reason: "deprecated form of public_network_access: ASO's ManagedEnvironment (2025-01-01) has no publicNetworkAccess"
+  # Child types with no kind.
+  - variable: dapr_subscriptions
+    kind: gap
+    reason: "no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/daprSubscriptions"
+  - variable: dot_net_components
+    kind: gap
+    reason: "no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/dotNetComponents"
+  # Secret values: the builder's decision (ASO takes each as a
+  # SecretReference to a Kubernetes Secret; how a component supplies one is
+  # not settled).
+  - variable: shared_key
+    kind: not-ported
+    reason: "the Log Analytics workspace's shared key, a secret value the chart does not take"
+  - variable: shared_key_version
+    kind: not-ported
+    reason: "tracks shared_key, a secret value the chart does not take"
+  - variable: log_analytics_workspace
+    kind: not-ported
+    reason: "the module reads the workspace's primary shared key and sends it, a secret value the chart does not take (send logs to Azure Monitor with diagnostic_settings)"
+  - variable: log_analytics_workspace_customer_id
+    kind: not-ported
+    reason: "deprecated; a Log Analytics destination needs the workspace's shared key, a secret value the chart does not take"
+  - variable: log_analytics_workspace_primary_shared_key
+    kind: not-ported
+    reason: "deprecated; the workspace's shared key, a secret value the chart does not take"
+  - variable: certificate_password
+    kind: not-ported
+    reason: "the custom domain certificate's password, a secret value the chart does not take (reference the certificate in Key Vault)"
+  - variable: certificate_password_version
+    kind: not-ported
+    reason: "tracks certificate_password, a secret value the chart does not take"
+  - variable: certificate_value
+    kind: not-ported
+    reason: "the custom domain certificate's blob, a secret value the chart does not take (reference the certificate in Key Vault)"
+  - variable: certificate_value_version
+    kind: not-ported
+    reason: "tracks certificate_value, a secret value the chart does not take"
+  - variable: custom_domain_certificate_password
+    kind: not-ported
+    reason: "deprecated; the custom domain certificate's password, a secret value the chart does not take"
+  - variable: custom_domain_certificate_value
+    kind: not-ported
+    reason: "deprecated; the custom domain certificate's blob, a secret value the chart does not take"
+  - variable: dapr_ai_connection_string
+    kind: not-ported
+    reason: "an Application Insights connection string for Dapr, a secret value the chart does not take"
+  - variable: dapr_ai_connection_string_version
+    kind: not-ported
+    reason: "tracks dapr_ai_connection_string, a secret value the chart does not take"
+  - variable: dapr_ai_instrumentation_key
+    kind: not-ported
+    reason: "an instrumentation key for Dapr, a secret value the chart does not take"
+  - variable: dapr_ai_instrumentation_key_version
+    kind: not-ported
+    reason: "tracks dapr_ai_instrumentation_key, a secret value the chart does not take"
+  - variable: dapr_application_insights_connection_string
+    kind: not-ported
+    reason: "deprecated; an Application Insights connection string for Dapr, a secret value the chart does not take"
+  # Accepted in part.
+  - variable: app_logs_configuration
+    kind: not-ported
+    reason: "accepted with destination azure-monitor (or none), but destination log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take"
+    partial: true
+    fields: [log_analytics_configuration]
+  - variable: log_analytics_workspace_destination
+    kind: not-ported
+    reason: "deprecated; accepted as azure-monitor, but log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take"
+    partial: true
+  - variable: custom_domain_configuration
+    kind: not-ported
+    reason: "accepted with a Key Vault certificate (certificate_key_vault_properties) and dns_suffix, but certificate_value is refused: a certificate's blob is a secret value the chart does not take"
+    partial: true
+    fields: [certificate_value]
+  - variable: certificates
+    kind: not-ported
+    reason: "accepted with a Key Vault certificate (certificate_key_vault_properties), but password and value are refused: secret values the chart does not take"
+    partial: true
+    fields: [password, value]
+  - variable: dapr_components
+    kind: not-ported
+    reason: "accepted, with Key Vault secret references (key_vault_url and identity), but a secret's value is refused: a secret value the chart does not take"
+    partial: true
+    fields: [value]
+  - variable: storages
+    kind: gap
+    reason: "accepted for NFS and Azure Files shares, but the account key (account_key, azure_file.account_key) is refused, a secret value the chart does not take, and azure_file.account_key_vault_properties too: aso-extensions' ManagedEnvironmentsStorage is at ARM API version 2025-01-01, which has no accountKeyVaultProperties"
+    partial: true
+    fields: [account_key, account_key_vault_properties]
+  - variable: java_components
+    kind: gap
+    reason: "accepted for SpringBootAdmin, SpringCloudConfig and SpringCloudEureka, but Nacos and SpringCloudGateway components and ingress are refused: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2025-01-01) has neither"
+    partial: true
+    fields: [component_type, ingress]
