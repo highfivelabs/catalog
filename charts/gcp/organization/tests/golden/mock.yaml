@@ -1,0 +1,157 @@
+---
+# Source: organization/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: mock-role-catalogmockrole-70da00a5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "custom-role:catalogMockRole"
+    cnrm.cloud.google.com/organization-id: "123450000000"
+spec:
+  resourceID: "catalogMockRole"
+  title: "Custom role catalogMockRole"
+  description: "Terraform-managed."
+  permissions:
+    - "compute.instances.list"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    external: "123450000000"
+    kind: Organization
+  bindings:
+    - role: "roles/viewer"
+      members:
+        - member: "group:viewers@example.com"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-iam-browser
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam-additive-browser"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    external: "123450000000"
+    kind: Organization
+  role: "roles/browser"
+  member: "user:one@example.com"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: mock-exclusion-no-gce
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce"
+spec:
+  resourceID: "no-gce"
+  organizationRef:
+    external: "organizations/123450000000"
+  description: "no-gce (Terraform-managed)."
+  filter: "resource.type=gce_instance"
+---
+# Source: organization/templates/organization.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyCustomConstraint
+metadata:
+  name: mock-constraint-custom-catalogmockconstraint-85e0abab
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "custom-constraint:custom.catalogMockConstraint"
+spec:
+  resourceID: "custom.catalogMockConstraint"
+  organizationRef:
+    external: "organizations/123450000000"
+  actionType: "ALLOW"
+  condition: "resource.management.autoUpgrade == true"
+  methodTypes: ["CREATE"]
+  resourceTypes: ["container.googleapis.com/NodePool"]
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: mock-org-policy-compute-disableguestattributesaccess-c4974076
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.disableGuestAttributesAccess"
+spec:
+  resourceID: compute.disableGuestAttributesAccess
+  organizationRef:
+    external: "organizations/123450000000"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  name: mock-tag-catalog-mock-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "tag-key:catalog-mock-env"
+spec:
+  parent: "organizations/123450000000"
+  shortName: "catalog-mock-env"
+  description: "Managed by the Terraform organization module."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: mock-tag-catalog-mock-env-dev
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "tag-value:catalog-mock-env/dev"
+spec:
+  parentRef:
+    name: mock-tag-catalog-mock-env
+  shortName: "dev"
+  description: "Managed by the Terraform organization module."

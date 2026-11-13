@@ -1,0 +1,124 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization/context_aware_access.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0, through the vpc-sc chart's
+access levels.
+
+google_access_context_manager_access_level.basic: one basic
+AccessContextManagerAccessLevel per entry of access_levels in the access
+policy access_policy (its number), named by its key, its title the title
+or the key, as fabric's coalesce(title, key). Members are users and
+service accounts (fabric's check); VPC network sources (vpc_subnets) have
+no field and are refused. A required access level is another level's
+resource name, or "$access_levels:<NAME>" for this chart's level NAME.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $levels := $v.access_levels | default dict }}
+{{- if and $levels (not $v.access_policy) }}
+{{- fail "organization: access_policy is required to create access levels (an existing access policy's number)" }}
+{{- end }}
+{{- range $key := keys $levels | sortAlpha }}
+{{- $l := index $levels $key }}
+{{- if not (has (toString ($l.combining_function | default "")) (list "" "AND" "OR")) }}
+{{- fail "organization: Invalid `combining_function` value (null, \"AND\", \"OR\" accepted)." }}
+{{- end }}
+{{- $name := include "organization.levelName" (list $ $key) }}
+---
+apiVersion: accesscontextmanager.cnrm.cloud.google.com/v1beta1
+kind: AccessContextManagerAccessLevel
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "level" $key)) "id" (printf "access-level:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  accessPolicyRef:
+    {{- include "organization.context" (list $ "access_policy" $v.access_policy) }}
+    external: {{ printf "accessPolicies/%s" (trimPrefix "accessPolicies/" (toString $v.access_policy)) | quote }}
+  resourceID: {{ $name | quote }}
+  title: {{ $l.title | default $key | quote }}
+  {{- with $l.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  basic:
+    {{- with $l.combining_function }}
+    combiningFunction: {{ . | quote }}
+    {{- end }}
+    {{- if not $l.conditions }}
+    conditions: []
+    {{- else }}
+    conditions:
+      {{- range $i, $c := $l.conditions }}
+      {{- $w := printf "access_levels.%s.conditions[%d]" $key $i }}
+      {{- include "kcc.unsupported" (list $ (printf "%s.vpc_subnets" $w) $c.vpc_subnets "AccessContextManagerAccessLevel has no vpcNetworkSources") }}
+      {{- $dp := $c.device_policy }}
+      {{- with $dp }}
+      {{- range $s := (.allowed_encryption_statuses | default list) }}
+      {{- if not (has $s (list "ENCRYPTION_UNSPECIFIED" "ENCRYPTION_UNSUPPORTED" "UNENCRYPTED" "ENCRYPTED")) }}
+      {{- fail "organization: Invalid `allowed_encryption_statuses` value." }}
+      {{- end }}
+      {{- end }}
+      {{- range $s := (.allowed_device_management_levels | default list) }}
+      {{- if not (has $s (list "MANAGEMENT_UNSPECIFIED" "NONE" "BASIC" "COMPLETE" "CHROME_ENTERPRISE")) }}
+      {{- fail "organization: Invalid `allowed_device_management_levels` value." }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      - {{- if not (or $dp $c.ip_subnetworks $c.members (not (kindIs "invalid" $c.negate)) $c.regions $c.required_access_levels) }} {}{{ end }}
+        {{- with $dp }}
+        devicePolicy:
+          {{- with .allowed_device_management_levels }}
+          allowedDeviceManagementLevels: {{ toJson . }}
+          {{- end }}
+          {{- with .allowed_encryption_statuses }}
+          allowedEncryptionStatuses: {{ toJson . }}
+          {{- end }}
+          requireAdminApproval: {{ .require_admin_approval }}
+          requireCorpOwned: {{ .require_corp_owned }}
+          {{- if not (kindIs "invalid" .require_screen_lock) }}
+          requireScreenLock: {{ .require_screen_lock }}
+          {{- end }}
+          {{- with .os_constraints }}
+          osConstraints:
+            {{- range $o := . }}
+            - osType: {{ $o.os_type | quote }}
+              {{- with $o.minimum_version }}
+              minimumVersion: {{ . | quote }}
+              {{- end }}
+              {{- if not (kindIs "invalid" $o.require_verified_chrome_os) }}
+              requireVerifiedChromeOs: {{ $o.require_verified_chrome_os }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- with $c.ip_subnetworks }}
+        ipSubnetworks: {{ toJson . }}
+        {{- end }}
+        {{- with $c.members }}
+        members:
+          {{- range $m := . }}
+          {{- include "organization.context" (list $ (printf "%s.members" $w) $m) }}
+          {{- if hasPrefix "user:" $m }}
+          - user: {{ trimPrefix "user:" $m | quote }}
+          {{- else if hasPrefix "serviceAccount:" $m }}
+          - serviceAccountRef:
+              external: {{ $m | quote }}
+          {{- else }}
+          {{- fail "organization: Invalid `conditions[].members`. It needs to start with on of the prefixes: 'serviceAccount:' or 'user:'." }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if not (kindIs "invalid" $c.negate) }}
+        negate: {{ $c.negate }}
+        {{- end }}
+        {{- with $c.regions }}
+        regions: {{ toJson . }}
+        {{- end }}
+        {{- with $c.required_access_levels }}
+        requiredAccessLevels:
+          {{- range $r := . }}
+          - {{ include "organization.levelRef" (list $ (printf "%s.required_access_levels" $w) $r) | nindent 12 | trim }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}

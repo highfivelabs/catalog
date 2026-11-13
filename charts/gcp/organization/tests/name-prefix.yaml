@@ -1,0 +1,24 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The namePrefix convention (docs/design.md, "Names, labels and tags"): every object this
+# chart renders carries the namePrefix in its cloud-side name
+# (spec.resourceID), except the kinds listed here, each with the reason it
+# cannot collide with another Instance's. A kind added to the chart and not
+# listed fails `task test` until it is prefixed or listed.
+exempt:
+  IAMPartialPolicy: "binds members on another object; it has no name of its own"
+  IAMPolicyMember: "binds one member on another object; it has no name of its own"
+  IAMBinding: "the members of one role on another object; it has no name of its own"
+  IAMAuditConfig: "configures one service's audit logs on the organization; it has no name of its own"
+  OrgPolicyPolicy: "named by the constraint, per organization"
+  EssentialContactsContact: "keyed by the contact's email"
+  TagsTagBinding: "a binding of a tag value to the organization; it has no name of its own"
+  TagsTagValue: "its short name is scoped to its tag key, which carries the namePrefix"
+  IAMCustomRole: "its ID takes no \"-\", so a namePrefix cannot go in front; it is named by fabric's key, as the module names it, and the organization has one of each"
+  OrgPolicyCustomConstraint: "its name must be custom.<letters and digits>, so a namePrefix cannot go in front; it is named by fabric's key, as the module names it, and the organization has one of each"
+  IAMWorkforcePoolProvider: "its ID is scoped to its pool, which carries the namePrefix"
+nameFields:
+  TagsTagKey: shortName
+compactNames:
+  AccessContextManagerAccessLevel: "an access level's name is letters, digits and \"_\", so the namePrefix goes on with its hyphens as underscores"
