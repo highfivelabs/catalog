@@ -1,0 +1,94 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpn-ha/main.tf and
+route-policies.tf (v60.0.0), Copyright 2022 and 2026 Google LLC,
+Apache-2.0.
+
+google_compute_ha_vpn_gateway.ha_gateway (vpn_gateway_create set): a
+ComputeVPNGateway. google_compute_external_vpn_gateway.external_gateway:
+a ComputeExternalVPNGateway per external peer gateway, <name>-<key>.
+google_compute_router.router (router_config.create): a ComputeRouter,
+router_config.name or vpn-<name>. google_compute_router_route_policy
+.default: a config-connector-extensions ComputeRouterRoutePolicy per
+policy (v1alpha1: allow_alpha). google_compute_vpn_tunnel.tunnels,
+google_compute_router_interface.router_interface and
+google_compute_router_peer.bgp_peer are not rendered: tunnels is refused
+(README.md), and fabric makes one interface and one peer per tunnel.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "gateway" "router")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "Bundt replaces fabric's $context lookups with ${...} expressions in the component's inputs") }}
+{{- include "kcc.unsupported" (list $ "tunnels" $v.tunnels "a tunnel's shared secret would be in the rendered manifest, and the chart does not take one from a Kubernetes Secret yet (README.md, \"Values\"); ComputeVPNTunnel has no cipherSuite field, and ComputeRouterPeer has no md5AuthenticationKey, importPolicies, exportPolicies or customLearnedIpRanges") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $k, $pg := $v.peer_gateways }}
+{{- if eq (empty $pg.external) (empty $pg.gcp) }}
+{{- fail "net-vpn-ha: Peer gateway configuration must define exactly one between `external` and `gcp`." }}
+{{- end }}
+{{- end }}
+{{- $network := trimPrefix "https://www.googleapis.com/compute/beta/" (trimPrefix "https://www.googleapis.com/compute/v1/" $v.network) }}
+{{- $rc := $v.router_config }}
+{{- $create := ne (toString $rc.create) "false" }}
+{{- $routerObject := include "kcc.name" (list .Release.Name) }}
+{{- $router := dict }}
+{{- if $create }}
+{{- if kindIs "invalid" $rc.asn }}
+{{- fail "net-vpn-ha: router_config.asn is required to create a router (ComputeRouter's bgp.asn); to reuse one, set router_config.create to false and its name" }}
+{{- end }}
+{{- $_ := set $router "name" $routerObject }}
+{{- else }}
+{{- if not $rc.name }}
+{{- fail "net-vpn-ha: router_config.name is required when router_config.create is false" }}
+{{- end }}
+{{- $_ := set $router "external" (printf "projects/%s/regions/%s/routers/%s" $v.project_id $v.region $rc.name) }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.vpn_gateway_create) }}
+{{- $gw := $v.vpn_gateway_create }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "gateway" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "gateway" "VPN gateway" $v.name 63 "letter") | quote }}
+  description: {{ ternary "Terraform managed external VPN gateway" $gw.description (kindIs "invalid" $gw.description) | quote }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  stackType: {{ ternary "IPV4_IPV6" "IPV4_ONLY" (eq (toString $gw.ipv6) "true") }}
+{{- end }}
+{{- range $key, $pg := $v.peer_gateways }}
+{{- with $pg.external }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peer" $key)) "id" (printf "external_gateway:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "external VPN gateway" (.name | default (printf "%s-%s" $v.name $key)) 63 "letter") | quote }}
+  description: {{ ternary "Terraform managed external VPN gateway" .description (kindIs "invalid" .description) | quote }}
+  redundancyType: {{ .redundancy_type | quote }}
+  {{- with .interfaces }}
+  interface:
+    {{- range $i, $ip := . }}
+    - id: {{ $i }}
+      ipAddress: {{ $ip | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- if $create }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $routerObject "id" "router" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "router" "router" ($rc.name | default (printf "vpn-%s" $v.name)) 63 "letter") | quote }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  bgp:
+    {{- include "router.bgp" $rc | nindent 4 }}
+{{- end }}
+{{- include "router.policies" (dict "root" $ "policies" ($rc.route_policies | default dict) "router" $router "abandon" $abandon) }}

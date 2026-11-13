@@ -1,0 +1,489 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-vlan-attachment values (fabric net-vlan-attachment v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "description",
+    "name",
+    "network",
+    "peer_asn",
+    "project_id",
+    "region",
+    "router_config"
+  ],
+  "properties": {
+    "names": {
+      "description": "The attachment's, router's and IPsec address pool's names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attachment": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "router": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "allow_alpha": {
+      "description": "Accept the v1alpha1 kind route policies need, config-connector-extensions' ComputeRouterRoutePolicy (not a fabric variable).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "admin_enabled": {
+      "description": "Whether the VLAN attachment is enabled.",
+      "type": "boolean"
+    },
+    "bgp_peer": {
+      "description": "BGP peer configuration for the VLAN attachment (dedicated only).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "custom_advertise": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "all_subnets",
+            "ip_ranges"
+          ],
+          "properties": {
+            "all_subnets": {
+              "type": "boolean"
+            },
+            "ip_ranges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "custom_learned_ip_ranges": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "ip_ranges"
+          ],
+          "properties": {
+            "route_priority": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "ip_ranges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "bfd": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "min_receive_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "min_transmit_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "multiplier": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "session_initialization_mode": {
+              "enum": [
+                "ACTIVE",
+                "PASSIVE",
+                "DISABLED",
+                null
+              ]
+            }
+          }
+        },
+        "export_policies": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "import_policies": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "md5_authentication_key": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set (Bundt replaces them with ${...} expressions).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "dedicated_interconnect_config": {
+      "description": "Dedicated interconnect configuration; refused when set (README.md, \"Values\").",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "description": {
+      "description": "VLAN attachment description.",
+      "type": "string"
+    },
+    "ipsec_gateway_ip_ranges": {
+      "description": "IPSec Gateway IP Ranges.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "mtu": {
+      "description": "The MTU associated to the VLAN attachment (1440 / 1500).",
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "name": {
+      "description": "The common resources name, used after resource type prefix and suffix.",
+      "type": "string",
+      "minLength": 1
+    },
+    "network": {
+      "description": "The VPC name to which resources are associated to.",
+      "type": "string",
+      "minLength": 1
+    },
+    "partner_interconnect_config": {
+      "description": "Partner interconnect configuration.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "edge_availability_domain"
+      ],
+      "properties": {
+        "edge_availability_domain": {
+          "type": "string",
+          "enum": [
+            "AVAILABILITY_DOMAIN_1",
+            "AVAILABILITY_DOMAIN_2",
+            "AVAILABILITY_DOMAIN_ANY"
+          ]
+        }
+      }
+    },
+    "peer_asn": {
+      "description": "The on-premises underlay router ASN.",
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "project_id": {
+      "description": "The project id where resources are created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "The region where resources are created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "router_config": {
+      "description": "Cloud Router configuration. To reuse an existing router, set create to false and name it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "asn": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "keepalive": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "custom_advertise": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "all_subnets",
+            "ip_ranges"
+          ],
+          "properties": {
+            "all_subnets": {
+              "type": "boolean"
+            },
+            "ip_ranges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "route_policies": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "terms"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "IMPORT",
+                  "EXPORT"
+                ]
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "priority",
+                    "match",
+                    "actions"
+                  ],
+                  "properties": {
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "match": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "expression"
+                      ],
+                      "properties": {
+                        "expression": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "location": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "expression"
+                        ],
+                        "properties": {
+                          "expression": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "location": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "BGP route policies on the router, keyed by name (ComputeRouterRoutePolicy, v1alpha1: allow_alpha)."
+        },
+        "md5_authentication_key": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "vpn_gateways_ip_range": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The IP range (CIDR) for the GCP VPN gateways. If null IPSec over Interconnect is not enabled."
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

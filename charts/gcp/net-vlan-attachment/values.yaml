@@ -1,0 +1,72 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's net-vlan-attachment
+# module (v60.0.0): same names, types and defaults, so a module block's
+# arguments become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.attachment, names.router, names.address: the VLAN attachment's, the
+# Cloud Router's and the IPsec address pool's names in full. A name set
+# here takes no namePrefix; unset, fabric's (name; <name>-underlay with
+# IPsec, else router_config.name; pool-<name>).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the chart
+# derives, never one set under names. Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. An unprefixed key also becomes a Google
+# Cloud label on the resources that take labels, so it must be a valid one.
+labels: {}
+# Cloud labels on every resource that takes them.
+tags: {}
+# Not a fabric variable: route policies (router_config.route_policies) are
+# config-connector-extensions' ComputeRouterRoutePolicy, a v1alpha1 kind,
+# refused unless this is true (docs/design.md, "Alpha kinds").
+allow_alpha: false
+
+# Whether the VLAN attachment is enabled.
+admin_enabled: true
+# BGP peer configuration for the VLAN attachment. Fabric uses it only for
+# a dedicated attachment's peer (README.md, "Values").
+bgp_peer: null
+# Context-specific interpolations. Refused when set: Bundt replaces them
+# with ${...} expressions in the component's inputs.
+context: {}
+# Dedicated interconnect configuration. Refused when set: see README.md.
+dedicated_interconnect_config: null
+# VLAN attachment description. Required, as in fabric.
+description: null
+# IPSec Gateway IP Ranges, {description: range}: advertised by the
+# encrypted router of a partner attachment.
+ipsec_gateway_ip_ranges: {}
+# The MTU associated to the VLAN attachment (1440 / 1500).
+mtu: "1500"
+# The common resources name, used after resource type prefix and suffix.
+name: null
+# The VPC name to which resources are associated to (an id or self link).
+network: null
+# Partner interconnect configuration: {edge_availability_domain}.
+partner_interconnect_config: null
+# The on-premises underlay router ASN. Fabric uses it only for a dedicated
+# attachment's peer.
+peer_asn: null
+# The project id where resources are created.
+project_id: null
+# The region where resources are created.
+region: null
+# Cloud Router configuration: {create (true), asn (65001), custom_advertise,
+# md5_authentication_key, route_policies, keepalive, name ("router")}. To
+# reuse an existing router, set create to false and use name to specify it.
+router_config: {}
+# The IP range (CIDR) to be used for the GCP VPN gateways. If null IPSec
+# over Interconnect is not enabled.
+vpn_gateways_ip_range: null
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# cloud resources when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null

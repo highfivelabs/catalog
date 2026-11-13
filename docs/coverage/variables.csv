@@ -516,16 +516,16 @@ gcp,net-address,network_attachments,"map(object({automatic_connection, descripti
 gcp,net-address,project_id,string,yes,,
 gcp,net-address,psa_addresses,"map(object({address, description, name, network, prefix_length}))",yes,,
 gcp,net-address,psc_addresses,"map(object({address, description, name, network, region, service_attachment, +1}))",partial,ComputeForwardingRule's serviceDirectoryRegistrations have no region (service_directory_region),gap
-gcp,net-vpn-ha,context,"object({addresses, locations, networks, project_ids, routers, vpn_gateways})",no,,no-chart
-gcp,net-vpn-ha,name,string,no,,no-chart
-gcp,net-vpn-ha,network,string,no,,no-chart
-gcp,net-vpn-ha,peer_gateways,"map(object({external, gcp}))",no,,no-chart
-gcp,net-vpn-ha,project_id,string,no,,no-chart
-gcp,net-vpn-ha,region,string,no,,no-chart
-gcp,net-vpn-ha,router_config,"object({asn, create, custom_advertise, keepalive, name, override_name, +1})",no,,no-chart
-gcp,net-vpn-ha,tunnels,"map(object({bgp_peer, bgp_session_range, cipher_suite, ike_version, name, peer_external_gateway_interface, +5}))",no,,no-chart
-gcp,net-vpn-ha,vpn_gateway,string,no,,no-chart
-gcp,net-vpn-ha,vpn_gateway_create,"object({description, ipv6})",no,,no-chart
+gcp,net-vpn-ha,context,"object({addresses, locations, networks, project_ids, routers, vpn_gateways})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-vpn-ha,name,string,yes,,
+gcp,net-vpn-ha,network,string,yes,,
+gcp,net-vpn-ha,peer_gateways,"map(object({external, gcp}))",yes,,
+gcp,net-vpn-ha,project_id,string,yes,,
+gcp,net-vpn-ha,region,string,yes,,
+gcp,net-vpn-ha,router_config,"object({asn, create, custom_advertise, keepalive, name, override_name, +1})",partial,accepted; route_policies need config-connector-extensions' v1alpha1 ComputeRouterRoutePolicy: set allow_alpha: true,alpha
+gcp,net-vpn-ha,tunnels,"map(object({bgp_peer, bgp_session_range, cipher_suite, ike_version, name, peer_external_gateway_interface, +5}))",no,"a tunnel needs a shared secret: one given here would be in the rendered manifest, and Terraform's random_id has no Config Connector equivalent; ComputeVPNTunnel takes it from a Kubernetes Secret (sharedSecret.valueFrom), which the chart does not take yet (the SECV question). With no tunnel there is no router interface or BGP peer either; ComputeVPNTunnel also has no cipherSuite field, and ComputeRouterPeer no md5AuthenticationKey, importPolicies, exportPolicies or customLearnedIpRanges (gaps)",not-ported
+gcp,net-vpn-ha,vpn_gateway,string,yes,,
+gcp,net-vpn-ha,vpn_gateway_create,"object({description, ipv6})",yes,,
 gcp,cloud-identity-group,customer_id,string,yes,,
 gcp,cloud-identity-group,description,string,yes,,
 gcp,cloud-identity-group,display_name,string,yes,,
@@ -899,37 +899,37 @@ gcp,net-vpn-static,region,string,yes,,
 gcp,net-vpn-static,remote_ranges,list(string),yes,,
 gcp,net-vpn-static,route_priority,number,yes,,
 gcp,net-vpn-static,tunnels,"map(object({cipher_suite, ike_version, peer_ip, shared_secret, traffic_selectors}))",no,"a tunnel needs a shared secret: one given here would be in the rendered manifest, and Terraform's random_id has no Config Connector equivalent; ComputeVPNTunnel takes it from a Kubernetes Secret (sharedSecret.valueFrom), which the chart does not take yet (cloudsql-instance's root_password question); ComputeVPNTunnel also has no cipherSuite field (gap)",not-ported
-gcp,net-vpn-dynamic,gateway_address,string,no,,no-chart
-gcp,net-vpn-dynamic,gateway_address_create,bool,no,,no-chart
-gcp,net-vpn-dynamic,name,string,no,,no-chart
-gcp,net-vpn-dynamic,network,string,no,,no-chart
-gcp,net-vpn-dynamic,project_id,string,no,,no-chart
-gcp,net-vpn-dynamic,region,string,no,,no-chart
-gcp,net-vpn-dynamic,router_config,"object({asn, create, custom_advertise, keepalive, name, route_policies})",no,,no-chart
-gcp,net-vpn-dynamic,tunnels,"map(object({bgp_peer, bgp_session_range, cipher_suite, ike_version, peer_ip, router, +1}))",no,,no-chart
-gcp,net-vlan-attachment,admin_enabled,bool,no,,no-chart
-gcp,net-vlan-attachment,bgp_peer,"object({bfd, custom_advertise, custom_learned_ip_ranges, export_policies, import_policies, md5_authentication_key})",no,,no-chart
-gcp,net-vlan-attachment,context,"object({locations, networks, project_ids, routers})",no,,no-chart
-gcp,net-vlan-attachment,dedicated_interconnect_config,"object({bandwidth, bgp_priority, bgp_range, candidate_cloud_router_ip_address, candidate_customer_router_ip_address, interconnect, +1})",no,,no-chart
-gcp,net-vlan-attachment,description,string,no,,no-chart
-gcp,net-vlan-attachment,ipsec_gateway_ip_ranges,map(string),no,,no-chart
-gcp,net-vlan-attachment,mtu,number,no,,no-chart
-gcp,net-vlan-attachment,name,string,no,,no-chart
-gcp,net-vlan-attachment,network,string,no,,no-chart
-gcp,net-vlan-attachment,partner_interconnect_config,object({edge_availability_domain}),no,,no-chart
-gcp,net-vlan-attachment,peer_asn,string,no,,no-chart
-gcp,net-vlan-attachment,project_id,string,no,,no-chart
-gcp,net-vlan-attachment,region,string,no,,no-chart
-gcp,net-vlan-attachment,router_config,"object({asn, create, custom_advertise, keepalive, md5_authentication_key, name, +1})",no,,no-chart
-gcp,net-vlan-attachment,vpn_gateways_ip_range,string,no,,no-chart
-gcp,net-ipsec-over-interconnect,interconnect_attachments,"object({a, b})",no,,no-chart
-gcp,net-ipsec-over-interconnect,name,string,no,,no-chart
-gcp,net-ipsec-over-interconnect,network,string,no,,no-chart
-gcp,net-ipsec-over-interconnect,peer_gateway_config,"object({create, description, id, interfaces, name})",no,,no-chart
-gcp,net-ipsec-over-interconnect,project_id,string,no,,no-chart
-gcp,net-ipsec-over-interconnect,region,string,no,,no-chart
-gcp,net-ipsec-over-interconnect,router_config,"object({asn, create, custom_advertise, keepalive, name, route_policies})",no,,no-chart
-gcp,net-ipsec-over-interconnect,tunnels,"map(object({bgp_peer, bgp_session_range, ike_version, peer_external_gateway_interface, peer_gateway_id, router, +2}))",no,,no-chart
+gcp,net-vpn-dynamic,gateway_address,string,yes,,
+gcp,net-vpn-dynamic,gateway_address_create,bool,yes,,
+gcp,net-vpn-dynamic,name,string,yes,,
+gcp,net-vpn-dynamic,network,string,yes,,
+gcp,net-vpn-dynamic,project_id,string,yes,,
+gcp,net-vpn-dynamic,region,string,yes,,
+gcp,net-vpn-dynamic,router_config,"object({asn, create, custom_advertise, keepalive, name, route_policies})",partial,accepted; route_policies need config-connector-extensions' v1alpha1 ComputeRouterRoutePolicy: set allow_alpha: true,alpha
+gcp,net-vpn-dynamic,tunnels,"map(object({bgp_peer, bgp_session_range, cipher_suite, ike_version, peer_ip, router, +1}))",no,"a tunnel needs a shared secret: one given here would be in the rendered manifest, and Terraform's random_id has no Config Connector equivalent; ComputeVPNTunnel takes it from a Kubernetes Secret (sharedSecret.valueFrom), which the chart does not take yet (the SECV question). With no tunnel there is no router interface or BGP peer either; ComputeVPNTunnel also has no cipherSuite field, and ComputeRouterPeer no md5AuthenticationKey, importPolicies, exportPolicies or customLearnedIpRanges (gaps)",not-ported
+gcp,net-vlan-attachment,admin_enabled,bool,yes,,
+gcp,net-vlan-attachment,bgp_peer,"object({bfd, custom_advertise, custom_learned_ip_ranges, export_policies, import_policies, md5_authentication_key})",yes,,
+gcp,net-vlan-attachment,context,"object({locations, networks, project_ids, routers})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-vlan-attachment,dedicated_interconnect_config,"object({bandwidth, bgp_priority, bgp_range, candidate_cloud_router_ip_address, candidate_customer_router_ip_address, interconnect, +1})",no,"a dedicated attachment needs its router interface and BGP peer, whose addresses are the attachment's assigned cloudRouterIpAddress and customerRouterIpAddress: Config Connector cannot pass a status field into another object in one render, and ComputeInterconnectAttachment has no candidateCloudRouterIpAddress or candidateCustomerRouterIpAddress to fix them in advance; ComputeRouterPeer also has no md5AuthenticationKey, importPolicies, exportPolicies or customLearnedIpRanges",gap
+gcp,net-vlan-attachment,description,string,yes,,
+gcp,net-vlan-attachment,ipsec_gateway_ip_ranges,map(string),yes,,
+gcp,net-vlan-attachment,mtu,number,yes,,
+gcp,net-vlan-attachment,name,string,yes,,
+gcp,net-vlan-attachment,network,string,yes,,
+gcp,net-vlan-attachment,partner_interconnect_config,object({edge_availability_domain}),yes,,
+gcp,net-vlan-attachment,peer_asn,string,yes,,
+gcp,net-vlan-attachment,project_id,string,yes,,
+gcp,net-vlan-attachment,region,string,yes,,
+gcp,net-vlan-attachment,router_config,"object({asn, create, custom_advertise, keepalive, md5_authentication_key, name, +1})",partial,"accepted; route_policies need config-connector-extensions' v1alpha1 ComputeRouterRoutePolicy: set allow_alpha: true; md5_authentication_key is refused (it configures the dedicated BGP peer, and ComputeRouterPeer has no md5AuthenticationKey)",alpha
+gcp,net-vlan-attachment,vpn_gateways_ip_range,string,yes,,
+gcp,net-ipsec-over-interconnect,interconnect_attachments,"object({a, b})",yes,,
+gcp,net-ipsec-over-interconnect,name,string,yes,,
+gcp,net-ipsec-over-interconnect,network,string,yes,,
+gcp,net-ipsec-over-interconnect,peer_gateway_config,"object({create, description, id, interfaces, name})",yes,,
+gcp,net-ipsec-over-interconnect,project_id,string,yes,,
+gcp,net-ipsec-over-interconnect,region,string,yes,,
+gcp,net-ipsec-over-interconnect,router_config,"object({asn, create, custom_advertise, keepalive, name, route_policies})",partial,accepted; route_policies need config-connector-extensions' v1alpha1 ComputeRouterRoutePolicy: set allow_alpha: true,alpha
+gcp,net-ipsec-over-interconnect,tunnels,"map(object({bgp_peer, bgp_session_range, ike_version, peer_external_gateway_interface, peer_gateway_id, router, +2}))",no,"a tunnel needs a shared secret: one given here would be in the rendered manifest, and Terraform's random_id has no Config Connector equivalent; ComputeVPNTunnel takes it from a Kubernetes Secret (sharedSecret.valueFrom), which the chart does not take yet (the SECV question). With no tunnel there is no router interface or BGP peer either; ComputeVPNTunnel also has no cipherSuite field, and ComputeRouterPeer no md5AuthenticationKey, importPolicies, exportPolicies or customLearnedIpRanges (gaps)",not-ported
 gcp,ncc-spoke-ra,data_transfer,bool,yes,,
 gcp,ncc-spoke-ra,hub,"object({create, description, id, name})",yes,,
 gcp,ncc-spoke-ra,name,string,yes,,

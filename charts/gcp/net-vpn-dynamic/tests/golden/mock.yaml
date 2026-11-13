@@ -1,0 +1,160 @@
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "address"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "vpn-catalog-mock-dynvpn"
+  location: "us-central1"
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: mock-esp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "esp"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "vpn-catalog-mock-dynvpn-esp"
+  location: "us-central1"
+  ipProtocol: ESP
+  ipAddress:
+    addressRef:
+      name: mock
+  target:
+    targetVPNGatewayRef:
+      name: mock
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: mock-udp-500
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "udp_500"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "vpn-catalog-mock-dynvpn-udp-500"
+  location: "us-central1"
+  ipProtocol: UDP
+  portRange: "500"
+  ipAddress:
+    addressRef:
+      name: mock
+  target:
+    targetVPNGatewayRef:
+      name: mock
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: mock-udp-4500
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "udp_4500"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "vpn-catalog-mock-dynvpn-udp-4500"
+  location: "us-central1"
+  ipProtocol: UDP
+  portRange: "4500"
+  ipAddress:
+    addressRef:
+      name: mock
+  target:
+    targetVPNGatewayRef:
+      name: mock
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "vpn-catalog-mock-dynvpn"
+  region: "us-central1"
+  networkRef:
+    external: "projects/mock-project/global/networks/catalog-mock-dynvpn-net"
+  bgp:
+    asn: 64514
+    advertiseMode: DEFAULT
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: mock-route-policy-export
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:export"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "export"
+  projectRef:
+    external: "mock-project"
+  region: "us-central1"
+  routerRef:
+    name: mock
+  type: ROUTE_POLICY_TYPE_EXPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "destination == '10.0.0.0/8'"
+      actions:
+        - expression: "accept()"
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetVPNGateway
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-dynvpn"
+  region: "us-central1"
+  networkRef:
+    external: "projects/mock-project/global/networks/catalog-mock-dynvpn-net"
