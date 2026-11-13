@@ -1,0 +1,161 @@
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "dataset"
+    cnrm.cloud.google.com/project-id: "mock-project"
+    cnrm.cloud.google.com/delete-contents-on-destroy: "true"
+spec:
+  projectRef:
+    external: "mock-project"
+  resourceID: "cat_mock_dataset"
+  location: "US"
+  description: "Terraform managed."
+  maxTimeTravelHours: "168"
+---
+# Source: bigquery-dataset/templates/access.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1alpha1
+kind: BigQueryDatasetAccess
+metadata:
+  name: mock-access-readers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "access:readers"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  datasetId: "cat_mock_dataset"
+  role: "READER"
+  groupByEmail: "readers@example.com"
+---
+# Source: bigquery-dataset/templates/routines.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryRoutine
+metadata:
+  name: mock-routine-add-one-7b8f5841
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "routine:add_one"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  datasetRef:
+    external: "cat_mock_dataset"
+  resourceID: "add_one"
+  routineType: "SCALAR_FUNCTION"
+  definitionBody: "x + 1"
+  language: "SQL"
+  returnType: "{\"typeKind\":\"INT64\"}"
+  arguments:
+    - name: "x"
+      dataType: "{\"typeKind\":\"INT64\"}"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: mock-table-countries
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "table:countries"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  datasetRef:
+    external: "cat_mock_dataset"
+  resourceID: "countries"
+  description: "Terraform managed."
+  schema: "[{\"name\":\"country\",\"type\":\"STRING\"},{\"name\":\"population\",\"type\":\"INT64\"}]"
+  timePartitioning:
+    type: "DAY"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: mock-view-population
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "view:population"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  datasetRef:
+    external: "cat_mock_dataset"
+  resourceID: "population"
+  description: "Terraform managed."
+  view:
+    query: "SELECT SUM(population) AS total FROM cat_mock_dataset.countries"
+    useLegacySql: false
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: mock-iam-roles-bigquery-dataeditor-36d7a569
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam:roles/bigquery.dataEditor"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    external: projects/mock-project/datasets/cat_mock_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.dataEditor"
+  members:
+    - "group:editors@example.com"
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  name: mock-iam-member-viewer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-member:viewer"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    external: projects/mock-project/datasets/cat_mock_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.dataViewer"
+  member: "user:viewer@example.com"

@@ -1,0 +1,129 @@
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dataset"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "my_dataset"
+  location: "EU"
+  description: "Terraform managed."
+  maxTimeTravelHours: "168"
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-iam-roles-bigquery-dataowner-f73a8a95
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/bigquery.dataOwner"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/datasets/my_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.dataOwner"
+  members:
+    - "group:owners@example.org"
+    - "user:user1@example.org"
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-iam-roles-bigquery-metadataviewer-97cf24d0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/bigquery.metadataViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/datasets/my_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.metadataViewer"
+  members:
+    - "group:owners@example.org"
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-iam-binding-conditional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-binding:conditional"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/datasets/my_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.dataEditor"
+  members:
+    - "group:editors@example.org"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp(\"2027-01-01T00:00:00Z\")"
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: iam-iam-binding-reader-user-0bfedec7
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-binding:reader_user"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/datasets/my_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.dataViewer"
+  members:
+    - "user:user2@example.org"
+---
+# Source: bigquery-dataset/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  name: iam-iam-member-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-member:one"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/datasets/my_dataset
+    kind: BigQueryDataset
+  role: "roles/bigquery.dataViewer"
+  member: "serviceAccount:reader@my-project.iam.gserviceaccount.com"

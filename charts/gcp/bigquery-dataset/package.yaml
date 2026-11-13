@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"), less
+# its whole-object ones (dataset, tables, views, materialized_views,
+# routines). id is projects/<p>/datasets/<id>; table_ids, view_ids,
+# materialized_view_ids and routine_ids map each table ID (routine ID) to
+# its full name, <id>/tables/<table> (<id>/routines/<routine>), as
+# Terraform's ids are.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-bigquery-dataset
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    dataset_id: resources.dataset.spec.resourceID
+    id: >-
+      'projects/' + resources.dataset.spec.projectRef.external + '/datasets/' + resources.dataset.spec.resourceID
+    self_link: resources.dataset.status.selfLink
+    table_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('table:'),
+        {v.spec.resourceID: 'projects/' + resources.dataset.spec.projectRef.external + '/datasets/' + resources.dataset.spec.resourceID + '/tables/' + v.spec.resourceID})
+    view_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('view:'),
+        {v.spec.resourceID: 'projects/' + resources.dataset.spec.projectRef.external + '/datasets/' + resources.dataset.spec.resourceID + '/tables/' + v.spec.resourceID})
+    materialized_view_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('materialized-view:'),
+        {v.spec.resourceID: 'projects/' + resources.dataset.spec.projectRef.external + '/datasets/' + resources.dataset.spec.resourceID + '/tables/' + v.spec.resourceID})
+    routine_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('routine:'),
+        {v.spec.resourceID: 'projects/' + resources.dataset.spec.projectRef.external + '/datasets/' + resources.dataset.spec.resourceID + '/routines/' + v.spec.resourceID})

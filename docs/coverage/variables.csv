@@ -395,30 +395,30 @@ gcp,pubsub,project_id,string,yes,,
 gcp,pubsub,regions,list(string),yes,,
 gcp,pubsub,schema,"object({definition, msg_encoding, schema_type})",yes,,
 gcp,pubsub,subscriptions,"map(object({ack_deadline_seconds, bigquery, cloud_storage, dead_letter_policy, deletion_policy, enable_exactly_once_delivery, +11}))",partial,PubSubSubscription's bigqueryConfig has no useTableSchema or serviceAccountEmail; a subscription's deletion_policy PREVENT has no Config Connector equivalent (ABANDON is the deletion-policy annotation),gap
-gcp,bigquery-dataset,access,"map(object({role, type}))",no,,no-chart
-gcp,bigquery-dataset,access_identities,map(string),no,,no-chart
-gcp,bigquery-dataset,authorized_datasets,"list(object({dataset_id, project_id}))",no,,no-chart
-gcp,bigquery-dataset,authorized_routines,"list(object({dataset_id, project_id, routine_id}))",no,,no-chart
-gcp,bigquery-dataset,authorized_views,"list(object({dataset_id, project_id, table_id}))",no,,no-chart
-gcp,bigquery-dataset,context,"object({condition_vars, custom_roles, iam_principals, kms_keys, locations, project_ids, +2})",no,,no-chart
-gcp,bigquery-dataset,dataset_access,bool,no,,no-chart
-gcp,bigquery-dataset,description,string,no,,no-chart
-gcp,bigquery-dataset,encryption_key,string,no,,no-chart
-gcp,bigquery-dataset,friendly_name,string,no,,no-chart
-gcp,bigquery-dataset,iam,map(list(string)),no,,no-chart
-gcp,bigquery-dataset,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,bigquery-dataset,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,bigquery-dataset,iam_by_principals,map(list(string)),no,,no-chart
-gcp,bigquery-dataset,id,string,no,,no-chart
-gcp,bigquery-dataset,labels,map(string),no,,no-chart
-gcp,bigquery-dataset,location,string,no,,no-chart
-gcp,bigquery-dataset,materialized_views,"map(object({allow_non_incremental_definition, deletion_protection, description, enable_refresh, friendly_name, labels, +5}))",no,,no-chart
-gcp,bigquery-dataset,options,"object({default_collation, default_partition_expiration_ms, default_table_expiration_ms, delete_contents_on_destroy, is_case_insensitive, max_time_travel_hours, +1})",no,,no-chart
-gcp,bigquery-dataset,project_id,string,no,,no-chart
-gcp,bigquery-dataset,routines,"map(object({arguments, data_governance_type, definition_body, description, determinism_level, imported_libraries, +6}))",no,,no-chart
-gcp,bigquery-dataset,tables,"map(object({deletion_protection, description, external_data_configuration, friendly_name, labels, options, +4}))",no,,no-chart
-gcp,bigquery-dataset,tag_bindings,map(string),no,,no-chart
-gcp,bigquery-dataset,views,"map(object({deletion_protection, description, friendly_name, labels, query, schema, +1}))",no,,no-chart
+gcp,bigquery-dataset,access,"map(object({role, type}))",partial,"with fabric's default dataset_access: false each entry is a BigQueryDatasetAccess, which is v1alpha1: needs allow_alpha: true. With dataset_access: true the entries are the dataset's own access list and need nothing",alpha
+gcp,bigquery-dataset,access_identities,map(string),yes,,
+gcp,bigquery-dataset,authorized_datasets,"list(object({dataset_id, project_id}))",partial,"with fabric's default dataset_access: false each dataset is a BigQueryDatasetAccess, which is v1alpha1: needs allow_alpha: true. With dataset_access: true the datasets are in the dataset's own access list and need nothing",alpha
+gcp,bigquery-dataset,authorized_routines,"list(object({dataset_id, project_id, routine_id}))",partial,"accepted with dataset_access: true only (the dataset's own access list): BigQueryDatasetAccess, fabric's default, has no routine",gap
+gcp,bigquery-dataset,authorized_views,"list(object({dataset_id, project_id, table_id}))",partial,"with fabric's default dataset_access: false each view is a BigQueryDatasetAccess, which is v1alpha1: needs allow_alpha: true. With dataset_access: true the views are in the dataset's own access list and need nothing",alpha
+gcp,bigquery-dataset,context,"object({condition_vars, custom_roles, iam_principals, kms_keys, locations, project_ids, +2})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,bigquery-dataset,dataset_access,bool,yes,,
+gcp,bigquery-dataset,description,string,yes,,
+gcp,bigquery-dataset,encryption_key,string,yes,,
+gcp,bigquery-dataset,friendly_name,string,yes,,
+gcp,bigquery-dataset,iam,map(list(string)),yes,,
+gcp,bigquery-dataset,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,bigquery-dataset,iam_bindings_additive,"map(object({condition, member, role}))",partial,config-connector-extensions' IAMMember is v1alpha1: rendered only with allow_alpha: true,alpha
+gcp,bigquery-dataset,iam_by_principals,map(list(string)),yes,,
+gcp,bigquery-dataset,id,string,yes,,
+gcp,bigquery-dataset,labels,map(string),yes,,
+gcp,bigquery-dataset,location,string,yes,,
+gcp,bigquery-dataset,materialized_views,"map(object({allow_non_incremental_definition, deletion_protection, description, enable_refresh, friendly_name, labels, +5}))",yes,,
+gcp,bigquery-dataset,options,"object({default_collation, default_partition_expiration_ms, default_table_expiration_ms, delete_contents_on_destroy, is_case_insensitive, max_time_travel_hours, +1})",yes,,
+gcp,bigquery-dataset,project_id,string,yes,,
+gcp,bigquery-dataset,routines,"map(object({arguments, data_governance_type, definition_body, description, determinism_level, imported_libraries, +6}))",partial,"data_governance_type, spark_options and remote_function_options are refused: BigQueryRoutine has no dataGovernanceType, sparkOptions or remoteFunctionOptions",gap
+gcp,bigquery-dataset,tables,"map(object({deletion_protection, description, external_data_configuration, friendly_name, labels, options, +4}))",yes,,
+gcp,bigquery-dataset,tag_bindings,map(string),yes,,
+gcp,bigquery-dataset,views,"map(object({deletion_protection, description, friendly_name, labels, query, schema, +1}))",yes,,
 gcp,cloud-run-v2,binary_authorization,"object({breakglass_justification, policy, use_default})",no,,no-chart
 gcp,cloud-run-v2,containers,"map(object({args, command, depends_on, env, env_from_key, image, +5}))",no,,no-chart
 gcp,cloud-run-v2,context,"object({cidr_ranges, condition_vars, custom_roles, iam_principals, kms_keys, locations, +5})",no,,no-chart

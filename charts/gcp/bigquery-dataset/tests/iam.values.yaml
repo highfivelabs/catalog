@@ -1,0 +1,23 @@
+# fabric's README example "IAM roles", with iam_by_principals merged into
+# iam, a conditional binding and (allow_alpha) an additive member.
+allow_alpha: true
+project_id: my-project
+id: my_dataset
+iam:
+  roles/bigquery.dataOwner: ["user:user1@example.org"]
+iam_by_principals:
+  "group:owners@example.org": [roles/bigquery.dataOwner, roles/bigquery.metadataViewer]
+iam_bindings:
+  reader_user:
+    role: roles/bigquery.dataViewer
+    members: ["user:user2@example.org"]
+  conditional:
+    role: roles/bigquery.dataEditor
+    members: ["group:editors@example.org"]
+    condition:
+      title: expires
+      expression: request.time < timestamp("2027-01-01T00:00:00Z")
+iam_bindings_additive:
+  one:
+    role: roles/bigquery.dataViewer
+    member: serviceAccount:reader@my-project.iam.gserviceaccount.com

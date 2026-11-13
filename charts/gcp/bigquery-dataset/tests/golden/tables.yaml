@@ -1,0 +1,89 @@
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: tables
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tables"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dataset"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "my_dataset"
+  location: "EU"
+  description: "Terraform managed."
+  maxTimeTravelHours: "168"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: tables-table-countries
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tables"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:countries"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "countries"
+  friendlyName: "Countries"
+  description: "Terraform managed."
+  schema: "[{\"name\":\"country\",\"type\":\"STRING\"},{\"name\":\"population\",\"type\":\"INT64\"}]"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: tables-table-table-a-c706c7d6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tables"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:table_a"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "table_a"
+  friendlyName: "Table a"
+  description: "Terraform managed."
+  schema: "[{\"name\":\"country\",\"type\":\"STRING\"},{\"name\":\"population\",\"type\":\"INT64\"}]"
+  timePartitioning:
+    type: "DAY"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: tables-view-population
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tables"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "view:population"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "population"
+  friendlyName: "Population"
+  description: "Terraform managed."
+  schema: "[{\"description\":\"Total population\",\"name\":\"total\",\"type\":\"INT64\"}]"
+  view:
+    query: "SELECT SUM(population) AS total FROM my_dataset.countries"
+    useLegacySql: false

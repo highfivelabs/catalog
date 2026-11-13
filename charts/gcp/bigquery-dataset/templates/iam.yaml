@@ -1,0 +1,90 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/bigquery-dataset/iam.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+A dataset's IAM is its access list. Config Connector's IAM kinds cannot
+reference a BigQueryDataset, so these are config-connector-extensions'
+(pkg/iampolicy/bigquery.go reads and patches the access list):
+google_bigquery_dataset_iam_binding.authoritative: one IAMBinding
+(iam.gcp.hfl.dev/v1beta1) per role of iam and iam_by_principals, merged,
+exact per role as fabric's.
+google_bigquery_dataset_iam_binding.bindings: one IAMBinding per entry of
+iam_bindings.
+google_bigquery_dataset_iam_member.bindings: one IAMMember
+(iam.gcp.hfl.dev/v1alpha1, so allow_alpha) per entry of
+iam_bindings_additive.
+With dataset_access the dataset's spec.access owns the whole list, so IAM
+objects beside it would be undone on every reconcile: refused, as fabric
+says the two are mutually exclusive.
+*/ -}}
+{{- $v := .Values }}
+{{- $project := $v.project_id }}
+{{- $roles := dict }}
+{{- range $role, $members := ($v.iam | default dict) }}
+{{- $_ := set $roles $role (concat (get $roles $role | default list) $members) }}
+{{- end }}
+{{- range $principal, $prs := ($v.iam_by_principals | default dict) }}
+{{- range $role := $prs }}
+{{- $_ := set $roles $role (append (get $roles $role | default list) $principal) }}
+{{- end }}
+{{- end }}
+{{- if and $v.dataset_access (or $roles $v.iam_bindings $v.iam_bindings_additive) }}
+{{- fail (printf "%s: iam, iam_by_principals, iam_bindings and iam_bindings_additive cannot be used with dataset_access: true: the dataset's access list is then set whole by the dataset, and would undo them (fabric: mutually exclusive)" .Chart.Name) }}
+{{- end }}
+{{- /* By its full name, so the objects can be deleted after the dataset's
+object is gone. */}}
+{{- $ref := dict "kind" "BigQueryDataset" "external" (include "bigqueryDataset.id" .) }}
+{{- range $role := keys $roles | sortAlpha }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam" $role)) "id" (printf "iam:%s" $role) "project" $project) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := (index $roles $role | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $b := ($v.iam_bindings | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam-binding" $key)) "id" (printf "iam-binding:%s" $key) "project" $project) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $b.role | quote }}
+  members:
+  {{- range $m := ($b.members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+  {{- with $b.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- include "kcc.alpha" (list $ "iam_bindings_additive" $v.iam_bindings_additive "IAMMember (config-connector-extensions)") }}
+{{- range $key, $b := ($v.iam_bindings_additive | default dict) }}
+{{- include "bigqueryDataset.require" (list $ "iam_bindings_additive" $b (list "member" "role")) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam-member" $key)) "id" (printf "iam-member:%s" $key) "project" $project) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $b.role | quote }}
+  member: {{ $b.member | quote }}
+  {{- with $b.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}
