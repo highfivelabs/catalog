@@ -19,12 +19,13 @@
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
-# avm-res-network-azurefirewall)
+# avm-res-network-azurefirewall,
+# avm-ptn-network-private-link-private-dns-zones)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw pldns)
 # applies only those; the default is all but cog, vm and asp (asp: the
 # sandbox has no App Service quota, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
@@ -79,7 +80,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw pldns}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -128,6 +129,19 @@ api() { curl -sS -H "Authorization: Bearer $(arm_token)" "$@"; }
 run_resources() {
   api "${ARM}${RG}/resources?api-version=2021-04-01" | jq -r --args '.value[] | select(.name as $n | $ARGS.positional | any(. as $p | $n | startswith($p))) | "\(.id) \(.type)"' "$@"
 }
+# sweep_tagged RUN: delete what carries catalog-run=RUN in the group, the
+# deepest types first (a private DNS zone's links before the zone): a
+# Private Link zone is named for its service, not the run.
+sweep_tagged() {
+  local id type ns rtype v
+  api "${ARM}${RG}/resources?api-version=2021-04-01&%24filter=tagName%20eq%20'catalog-run'%20and%20tagValue%20eq%20'$1'" \
+    | jq -r '.value | sort_by(-(.type | split("/") | length))[] | "\(.id) \(.type)"' | while read -r id type; do
+    ns="${type%%/*}" rtype="${type#*/}"
+    v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
+      | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
+    echo "   sweep: delete ${type} ${id##*/}: $(api -o /dev/null -w '%{http_code}' -X DELETE "${ARM}${id}?api-version=${v}")"
+  done
+}
 sweep() { # sweep PREFIX: delete what this run left in the group
   local id type ns rtype v
   run_resources "$1" | while read -r id type; do
@@ -139,6 +153,7 @@ sweep() { # sweep PREFIX: delete what this run left in the group
 }
 cleanup() {
   kill "${refresher}" 2>/dev/null || true
+  sweep_tagged "${RUN}" || true
   sweep "${RUN}" || true
   kind delete cluster --name "${CLUSTER}" >/dev/null 2>&1 || true
   rm -rf "${WORK}"
@@ -621,6 +636,31 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
+# The Private Link zones pattern, narrowed with the module's own variable
+# to three zones of its list: one with the region's name put in, one with
+# its code, one global. Each is linked to a network of the run that the
+# case applies with it (CASE.network.yaml). The zones' names are Azure's,
+# not the run's (one of a name per group), so none is one another case
+# uses (pe's is privatelink.blob.core.windows.net) and the case stops if
+# the group has one already (below).
+cat >"${WORK}/pldns.yaml" <<EOF
+location: ${LOCATION}
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+private_link_private_dns_zones:
+  azure_container_apps: {zone_name: "privatelink.{regionName}.azurecontainerapps.io"}
+  azure_backup: {zone_name: "privatelink.{regionCode}.backup.windowsazure.com"}
+  azure_web_pubsub: {zone_name: "privatelink.webpubsub.azure.com"}
+virtual_network_link_default_virtual_networks:
+  run: {virtual_network_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-pldns-vnet}
+EOF
+cat >"${WORK}/pldns.network.yaml" <<EOF
+name: ${RUN}-pldns-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.253.0.0/24]
+tags: {catalog-run: ${RUN}}
+EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
 declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
@@ -749,7 +789,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
-    afw:avm-res-network-azurefirewall; do
+    afw:avm-res-network-azurefirewall \
+    pldns:avm-ptn-network-private-link-private-dns-zones; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -783,11 +824,6 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   for w in "${WORK}/${case_}".with.*.yaml; do
     [[ -f "${w}" ]] || continue
     wchart="${w#"${WORK}/${case_}".with.}" wchart="${wchart%.yaml}"
-    if [[ "${wchart}" == avm-res-network-privatednszone ]]; then
-      zone="$(sed -n 's/^domain_name: //p' "${w}")"
-      code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
-      [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
-    fi
     helm template "${case_}-${wchart#avm-res-}" "charts/azure/${wchart}" --namespace "${NS}" -f "${w}" >>"${OUT}/${chart}/rendered.yaml"
   done
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
@@ -797,6 +833,13 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   # What a case needs that its chart does not make (appi's workspace).
   if [[ -f "${WORK}/${case_}.pre.yaml" ]]; then cat "${WORK}/${case_}.pre.yaml" >>"${OUT}/${chart}/rendered.yaml"; fi
+  # A private DNS zone is one of a name per group, and ASO adopts one that
+  # exists: every zone the case renders (pe's and pldns's are named for a
+  # Private Link service, not the run) must not be there yet.
+  while read -r zone; do
+    code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
+    [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
+  done < <(awk '/^kind: /{k=$2} k=="PrivateDnsZone" && /^  azureName: /{gsub(/"/,"",$2); print $2}' "${OUT}/${chart}/rendered.yaml")
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(object_list "${OUT}/${chart}/rendered.yaml")
   deadline=$(( $(date +%s) + limit ))
