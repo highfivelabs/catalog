@@ -1,0 +1,352 @@
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  name: full-cosmos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "cosmos-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  analyticalStorageConfiguration:
+    schemaType: FullFidelity
+  backupPolicy:
+    periodic:
+      type: Periodic
+      periodicModeProperties:
+        backupIntervalInMinutes: 120
+        backupRetentionIntervalInHours: 48
+        backupStorageRedundancy: Local
+  capabilities:
+    - name: "DisableRateLimitingResponses"
+    - name: "EnableNoSQLVectorSearch"
+  capacity:
+    totalThroughputLimit: 10000
+  consistencyPolicy:
+    defaultConsistencyLevel: Session
+  cors:
+    - allowedHeaders: "Custom-Header,x-ms-meta-data"
+      allowedMethods: "GET,POST"
+      allowedOrigins: "https://contoso.example"
+      exposedHeaders: "x-ms-meta-data"
+      maxAgeInSeconds: 100
+  databaseAccountOfferType: Standard
+  defaultIdentity: "UserAssignedIdentity=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cosmos"
+  disableKeyBasedMetadataWriteAccess: false
+  disableLocalAuth: false
+  enableAnalyticalStorage: true
+  enableAutomaticFailover: false
+  enableBurstCapacity: true
+  enableFreeTier: false
+  enableMultipleWriteLocations: true
+  enablePartitionMerge: false
+  identity:
+    type: SystemAssigned,UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cosmos"
+  ipRules:
+    - ipAddressOrRange: "198.51.100.7"
+    - ipAddressOrRange: "203.0.113.0/24"
+  isVirtualNetworkFilterEnabled: true
+  keyVaultKeyUri: "https://kv-example.vault.azure.net/keys/cosmos-key"
+  kind: GlobalDocumentDB
+  locations:
+    - locationName: "eastus2"
+      failoverPriority: 0
+      isZoneRedundant: true
+    - locationName: "westus3"
+      failoverPriority: 1
+      isZoneRedundant: false
+  minimalTlsVersion: Tls12
+  networkAclBypass: AzureServices
+  networkAclBypassResourceReferences:
+    - armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/syn"
+  publicNetworkAccess: Enabled
+  tags:
+    env: test
+  virtualNetworkRules:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/app"
+      ignoreMissingVNetServiceEndpoint: false
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-cosmos-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-law"
+  owner:
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+    name: full-cosmos
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "Requests"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-cosmos-diag-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-storage"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+    name: full-cosmos
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - category: "ControlPlaneRequests"
+      enabled: true
+    - category: "DataPlaneRequests"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stlogs"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-cosmos-pe-other-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:other/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-cosmos-pe-other
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-cosmos-pe-sql-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:sql/lock"
+spec:
+  azureName: "lock-ReadOnly"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-cosmos-pe-sql
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-cosmos-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+    name: full-cosmos
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-cosmos-pe-other
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:other"
+spec:
+  azureName: "pe-other"
+  location: "westus3"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-other"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-other/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  privateLinkServiceConnections:
+    - name: "psc-other"
+      groupIds: ["Sql"]
+      privateLinkServiceReference:
+        group: documentdb.azure.com
+        kind: DatabaseAccount
+        name: full-cosmos
+  tags:
+    pe: other
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-cosmos-pe-sql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:sql"
+spec:
+  azureName: "pep-cosmos-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  customNetworkInterfaceName: "nic-pe-cosmos"
+  privateLinkServiceConnections:
+    - name: "pse-sql"
+      groupIds: ["Sql"]
+      privateLinkServiceReference:
+        group: documentdb.azure.com
+        kind: DatabaseAccount
+        name: full-cosmos
+  ipConfigurations:
+    - name: "sql"
+      groupId: "Sql"
+      memberName: "Sql"
+      privateIPAddress: "10.0.1.10"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationSecurityGroups/asg-db"
+  tags:
+    env: test
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-cosmos-pe-sql-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:sql/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-cosmos-pe-sql
+  privateDnsZoneConfigs:
+    - name: "privatelink.documents.azure.com"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-cosmos-pe-sql-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:sql/role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-cosmos-pe-sql
+  principalId: "11111111-2222-3333-4444-555555555555"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-cosmos-role-byid
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-byid"
+spec:
+  owner:
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+    name: full-cosmos
+  principalId: "11111111-2222-3333-4444-555555555555"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/fbdf93bf-df7d-467e-a4d2-9458aa1360c8"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-cosmos-role-operator
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-operator"
+spec:
+  owner:
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+    name: full-cosmos
+  principalId: "11111111-2222-3333-4444-555555555555"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Cosmos DB Operator"
+  description: "operators"
