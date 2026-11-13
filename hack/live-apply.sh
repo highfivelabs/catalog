@@ -38,6 +38,34 @@
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
 #
+# A case can also live beside its chart, as files: LIVE_CHARTS names it
+# "<chart>" (charts/gcp/<chart>/tests/live.*) or "<chart>:<case>"
+# (tests/live-<case>.*).
+#   live.yaml        the values (not tests/*.values.yaml: those are render
+#                    test cases).
+#   live.extra.yaml  optional: what the case needs and the chart does not
+#                    make, applied and deleted with the render.
+#   live.gone        what the case makes, children first, one line each:
+#                    a gcloud command (after `gcloud --project PROJECT`)
+#                    that describes it, which must fail once the case is
+#                    deleted and which the sweeper runs as a delete
+#                    (" describe " becomes " delete ", or the command after
+#                    " ;; " on the line); "api URL", a REST GET (DELETE
+#                    when swept, or the "api URL" after " ;; "); "sh CMD",
+#                    a shell command that is true while it is there;
+#                    "sweep CMD" (gcloud) and "sweep-sh CMD" (shell), run
+#                    only by the sweeper.
+#   live.pre.sh      optional: run before the apply, with the variables
+#                    below in its environment (to put a file in a bucket,
+#                    say; what it makes is in live.gone).
+# In the first three, ${RUN}, ${RUN_} (the run ID with underscores),
+# ${PROJECT}, ${PROJECT_NUMBER}, ${REGION}, ${REGION2} and ${RUNNER} are
+# expanded (\$ is a literal $). Every Config Connector group a case's
+# render uses gets its CRDs installed. The runner needs the roles on what
+# a case makes: as of 2026-11-13 both live-test accounts hold the admin
+# roles these cases need (docs/coverage/README.md, "Live proof of the
+# extension kinds").
+#
 # Config Connector runs as config-connector-extensions' fake cloud does
 # (its manager on the host against a kind cluster holding the CRDs), but
 # against Google Cloud: hack/live/realcloud.go.txt, built in a scratch
@@ -90,12 +118,67 @@ ADDR_E="${RUN}-ea"
 NA="${RUN}-na"
 ARMOR="${RUN}-armor"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
+RUN_="${RUN//-/_}"
+PROJECT_NUMBER="$(md project/numeric-project-id || true)"
+[[ "$(md project/project-id || true)" == "${PROJECT}" ]] || PROJECT_NUMBER="$("${G[@]}" projects describe "${PROJECT}" --format='value(projectNumber)' 2>/dev/null || true)"
+
+# Cases kept as files beside their chart ("<chart>" or "<chart>:<case>").
+case_base() { local v=""; [[ "$1" == *:* ]] && v="-${1#*:}"; echo "charts/gcp/${1%%:*}/tests/live${v}"; }
+# expand TEXT: TEXT with this script's ${...} expanded (the case files are
+# this repository's own).
+expand() { eval "cat <<__LIVE__
+$1
+__LIVE__"; }
+# gone_lines FILE describe|delete: run FILE's commands (see the header).
+# describe: fails, naming it, when any still finds its resource.
+gone_lines() {
+  local f="$1" mode="$2" l cmd del token rc=0
+  while IFS= read -r l || [[ -n "$l" ]]; do
+    [[ -z "${l// }" || "$l" == \#* ]] && continue
+    l="$(expand "$l")"
+    # "sh CMD": a shell command, true while the resource is there (a
+    # list by display name, say); "sweep-sh CMD": a shell command the
+    # sweeper runs.
+    if [[ "$l" == "sh "* ]]; then
+      [[ "${mode}" == describe ]] && bash -o pipefail -c "${l#sh }" >/dev/null 2>&1 && { echo "   still there: ${l#sh }"; rc=1; }
+      continue
+    fi
+    if [[ "$l" == "sweep-sh "* ]]; then
+      [[ "${mode}" == delete ]] && bash -o pipefail -c "${l#sweep-sh }" 2>/dev/null
+      continue
+    fi
+    # "sweep CMD": the sweeper's only (an association to remove first, say).
+    if [[ "$l" == "sweep "* ]]; then
+      [[ "${mode}" == delete ]] && eval "\"\${G[@]}\" ${l#sweep }" >/dev/null 2>&1 && echo "swept: ${l#sweep }"
+      continue
+    fi
+    cmd="${l%% ;; *}"; del="${cmd/ describe / delete }"; [[ "$l" == *" ;; "* ]] && del="${l#* ;; }"
+    if [[ "$cmd" == "api "* ]]; then
+      token="$(gcloud auth print-access-token 2>/dev/null)"
+      if [[ "${mode}" == describe ]]; then
+        curl -sf -H "Authorization: Bearer ${token}" "${cmd#api }" >/dev/null 2>&1 && { echo "   still there: ${cmd#api }"; rc=1; }
+      else
+        curl -sf -X DELETE -H "Authorization: Bearer ${token}" "${del#api }" >/dev/null 2>&1 && echo "swept ${del#api }"
+      fi
+    elif [[ "${mode}" == describe ]]; then
+      eval "\"\${G[@]}\" ${cmd}" >/dev/null 2>&1 && { echo "   still there: ${cmd}"; rc=1; }
+    else
+      eval "\"\${G[@]}\" ${del}" >/dev/null 2>&1 && echo "swept: ${del}"
+    fi
+  done <"$f"
+  return "${rc}"
+}
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
 
 # sweep_run PREFIX: delete what a run PREFIX (cat-MMDDHHMM-xxxx) made.
 sweep_run() {
-  local r="$1" s n
+  local r="$1" s n f
+  # The cases kept as files, as their live.gone says.
+  for f in charts/gcp/*/tests/live*.gone; do
+    [[ -f "$f" ]] || continue
+    ( RUN="$r"; RUN_="${r//-/_}"; gone_lines "$f" delete ) || true
+  done
   "${G[@]}" iam service-accounts delete "${r}-sa@${PROJECT}.iam.gserviceaccount.com" >/dev/null 2>&1 && echo "swept service account ${r}-sa" || true
   "${G[@]}" storage rm -r "gs://${PROJECT}-${r}" >/dev/null 2>&1 && echo "swept bucket ${PROJECT}-${r}" || true
   "${G[@]}" compute routes list --filter="name~^${r}-net-" --format='value(name)' 2>/dev/null | while read -r n; do
@@ -188,8 +271,8 @@ sweep_old() {
   local cutoff r
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
-    "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\|xilb-net\|xalb-net\|na-net\)$/\1/p'
+    "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\(-.*\)\{0,1\}\$/\1/p"
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-.*$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
     "${G[@]}" compute addresses list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(ga\|ea\)$/\1/p'
     "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-armor$/\1/p'
@@ -218,6 +301,10 @@ list_left() {
   "${G[@]}" compute target-vpn-gateways list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute addresses list --format='value(name)' | grep -E '^(vpn-)?cat-' || true
   "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
+  local c
+  for c in ${LIVE_CHARTS}; do
+    [[ -f "$(case_base "$c").gone" ]] && { gone_lines "$(case_base "$c").gone" describe || true; }
+  done
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
@@ -245,13 +332,29 @@ source hack/cce-manager.sh
 cce_build_manager
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
+# The cases kept as files: their values and what they need, expanded, and
+# the Config Connector groups their renders use.
+CRD_GROUPS="iam storage compute artifactregistry"
+for c in ${LIVE_CHARTS}; do
+  b="$(case_base "$c")"; id="${c/:/-}"
+  [[ -f "${b}.yaml" ]] || continue
+  expand "$(cat "${b}.yaml")" >"${OUT}/${id}.values.yaml"
+  [[ -f "${b}.extra.yaml" ]] && expand "$(cat "${b}.extra.yaml")" >"${OUT}/${id}.needs.yaml"
+  d="charts/gcp/${c%%:*}"
+  if grep -q '^dependencies:' "${d}/Chart.yaml"; then helm dependency build "${d}" >/dev/null; fi
+  CRD_GROUPS+=" $({ helm template live "${d}" --namespace catalog-live -f "${OUT}/${id}.values.yaml"; cat "${OUT}/${id}.needs.yaml" 2>/dev/null || true; } \
+    | sed -n 's#^apiVersion: \([a-z0-9]*\)\.cnrm\.cloud\.google\.com/.*#\1#p' | sort -u | tr '\n' ' ')"
+done
+CRD_GROUPS="$(tr ' ' '\n' <<<"${CRD_GROUPS}" | sed '/^$/d' | sort -u | tr '\n' ' ')"
+echo "== Config Connector groups: ${CRD_GROUPS}"
+
 export KUBECONFIG="${OUT}/kubeconfig"
 kind create cluster --name catalog-live --kubeconfig "${KUBECONFIG}" --wait 120s
 KCC="${CCE_DIR}/third_party/k8s-config-connector"
 # Config Connector's own core CRDs (ConfigConnector, ConfigConnectorContext)
 # first: the manager's registration controller reads them and stops without.
 { for f in "${KCC}"/operator/config/crd/bases/core.cnrm.cloud.google.com_*.yaml; do printf -- '---\n'; cat "$f"; done
-  for g in iam storage compute artifactregistry; do
+  for g in ${CRD_GROUPS}; do
     for f in "${KCC}"/config/crds/resources/*."${g}".cnrm.cloud.google.com.yaml; do printf -- '---\n'; cat "$f"; done
   done; } | kubectl apply --server-side --force-conflicts -f - >/dev/null
 kubectl wait --for=condition=Established crd --all --timeout=180s >/dev/null
@@ -671,18 +774,25 @@ summary="${OUT}/summary.md"
 failed=0
 for chart in ${LIVE_CHARTS}; do
   echo "== ${chart}"
-  dir="charts/gcp/${chart}"
-  helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.rendered.yaml"
+  # A case kept as files: "<chart>" or "<chart>:<case>", written as
+  # <chart>-<case> in the output's names.
+  base="$(case_base "${chart}")"; id="${chart/:/-}"
+  dir="charts/gcp/${chart%%:*}"
+  helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${id}.values.yaml" >"${OUT}/${id}.rendered.yaml"
   # What the case needs and the chart does not make, applied and deleted with it.
-  if [[ -f "${OUT}/${chart}.needs.yaml" ]]; then
-    { cat "${OUT}/${chart}.needs.yaml"; echo "---"; cat "${OUT}/${chart}.rendered.yaml"; } >"${OUT}/${chart}.with-needs.yaml"
-    mv "${OUT}/${chart}.with-needs.yaml" "${OUT}/${chart}.rendered.yaml"
+  if [[ -f "${OUT}/${id}.needs.yaml" ]]; then
+    { cat "${OUT}/${id}.needs.yaml"; echo "---"; cat "${OUT}/${id}.rendered.yaml"; } >"${OUT}/${id}.with-needs.yaml"
+    mv "${OUT}/${id}.with-needs.yaml" "${OUT}/${id}.rendered.yaml"
   fi
-  kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}.rendered.yaml"
+  if [[ -f "${base}.pre.sh" ]]; then
+    echo "   ${base}.pre.sh"
+    ( export RUN RUN_ PROJECT PROJECT_NUMBER REGION REGION2 RUNNER; bash -o errexit -o nounset -o pipefail "${base}.pre.sh" ) || echo "   ${base}.pre.sh failed" >&2
+  fi
+  kubectl apply --server-side -n "${NS}" -f "${OUT}/${id}.rendered.yaml"
   # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
   # One object comes back as itself, not a List (net-cloud-armor's policy):
   # make it one, as hack/mock-apply.sh does.
-  mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" -o json \
+  mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${id}.rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
   declare -A ready=() msgs=()
   deadline=$(( $(date +%s) + TIMEOUT ))
@@ -691,11 +801,11 @@ for chart in ${LIVE_CHARTS}; do
     if kubectl wait -n "${NS}" --for=condition=Ready "$o" --timeout="${left}s" >/dev/null 2>&1; then ready[$o]=yes; else ready[$o]=no; fi
     msgs[$o]="$(kubectl get -n "${NS}" "$o" -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}' 2>/dev/null | tr '\n|' '  ' | cut -c1-200 || true)"
   done
-  kubectl get -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" -o json \
-    | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${chart}.live.json"
-  bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}.live.json" "${dir}/values.yaml" "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.outputs.json" 2>&1 || failed=$((failed + 1))
-  cat "${OUT}/${chart}.outputs.json"
-  kubectl delete -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" --wait=false >/dev/null
+  kubectl get -n "${NS}" -f "${OUT}/${id}.rendered.yaml" -o json \
+    | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${id}.live.json"
+  bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${id}.live.json" "${dir}/values.yaml" "${OUT}/${id}.values.yaml" >"${OUT}/${id}.outputs.json" 2>&1 || failed=$((failed + 1))
+  cat "${OUT}/${id}.outputs.json"
+  kubectl delete -n "${NS}" -f "${OUT}/${id}.rendered.yaml" --wait=false >/dev/null
   # Config Connector's deletion defender runs as its own pod in a real
   # install; here the manager runs alone, so do the defender's part: remove
   # its finalizer, and Config Connector's controller deletes the resource.
@@ -787,7 +897,12 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute instance-groups unmanaged describe "${XALB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute network-endpoint-groups describe "${XALB}-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks describe "${XALB}-net" >/dev/null 2>&1 && gone=no ;;
-    *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
+    *)
+      if [[ -f "${base}.gone" ]]; then
+        gone=yes; gone_lines "${base}.gone" describe || gone=no
+      else
+        echo "live-apply: no check that ${chart} is gone" >&2; gone=no
+      fi ;;
   esac
   for o in "${objects[@]}"; do
     kubectl get -n "${NS}" "$o" >/dev/null 2>&1 && deleted=no || deleted=yes

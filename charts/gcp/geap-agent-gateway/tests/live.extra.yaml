@@ -1,0 +1,37 @@
+# The network attachment the live case's gateway connects through, and its
+# network and subnet.
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-agw-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${RUN}-agw-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-agw-sn
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${RUN}-agw-sn
+  region: ${REGION}
+  ipCidrRange: 10.255.0.0/28
+  networkRef: {name: live-agw-net}
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkAttachment
+metadata:
+  name: live-agw-na
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${RUN}-agw-na
+  projectRef: {external: ${PROJECT}}
+  region: ${REGION}
+  description: catalog live test ${RUN}
+  connectionPreference: ACCEPT_AUTOMATIC
+  subnetworks:
+    - https://www.googleapis.com/compute/v1/projects/${PROJECT}/regions/${REGION}/subnetworks/${RUN}-agw-sn

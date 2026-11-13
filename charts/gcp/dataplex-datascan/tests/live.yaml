@@ -1,0 +1,14 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=dataplex-datascan): an
+# on-demand data quality scan of a BigQuery table of the run and a role on
+# it (config-connector-extensions' DataplexDataScan and IAMBinding).
+name: ${RUN}-scan
+project_id: ${PROJECT}
+region: ${REGION}
+labels: {catalog-run: ${RUN}}
+data:
+  resource: //bigquery.googleapis.com/projects/${PROJECT}/datasets/${RUN_}_scan/tables/stations
+data_quality_spec:
+  rules:
+    - {dimension: VALIDITY, column: address, non_null_expectation: {}, threshold: 0.99}
+iam:
+  roles/dataplex.dataScanViewer: ["serviceAccount:${RUNNER}"]

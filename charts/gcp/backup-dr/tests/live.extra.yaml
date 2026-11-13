@@ -1,0 +1,37 @@
+# The management server's network, with a private services access range
+# and its connection.
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-bdr-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${RUN}-bdr-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: live-bdr-psa
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+  labels: {catalog-run: ${RUN}}
+spec:
+  resourceID: ${RUN}-bdr-psa
+  addressType: INTERNAL
+  location: global
+  purpose: VPC_PEERING
+  address: 10.200.0.0
+  prefixLength: 23
+  networkRef: {name: live-bdr-net}
+---
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1beta1
+kind: ServiceNetworkingConnection
+metadata:
+  name: live-bdr-psa
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  networkRef: {name: live-bdr-net}
+  reservedPeeringRanges:
+    - name: live-bdr-psa
+  service: servicenetworking.googleapis.com

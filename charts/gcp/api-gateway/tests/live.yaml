@@ -1,0 +1,28 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=api-gateway): the API, its
+# config (config-connector-extensions' APIGatewayAPIConfig) on a service
+# account the chart makes, the gateway (APIGatewayGateway), and a role on
+# each (IAMBinding). The API's ID is short: the account's ID is
+# sa-api-cfg-<api_id>, and an account ID has at most 30 characters.
+project_id: ${PROJECT}
+api_id: ${RUN}-a
+region: ${REGION}
+service_account_create: true
+labels: {catalog-run: ${RUN}}
+spec: |
+  swagger: "2.0"
+  info:
+    title: ${RUN}-a
+    version: "1.0.0"
+  schemes: [https]
+  produces: [application/json]
+  paths:
+    /hello:
+      get:
+        operationId: hello
+        x-google-backend:
+          address: https://example.com
+        responses:
+          "200":
+            description: OK
+iam:
+  roles/apigateway.viewer: ["serviceAccount:${RUNNER}"]
