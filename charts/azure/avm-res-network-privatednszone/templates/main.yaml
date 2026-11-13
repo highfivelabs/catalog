@@ -1,0 +1,49 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-privatednszone main.tf
+(v0.6.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.private_dns_zone (Microsoft.Network/privateDnsZones): one
+ASO PrivateDnsZone, location global, owned by the resource group parent_id
+names. azapi_resource.lock: an aso-extensions ManagementLock, named
+lock-<domain_name> unless the lock names itself (avm-utl-interfaces 0.10.0:
+no notes, as the module's lock has none). azapi_resource.role_assignments:
+one ASO RoleAssignment each. azapi_update_resource.private_dns_zone_soa_record
+is refused (soa_record): ASO has no SOA kind. The telemetry, and the
+time_sleep that waits for a deleted lock, are not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "soa_record" $v.soa_record "the zone's SOA record (Microsoft.Network/privateDnsZones/SOA) is only ever updated, and ASO has no kind for it") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- if eq $v.role_assignment_name_use_random_uuid false }}
+{{- include "aso.unsupported" (list $ "role_assignment_name_use_random_uuid: false" true "ASO names each role assignment with a stable UUID of its own; the module's legacy deterministic names cannot be given") }}
+{{- end }}
+{{- include "aso.names" (list $ list) }}
+{{- if not $v.domain_name }}{{ fail "avm-res-network-privatednszone: domain_name is required" }}{{ end }}
+{{- if not (regexMatch "^/subscriptions/[a-f0-9-]+/resourceGroups/[a-zA-Z0-9_.()-]+$" (toString $v.parent_id)) }}
+{{- fail "avm-res-network-privatednszone: Must be a valid Azure resource ID containing '/subscriptions/' and '/resourceGroups/'" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "zone") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v1api20240601
+kind: PrivateDnsZone
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "private_dns_zone" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $v.domain_name | quote }}
+  location: global
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "PrivateDnsZone" "name" $obj }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $v.domain_name)))) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
