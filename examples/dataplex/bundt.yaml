@@ -1,0 +1,56 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: dataplex
+spec:
+  version: "1.0.0"
+  components:
+    - name: dataplex
+      package:
+        name: gcp-dataplex
+        version: "0.1.0"
+      inputs:
+        name: terraform-lake
+        prefix: test
+        region: europe-west2
+        iam:
+          roles/dataplex.viewer:
+            - group:analysts@example.com
+        zones:
+          curated:
+            assets: {}
+            discovery: false
+            iam:
+              roles/dataplex.dataReader:
+                - group:analysts@example.com
+            type: CURATED
+          landing:
+            assets:
+              gcs_1:
+                cron_schedule: 15 15 * * *
+                discovery_spec_enabled: true
+                resource_name: gcs_bucket
+                resource_spec_type: STORAGE_BUCKET
+            discovery: true
+            type: RAW
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: dataplex
+  scope: my-team
+spec:
+  template: dataplex
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: dataplex-dev
+  scope: my-team/dev
+spec:
+  stack: dataplex
+  version: "1.0.0"
+  components:
+    dataplex:
+      values:
+        project_id: myproject

@@ -1,0 +1,132 @@
+---
+# Source: net-cloud-armor/templates/policy.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSecurityPolicy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-cloud-armor
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "full-policy"
+  description: "A full policy"
+  type: "CLOUD_ARMOR"
+  adaptiveProtectionConfig:
+    layer7DdosDefenseConfig:
+      enable: true
+      ruleVisibility: "PREMIUM"
+  advancedOptionsConfig:
+    jsonParsing: "STANDARD"
+    logLevel: "VERBOSE"
+    userIpRequestHeaders:
+      - X-Client-IP
+    jsonCustomConfig:
+      contentTypes:
+        - application/json
+  recaptchaOptionsConfig:
+    redirectSiteKeyRef:
+      external: "my-site-key"
+  rule:
+    - priority: 500
+      action: "allow"
+      preview: false
+      match:
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            - "192.168.0.0/16"
+    - priority: 650
+      action: "deny(502)"
+      description: "rules win"
+      preview: false
+      match:
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            - "2.2.2.2/32"
+    - priority: 1000
+      action: "deny(403)"
+      preview: true
+      match:
+        expr:
+          expression: "evaluatePreconfiguredWaf('xss-v33-stable')"
+      headerAction:
+        requestHeadersToAdds:
+          - headerName: "X-A"
+            headerValue: "a"
+          - headerName: "X-B"
+            headerValue: "b"
+      preconfiguredWafConfig:
+        exclusion:
+          - targetRuleSet: "xss-v33-stable"
+            targetRuleIds:
+              - owasp-crs-v030301-id941100-xss
+            requestCookie:
+              - operator: "EQUALS"
+                value: "session"
+            requestUri:
+              - operator: "EQUALS_ANY"
+    - priority: 2000
+      action: "throttle"
+      preview: false
+      match:
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            - "*"
+      rateLimitOptions:
+        conformAction: allow
+        exceedAction: "redirect"
+        rateLimitThreshold:
+          count: 100
+          intervalSec: 60
+        enforceOnKeyConfigs:
+          - enforceOnKeyType: "HTTP_HEADER"
+            enforceOnKeyName: "X-User"
+          - enforceOnKeyType: "IP"
+        exceedRedirectOptions:
+          type: "EXTERNAL_302"
+          target: "https://example.com/slow"
+    - priority: 3000
+      action: "rate_based_ban"
+      preview: false
+      match:
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            - "*"
+      rateLimitOptions:
+        conformAction: allow
+        exceedAction: "deny(429)"
+        banDurationSec: 600
+        enforceOnKey: "IP"
+        rateLimitThreshold:
+          count: 10
+          intervalSec: 10
+        banThreshold:
+          count: 50
+          intervalSec: 120
+    - priority: 4000
+      action: "redirect"
+      preview: false
+      match:
+        expr:
+          expression: "request.path.matches('/old')"
+      redirectOptions:
+        type: "GOOGLE_RECAPTCHA"
+    - priority: 2147483647
+      action: "deny(404)"
+      description: "Deny all"
+      preview: true
+      match:
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            - "*"
