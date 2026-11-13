@@ -1,0 +1,60 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-swp
+spec:
+  version: "1.0.0"
+  components:
+    - name: secure-web-proxy
+      package:
+        name: gcp-net-swp
+        version: "0.1.0"
+      inputs:
+        region: europe-west4
+        name: secure-web-proxy
+        network: projects/my-project/global/networks/my-network
+        subnetwork: projects/my-project/regions/europe-west4/subnetworks/my-subnetwork
+        certificates:
+          - projects/my-project/locations/europe-west4/certificates/secure-web-proxy-cert
+        gateway_config:
+          addresses:
+            - 10.142.68.3
+          ports:
+            - 80
+            - 443
+        policy_rules:
+          host-0:
+            allow: false
+            priority: 1000
+            session_matcher: host() == 'google.com'
+          url-list-0:
+            matcher_args:
+              session:
+                - url_list:default
+            priority: 1001
+            session_matcher: inUrlList(host(), '%s')
+        url_lists:
+          default:
+            values:
+              - example.org
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-swp
+  scope: my-team
+spec:
+  template: net-swp
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-swp-dev
+  scope: my-team/dev
+spec:
+  stack: net-swp
+  version: "1.0.0"
+  components:
+    secure-web-proxy:
+      values:
+        project_id: myproject

@@ -1,0 +1,245 @@
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: full-psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "service_attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "swp"
+  description: "Service attachment for SWP swp"
+  targetServiceRef:
+    external: "projects/my-project/locations/us-central1/gateways/swp"
+  natSubnets:
+    - external: "projects/my-project/regions/us-central1/subnetworks/psc"
+  connectionPreference: ACCEPT_AUTOMATIC
+  consumerAcceptLists:
+    - projectRef:
+        external: "projects/consumer-a"
+      connectionLimit: 5
+  consumerRejectLists:
+    - external: "projects/consumer-b"
+  enableProxyProtocol: true
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  name: full-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "gateway_security_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "swp"
+  description: "Egress proxy."
+  tlsInspectionPolicy: "projects/shared/locations/us-central1/tlsInspectionPolicies/shared"
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: full-rule-factory-allow
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "policy_rule:factory-allow"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  gatewaySecurityPolicy: "swp"
+  resourceID: "factory-allow"
+  description: "From the factory."
+  enabled: false
+  priority: 2000
+  basicProfile: ALLOW
+  sessionMatcher: "inUrlList(host(), 'projects/my-project/locations/us-central1/urlLists/partners') && source.matchTag('tagValues/123')"
+  tlsInspectionEnabled: false
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: full-rule-sa-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "policy_rule:sa-app"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  gatewaySecurityPolicy: "swp"
+  resourceID: "sa-app"
+  description: "Apps may reach the API."
+  enabled: true
+  priority: 1000
+  basicProfile: ALLOW
+  sessionMatcher: "source.matchServiceAccount('app@my-project.iam.gserviceaccount.com')"
+  applicationMatcher: "request.path.startsWith('/v1/') && request.method == '%'"
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: full-rule-shared
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "policy_rule:shared"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  gatewaySecurityPolicy: "swp"
+  resourceID: "shared"
+  description: "Egress proxy."
+  enabled: true
+  priority: 1001
+  basicProfile: DENY
+  sessionMatcher: "inUrlList(host(), 'projects/shared/locations/us-central1/urlLists/blocked')"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityURLList
+metadata:
+  name: full-url-list-internal
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "url_list:internal"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "internal"
+  description: "Egress proxy."
+  values:
+    - "internal.example.com"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityURLList
+metadata:
+  name: full-url-list-partners
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "url_list:partners"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "partners"
+  description: "Partner sites."
+  values:
+    - "partner.example.com"
+    - "*.partner.example.net"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    hfl.dev/environment: "dev"
+    team: "net"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "swp"
+  type: SECURE_WEB_GATEWAY
+  description: "Egress proxy."
+  labels:
+    cost-center: "cc1"
+    purpose: "egress"
+    team: "net"
+  addresses:
+    - 10.0.0.10
+  ports:
+    - 443
+    - 8443
+  scope: "egress-a"
+  certificateUrls:
+    - "projects/my-project/locations/us-central1/certificates/a"
+    - "projects/my-project/locations/us-central1/certificates/b"
+  gatewaySecurityPolicy: "projects/my-project/locations/us-central1/gatewaySecurityPolicies/swp"
+  network: "projects/my-project/global/networks/net"
+  subnetwork: "projects/my-project/regions/us-central1/subnetworks/swp"
+  routingMode: NEXT_HOP_ROUTING_MODE

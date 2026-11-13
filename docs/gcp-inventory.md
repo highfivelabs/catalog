@@ -1059,7 +1059,7 @@ Rank 47. Terraform module: [`modules/net-swp`](https://github.com/GoogleCloudPla
 | `google_network_security_gateway_security_policy_rule` | NetworkSecurityGatewaySecurityPolicyRule (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_network_security_tls_inspection_policy` | NetworkSecurityTLSInspectionPolicy (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_network_security_url_lists` | NetworkSecurityURLList (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
-| `google_network_services_gateway` | none | **gap** |
+| `google_network_services_gateway` | NetworkServicesGateway (networkservices.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### net-lb-app-ext-regional
 
@@ -1530,7 +1530,7 @@ Rank 79. Terraform module: [`modules/endpoints`](https://github.com/GoogleCloudP
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_endpoints_service` | none | **gap** |
+| `google_endpoints_service` | EndpointsService (servicemanagement.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_endpoints_service_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on EndpointsService | gap kind (config-connector-extensions) |
 
 ### cloud-function-v1
@@ -1618,7 +1618,7 @@ Rank 85. Terraform module: [`modules/geap-agent-gateway`](https://github.com/Goo
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
 | `google_iam_project_access_policy` | IAMAccessPolicy | alpha only |
-| `google_iam_projects_policy_binding` | none | **gap** |
+| `google_iam_projects_policy_binding` | IAMPolicyBinding (iam.gcp.hfl.dev) | gap kind (config-connector-extensions) |
 | `google_network_security_authz_policy` | NetworkSecurityAuthzPolicy | alpha only |
 | `google_network_services_agent_connectivity_template` | NetworkServicesAgentConnectivityTemplate (networkservices.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_network_services_agent_gateway` | NetworkServicesAgentGateway (networkservices.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
@@ -1660,7 +1660,7 @@ Rank 88. Terraform module: [`modules/secops-rules`](https://github.com/GoogleClo
 | --- | --- | --- |
 | `google_chronicle_reference_list` | ChronicleReferenceList | alpha only |
 | `google_chronicle_rule` | ChronicleRule | alpha only |
-| `google_chronicle_rule_deployment` | none | **gap** |
+| `google_chronicle_rule_deployment` | ChronicleRuleDeployment (chronicle.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 
 ### container-registry
 

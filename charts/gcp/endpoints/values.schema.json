@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "endpoints values (fabric endpoints v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["service_name"],
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\").",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {"type": "string", "minLength": 1, "maxLength": 253}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable). A DNS label. The service's name is given in full, so it does not go into it.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object (not a Terraform variable).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels (not a Terraform variable): a Cloud Endpoints service has none; on the objects' Kubernetes labels only.",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "allow_alpha": {
+      "description": "Accept config-connector-extensions' v1alpha1 EndpointsService (not a Terraform variable).",
+      "type": "boolean"
+    },
+    "grpc_config": {
+      "description": "The configuration for a gRPC endpoint. Either this or openapi_config must be specified.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["yaml_path", "protoc_output_path"],
+      "properties": {
+        "yaml_path": {"type": "string"},
+        "protoc_output_path": {"type": "string"}
+      }
+    },
+    "iam": {
+      "description": "IAM bindings for topic in {ROLE => [MEMBERS]} format.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "openapi_config": {
+      "description": "The configuration for an OpenAPI endopoint. Either this or grpc_config must be specified.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["yaml_path"],
+      "properties": {
+        "yaml_path": {"type": "string"}
+      }
+    },
+    "project_id": {
+      "description": "The project ID that the service belongs to.",
+      "type": ["string", "null"]
+    },
+    "service_name": {
+      "description": "The name of the service. Usually of the form '$apiname.endpoints.$projectid.cloud.goog'.",
+      "type": "string",
+      "minLength": 1
+    },
+    "files_data": {
+      "description": "The contents of the files openapi_config and grpc_config name (not a Terraform variable).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openapi_config": {"type": "string", "minLength": 1},
+        "grpc_config": {"type": "string", "minLength": 1},
+        "protoc_output_base64": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9+/=\\s]+$"}
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}

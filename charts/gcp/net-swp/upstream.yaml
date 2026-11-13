@@ -1,0 +1,36 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/net-swp
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/net-swp
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-swp
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml but refuses when set, or
+# accepts only in part (read by `task coverage`; `task coverage-verify`
+# checks each is refused).
+refused:
+  - variable: factories_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: accepted and ignored; the files' contents go under factories_data.policy_rules and factories_data.url_lists"
+    partial: true
+    fields: [policy_rules, url_lists]
+  - variable: service_attachment
+    kind: gap
+    reason: "ComputeServiceAttachment has no domainNames or reconcileConnections field"
+    partial: true
+    fields: [domain_name, reconcile_connections]
+  - variable: gateway_config
+    kind: gap
+    reason: "accepted; delete_router_on_destroy is not carried: NetworkServicesGateway does not delete the Cloud Router the API makes for a Secure Web Proxy (swg-autogen-router-<n>), whatever the value"
+    partial: true
+    fields: [delete_router_on_destroy]

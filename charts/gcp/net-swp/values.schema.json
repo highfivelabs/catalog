@@ -1,0 +1,213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-swp values (fabric net-swp v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gateway_config", "name", "network", "project_id", "region", "subnetwork"],
+  "definitions": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priority"],
+      "properties": {
+        "priority": {"type": "integer", "minimum": 0},
+        "allow": {"type": ["boolean", "null"]},
+        "description": {"type": ["string", "null"]},
+        "enabled": {"type": "boolean"},
+        "application_matcher": {"type": ["string", "null"]},
+        "session_matcher": {"type": ["string", "null"]},
+        "tls_inspect": {"type": ["boolean", "null"]},
+        "matcher_args": {"$ref": "#/definitions/matcherArgs"}
+      }
+    },
+    "factoryRule": {
+      "description": "A policy rule file of factories_config.policy_rules (fabric's schemas/policy-rule.schema.json): enable, not enabled.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priority"],
+      "properties": {
+        "priority": {"type": "integer", "minimum": 0},
+        "allow": {"type": ["boolean", "null"]},
+        "description": {"type": ["string", "null"]},
+        "enable": {"type": "boolean"},
+        "application_matcher": {"type": ["string", "null"]},
+        "session_matcher": {"type": ["string", "null"]},
+        "tls_inspect": {"type": ["boolean", "null"]},
+        "matcher_args": {"$ref": "#/definitions/matcherArgs"}
+      }
+    },
+    "matcherArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "application": {"type": "array", "items": {"$ref": "#/definitions/matcherArg"}},
+        "session": {"type": "array", "items": {"$ref": "#/definitions/matcherArg"}}
+      }
+    },
+    "matcherArg": {
+      "description": "<context>:<value>, where context is secure_tag, service_account or url_list (fabric's validation).",
+      "type": "string",
+      "pattern": "^(secure_tag|service_account|url_list):"
+    },
+    "urlList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["values"],
+      "properties": {
+        "values": {"type": "array", "items": {"type": "string"}},
+        "description": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gateway": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"},
+        "policy": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"},
+        "tlsInspectionPolicy": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"},
+        "serviceAttachment": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object (not a Terraform variable); an unprefixed key also becomes a Google Cloud label on the gateway.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on the gateway (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "certificates": {
+      "description": "List of certificates to be used for Secure Web Proxy.",
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "description": {
+      "description": "Optional description for the created resources.",
+      "type": ["string", "null"]
+    },
+    "factories_config": {
+      "description": "Path to folder with YAML resource description data files; accepted and ignored (their contents go under factories_data).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_rules": {"type": ["string", "null"]},
+        "url_lists": {"type": ["string", "null"]}
+      }
+    },
+    "factories_data": {
+      "description": "The factory files' contents (not a Terraform variable): policy_rules and url_lists, each keyed by file name without .yaml.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_rules": {"type": "object", "additionalProperties": {"$ref": "#/definitions/factoryRule"}},
+        "url_lists": {"type": "object", "additionalProperties": {"$ref": "#/definitions/urlList"}}
+      }
+    },
+    "gateway_config": {
+      "description": "Optional Secure Web Gateway configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "addresses": {"type": "array", "items": {"type": "string"}},
+        "delete_router_on_destroy": {"type": "boolean"},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "next_hop_routing_mode": {"type": "boolean"},
+        "ports": {"type": "array", "minItems": 1, "items": {"type": ["integer", "string"], "pattern": "^[0-9]+$"}},
+        "scope": {"type": ["string", "null"]}
+      }
+    },
+    "name": {
+      "description": "Name of the Secure Web Proxy resource.",
+      "type": "string",
+      "minLength": 1
+    },
+    "network": {
+      "description": "Name of the network the Secure Web Proxy is deployed into.",
+      "type": "string",
+      "minLength": 1
+    },
+    "policy_rules": {
+      "description": "Policy rules definitions. Merged with policy rules defined via the factory.",
+      "type": "object",
+      "additionalProperties": {"$ref": "#/definitions/rule"}
+    },
+    "policy_rules_contexts": {
+      "description": "Replacement contexts for policy rules matcher arguments.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "secure_tags": {"type": "object", "additionalProperties": {"type": "string"}},
+        "service_accounts": {"type": "object", "additionalProperties": {"type": "string"}},
+        "url_lists": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "project_id": {
+      "description": "Project id of the project that holds the network.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "service_attachment": {
+      "description": "PSC service attachment configuration.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["nat_subnets"],
+      "properties": {
+        "nat_subnets": {"type": "array", "items": {"type": "string"}},
+        "automatic_connection": {"type": "boolean"},
+        "consumer_accept_lists": {"type": "object", "additionalProperties": {"type": ["integer", "string"], "pattern": "^[0-9]+$"}},
+        "consumer_reject_lists": {"type": ["array", "null"], "items": {"type": "string"}},
+        "description": {"type": ["string", "null"]},
+        "domain_name": {"type": ["string", "null"]},
+        "enable_proxy_protocol": {"type": "boolean"},
+        "reconcile_connections": {"type": ["boolean", "null"]}
+      }
+    },
+    "subnetwork": {
+      "description": "Name of the subnetwork the Secure Web Proxy is deployed into.",
+      "type": "string",
+      "minLength": 1
+    },
+    "tls_inspection_config": {
+      "description": "TLS inspection configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create_config": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "ca_pool": {"type": ["string", "null"]},
+            "description": {"type": ["string", "null"]},
+            "exclude_public_ca_set": {"type": "boolean"}
+          }
+        },
+        "id": {"type": ["string", "null"]}
+      }
+    },
+    "url_lists": {
+      "description": "URL lists.",
+      "type": ["object", "null"],
+      "additionalProperties": {"$ref": "#/definitions/urlList"}
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}

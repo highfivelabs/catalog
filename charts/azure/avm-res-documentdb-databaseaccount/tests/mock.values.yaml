@@ -1,0 +1,32 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
+# serverless SQL API account with a database, a container with a stored
+# procedure, a trigger and a function, and the aso-extensions kinds: a SQL
+# dedicated gateway and a Gremlin database with a graph (the fake cloud
+# does not check the account's capabilities), in the fake cloud's
+# resource group.
+name: catalog-cosmos
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+capabilities: [{name: EnableServerless}]
+geo_locations: [{location: eastus2, failover_priority: 0, zone_redundant: false}]
+public_network_access_enabled: true
+tags: {catalog: mock}
+sql_databases:
+  app:
+    name: app
+    containers:
+      items:
+        name: items
+        partition_key_paths: [/tenant]
+        stored_procedures:
+          hello: {name: hello, body: "function hello() { getContext().getResponse().setBody('hello'); }"}
+        triggers:
+          stamp: {name: stamp, body: "function stamp() { }", type: Pre, operation: Create}
+        functions:
+          upper: {name: upper, body: "function upper(s) { return s.toUpperCase(); }"}
+sql_dedicated_gateway: {instance_size: Cosmos.D4s, instance_count: 1}
+gremlin_databases:
+  graphs:
+    name: graphs
+    graphs:
+      people: {name: people, partition_key_path: /pk}

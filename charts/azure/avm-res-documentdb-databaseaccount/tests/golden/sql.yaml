@@ -1,0 +1,275 @@
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  name: sql-cosmos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "cosmos-sql"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  backupPolicy:
+    continuous:
+      type: Continuous
+      continuousModeProperties:
+        tier: Continuous30Days
+  capacity:
+    totalThroughputLimit: -1
+  consistencyPolicy:
+    defaultConsistencyLevel: BoundedStaleness
+    maxIntervalInSeconds: 5
+    maxStalenessPrefix: 100
+  databaseAccountOfferType: Standard
+  defaultIdentity: FirstPartyIdentity
+  disableKeyBasedMetadataWriteAccess: true
+  disableLocalAuth: true
+  enableAnalyticalStorage: false
+  enableAutomaticFailover: true
+  enableBurstCapacity: false
+  enableFreeTier: false
+  enableMultipleWriteLocations: false
+  enablePartitionMerge: false
+  isVirtualNetworkFilterEnabled: false
+  kind: GlobalDocumentDB
+  locations:
+    - locationName: "eastus2"
+      failoverPriority: 0
+      isZoneRedundant: true
+  minimalTlsVersion: Tls12
+  networkAclBypass: None
+  publicNetworkAccess: Disabled
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsService
+metadata:
+  name: sql-cosmos-gateway
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_dedicated_gateway"
+spec:
+  azureName: SqlDedicatedGateway
+  owner:
+    name: sql-cosmos
+  properties:
+    sqlDedicatedGateway:
+      serviceType: SqlDedicatedGateway
+      instanceCount: 1
+      instanceSize: Cosmos.D4s
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabase
+metadata:
+  name: sql-cosmos-sqldb-autoscale
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_database:autoscale"
+spec:
+  azureName: "autoscale"
+  owner:
+    name: sql-cosmos
+  options:
+    autoscaleSettings:
+      maxThroughput: 4000
+  resource:
+    id: "autoscale"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabase
+metadata:
+  name: sql-cosmos-sqldb-database1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_database:database1"
+spec:
+  azureName: "database1"
+  owner:
+    name: sql-cosmos
+  options:
+    throughput: 400
+  resource:
+    id: "database1"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabase
+metadata:
+  name: sql-cosmos-sqldb-empty
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_database:empty"
+spec:
+  azureName: "empty"
+  owner:
+    name: sql-cosmos
+  resource:
+    id: "empty"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainer
+metadata:
+  name: sql-cosmos-sqlc-database1-container1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_container:database1/container1"
+spec:
+  azureName: "container1"
+  owner:
+    name: sql-cosmos-sqldb-database1
+  options:
+    throughput: 400
+  resource:
+    id: "container1"
+    analyticalStorageTtl: 1000
+    conflictResolutionPolicy:
+      mode: LastWriterWins
+      conflictResolutionPath: "/customProperty"
+    defaultTtl: 1000
+    indexingPolicy:
+      indexingMode: consistent
+      compositeIndexes:
+        -
+          - path: "/field1"
+            order: ascending
+          - path: "/field2"
+            order: descending
+      excludedPaths:
+        - path: "/excluded/*"
+      includedPaths:
+        - path: "/*"
+      spatialIndexes:
+        - path: "/location/*"
+          types: [Point, LineString, Polygon, MultiPolygon]
+    partitionKey:
+      kind: Hash
+      paths:
+        - "/id"
+      version: 2
+    uniqueKeyPolicy:
+      uniqueKeys:
+        - paths:
+            - "/field1"
+            - "/field2"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainer
+metadata:
+  name: sql-cosmos-sqlc-database1-custom
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_container:database1/custom"
+spec:
+  azureName: "custom"
+  owner:
+    name: sql-cosmos-sqldb-database1
+  options:
+    autoscaleSettings:
+      maxThroughput: 4000
+  resource:
+    id: "custom"
+    conflictResolutionPolicy:
+      mode: Custom
+      conflictResolutionProcedure: "dbs/{database1}/colls/{custom}/sprocs/{resolver}"
+    partitionKey:
+      kind: Hash
+      paths:
+        - "/tenant"
+      version: 2
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerStoredProcedure
+metadata:
+  name: sql-cosmos-sqlsp-database1-container1-stored1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_stored_procedure:database1/container1/stored1"
+spec:
+  azureName: "storedName"
+  owner:
+    name: sql-cosmos-sqlc-database1-container1
+  resource:
+    id: "storedName"
+    body: "function stored1() { }"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerTrigger
+metadata:
+  name: sql-cosmos-sqlt-database1-container1-trigger1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_trigger:database1/container1/trigger1"
+spec:
+  azureName: "triggerName"
+  owner:
+    name: sql-cosmos-sqlc-database1-container1
+  resource:
+    id: "triggerName"
+    body: "function trigger1() { }"
+    triggerOperation: All
+    triggerType: Pre
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerUserDefinedFunction
+metadata:
+  name: sql-cosmos-sqlf-database1-container1-function1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "sql"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_function:database1/container1/function1"
+spec:
+  azureName: "functionName"
+  owner:
+    name: sql-cosmos-sqlc-database1-container1
+  resource:
+    id: "functionName"
+    body: "function function1() { }"
