@@ -1,0 +1,105 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-insights-component (v0.5.0): same names, types and defaults, so a
+# module block's arguments become this file one to one. values.schema.json
+# carries the types and the module's validations.
+#
+# Descriptions quoted or condensed from
+# terraform-azurerm-avm-res-insights-component (variables.tf, v0.5.0),
+# Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The component's name in full, {component}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the component's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# (Required) Azure region where the resource should be deployed.
+location: ""
+# (Required) The name of the this resource.
+name: ""
+# (Required) The resource ID of the existing resource group to deploy the
+# Application Insights component into.
+parent_id: ""
+# (Required) The resource ID of the Log Analytics workspace to send data
+# to. Azure has retired classic Application Insights components, so a
+# workspace is required.
+workspace_id: ""
+
+# The type of the application: web, ios, java, phone, MobileCenter,
+# Node.JS, other or store. Also the component's kind.
+application_type: web
+# The daily data cap in GB; 0 means unlimited. The component's pricing plan
+# (current).
+daily_data_cap_in_gb: 100
+# Disables the daily data cap notifications.
+daily_data_cap_notifications_disabled: false
+# Disables IP masking.
+disable_ip_masking: false
+# Forces customer storage for profiler.
+force_customer_storage_for_profiler: false
+# Enables ingestion and query over the internet
+# (publicNetworkAccessForIngestion, publicNetworkAccessForQuery).
+internet_ingestion_enabled: true
+internet_query_enabled: true
+# Disables local (instrumentation key) authentication: Entra only.
+local_authentication_disabled: false
+# Data retention: 30, 60, 90, 120, 180, 270, 365, 550 or 730 days.
+retention_in_days: 90
+# The percentage of telemetry sampled, 0 to 100.
+sampling_percentage: 100
+
+# Refused (gap): the profiler's linked storage account
+# (Microsoft.Insights/components/linkedStorageAccounts) has no ASO or
+# aso-extensions kind. {resource_id} per entry.
+linked_storage_account: {}
+# Azure Monitor private link scopes to connect the component to:
+# {resource_id (the scope's ID), name (default: the component's name), kind
+# (Resource), subscription_location} per entry, each an aso-extensions
+# PrivateLinkScopesScopedResource. kind Metrics and subscription_location
+# are refused (that kind's API, 2021-09-01, has neither).
+monitor_private_link_scope: {}
+
+# Interfaces (avm-utl-interfaces).
+#
+# Diagnostic settings: {name (default diag-<name>), logs [{category,
+# category_group, enabled, retention_policy {days, enabled}}], metrics
+# [{category, enabled, retention_policy}], log_analytics_destination_type
+# (Dedicated), workspace_resource_id, storage_account_resource_id,
+# event_hub_authorization_rule_resource_id, event_hub_name,
+# marketplace_partner_resource_id} per entry. With neither logs nor
+# metrics, allLogs and AllMetrics.
+diagnostic_settings: {}
+# Accepted; nothing is sent.
+enable_telemetry: true
+# {kind (CanNotDelete or ReadOnly), name (default lock-<name>), notes}.
+lock: null
+# Role assignments on the component: {name, role_definition_id_or_name,
+# principal_id, skip_service_principal_aad_check, condition,
+# condition_version, delegated_managed_identity_resource_id,
+# principal_type} per entry.
+role_assignments: {}
+# Azure tags on the component.
+tags: null
+
+# The azapi provider's mechanics. Refused when set: ASO cannot leave a path
+# to another writer (ignore_body_changes, a gap), fixes the API versions
+# (resource_types), retries on its own (retry) and has no per-request
+# timeouts; Bundt sets a component's time limit (timeouts).
+ignore_body_changes: {}
+resource_types: null
+retry: null
+timeouts: null

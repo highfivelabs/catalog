@@ -11,12 +11,13 @@
 # avm-res-operationalinsights-workspace, avm-res-containerregistry-registry,
 # avm-res-network-firewallpolicy,
 # avm-res-network-loadbalancer,
-# avm-res-network-bastionhost)
+# avm-res-network-bastionhost,
+# avm-res-insights-component)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas)
+# uai law acr fwp lb bas appi)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -58,7 +59,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -173,7 +174,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     registries.containerregistry.azure.com registrycacherules.containerregistry.azure.com \
     firewallpolicies.network.azure.com firewallpoliciesrulecollectiongroups.network.azure.com \
     loadbalancers.network.azure.com \
-    bastionhosts.network.azure.com; do
+    bastionhosts.network.azure.com \
+    components.insights.azure.com pricingplans.insights.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -380,6 +382,33 @@ tags: {catalog-run: ${RUN}}
 subnets:
   bastion: {name: AzureBastionSubnet, address_prefix: 10.251.0.0/26}
 EOF
+# A workspace-based component (classic ones are retired) with a 1 GB daily
+# cap; the case makes its workspace first (appi.pre.yaml, an ASO Workspace
+# applied and deleted with the chart's objects; hfl.dev/id live-workspace).
+cat >"${WORK}/appi.yaml" <<EOF
+name: ${RUN}-appi
+location: ${LOCATION}
+parent_id: ${RG}
+workspace_id: ${RG}/providers/Microsoft.OperationalInsights/workspaces/${RUN}-appi-law
+daily_data_cap_in_gb: 1
+retention_in_days: 30
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/appi.pre.yaml" <<EOF
+---
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  name: appi-live-law
+  annotations: {hfl.dev/id: live-workspace}
+spec:
+  azureName: ${RUN}-appi-law
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  retentionInDays: 30
+  sku: {name: PerGB2018}
+  tags: {catalog-run: ${RUN}}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -397,7 +426,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     uai:avm-res-managedidentity-userassignedidentity law:avm-res-operationalinsights-workspace \
     acr:avm-res-containerregistry-registry fwp:avm-res-network-firewallpolicy \
     lb:avm-res-network-loadbalancer \
-    bas:avm-res-network-bastionhost; do
+    bas:avm-res-network-bastionhost \
+    appi:avm-res-insights-component; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -407,6 +437,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     helm template "${case_}-net" charts/azure/avm-res-network-virtualnetwork --namespace "${NS}" -f "${WORK}/${case_}.network.yaml" >>"${OUT}/${chart}/rendered.yaml"
   fi
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  # What a case needs that its chart does not make (appi's workspace).
+  if [[ -f "${WORK}/${case_}.pre.yaml" ]]; then cat "${WORK}/${case_}.pre.yaml" >>"${OUT}/${chart}/rendered.yaml"; fi
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
