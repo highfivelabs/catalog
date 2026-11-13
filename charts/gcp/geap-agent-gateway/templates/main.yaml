@@ -9,24 +9,14 @@ NetworkServicesAgentGateway (config-connector-extensions,
 networkservices.gcp.hfl.dev/v1alpha1: the chart renders only with
 allow_alpha).
 
-authz.tf (iap_config, model_armor_config) is refused here, not rendered
-(README.md, "Values"): config-connector-extensions'
-NetworkServicesAuthzExtension (v1beta1) can now name IAP or Model Armor,
-but the authorization policy fabric makes to bind it to the gateway,
-google_network_security_authz_policy, has only Config Connector's alpha
-NetworkSecurityAuthzPolicy, whose target.resources are forwarding rule
-references: an agent gateway does not parse as one. iam.tf
+authz.tf (iap_config, model_armor_config) is templates/authz.yaml, iam.tf
 (access_policies) is templates/access-policies.yaml.
 */ -}}
 {{- $v := .Values }}
 {{- $nc := $v.networking_config | default dict }}
-{{- include "kcc.names" (list $ (list "gateway" "connectivityTemplate")) }}
+{{- include "kcc.names" (list $ (list "gateway" "connectivityTemplate" "iap" "modelArmor")) }}
 {{- include "kcc.alpha" (list $ "name" $v.name "NetworkServicesAgentGateway (config-connector-extensions)") }}
 {{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
-{{- if not (kindIs "invalid" $v.iap_config) }}
-{{- fail "geap-agent-gateway: iap_config is not supported: config-connector-extensions' NetworkServicesAuthzExtension can name iap.googleapis.com, but the REQUEST_AUTHZ authorization policy that binds it to the gateway has only Config Connector's alpha NetworkSecurityAuthzPolicy, whose target.resources take forwarding rules, not an agent gateway; fabric's default ({}) makes one, so set iap_config: null (docs/gcp-inventory.md, \"Gaps\")" }}
-{{- end }}
-{{- include "kcc.unsupported" (list $ "model_armor_config" $v.model_armor_config "config-connector-extensions' NetworkServicesAuthzExtension can name Model Armor, but the CONTENT_AUTHZ authorization policy that binds it to the gateway has only Config Connector's alpha NetworkSecurityAuthzPolicy, whose target.resources take forwarding rules, not an agent gateway") }}
 {{- /* fabric's validations, with its messages. */}}
 {{- if and $v.is_google_managed (kindIs "invalid" $v.access_path) }}
 {{- fail "geap-agent-gateway: You must specify var.access_path if var.is_google_managed = true." }}

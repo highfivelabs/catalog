@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
     env: "test"
   annotations:
     hfl.dev/id: "access_policy:cat-mock-ap"
@@ -39,7 +39,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
     env: "test"
   annotations:
     hfl.dev/id: "policy_binding:cat-mock-ap"
@@ -55,6 +55,69 @@ spec:
   target:
     resource: "//networkservices.googleapis.com/projects/mock-project/locations/us-central1/agentGateways/cat-mock-agw"
 ---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: mock-authz-policy-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iap_policy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-agw-iap"
+  action: CUSTOM
+  policyProfile: REQUEST_AUTHZ
+  target:
+    resources:
+      - "projects/mock-project/locations/us-central1/agentGateways/cat-mock-agw"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/mock-project/locations/us-central1/authzExtensions/cat-mock-agw-iap"
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: mock-authz-policy-ma
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "model_armor_policy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-agw-ma"
+  action: CUSTOM
+  policyProfile: CONTENT_AUTHZ
+  target:
+    resources:
+      - "projects/mock-project/locations/us-central1/agentGateways/cat-mock-agw"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/mock-project/locations/us-central1/authzExtensions/cat-mock-agw-ma"
+  httpRules:
+    - to:
+        operations:
+          - hosts:
+              - exact: "mcp.example.com"
+---
 # Source: geap-agent-gateway/templates/connectivity-template.yaml
 apiVersion: networkservices.gcp.hfl.dev/v1alpha1
 kind: NetworkServicesAgentConnectivityTemplate
@@ -64,7 +127,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
     env: "test"
   annotations:
     hfl.dev/id: "connectivity_template"
@@ -93,7 +156,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
     env: "test"
   annotations:
     hfl.dev/id: "gateway"
@@ -109,3 +172,53 @@ spec:
     env: "test"
   googleManaged:
     governedAccessPath: AGENT_TO_ANYWHERE
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: mock-authz-extension-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iap_extension"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-agw-iap"
+  service: "iap.googleapis.com"
+  failOpen: false
+  timeout: "2s"
+  metadata:
+    iapPolicyVersion: "V2"
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: mock-authz-extension-ma
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "model_armor_extension"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-agw-ma"
+  service: "modelarmor.us-central1.rep.googleapis.com"
+  failOpen: false
+  timeout: "2s"
+  metadata:
+    model_armor_settings: "[{\"request_template_id\":\"projects/mock-project/locations/us-central1/templates/cat-mock-req\",\"response_template_id\":\"projects/mock-project/locations/us-central1/templates/cat-mock-resp\"}]"

@@ -1,0 +1,109 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-gateway/authz.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+iap_config (fabric's default, {}): google_network_services_authz_extension.iap,
+a NetworkServicesAuthzExtension of config-connector-extensions
+(networkservices.gcp.hfl.dev/v1beta1) for iap.googleapis.com, and
+google_network_security_authz_policy.iap, a NetworkSecurityAuthzPolicy
+(networksecurity.gcp.hfl.dev/v1beta1), CUSTOM, REQUEST_AUTHZ, targeting the
+gateway by its resource name and delegating to that extension.
+model_armor_config: the same pair for Model Armor
+(modelarmor.<region>.rep.googleapis.com), CONTENT_AUTHZ, with authz_hosts
+as the policy's HTTP rule. Both pairs share one name: the config's name,
+else <name>-iap and <name>-ma (names.iap and names.modelArmor in full).
+
+The policy names the gateway and the extension by resource name, not by
+Kubernetes reference (the kind takes strings), so it can reconcile before
+either exists and is retried until both do. Fabric creates the Model Armor
+policy after the IAP one (policies on one gateway cannot be created
+concurrently); Config Connector has no ordering, so the second create is
+refused once and retried.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := $v.project_id }}
+{{- $region := $v.region }}
+{{- $gateway := printf "projects/%s/locations/%s/agentGateways/%s" $project $region (include "geapAgentGateway.gateway" .) }}
+{{- $pairs := list }}
+{{- if not (kindIs "invalid" $v.iap_config) }}
+{{- $c := $v.iap_config }}
+{{- /* fabric's validations, with its messages. */}}
+{{- if not (or (kindIs "invalid" $c.iam_enforcement_mode) (eq (toString $c.iam_enforcement_mode) "DRY_RUN")) }}
+{{- fail "geap-agent-gateway: The iam_enforcement_mode must be 'DRY_RUN', or null to enforce the policies." }}
+{{- end }}
+{{- $version := kindIs "invalid" $c.policy_version | ternary "V2" (toString $c.policy_version) }}
+{{- if not (has $version (list "V1" "V2")) }}
+{{- fail "geap-agent-gateway: The policy_version can be one of the following: 'V1', 'V2'." }}
+{{- end }}
+{{- $meta := dict "iapPolicyVersion" $version }}
+{{- if not (kindIs "invalid" $c.iam_enforcement_mode) }}{{ $_ := set $meta "iamEnforcementMode" (toString $c.iam_enforcement_mode) }}{{ end }}
+{{- $pairs = append $pairs (dict "id" "iap" "key" "iap" "suffix" "iap" "config" $c "service" "iap.googleapis.com" "profile" "REQUEST_AUTHZ" "metadata" $meta "hosts" (list)) }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.model_armor_config) }}
+{{- $c := $v.model_armor_config }}
+{{- $templates := dict }}
+{{- range $k := list "request_template_id" "response_template_id" }}
+{{- $id := index $c $k }}
+{{- if not $id }}
+{{- fail (printf "geap-agent-gateway: model_armor_config.%s is required" $k) }}
+{{- end }}
+{{- /* fabric's _model_armor_templates: a short id is expanded against
+the gateway's project and region. */}}
+{{- $_ := set $templates $k (contains "/" (toString $id) | ternary (toString $id) (printf "projects/%s/locations/%s/templates/%s" $project $region (toString $id))) }}
+{{- end }}
+{{- $meta := dict "model_armor_settings" (list $templates | toJson) }}
+{{- $pairs = append $pairs (dict "id" "model_armor" "key" "modelArmor" "suffix" "ma" "config" $c "service" (printf "modelarmor.%s.rep.googleapis.com" $region) "profile" "CONTENT_AUTHZ" "metadata" $meta "hosts" ($c.authz_hosts | default list)) }}
+{{- end }}
+{{- range $p := $pairs }}
+{{- $c := $p.config }}
+{{- $name := include "kcc.resourceName" (list $ $p.key "authorization extension" ($c.name | default (printf "%s-%s" $v.name $p.suffix)) 63 "letter") }}
+{{- $extension := printf "projects/%s/locations/%s/authzExtensions/%s" $project $region $name }}
+---
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "authz-extension" $p.suffix)) "id" (printf "%s_extension" $p.id) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $region | quote }}
+  resourceID: {{ $name | quote }}
+  service: {{ $p.service | quote }}
+  failOpen: {{ kindIs "invalid" $c.fail_open | ternary false $c.fail_open }}
+  timeout: {{ $c.timeout | default "2s" | quote }}
+  metadata:
+    {{- range $k := keys $p.metadata | sortAlpha }}
+    {{ $k }}: {{ index $p.metadata $k | quote }}
+    {{- end }}
+---
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "authz-policy" $p.suffix)) "id" (printf "%s_policy" $p.id) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $region | quote }}
+  resourceID: {{ $name | quote }}
+  action: CUSTOM
+  policyProfile: {{ $p.profile }}
+  target:
+    resources:
+      - {{ $gateway | quote }}
+  customProvider:
+    authzExtension:
+      resources:
+        - {{ $extension | quote }}
+  {{- with $p.hosts }}
+  httpRules:
+    - to:
+        operations:
+          - hosts:
+              {{- range . }}
+              - exact: {{ . | quote }}
+              {{- end }}
+  {{- end }}
+{{- end }}
