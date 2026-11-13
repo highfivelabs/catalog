@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "logging-bucket values (fabric logging-bucket v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "parent"],
+  "definitions": {
+    "condition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["expression", "title"],
+      "properties": {
+        "expression": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"): bucket. A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bucket": {"type": "string", "minLength": 1, "maxLength": 100}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the bucket's ID when names.bucket is not set. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Labels on every object (a log bucket has no cloud labels; lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "allow_alpha": {
+      "description": "Accept config-connector-extensions' v1alpha1 IAMMember for a view's iam_bindings_additive (not a Terraform variable).",
+      "type": "boolean"
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    },
+    "context": {
+      "description": "Context-specific interpolations. Refused when set (use Bundt expressions).",
+      "type": ["object", "null"]
+    },
+    "description": {"type": ["string", "null"]},
+    "kms_key_name": {
+      "description": "Refused when set: LoggingLogBucket has no cmekSettings.",
+      "type": ["string", "null"]
+    },
+    "location": {"type": "string", "minLength": 1},
+    "locked": {"type": ["boolean", "null"]},
+    "log_analytics": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "enable": {"type": ["boolean", "null"]},
+        "dataset_link_id": {"type": ["string", "null"]},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "name": {"type": "string", "minLength": 1},
+    "parent": {"type": "string", "minLength": 1},
+    "parent_type": {"enum": ["project", "folder", "organization", "billing_account"]},
+    "retention": {"type": ["integer", "null"]},
+    "tag_bindings": {
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string"}
+    },
+    "views": {
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["filter"],
+        "properties": {
+          "filter": {"type": "string"},
+          "location": {"type": ["string", "null"]},
+          "description": {"type": ["string", "null"]},
+          "iam": {
+            "type": ["object", "null"],
+            "additionalProperties": {"type": "array", "items": {"type": "string"}}
+          },
+          "iam_bindings": {
+            "type": ["object", "null"],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["members", "role"],
+              "properties": {
+                "members": {"type": "array", "items": {"type": "string"}},
+                "role": {"type": "string"},
+                "condition": {"$ref": "#/definitions/condition"}
+              }
+            }
+          },
+          "iam_bindings_additive": {
+            "type": ["object", "null"],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["member", "role"],
+              "properties": {
+                "member": {"type": "string"},
+                "role": {"type": "string"},
+                "condition": {"$ref": "#/definitions/condition"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

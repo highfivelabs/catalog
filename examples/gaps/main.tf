@@ -41,8 +41,8 @@ module "scratch" {
   location   = "EU"
 }
 
-module "logs" {
-  source = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/logging-bucket?ref=v60.0.0"
-  parent = "projects/${var.project_id}"
-  name   = "logs"
+module "registry" {
+  source     = "github.com/GoogleCloudPlatform/cloud-foundation-fabric//modules/container-registry?ref=v60.0.0"
+  project_id = var.project_id
+  location   = "EU"
 }

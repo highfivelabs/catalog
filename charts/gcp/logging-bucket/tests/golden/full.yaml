@@ -1,0 +1,70 @@
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogBucket
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "mybucket"
+  description: "Audit logs."
+  retentionDays: 365
+  enableAnalytics: false
+  locked: true
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogView
+metadata:
+  name: full-view-stdout
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "view:stdout"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  bucketRef:
+    name: full
+  resourceID: "stdout"
+  location: "europe-west1"
+  filter: "LOG_ID(\"stdout\")"
+  description: "stdout only"
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: full-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "tag:env"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentRef:
+    external: "//logging.googleapis.com/projects/my-project/locations/europe-west1/buckets/mybucket"
+  tagValueRef:
+    external: "tagValues/1234567890"
