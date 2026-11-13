@@ -1,13 +1,18 @@
 # Applied to the fake cloud by hack/mock-apply.sh: a lake, a RAW zone and a
-# bucket asset. No iam: mockgcp answers getIamPolicy on a lake or a zone
-# with 404 (README, "Tests").
+# bucket asset, a role on the lake and one on the zone (IAMBinding;
+# config-connector-extensions' fake cloud serves getIamPolicy on a lake and
+# a zone since 35833eb).
 name: catalog-mock-lake
 project_id: mock-project
 region: us-central1
 labels: {env: test}
+iam:
+  roles/dataplex.viewer: ["group:viewers@example.com"]
 zones:
   raw:
     type: RAW
+    iam:
+      roles/dataplex.dataReader: ["group:viewers@example.com"]
     discovery: false
     assets:
       landing:

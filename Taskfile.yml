@@ -19,7 +19,7 @@ vars:
   LIVE_SA: '{{.GCP_LIVE_SA}}'
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
-  CCE_COMMIT: 0ee17dd438d942df8279270dac3f3fe6fcc7bebb
+  CCE_COMMIT: 35833eb8c7594675ea5237c11373665cd806658e
   # The offramp's root modules, one per directory, relative to this
   # repository (offramp/fixtures until they move to the
   # terraform-offramp-demo repository's layout).
@@ -29,7 +29,7 @@ vars:
   # package and moto), the no-real-AWS guard and its kinds for the AWS
   # charts' fake-AWS runs; crds/ack-extensions/README.md says which commit
   # each copied CRD comes from.
-  ACKX_COMMIT: 74d322ff304f19badbc121e0d8769dc28e416342
+  ACKX_COMMIT: 2cdca6ca5885c0dd64e787fc2741166f551d5238
   ACKX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/ackx-{{.ACKX_COMMIT | trunc 8}}.tar.gz'
   # aso-extensions at this commit supplies the Azure fake cloud (cmd/fakearm,
   # cmd/fakeentra) and the manager the fake-cloud and live runs install
@@ -256,7 +256,7 @@ tasks:
       - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} LIVE_CHARTS="{{.LIVE_CHARTS}}" hack/live-apply.sh'
 
   test-live-azure:
-    desc: "Apply the Azure charts (virtual network, storage account, key vault, network security group, route table, NAT gateway, public IP, private DNS zone, managed identity, Log Analytics workspace, container registry, firewall policy, load balancer, bastion host, Application Insights component, PostgreSQL flexible server, private endpoint, application gateway with the virtual network it needs, firewall with the network and public IPs it needs; AZURE_LIVE_CASES picks some, cog the Cognitive Services account) to the Azure sandbox's resource group {{.AZURE_LIVE_RESOURCE_GROUP}} with Azure Service Operator on kind, on an offload VM acting as {{.AZURE_LIVE_SA}} (keyless federation); tiny resources, deleted straight after"
+    desc: "Apply the Azure charts (virtual network, storage account, key vault, network security group, route table, NAT gateway, public IP, private DNS zone, managed identity, Log Analytics workspace, container registry, firewall policy, load balancer, bastion host, Application Insights component, PostgreSQL flexible server, private endpoint, application gateway with the virtual network it needs, firewall with the network and public IPs it needs; AZURE_LIVE_CASES picks some, cog the Cognitive Services account, vm the virtual machine, asp the App Service plan) to the Azure sandbox's resource group {{.AZURE_LIVE_RESOURCE_GROUP}} with Azure Service Operator on kind, on an offload VM acting as {{.AZURE_LIVE_SA}} (keyless federation); tiny resources, deleted straight after"
     preconditions:
       - sh: test -n "{{.AZURE_LIVE_SA}}" -a -n "{{.AZURE_SUBSCRIPTION_ID}}" -a -n "{{.AZURE_TENANT_ID}}" -a -n "{{.AZURE_CLIENT_ID}}" -a -n "{{.AZURE_LIVE_RESOURCE_GROUP}}" -a -n "{{.OFFLOAD_BUCKET}}"
         msg: 'set AZURE_LIVE_SA, AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_LIVE_RESOURCE_GROUP and OFFLOAD_BUCKET (the aso-extensions snapshot, task asox-snapshot; see .env.example)'
