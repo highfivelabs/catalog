@@ -18,7 +18,10 @@
 # ASO v2.22.0 from its own Helm chart talks to them: Resource Manager at
 # https://fakearm.fake-cloud.svc, workload identity (its service account's
 # token, which the fake Entra takes as the subject), the CA through
-# SSL_CERT_FILE. Nothing reaches Azure. aso-extensions is read from
+# SSL_CERT_FILE. Beside ASO, aso-extensions' manager (hack/asox-manager.sh)
+# reconciles the charts' aso-extensions kinds (a lock, an SOA record ...)
+# against the same fakes, as the same client under its own service account.
+# Nothing reaches Azure. aso-extensions is read from
 # ASOX_TARBALL (a `git archive` of one commit, in Cloud Storage) or
 # ASOX_DIR (a checkout). MOCK_CHARTS="avm-res-network-routetable ..."
 # applies only those charts. Writes offload-artifacts/azure-mock/.
@@ -53,33 +56,16 @@ mkdir -p "${OUT}"
 for t in docker kind kubectl helm go jq; do
   command -v "$t" >/dev/null || { echo "azure-mock: $t is not installed" >&2; exit 2; }
 done
-if [[ -z "${ASOX_DIR:-}" ]]; then
-  [[ -n "${ASOX_TARBALL:-}" ]] || { echo "azure-mock: set ASOX_TARBALL or ASOX_DIR" >&2; exit 2; }
-  ASOX_DIR="${WORK}/aso-extensions"
-  mkdir -p "${ASOX_DIR}"
-  # gcloud where the VM has it, else the Cloud Storage JSON API as the VM's
-  # service account.
-  if command -v gcloud >/dev/null; then
-    gcloud storage cp --quiet "${ASOX_TARBALL}" "${WORK}/asox.tar.gz"
-  else
-    obj="${ASOX_TARBALL#gs://}"; bucket="${obj%%/*}"; obj="${obj#*/}"
-    token="$(curl -sf -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | jq -er .access_token)"
-    curl -sfL -o "${WORK}/asox.tar.gz" -H "Authorization: Bearer ${token}" \
-      "https://storage.googleapis.com/storage/v1/b/${bucket}/o/$(jq -rn --arg o "${obj}" '$o|@uri')?alt=media"
-  fi
-  tar -xzf "${WORK}/asox.tar.gz" -C "${ASOX_DIR}"
-fi
-ASOX_DIR="$(cd "${ASOX_DIR}" && pwd)"
 cleanup() {
   kind delete cluster --name "${CLUSTER}" >/dev/null 2>&1 || true
   rm -rf "${WORK}"
 }
 trap cleanup EXIT
+# shellcheck source=hack/asox-manager.sh
+source "${ROOT}/hack/asox-manager.sh"
+asox_fetch "${WORK}"
 
 echo "== the fake cloud: fakearm and fakeentra from ${ASOX_TARBALL:-${ASOX_DIR}}"
-# aso-extensions builds against its patched Azure Service Operator checkout
-# (third_party/, not committed; its hack/upstream.sh fetches the pin).
-[[ -d "${ASOX_DIR}/third_party/azure-service-operator/v2" ]] || (cd "${ASOX_DIR}" && hack/upstream.sh)
 (cd "${ASOX_DIR}" && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./cmd/fakearm ./cmd/fakeentra \
   && go run ./tests/operator/fixtures --out "${WORK}/fixtures" --tenant "${TENANT}" --client "${CLIENT}")
 for b in fakearm fakeentra; do
@@ -92,6 +78,7 @@ done
 kind create cluster --name "${CLUSTER}" --wait 180s
 export KUBECONFIG="${WORK}/kubeconfig"
 kind get kubeconfig --name "${CLUSTER}" >"${KUBECONFIG}"
+asox_build_manager "${WORK}"
 for b in fakearm fakeentra; do kind load docker-image "catalog.local/${b}:mock" --name "${CLUSTER}" >/dev/null; done
 
 kubectl create namespace fake-cloud >/dev/null
@@ -103,6 +90,9 @@ kubectl -n "${ASO_NS}" create configmap fake-cloud-ca --from-file=ca.crt="${WORK
 # ASO's workload identity token names its service account; the fake Entra
 # puts that subject in the token, and fakearm trusts it for this client.
 ASO_SUBJECT="system:serviceaccount:${ASO_NS}:azureserviceoperator-default"
+# aso-extensions' manager acts as the same client under its own service
+# account (its config/manager), so fakearm trusts that subject too.
+ASOX_SUBJECT="system:serviceaccount:${ASO_NS}:aso-extensions-manager"
 # The fakes serve on 443 in the pod too: ASO's chart installs network
 # policies that let its controller reach TCP 443 only, and a policy sees the
 # pod's port, not the Service's.
@@ -120,7 +110,7 @@ spec:
       - name: fakearm
         image: catalog.local/fakearm:mock
         imagePullPolicy: Never
-        args: [--listen=:443, --audience=https://fakearm.fake-cloud.svc, "--tenant=${TENANT}", "--trust=${CLIENT}=${ASO_SUBJECT}", "--resource=/subscriptions/${SUB},${RG}"]
+        args: [--listen=:443, --audience=https://fakearm.fake-cloud.svc, "--tenant=${TENANT}", "--trust=${CLIENT}=${ASO_SUBJECT}", "--trust=${CLIENT}=${ASOX_SUBJECT}", "--resource=/subscriptions/${SUB},${RG}"]
         ports: [{containerPort: 443}]
         volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
       volumes: [{name: tls, secret: {secretName: fakearm-tls}}]
@@ -181,7 +171,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --set useWorkloadIdentityAuth=true \
   --set azureResourceManagerEndpoint=https://fakearm.fake-cloud.svc \
   --set azureResourceManagerAudience=https://fakearm.fake-cloud.svc \
-  --set crdPattern='resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*' \
+  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*')" \
   --timeout 10m >/dev/null
 # The fake cloud's CA, trusted through SSL_CERT_FILE.
 kubectl -n "${ASO_NS}" patch deployment azureserviceoperator-controller-manager --type strategic -p '{
@@ -193,6 +183,20 @@ kubectl -n "${ASO_NS}" patch deployment azureserviceoperator-controller-manager 
 kubectl -n "${ASO_NS}" rollout status deployment azureserviceoperator-controller-manager --timeout 10m
 for _ in $(seq 60); do kubectl get crd virtualnetworks.network.azure.com >/dev/null 2>&1 && break; sleep 5; done
 kubectl wait --for=condition=Established crd --all --timeout=300s >/dev/null
+
+echo "== aso-extensions' manager beside ASO, against the same fake cloud"
+# Its token as ASO's: a projected service account token for Entra's
+# audience where ASO's credential reads it, and the fake cloud's CA.
+asox_install_manager "${CLUSTER}" '{
+  "spec": {"template": {"spec": {
+    "volumes": [
+      {"name": "azure-identity", "projected": {"sources": [{"serviceAccountToken": {"audience": "api://AzureADTokenExchange", "expirationSeconds": 3600, "path": "azure-identity"}}]}},
+      {"name": "fake-cloud-ca", "configMap": {"name": "fake-cloud-ca"}}],
+    "containers": [{"name": "manager",
+      "env": [{"name": "SSL_CERT_FILE", "value": "/fake-cloud-ca/ca.crt"}],
+      "volumeMounts": [
+        {"name": "azure-identity", "mountPath": "/var/run/secrets/tokens", "readOnly": true},
+        {"name": "fake-cloud-ca", "mountPath": "/fake-cloud-ca", "readOnly": true}]}]}}}}'
 kubectl create namespace "${NS}" >/dev/null
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
@@ -200,7 +204,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Azure fake-cloud apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); aso-extensions ${ASOX_TARBALL:-${ASOX_DIR}}; Azure Service Operator v${ASO_VERSION} on kind against fakearm and fakeentra."
+  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); aso-extensions ${ASOX_TARBALL:-${ASOX_DIR}}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager on kind against fakearm and fakeentra."
   echo
   echo "| Chart | Object | Ready | Deleted | Message |"
   echo "| --- | --- | --- | --- | --- |"
@@ -256,6 +260,7 @@ for dir in "${dirs[@]}"; do
   unset ready
 done
 kubectl -n "${ASO_NS}" logs deployment/azureserviceoperator-controller-manager --tail=-1 >"${OUT}/aso.log" 2>&1 || true
+asox_manager_logs "${OUT}/asox-manager.log"
 kubectl -n fake-cloud logs deployment/fakearm --tail=-1 >"${OUT}/fakearm.log" 2>&1 || true
 kubectl -n fake-cloud logs deployment/fakeentra --tail=-1 >"${OUT}/fakeentra.log" 2>&1 || true
 {
