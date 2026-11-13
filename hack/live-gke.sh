@@ -15,7 +15,11 @@
 # a network and a /24 subnet with pod and service ranges (the net-vpc
 # chart), a zonal Standard cluster with its default pool removed and two
 # node pools of one Spot e2-small node each (one autoscaled min 1 max 1,
-# one fixed), and a regional Autopilot cluster with no workloads. Both
+# one fixed), and a regional Autopilot cluster with no workloads. The
+# Standard cluster has the module's cluster and shadow firewall rules
+# (seven ComputeFirewalls), the Autopilot cluster its webhook rule. On the
+# Standard cluster the gke-nodepool chart then adds a third pool of one
+# Spot e2-small node, which is deleted and checked gone before the rest. Both
 # clusters have private nodes and a public endpoint. Then the mode change:
 # the Standard cluster rendered as Autopilot must be refused by the chart
 # when helm can see the cluster (--dry-run=server), and by Config Connector
@@ -25,8 +29,9 @@
 # render-tested only. Expect about 30 minutes and well under a dollar.
 #
 # The runner needs, on the project: roles/container.clusterAdmin,
-# roles/compute.networkAdmin, roles/iam.serviceAccountUser (to run nodes as
-# NODE_SA), and the Kubernetes Engine API enabled. A sweeper deletes this
+# roles/compute.networkAdmin, roles/compute.securityAdmin (the firewall
+# rules), roles/iam.serviceAccountUser (to run nodes as NODE_SA), and the
+# Kubernetes Engine API enabled. A sweeper deletes this
 # run's clusters and network after the run, and any cat- cluster or network
 # older than two hours; at the end the script lists what is left
 # (gcloud container clusters list --project).
@@ -106,7 +111,7 @@ rm -rf "${CCE_DIR}" && mkdir -p "${CCE_DIR}"
 gcloud storage cat "${CCE_TARBALL:?set CCE_TARBALL}" | tar -xz -C "${CCE_DIR}"
 git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
   git -C "${CCE_DIR}" -c user.email=live@example.com -c user.name=live commit -qm "cce from ${CCE_TARBALL}"
-(cd "${CCE_DIR}" && make upstream >/dev/null)
+(cd "${CCE_DIR}" && hack/upstream.sh >/dev/null)
 mkdir -p "${CCE_DIR}/cmd/realcloud"
 cp hack/live/realcloud.go.txt "${CCE_DIR}/cmd/realcloud/main.go"
 (cd "${CCE_DIR}" && GOTOOLCHAIN=auto go build -o "${ROOT}/bin/realcloud" ./cmd/realcloud)
@@ -164,6 +169,9 @@ remove_default_node_pool: true
 node_pools:
   - {name: spot, machine_type: e2-small, disk_size_gb: 20, min_count: 1, max_count: 1, spot: true}
   - {name: spot-fixed, machine_type: e2-small, disk_size_gb: 20, autoscaling: false, node_count: 1, spot: true}
+add_cluster_firewall_rules: true
+add_shadow_firewall_rules: true
+firewall_ranges: {subnetwork: 10.250.0.0/24, pods: {pods: 10.252.0.0/16}}
 VALUES
 # The same Standard cluster (same release, name and location) rendered as
 # Autopilot: the mode change the chart and Config Connector must refuse.
@@ -179,6 +187,8 @@ ${common}
 mode: autopilot
 name: ${RUN}-ap
 region: ${REGION}
+add_master_webhook_firewall_rules: true
+firewall_ranges: {subnetwork: 10.250.0.0/24}
 VALUES
 
 summary="${OUT}/summary.md"
@@ -267,6 +277,45 @@ for m in standard autopilot; do
   "${G[@]}" container clusters list --filter="name=${RUN}-${short[$m]}" --format='value(name,location,status,currentMasterVersion,autopilot.enabled)' | tee -a "${OUT}/${m}.gcloud.txt" || true
 done
 
+echo "== gke-nodepool: one more Spot node pool on the Standard cluster, then deleted"
+cat >"${OUT}/nodepool.values.yaml" <<VALUES
+project_id: ${PROJECT}
+cluster_name: ${RUN}-std
+location: ${ZONE}
+name: extra
+labels: {catalog-run: ${RUN}}
+k8s_labels: {catalog-run: ${RUN}}
+service_account: {email: ${NODE_SA}}
+node_count: {initial: 1}
+node_config: {machine_type: e2-small, disk_size_gb: 20, spot: true}
+nodepool_config:
+  management: {auto_repair: true, auto_upgrade: true}
+  upgrade_settings: {max_surge: 1, max_unavailable: 0}
+taints:
+  catalog: {value: live, effect: NO_SCHEDULE}
+VALUES
+helm template np charts/gcp/gke-nodepool --namespace "${NS}" -f "${OUT}/nodepool.values.yaml" >"${OUT}/nodepool.rendered.yaml"
+t0=$(date +%s)
+kubectl apply --server-side -n "${NS}" -f "${OUT}/nodepool.rendered.yaml"
+wait_ready nodepool "${OUT}/nodepool.rendered.yaml" "${t0}"
+kubectl get -n "${NS}" -f "${OUT}/nodepool.rendered.yaml" -o json \
+  | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/nodepool.live.json"
+echo "-- nodepool outputs"
+bin/catalogtool outputs charts/gcp/gke-nodepool/package.yaml "${OUT}/nodepool.live.json" charts/gcp/gke-nodepool/values.yaml "${OUT}/nodepool.values.yaml" \
+  | tee "${OUT}/nodepool.outputs.json" || failed=$((failed + 1))
+"${G[@]}" container node-pools list --cluster "${RUN}-std" --location "${ZONE}" --format='value(name,status,config.machineType,config.spot)' | tee "${OUT}/nodepool.gcloud.txt" || true
+delete_all "${OUT}/nodepool.rendered.yaml" || echo "live-gke: the node pool was not deleted in ${TIMEOUT}s"
+# Config Connector lets the object go once GKE has accepted the delete;
+# the pool can stay listed (STOPPING) for a few minutes after.
+np_gone=no; deadline=$(( $(date +%s) + 900 ))
+while (( $(date +%s) < deadline )); do
+  if ! "${G[@]}" container node-pools describe extra --cluster "${RUN}-std" --location "${ZONE}" >/dev/null 2>&1; then np_gone=yes; break; fi
+  echo "   node pool extra: $("${G[@]}" container node-pools describe extra --cluster "${RUN}-std" --location "${ZONE}" --format='value(status)' 2>/dev/null || true)"
+  sleep 20
+done
+[[ "${np_gone}" == yes ]] || { failed=$((failed + 1)); echo "live-gke: node pool extra is still in Google Cloud after 15 minutes"; }
+echo "   node pool extra gone from Google Cloud: ${np_gone}"
+
 echo "== the refused mode change: Standard ${RUN}-std rendered as Autopilot"
 mc="${OUT}/modechange.md"
 { echo; echo "## The mode change (Standard ${RUN}-std rendered with mode: autopilot)"; echo; } >"${mc}"
@@ -307,7 +356,7 @@ echo "== delete the clusters, then the network"
 delete_all "${OUT}/standard.rendered.yaml" "${OUT}/autopilot.rendered.yaml" || echo "live-gke: the clusters were not deleted in ${TIMEOUT}s"
 delete_all "${OUT}/net.rendered.yaml" || echo "live-gke: the network was not deleted in ${TIMEOUT}s"
 
-for m in net standard autopilot; do
+for m in net standard autopilot nodepool; do
   while read -r o; do
     kubectl get -n "${NS}" "$o" >/dev/null 2>&1 && deleted=no || deleted=yes
     [[ "${ready["$m $o"]}" == yes && "${deleted}" == yes ]] || failed=$((failed + 1))
@@ -316,7 +365,10 @@ for m in net standard autopilot; do
 done
 gone="$("${G[@]}" container clusters list --filter="name~^${RUN}-" --format='value(name)')"
 [[ -z "${gone}" ]] || { failed=$((failed + 1)); echo "live-gke: still in Google Cloud: ${gone}"; }
-{ echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}."
+# The chart's firewall rules (gke-<cluster>-... and gke-shadow-<cluster>-...).
+fw_left="$("${G[@]}" compute firewall-rules list --filter="name~^gke-(shadow-)?${RUN}-" --format='value(name)')"
+[[ -z "${fw_left}" ]] || { failed=$((failed + 1)); echo "live-gke: firewall rules still in Google Cloud: ${fw_left}"; }
+{ echo; echo "Clusters of this run in gcloud container clusters list after the deletes: ${gone:-none}; the chart's firewall rules left: ${fw_left:-none}; the gke-nodepool chart's pool gone after its delete: ${np_gone:-not checked}."
   cat "${mc}"
   echo; echo "${failed} failures."; } >>"${summary}"
 cat "${summary}"

@@ -1,0 +1,21 @@
+---
+# Source: iam-role/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: github-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "github"
+    app.kubernetes.io/name: iam-role
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "github-actions"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:TagSession\",\"sts:AssumeRoleWithWebIdentity\"],\"Condition\":{\"ForAllValues:StringEquals\":{\"token.actions.githubusercontent.com:aud\":[\"sts.amazonaws.com\"],\"token.actions.githubusercontent.com:iss\":[\"https://token.actions.githubusercontent.com\"]},\"StringLike\":{\"token.actions.githubusercontent.com:sub\":[\"repo:terraform-aws-modules/terraform-aws-iam:*\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Federated\":[\"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"]},\"Sid\":\"GithubOidcAuth\"}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+  tags:
+    - key: "Environment"
+      value: "test"

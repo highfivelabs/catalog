@@ -1,0 +1,121 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules' iam module,
+# its iam-role submodule (v6.8.2): same names, types and defaults, so a
+# module block's arguments become a values file one to one.
+# values.schema.json carries the types. A variable the chart cannot carry
+# stays here and stops the render when set (upstream.yaml lists them;
+# README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# The role's name in full, {role}; its inline policy and instance profile
+# take the same name, as in the module. A name set here takes no namePrefix.
+# Unset, the role is named name.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the role's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# The AWS account and partition the role is in, which the module reads from
+# the provider (aws_caller_identity, aws_partition) for the OIDC providers'
+# ARNs in the trust policy (arn:<partition>:iam::<account_id>:oidc-provider/
+# <url>). A chart cannot read them, so Bundt fills account_id from the
+# Environment. Needed only with enable_oidc (without oidc_account_id),
+# enable_github_oidc or enable_bitbucket_oidc.
+account_id: null
+partition: aws
+# DELETE (default): deleting the component deletes the role (its policies
+# detached first) and instance profile. ABANDON keeps them
+# (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# Controls if resources should be created (affects all resources)
+create: true
+# Determines whether to create an inline policy
+create_inline_policy: false
+# Determines whether to create an instance profile
+create_instance_profile: false
+# Description of the role
+description: null
+# Enable Bitbucket OIDC provider trust for the role
+enable_bitbucket_oidc: false
+# Enable GitHub OIDC provider trust for the role
+enable_github_oidc: false
+# Enable OIDC provider trust for the role
+enable_oidc: false
+# Enable SAML provider trust for the role
+enable_saml: false
+# The GitHub OIDC provider URL *without the `https://` prefix
+github_provider: "token.actions.githubusercontent.com"
+# A map of IAM policy [statements](https://registry.terraform.io/providers/hash
+# icorp/aws/latest/docs/data-sources/iam_policy_document#statement) for inline
+# policy permissions
+inline_policy_permissions: null
+# Maximum session duration (in seconds) that you want to set for the specified
+# role. If you do not specify a value for this setting, the default maximum of
+# one hour is applied. This setting can have a value from 1 hour to 12 hours
+max_session_duration: null
+# Name to use on IAM role created
+name: null
+# An overriding AWS account ID where the OIDC provider lives; leave empty to
+# use the current account ID for the AWS provider
+oidc_account_id: null
+# The audience to be added to the role policy. Set to sts.amazonaws.com for
+# cross-account assumable role. Leave empty otherwise.
+oidc_audiences: []
+# List of URLs of the OIDC Providers
+oidc_provider_urls: []
+# The fully qualified OIDC subjects to be added to the role policy
+oidc_subjects: []
+# The OIDC subject using wildcards to be added to the role policy
+oidc_wildcard_subjects: []
+# List of IAM policy documents that are merged together into the exported
+# document. In merging, statements with non-blank `sid`s will override
+# statements with the same `sid`
+override_inline_policy_documents: []
+# List of IAM policy documents that are merged together into the trust policy.
+# In merging, statements with non-blank `sid`s will override statements with
+# the same `sid`
+override_trust_policy_documents: []
+# Path of IAM role
+path: null
+# ARN of the policy that is used to set the permissions boundary for the IAM
+# role
+permissions_boundary: null
+# Policies to attach to the IAM role in `{'static_name' = 'policy_arn'}` format
+policies: {}
+# List of AWS SAML endpoints
+saml_endpoints: ["https://signin.aws.amazon.com/saml"]
+# List of SAML provider IDs
+saml_provider_ids: []
+# Additional assume role trust actions for the SAML federated statement
+saml_trust_actions: []
+# List of IAM policy documents that are merged together into the exported
+# document. Statements must have unique `sid`s
+source_inline_policy_documents: []
+# List of IAM policy documents that are merged together into the trust policy.
+# Statements must have unique `sid`s
+source_trust_policy_documents: []
+# A map of tags to add to all resources
+tags: {}
+# [Condition constraints](https://registry.terraform.io/providers/hashicorp/aws
+# /latest/docs/data-sources/iam_policy_document#condition) applied to the trust
+# policy(s) enabled
+trust_policy_conditions: []
+# A map of IAM policy [statements](https://registry.terraform.io/providers/hash
+# icorp/aws/latest/docs/data-sources/iam_policy_document#statement) for custom
+# trust policy permissions
+trust_policy_permissions: null
+# Determines whether the IAM role name (`name`) is used as a prefix
+# In part: accepted; true (the default) names the role (and its inline policy
+# and instance profile) name as given, without Terraform's random suffix
+# (name_prefix), since a render must not change between plans; the namePrefix
+# value keeps two Instances' roles apart.
+use_name_prefix: true

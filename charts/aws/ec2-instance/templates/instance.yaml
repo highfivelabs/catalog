@@ -1,0 +1,306 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the instance (aws_instance, ec2/Instance), and with
+create_iam_instance_profile its IAM role (aws_iam_role, iam/Role, with
+policies attached, aws_iam_role_policy_attachment) and instance profile
+(aws_iam_instance_profile, iam/InstanceProfile). Refused (refusals.yaml):
+the Spot instance request, extra EBS volumes, the Elastic IP and the
+security group the module can make (no ACK reference wires them to the
+instance in one render).
+*/ -}}
+{{- include "ack.names" (list $ (list "iamRole")) -}}
+{{- $v := .Values -}}
+{{- if and $v.create $v.putin_khuylo }}
+{{- if and $v.create_security_group (kindIs "invalid" $v.network_interface) }}
+{{- fail "ec2-instance: create_security_group is not supported: ACK's Instance takes security group IDs only, with no reference, so a group this component made cannot be attached in one render. Set create_security_group: false and pass a security-group component's id output in vpc_security_group_ids (docs/aws.md)" }}
+{{- end }}
+{{- with $v.cpu_options }}{{ if .amd_sev_snp }}
+{{- fail "ec2-instance: cpu_options.amd_sev_snp is not supported: ACK's CpuOptions has no field for it (docs/aws.md)" }}
+{{- end }}{{ end }}
+{{- $tags := include "ack.tags" (list $ $v.tags $v.instance_tags (ternary (dict "Name" (include "ack.cloudName" (list $ "instance Name tag" $v.name 256))) dict (ne (toString $v.name) ""))) | fromJson }}
+{{- $profile := "" }}
+{{- $roleObj := include "ack.name" (list .Release.Name "iam-role") }}
+{{- if $v.create_iam_instance_profile }}
+{{- $profile = include "ack.resourceName" (list $ "iamRole" "IAM role" ($v.iam_role_name | default $v.name | default "") 64) }}
+{{- if not $profile }}
+{{- fail "ec2-instance: create_iam_instance_profile needs iam_role_name or name (or names.iamRole): the role's name" }}
+{{- end }}
+{{- $roleTags := include "ack.tags" (list $ $v.tags $v.iam_role_tags) | fromJson }}
+{{- /* data.aws_iam_policy_document.assume_role_policy; the partition's DNS suffix */}}
+{{- $suffix := ternary "amazonaws.com.cn" "amazonaws.com" (hasPrefix "cn-" (toString $v.region)) }}
+{{- $trust := dict "Version" "2012-10-17" "Statement" (list (dict "Sid" "EC2AssumeRole" "Effect" "Allow" "Action" (list "sts:AssumeRole") "Principal" (dict "Service" (list (printf "ec2.%s" $suffix))))) }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $roleObj "id" "iam-role") | nindent 2 }}
+spec:
+  name: {{ $profile | quote }}
+{{- with $v.iam_role_path }}
+  path: {{ . | quote }}
+{{- end }}
+{{- with $v.iam_role_description }}
+  description: {{ . | quote }}
+{{- end }}
+  assumeRolePolicyDocument: {{ toJson $trust | quote }}
+{{- with $v.iam_role_permissions_boundary }}
+  permissionsBoundary: {{ . | quote }}
+{{- end }}
+{{- with $v.iam_role_policies }}
+  policies:
+{{- range $k := keys . | sortAlpha }}
+    - {{ index $v.iam_role_policies $k | quote }}
+{{- end }}
+{{- end }}
+{{- with $roleTags }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "instance-profile")) "id" "iam-instance-profile") | nindent 2 }}
+spec:
+  name: {{ $profile | quote }}
+{{- with $v.iam_role_path }}
+  path: {{ . | quote }}
+{{- end }}
+  roleRef:
+    from:
+      name: {{ $roleObj }}
+{{- with $roleTags }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- /* locals.is_t_instance_type */}}
+{{- $isT := regexMatch "^t(2|3|3a|4g){1}\\..*$" $v.instance_type }}
+{{- $placement := dict }}
+{{- with $v.availability_zone }}{{ $_ := set $placement "availabilityZone" . }}{{ end }}
+{{- with $v.placement_group }}{{ $_ := set $placement "groupName" . }}{{ end }}
+{{- if not (kindIs "invalid" $v.placement_partition_number) }}{{ $_ := set $placement "partitionNumber" (int64 $v.placement_partition_number) }}{{ end }}
+{{- with $v.host_id }}{{ $_ := set $placement "hostID" . }}{{ end }}
+{{- with $v.host_resource_group_arn }}{{ $_ := set $placement "hostResourceGroupARN" . }}{{ end }}
+{{- with $v.tenancy }}{{ $_ := set $placement "tenancy" . }}{{ end }}
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Instance
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "instance")) "id" "instance" "region" $v.region) | nindent 2 }}
+spec:
+  {{- /* No ami: the module reads ami_ssm_parameter; EC2 resolves it at launch. */}}
+  imageID: {{ $v.ami | default (printf "resolve:ssm:%s" $v.ami_ssm_parameter) | quote }}
+  instanceType: {{ $v.instance_type | quote }}
+  {{- /* aws_instance launches one instance */}}
+  minCount: 1
+  maxCount: 1
+{{- with $v.subnet_id }}
+  subnetID: {{ . | quote }}
+{{- end }}
+{{- if and (kindIs "invalid" $v.network_interface) $v.vpc_security_group_ids }}
+  securityGroupIDs:
+{{- range $v.vpc_security_group_ids }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.key_name }}
+  keyName: {{ . | quote }}
+{{- end }}
+{{- if $v.iam_instance_profile }}
+  iamInstanceProfile:
+{{- if hasPrefix "arn:" $v.iam_instance_profile }}
+    arn: {{ $v.iam_instance_profile | quote }}
+{{- else }}
+    name: {{ $v.iam_instance_profile | quote }}
+{{- end }}
+{{- end }}
+{{- if and $profile (not $v.iam_instance_profile) }}
+  iamInstanceProfile:
+    name: {{ $profile | quote }}
+{{- end }}
+{{- with $placement }}
+  placement:
+{{- toYaml . | nindent 4 }}
+{{- end }}
+{{- with $v.private_ip }}
+  privateIPAddress: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.ipv6_address_count) }}
+  ipv6AddressCount: {{ int64 $v.ipv6_address_count }}
+{{- end }}
+{{- with $v.ipv6_addresses }}
+  ipv6Addresses:
+{{- range . }}
+    - ipv6Address: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.network_interface }}
+  networkInterfaces:
+{{- range $k := keys . | sortAlpha }}
+{{- $n := index $v.network_interface $k }}
+    - networkInterfaceID: {{ $n.network_interface_id | quote }}
+      deviceIndex: {{ int64 (ternary $n.device_index $k (not (kindIs "invalid" $n.device_index))) }}
+{{- if not (kindIs "invalid" $n.delete_on_termination) }}
+      deleteOnTermination: {{ $n.delete_on_termination }}
+{{- end }}
+{{- if not (kindIs "invalid" $n.network_card_index) }}
+      networkCardIndex: {{ int64 $n.network_card_index }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.ephemeral_block_device }}
+  blockDeviceMappings:
+{{- range $k := keys . | sortAlpha }}
+{{- $b := index $v.ephemeral_block_device $k }}
+    - deviceName: {{ $b.device_name | quote }}
+{{- if $b.no_device }}
+      noDevice: ""
+{{- end }}
+{{- with $b.virtual_name }}
+      virtualName: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.capacity_reservation_specification }}
+  capacityReservationSpecification:
+{{- with .capacity_reservation_preference }}
+    capacityReservationPreference: {{ . | quote }}
+{{- end }}
+{{- with .capacity_reservation_target }}
+    capacityReservationTarget:
+{{- with .capacity_reservation_id }}
+      capacityReservationID: {{ . | quote }}
+{{- end }}
+{{- with .capacity_reservation_resource_group_arn }}
+      capacityReservationResourceGroupARN: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.cpu_options }}
+  cpuOptions:
+{{- if not (kindIs "invalid" .core_count) }}
+    coreCount: {{ int64 .core_count }}
+{{- end }}
+{{- with .nested_virtualization }}
+    nestedVirtualization: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" .threads_per_core) }}
+    threadsPerCore: {{ int64 .threads_per_core }}
+{{- end }}
+{{- end }}
+{{- if and $isT $v.cpu_credits }}
+  creditSpecification:
+    cpuCredits: {{ $v.cpu_credits | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.disable_api_stop) }}
+  disableAPIStop: {{ $v.disable_api_stop }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.disable_api_termination) }}
+  disableAPITermination: {{ $v.disable_api_termination }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.ebs_optimized) }}
+  ebsOptimized: {{ $v.ebs_optimized }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.enclave_options_enabled) }}
+  enclaveOptions:
+    enabled: {{ $v.enclave_options_enabled }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.hibernation) }}
+  hibernationOptions:
+    configured: {{ $v.hibernation }}
+{{- end }}
+{{- with $v.instance_initiated_shutdown_behavior }}
+  instanceInitiatedShutdownBehavior: {{ . | quote }}
+{{- end }}
+{{- with $v.instance_market_options }}
+  instanceMarketOptions:
+{{- with .market_type }}
+    marketType: {{ . | quote }}
+{{- end }}
+{{- with .spot_options }}
+    spotOptions:
+{{- with .instance_interruption_behavior }}
+      instanceInterruptionBehavior: {{ . | quote }}
+{{- end }}
+{{- with .max_price }}
+      maxPrice: {{ . | quote }}
+{{- end }}
+{{- with .spot_instance_type }}
+      spotInstanceType: {{ . | quote }}
+{{- end }}
+{{- with .valid_until }}
+      validUntil: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.launch_template }}
+  launchTemplate:
+{{- with .id }}
+    launchTemplateID: {{ . | quote }}
+{{- end }}
+{{- with .name }}
+    launchTemplateName: {{ . | quote }}
+{{- end }}
+{{- with .version }}
+    version: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.maintenance_options }}
+  maintenanceOptions:
+{{- with .auto_recovery }}
+    autoRecovery: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if $v.metadata_options }}
+{{- /* the variable's optional() defaults */}}
+{{- $m := merge (deepCopy $v.metadata_options) (dict "http_endpoint" "enabled" "http_put_response_hop_limit" 1 "http_tokens" "required") }}
+  metadataOptions:
+{{- with $m.http_endpoint }}
+    httpEndpoint: {{ . | quote }}
+{{- end }}
+{{- with $m.http_protocol_ipv6 }}
+    httpProtocolIPv6: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $m.http_put_response_hop_limit) }}
+    httpPutResponseHopLimit: {{ int64 $m.http_put_response_hop_limit }}
+{{- end }}
+{{- with $m.http_tokens }}
+    httpTokens: {{ . | quote }}
+{{- end }}
+{{- with $m.instance_metadata_tags }}
+    instanceMetadataTags: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.monitoring) }}
+  monitoring:
+    enabled: {{ $v.monitoring }}
+{{- end }}
+{{- with $v.private_dns_name_options }}
+  privateDNSNameOptions:
+{{- if not (kindIs "invalid" .enable_resource_name_dns_a_record) }}
+    enableResourceNameDNSARecord: {{ .enable_resource_name_dns_a_record }}
+{{- end }}
+{{- if not (kindIs "invalid" .enable_resource_name_dns_aaaa_record) }}
+    enableResourceNameDNSAAAARecord: {{ .enable_resource_name_dns_aaaa_record }}
+{{- end }}
+{{- with .hostname_type }}
+    hostnameType: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if and (kindIs "invalid" $v.network_interface) (not (kindIs "invalid" $v.source_dest_check)) }}
+  sourceDestCheckEnabled: {{ $v.source_dest_check }}
+{{- end }}
+{{- /* EC2 takes user data base64-encoded; Terraform encodes user_data itself. */}}
+{{- if $v.user_data }}
+  userData: {{ b64enc $v.user_data | quote }}
+{{- else if $v.user_data_base64 }}
+  userData: {{ $v.user_data_base64 | quote }}
+{{- end }}
+{{- with $tags }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

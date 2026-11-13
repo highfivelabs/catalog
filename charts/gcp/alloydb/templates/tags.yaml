@@ -1,0 +1,35 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/alloydb/tags.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_tags_location_tag_binding.primary_binding and, with cross-region
+replication, .secondary_binding: one TagsLocationTagBinding per tag binding
+on each cluster, its parent the cluster as fabric writes it
+(//alloydb.googleapis.com/projects/<number>/locations/<l>/clusters/<id>).
+fabric reads the project's number with a data source when project_number
+is null; a chart cannot, so tag_bindings needs project_number.
+*/ -}}
+{{- $v := .Values }}
+{{- if $v.tag_bindings }}
+{{- $number := required "alloydb: tag_bindings needs project_number: a tag binding's parent names the project by number, which fabric reads with a data source and a chart cannot" $v.project_number }}
+{{- $x := $v.cross_region_replication | default dict }}
+{{- $sides := list (list "" $v.location (include "alloydb.clusterID" $)) }}
+{{- if $x.enabled }}{{ $sides = append $sides (list "secondary-" $x.region (include "alloydb.secondaryClusterID" $)) }}{{ end }}
+{{- range $side := $sides }}
+{{- range $key := keys $v.tag_bindings | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name (printf "%stag" (index $side 0)) $key)) "id" (printf "%stag-%s" (index $side 0) $key)) | nindent 2 }}
+spec:
+  location: {{ index $side 1 | quote }}
+  parentRef:
+    external: {{ printf "//alloydb.googleapis.com/projects/%s/locations/%s/clusters/%s" $number (index $side 1) (index $side 2) | quote }}
+  tagValueRef:
+    external: {{ index $v.tag_bindings $key | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
