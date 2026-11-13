@@ -564,7 +564,28 @@ the endpoint's DNS configurations, not from its network interface).
 | Creates | ASO |
 | --- | --- |
 | Azure RBAC role assignments | `authorization/RoleAssignment`, `RoleDefinition` (2022-04-01) |
-| Entra directory role and directory role assignment | **GAP** (ASO's Entra group has `Application` and `SecurityGroup`; `ServicePrincipal` is next) |
+| Entra directory role and directory role assignment | **GAP** in ASO (its Entra group has `Application`, `SecurityGroup` and `ServicePrincipal`); `aso-ext` `DirectoryRoleAssignment` (`entra.azure.hfl.dev/v1`, Microsoft Graph) |
+
+Chart `charts/azure/avm-res-authorization-roleassignment` (2026-11-13): 17
+of 31 variables, 4 of them in part, and 11 of 11 outputs (`role_defintions`
+without the definitions' assignable scopes). Role assignments at every
+scope variable are ASO `RoleAssignment`s owned by the scope's ARM ID, a
+role by ID or by name (`wellKnownName`); Entra directory role assignments
+are aso-extensions `DirectoryRoleAssignment`s, a role by template ID
+(Graph assigns one without activating it, so `azuread_directory_role` is
+not needed). Principals are taken by object ID. The 14 variables refused
+whole are the module's lookups, which a render cannot make: users, groups,
+applications and managed identities by name, mail, employee ID or client
+ID in Microsoft Entra, and a user-assigned identity by group and name in
+Resource Manager; no ASO or aso-extensions kind looks a principal up. In
+part: `role_definitions.scope` (a lookup scope ASO's name resolution does
+not take), `entra_id_role_definitions.display_name`, a management group by
+display name, and `role_assignments_for_resources`, which needs a
+`resource_type` the module reads from Resource Manager. Not applied live:
+the live rules forbid role assignments, and the sandbox identity cannot
+write them; the fake-cloud run applies an assignment by name, one by ID and
+a directory role assignment through aso-extensions' fake Microsoft Graph
+(chart README).
 
 ### 25. avm-res-network-bastionhost (v0.9.0)
 
