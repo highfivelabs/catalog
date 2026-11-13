@@ -1,0 +1,140 @@
+---
+# Source: rds/templates/rds.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: names-monitoring-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "enhanced-monitoring-role"
+spec:
+  name: "shop-dev-euw1-db-monitoring"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"monitoring.rds.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+  tags:
+    - key: "Name"
+      value: "rds-monitoring-role"
+    - key: "team"
+      value: "shop"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBInstance
+metadata:
+  name: names-db-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "db-instance"
+    rds.services.k8s.aws/delete-automated-backups: "true"
+    rds.services.k8s.aws/final-db-snapshot-identifier: "final-ignored-fae65681"
+    rds.services.k8s.aws/skip-final-snapshot: "false"
+spec:
+  dbInstanceIdentifier: "shop-dev-euw1-db"
+  dbInstanceClass: "db.t4g.micro"
+  engine: "mysql"
+  storageEncrypted: true
+  manageMasterUserPassword: true
+  enableIAMDatabaseAuthentication: false
+  dbSubnetGroupRef:
+    from:
+      name: names-subnet-group
+  dbParameterGroupRef:
+    from:
+      name: names-parameter-group
+  optionGroupName: "shop-dev-euw1-db"
+  multiAZ: false
+  publiclyAccessible: false
+  autoMinorVersionUpgrade: true
+  copyTagsToSnapshot: true
+  performanceInsightsEnabled: false
+  monitoringInterval: 60
+  monitoringRoleRef:
+    from:
+      name: names-monitoring-role
+  deletionProtection: false
+  tags:
+    - key: "team"
+      value: "shop"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBParameterGroup
+metadata:
+  name: names-parameter-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "db-parameter-group"
+spec:
+  name: "shop-dev-euw1-db"
+  description: "ignored parameter group"
+  family: "mysql8.0"
+  tags:
+    - key: "Name"
+      value: "ignored"
+    - key: "team"
+      value: "shop"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: names-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "db-subnet-group"
+spec:
+  name: "shop-dev-euw1-db"
+  description: "ignored subnet group"
+  subnetIDs:
+    - "subnet-12345678"
+    - "subnet-87654321"
+  tags:
+    - key: "Name"
+      value: "ignored"
+    - key: "team"
+      value: "shop"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.aws.hfl.dev/v1alpha1
+kind: OptionGroup
+metadata:
+  name: names-option-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "db-option-group"
+spec:
+  name: "shop-dev-euw1-db"
+  description: "ignored option group"
+  engineName: "mysql"
+  majorEngineVersion: "8.0"
+  tags:
+    - key: "Name"
+      value: "ignored"
+    - key: "team"
+      value: "shop"
