@@ -1,0 +1,181 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/ncc-spoke-ra/main.tf and
+route-policies.tf (v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_network_connectivity_hub.hub (with hub.create): a
+NetworkConnectivityHub. google_network_connectivity_spoke.spoke_ra: a
+NetworkConnectivitySpoke linking the router appliances.
+google_compute_router.cr: a ComputeRouter, <name>-cr, with its BGP
+settings. google_compute_router_interface.intf_0 and .intf_1: two
+redundant ComputeRouterInterfaces in the subnet. google_compute_router_peer
+.peer_0 and .peer_1: two ComputeRouterPeers per appliance, one on each
+interface. google_compute_router_route_policy.default: a
+ComputeRouterRoutePolicy of config-connector-extensions per policy
+(v1alpha1: allow_alpha).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "spoke" "router" "hub")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $api := "https://www.googleapis.com/compute/v1/" }}
+{{- $hub := $v.hub | default dict }}
+{{- if not (or (and $hub.create $hub.name) (and (not $hub.create) $hub.id)) }}
+{{- fail "ncc-spoke-ra: Name is required for configuring new ncc hub while referencing existing hub requires id." }}
+{{- end }}
+{{- $rc := $v.router_config }}
+{{- $policies := $rc.route_policies | default dict }}
+{{- include "kcc.alpha" (list $ "router_config.route_policies" $policies "ComputeRouterRoutePolicy (config-connector-extensions)") }}
+{{- range $k, $p := $policies }}
+{{- $seen := dict }}
+{{- range $t := $p.terms }}
+{{- if hasKey $seen (toString $t.priority) }}
+{{- fail "ncc-spoke-ra: Route policy term priority must be unique within the policy." }}
+{{- end }}
+{{- $_ := set $seen (toString $t.priority) true }}
+{{- end }}
+{{- end }}
+{{- range $i, $ra := $v.router_appliances }}
+{{- include "kcc.unsupported" (list $ (printf "router_appliances[%d].import_policies" $i) $ra.import_policies "ComputeRouterPeer has no importPolicies") }}
+{{- include "kcc.unsupported" (list $ (printf "router_appliances[%d].export_policies" $i) $ra.export_policies "ComputeRouterPeer has no exportPolicies") }}
+{{- end }}
+{{- $spoke := include "kcc.resourceName" (list $ "spoke" "spoke" $v.name 63 "letter") }}
+{{- $router := include "kcc.resourceName" (list $ "router" "router" (printf "%s-cr" $v.name) 63 "letter") }}
+{{- $routerObject := include "kcc.name" (list .Release.Name "router") }}
+{{- $intf := list (include "kcc.name" (list .Release.Name "intf0")) (include "kcc.name" (list .Release.Name "intf1")) }}
+{{- $network := ternary (trimPrefix $api $v.vpc_config.network_name) (printf "projects/%s/global/networks/%s" $v.project_id $v.vpc_config.network_name) (contains "/" $v.vpc_config.network_name) }}
+{{- if $hub.create }}
+---
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivityHub
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "hub")) "id" "hub" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "hub" "hub" $hub.name 63 "letter") | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  {{- with $hub.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- end }}
+---
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivitySpoke
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "spoke")) "id" "spoke_ra" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $spoke | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  hubRef:
+    {{- if $hub.create }}
+    name: {{ include "kcc.name" (list $.Release.Name "hub") }}
+    {{- else }}
+    external: {{ $hub.id | quote }}
+    {{- end }}
+  linkedRouterApplianceInstances:
+    instances:
+      {{- range $ra := $v.router_appliances }}
+      - ipAddress: {{ $ra.internal_ip | quote }}
+        virtualMachineRef:
+          external: {{ $ra.vm_self_link | quote }}
+      {{- end }}
+    siteToSiteDataTransfer: {{ $v.data_transfer | default false }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $routerObject "id" "router" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $router | quote }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  bgp:
+    asn: {{ int64 $rc.asn }}
+    advertiseMode: {{ ternary "CUSTOM" "DEFAULT" (not (empty $rc.custom_advertise)) }}
+    {{- with $rc.custom_advertise }}
+    {{- if .all_subnets }}
+    advertisedGroups: [ALL_SUBNETS]
+    {{- end }}
+    {{- with .ip_ranges }}
+    advertisedIpRanges:
+      {{- range $range, $desc := . }}
+      - range: {{ $range | quote }}
+        description: {{ $desc | quote }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $rc.keepalive) }}
+    keepaliveInterval: {{ int64 $rc.keepalive }}
+    {{- end }}
+{{- range $i := list 0 1 }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (index $intf $i) "id" (printf "intf_%d" $i) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.fit" (list $ "router interface" (printf "%s-intf%d" $router $i) 63) | quote }}
+  region: {{ $v.region | quote }}
+  routerRef:
+    name: {{ $routerObject }}
+  subnetworkRef:
+    external: {{ trimPrefix $api $v.vpc_config.subnet_self_link | quote }}
+  privateIpAddressRef:
+    external: {{ index $rc (printf "ip_interface%d" $i) | quote }}
+  {{- if eq $i 1 }}
+  redundantInterfaceRef:
+    name: {{ index $intf 0 }}
+  {{- end }}
+{{- end }}
+{{- range $idx, $ra := $v.router_appliances }}
+{{- $vm := splitList "/" $ra.vm_self_link | last }}
+{{- range $i := list 0 1 }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peer" (toString $i) (toString $idx))) "id" (printf "peer_%d:%d" $i $idx) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.fit" (list $ "router peer" (printf "%s-%s-peer%d" $router $vm (add1 $i)) 63) | quote }}
+  region: {{ $v.region | quote }}
+  routerRef:
+    name: {{ $routerObject }}
+  routerInterfaceRef:
+    name: {{ index $intf $i }}
+  advertisedRoutePriority: {{ ternary 100 $rc.routes_priority (kindIs "invalid" $rc.routes_priority) }}
+  peerAsn: {{ int64 $rc.peer_asn }}
+  peerIpAddress: {{ $ra.internal_ip | quote }}
+  routerApplianceInstanceRef:
+    external: {{ $ra.vm_self_link | quote }}
+{{- end }}
+{{- end }}
+{{- range $key, $p := $policies }}
+---
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "route-policy" $key)) "id" (printf "route_policy:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "route policy" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  region: {{ $v.region | quote }}
+  routerRef:
+    name: {{ $routerObject }}
+  type: {{ printf "ROUTE_POLICY_TYPE_%s" $p.type }}
+  terms:
+    {{- range $t := $p.terms }}
+    - priority: {{ int64 $t.priority }}
+      match:
+        {{- include "ncc.expr" $t.match | nindent 8 }}
+      {{- with $t.actions }}
+      actions:
+        {{- range $a := . }}
+        - {{ include "ncc.expr" $a | nindent 10 | trim }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}
