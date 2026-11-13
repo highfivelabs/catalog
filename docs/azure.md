@@ -368,8 +368,8 @@ The core works. The VM's ARM version is old.
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
-| root | workspace, tables, data exports, linked service, linked storage account, private endpoint, AMPLS scoped resource, network security perimeter association | `operationalinsights/Workspace` (2025-07-01). **GAP**: `workspaces/tables`, `dataExports`, `linkedServices`, `linkedStorageAccounts`, `Insights/privateLinkScopes/scopedResources`, `networkSecurityPerimeters/resourceAssociations` |
-| `query_packs` | query packs and queries | **GAP** |
+| root | workspace, tables, data exports, linked service, linked storage account, private endpoint, AMPLS scoped resource, network security perimeter association | `operationalinsights/Workspace` (2025-07-01); the children through aso-extensions: `WorkspacesTable`, `WorkspacesDataExport`, `WorkspacesLinkedService`, `WorkspacesLinkedStorageAccount` (2025-07-01), `PrivateLinkScope`, `PrivateLinkScopesScopedResource` (2021-09-01), `NetworkSecurityPerimetersResourceAssociation` (2025-05-01) |
+| `query_packs` | query packs and queries | aso-extensions `QueryPack`, `QueryPacksQuery` |
 | `log_analytics_solution` | `OperationsManagement/solutions` | **GAP** |
 
 ### 9. avm-res-network-routetable (v0.6.0)
@@ -756,12 +756,12 @@ Each is a mapping still to land or landing, not a gap:
 | `avm-res-network-privatednszone` | `soa_record` | `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev`) | #97 |
 | `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | #120 |
 | `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | #120 |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `WorkspacesDataExport` (`operationalinsights.azure.hfl.dev`) | the workspace follow-up to #88 |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `WorkspacesLinkedService` (the module links a dedicated cluster with one) | the workspace follow-up to #88 |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `WorkspacesLinkedStorageAccount` | the workspace follow-up to #88 |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `WorkspacesTable` | the workspace follow-up to #88 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `WorkspacesDataExport` (`operationalinsights.azure.hfl.dev`) | #121 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `WorkspacesLinkedService` (the module links a dedicated cluster with one) | #121 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `WorkspacesLinkedStorageAccount` | #121 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `WorkspacesTable` | #121 |
 | `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `PrivateLinkScope`, `PrivateLinkScopesScopedResource` (`insights.azure.hfl.dev`) | the workspace follow-up to #88 (an existing scope's `exclusions` stay refused: the module updates a scope it does not own) |
-| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `NetworkSecurityPerimetersResourceAssociation` (`network.azure.hfl.dev`) | the workspace follow-up to #88 |
+| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `NetworkSecurityPerimetersResourceAssociation` (`network.azure.hfl.dev`) | #121 |
 | `avm-res-containerservice-managedcluster` | `namespace` | `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`) | #102 |
 
 The fake-cloud and live runs install aso-extensions' manager beside ASO
@@ -781,6 +781,16 @@ aso-extensions' `RegistriesCredentialSet`, `RegistriesScopeMap` and
 in `crds/aso-extensions`). A token's `passwords` stay refused: secrets
 Azure generates and returns once, and whether a component may hold one is
 the builder's decision.
+
+The Log Analytics workspace's data exports, dedicated cluster link
+(linked service), linked storage accounts, tables and table updates,
+Monitor Private Link Scopes (with the workspace's scoped resource and the
+scope's lock), scoped resources in existing scopes and network security
+perimeter association map to aso-extensions kinds
+(`operationalinsights.azure.hfl.dev`, `insights.azure.hfl.dev`,
+`network.azure.hfl.dev`; CRDs copied in `crds/aso-extensions`). An existing
+scope's `exclusions` stay refused: the module updates a scope it does not
+own, after reading its access modes.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
