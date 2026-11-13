@@ -1,0 +1,51 @@
+# component datafusion-dev-datafusion
+---
+# Source: datafusion/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: datafusion-dev-datafusion-allow-ssh
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "datafusion-dev-datafusion"
+    app.kubernetes.io/name: datafusion
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-datafusion-allow-ssh
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  direction: INGRESS
+  sourceRanges: ["10.0.0.0/22"]
+  targetTags: ["my-datafusion-allow-ssh"]
+  allow:
+    - protocol: tcp
+      ports: ["22"]
+---
+# Source: datafusion/templates/main.yaml
+apiVersion: datafusion.cnrm.cloud.google.com/v1beta1
+kind: DataFusionInstance
+metadata:
+  name: datafusion-dev-datafusion
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "datafusion-dev-datafusion"
+    app.kubernetes.io/name: datafusion
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: my-datafusion
+  location: "europe-west1"
+  type: ENTERPRISE
+  description: "Terraform managed."
+  privateInstance: true
+  enableStackdriverLogging: false
+  enableStackdriverMonitoring: false
+  networkConfig:
+    networkRef:
+      external: "projects/my-project/global/networks/my-network"
+    ipAllocation: "10.0.0.0/22"

@@ -1,0 +1,49 @@
+# Workload identity pools (fabric's OIDC templates, AWS), PAM
+# entitlements, BigQuery reservations and assignments, and KMS key
+# handles.
+name: id-project
+parent: folders/1234567890
+workload_identity_pools:
+  ci:
+    display_name: CI
+    description: CI systems.
+    providers:
+      github:
+        attribute_condition: assertion.repository_owner=="example"
+        attribute_mapping: {attribute.team: assertion.team}
+        identity_provider: {oidc: {template: github}}
+      okta:
+        identity_provider: {oidc: {template: okta, issuer_uri: "https://example.okta.com/oauth2/default", allowed_audiences: [gcp]}}
+      aws:
+        disabled: true
+        identity_provider: {aws: {account_id: "123456789012"}}
+pam_entitlements:
+  breakglass:
+    max_request_duration: 3600s
+    eligible_users: ["group:oncall@example.com"]
+    privileged_access:
+      - {role: roles/owner}
+      - {role: roles/compute.admin, condition: "resource.name.startsWith('projects/id-project/zones/europe-west1-b')"}
+    manual_approvals:
+      require_approver_justification: true
+      steps: [{approvers: ["group:leads@example.com"], approver_email_recipients: [leads@example.com]}]
+    additional_notification_targets: {admin_email_recipients: [sec@example.com]}
+  viewer:
+    max_request_duration: 1800s
+    eligible_users: ["user:a@example.com"]
+    privileged_access: [{role: roles/viewer}]
+    requester_justification_config: {not_mandatory: true}
+bigquery_reservations:
+  batch:
+    location: EU
+    slot_capacity: 100
+    edition: ENTERPRISE
+    max_slots: 200
+    concurrency: 0
+    secondary_location: europe-west4
+    assignments:
+      QUERY: [projects/analytics-1, folders/123]
+      PIPELINE: [organizations/456]
+kms_autokeys:
+  disks: {location: europe-west1}
+  buckets: {location: europe-west1, resource_type_selector: storage.googleapis.com/Bucket}

@@ -1,0 +1,73 @@
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-test"
+  location: "europe-west1"
+  description: "Terraform managed."
+  loadBalancingScheme: EXTERNAL
+  protocol: "UNSPECIFIED"
+  healthChecks:
+    - healthCheckRef:
+        name: basic
+  backend:
+    - balancingMode: CONNECTION
+      description: "Terraform managed."
+      failover: false
+      group:
+        instanceGroupRef:
+          external: "projects/my-project/zones/europe-west1-b/instanceGroups/my-ig"
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: basic-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-test"
+  location: "europe-west1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: basic
+  loadBalancingScheme: EXTERNAL
+  allPorts: true
+---
+# Source: net-lb-ext/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-test"
+  location: "europe-west1"
+  description: "Terraform managed."
+  tcpHealthCheck:
+    portSpecification: USE_SERVING_PORT
