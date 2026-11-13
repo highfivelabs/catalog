@@ -1,0 +1,77 @@
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-sql-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "keep"
+  owner:
+    group: sql.azure.com
+    kind: Server
+    name: names-sql
+  level: ReadOnly
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: Server
+metadata:
+  name: names-sql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "server"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "sql-shop-dev-eus2"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  administrators:
+    administratorType: ActiveDirectory
+    azureADOnlyAuthentication: true
+    login: "dba"
+    sid: "33333333-4444-5555-6666-777777777777"
+  minimalTlsVersion: "1.2"
+  publicNetworkAccess: Disabled
+  tags:
+    team: shop
+  version: "12.0"
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabase
+metadata:
+  name: names-sql-db-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "database:orders"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "orders"
+  location: "eastus2"
+  owner:
+    name: names-sql
+  createMode: Default
+  isLedgerOn: false
+  requestedBackupStorageRedundancy: Geo
+  sku:
+    name: "Basic"

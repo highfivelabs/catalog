@@ -274,7 +274,10 @@ for dir in "${dirs[@]}"; do
     outputs="not evaluated: $(tr '\n|' '  ' <"${OUT}/${chart}/outputs.err" | cut -c1-120)"
     failed=$((failed + 1))
   fi
-  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
+  # --ignore-not-found: deleting an owner lets Kubernetes collect the
+  # children ASO gave it as owner references, which can go before
+  # kubectl reaches them in the file (the fake cloud deletes fast).
+  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false --ignore-not-found >/dev/null
   deadline=$(( $(date +%s) + TIMEOUT ))
   while (( $(date +%s) < deadline )); do
     left=0

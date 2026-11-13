@@ -601,7 +601,7 @@ public IP it makes as a `PublicIPAddress`.
 
 | Module | ASO coverage |
 | --- | --- |
-| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. The admin password goes to Key Vault (`aso-ext` `VaultSecret`). Entra database users: aso-extensions candidate a1, PR #5104 |
+| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. Entra database users: aso-extensions candidate a1, PR #5104. Chart `charts/azure/avm-res-sql-server` (2026-11-13): 23 of 28 variables (3 in part) and 6 of 8 outputs. The administrator password (given, write-only, generated, or copied to Key Vault) and the two password outputs are refused (a secret value, section 8), so the server is Entra-only; refused too: `express_vulnerability_assessment_enabled: true`, a database's `import`, a threat detection storage key and a DataWarehouse database's `geo_backup_enabled: false` (gap 19), firewall rule `timeouts`. Fake cloud and live (centralus; eastus2 refuses SQL servers for the sandbox subscription) passed; details in the chart's README |
 | avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered. Chart `charts/azure/avm-res-network-azurefirewall` (2026-11-13): 18 of 23 variables (the five refused are the azapi mechanics: `ignore_body_changes`, `resource_types`, `retry`, `timeouts`, `firewall_timeouts`), 2 of 4 outputs: ASO's status has no IP configuration's private address (section 8) |
 | avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered. Chart `charts/azure/avm-res-web-serverfarm` (2026-11-12): `ServerFarm` at 2025-05-01 (the module sends 2025-03-01), 24 of 27 variables (`retry`, `timeouts` and a non-default `server_farm_resource_type` refused), both outputs |
 | avm-ptn-alz (35) | management groups, policy definitions, policy set definitions and policy assignments are all **GAP** (no `Microsoft.Management` or `Microsoft.Authorization/policy*` kinds; management groups are issue #2249, open). Role definitions and assignments, and identities, are covered |
@@ -647,6 +647,7 @@ in section 4 need it, then by downloads.
 | 16 | Azure SQL Entra users | 1 (sql-server) | data plane | PR #5104 open | aso-extensions candidate a1 (open question 5) |
 | 17 | Key Vault certificate import and certificate contacts | 1 (keyvault); App Service certificates from Key Vault | data plane | n/a | aso-extensions b6, after `VaultSecret`'s shape |
 | 18 | Stale ARM versions (VirtualMachine 2022-03-01, ApplicationGateway 2022-07-01, DNS zones 2018-05-01) | 3 (virtual machine, application gateway, dnszone) | ARM version | n/a | upstream (a new `$supportedFrom` version) |
+| 19 | Azure SQL express vulnerability assessment (`Microsoft.Sql/servers/sqlVulnerabilityAssessments`) and a DataWarehouse database's geo-backup policy (`Microsoft.Sql/servers/databases/geoBackupPolicies`) | 1 (sql-server; both optional) | ARM | none found | upstream (found porting the chart, 2026-11-13) |
 
 **Where these stand at aso-extensions `b9beb5b` (2026-11-12, 232
 CRDs).** Built there, as kinds the charts can render: 1 (`ManagementLock`),
