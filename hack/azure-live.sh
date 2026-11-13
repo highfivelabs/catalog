@@ -21,6 +21,10 @@
 # avm-res-web-serverfarm,
 # avm-res-network-azurefirewall,
 # avm-res-documentdb-databaseaccount,
+# avm-res-web-site,
+# avm-res-sql-server,
+# avm-ptn-alz-management,
+# avm-res-app-managedenvironment,
 # avm-res-cache-redis,
 # avm-ptn-alz-management,
 # avm-res-app-managedenvironment,
@@ -32,11 +36,12 @@
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos redis pldns dnspr ca alz cae sql)
-# applies only those; the default is all but cog, vm, asp, redis and
-# cosmos (asp: the sandbox has no App Service quota; cog, redis and cosmos:
-# their providers are not registered, docs/azure.md). A case may first apply what it needs:
-# another chart (PRE, the networks of the cases that name one) or ASO
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos redis pldns dnspr ca alz cae sql web)
+# applies only those; the default is all but cog, vm, asp, web, redis and
+# cosmos (asp and web: the sandbox has no App Service quota; cog, redis and
+# cosmos: their providers are not registered, docs/azure.md). A case may first apply what
+# it needs: another chart (PRE: the networks of the cases that name one, the
+# web app's App Service plan) or ASO
 # objects of no chart (CASE-pre.objects.yaml: the firewall's network,
 # subnets and public IPs; the container app's environment), deleted after
 # the case's own
@@ -233,6 +238,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     accounts.cognitiveservices.azure.com \
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
+    serverfarms.web.azure.com sites.web.azure.com \
+    azurefirewalls.network.azure.com \
     serverfarms.web.azure.com \
     azurefirewalls.network.azure.com \
     databaseaccounts.documentdb.azure.com sqldatabases.documentdb.azure.com sqldatabasecontainers.documentdb.azure.com \
@@ -680,6 +687,36 @@ sql_databases:
     containers:
       items: {name: items, partition_key_paths: [/tenant], default_ttl: 86400}
 EOF
+# A Linux Python web app with a system-assigned identity and an app
+# setting, on a B1 plan (about 0.02 USD an hour) the case makes first with
+# the serverfarm chart (PRE). Not in the default cases: the sandbox
+# subscription's App Service quota is 0 (B1 and F1 alike), so Azure refuses
+# the plan (docs/azure.md, "8. Charts").
+cat >"${WORK}/web-pre.yaml" <<EOF
+name: ${RUN}-web-asp
+location: ${LOCATION}
+parent_id: ${RG}
+os_type: Linux
+sku_name: B1
+worker_count: 1
+zone_balancing_enabled: false
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/web.yaml" <<EOF
+name: ${RUN}-app
+location: ${LOCATION}
+parent_id: ${RG}
+service_plan_resource_id: ${RG}/providers/Microsoft.Web/serverfarms/${RUN}-web-asp
+ftp_publish_basic_authentication_enabled: true
+public_network_access_enabled: true
+managed_identities: {system_assigned: true}
+app_settings: {CATALOG_RUN: ${RUN}}
+site_config:
+  always_on: false
+  application_stack:
+    python: {python_version: "3.12"}
+tags: {catalog-run: ${RUN}}
+EOF
 # A Consumption-only Container Apps environment (no network, no logs
 # destination, not zone redundant: Azure needs an infrastructure subnet for
 # that) with one Dapr component that names no secret (a blob state store by
@@ -875,7 +912,10 @@ spec:
   zoneRedundant: false
   tags: {catalog-run: ${RUN}}
 EOF
-declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork)
+
+
+
+declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork [web]=avm-res-web-serverfarm)
 declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400 [redis]=2700 [dnspr]=1800 [ca]=2400 [cae]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
@@ -1005,6 +1045,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     asp:avm-res-web-serverfarm \
     afw:avm-res-network-azurefirewall \
     cosmos:avm-res-documentdb-databaseaccount \
+    web:avm-res-web-site \
     cae:avm-res-app-managedenvironment \
     sql:avm-res-sql-server \
     redis:avm-res-cache-redis \
