@@ -57,37 +57,37 @@ gcp,project,tags_config,"object({force_context_ids, ignore_iam})",partial,force_
 gcp,project,universe,"object({forced_jit_service_identities, prefix, unavailable_service_identities, unavailable_services})",no,universes other than Google Cloud's are not supported,gap
 gcp,project,vpc_sc,"object({is_dry_run, perimeter_name})",no,"AccessContextManagerServicePerimeterResource is v1alpha1; not ported yet, even with allow_alpha (and fabric names the project by its number)",alpha
 gcp,project,workload_identity_pools,"map(object({description, disabled, display_name, providers}))",partial,IAMWorkloadIdentityPoolProvider has no SAML provider and no OIDC jwks_json,gap
-gcp,folder,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,,no-chart
-gcp,folder,asset_search,"map(object({asset_types, query}))",no,,no-chart
-gcp,folder,assured_workload_config,"object({compliance_regime, display_name, enable_sovereign_controls, labels, location, organization, +3})",no,,no-chart
-gcp,folder,autokey_config,object({project}),no,,no-chart
-gcp,folder,cloud_armor_policy,"object({excluded_folders, excluded_projects, name, policy_id})",no,,no-chart
-gcp,folder,contacts,map(list(string)),no,,no-chart
-gcp,folder,context,"object({bigquery_datasets, condition_vars, custom_roles, email_addresses, folder_ids, iam_principals, +9})",no,,no-chart
-gcp,folder,deletion_protection,bool,no,,no-chart
-gcp,folder,factories_config,"object({org_policies, pam_entitlements, scc_mute_configs, scc_sha_custom_modules})",no,,no-chart
-gcp,folder,firewall_policy,"object({name, policy})",no,,no-chart
-gcp,folder,folder_create,bool,no,,no-chart
-gcp,folder,iam,map(list(string)),no,,no-chart
-gcp,folder,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,folder,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,folder,iam_by_principals,map(list(string)),no,,no-chart
-gcp,folder,iam_by_principals_additive,map(list(string)),no,,no-chart
-gcp,folder,iam_by_principals_conditional,"map(object({condition, roles}))",no,,no-chart
-gcp,folder,iam_deny_policies,"map(object({display_name, rules}))",no,,no-chart
-gcp,folder,id,string,no,,no-chart
-gcp,folder,logging_data_access,"map(object({ADMIN_READ, DATA_READ, DATA_WRITE}))",no,,no-chart
-gcp,folder,logging_exclusions,map(string),no,,no-chart
-gcp,folder,logging_settings,"object({disable_default_sink, kms_key_name, storage_location})",no,,no-chart
-gcp,folder,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +4}))",no,,no-chart
-gcp,folder,name,string,no,,no-chart
-gcp,folder,org_policies,"map(object({inherit_from_parent, reset, rules}))",no,,no-chart
-gcp,folder,pam_entitlements,"map(object({additional_notification_targets, eligible_users, manual_approvals, max_request_duration, privileged_access, requester_justification_config}))",no,,no-chart
-gcp,folder,parent,string,no,,no-chart
-gcp,folder,scc_mute_configs,"map(object({description, filter, type}))",no,,no-chart
-gcp,folder,scc_sha_custom_modules,"map(object({description, enablement_state, predicate, recommendation, resource_selector, severity}))",no,,no-chart
-gcp,folder,service_agents_config,"object({create_agents, services})",no,,no-chart
-gcp,folder,tag_bindings,map(string),no,,no-chart
+gcp,folder,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,"CloudAssetFolderFeed is v1alpha1; not ported yet, even with allow_alpha",alpha
+gcp,folder,asset_search,"map(object({asset_types, query}))",no,"a Cloud Asset Inventory search is a read at plan time, not a resource; Bundt does not run one",by-design
+gcp,folder,assured_workload_config,"object({compliance_regime, display_name, enable_sovereign_controls, labels, location, organization, +3})",no,"AssuredWorkloadsWorkload is v1alpha1; not ported yet, even with allow_alpha",alpha
+gcp,folder,autokey_config,object({project}),yes,,
+gcp,folder,cloud_armor_policy,"object({excluded_folders, excluded_projects, name, policy_id})",no,Config Connector has no kind for an organization security policy association (ComputeOrganizationSecurityPolicyAssociation),gap
+gcp,folder,contacts,map(list(string)),yes,,
+gcp,folder,context,"object({bigquery_datasets, condition_vars, custom_roles, email_addresses, folder_ids, iam_principals, +9})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,folder,deletion_protection,bool,partial,"true is refused: Config Connector's Folder has no deletionProtection (deletion_policy: ABANDON keeps the folder instead); false, the default, is accepted",gap
+gcp,folder,factories_config,"object({org_policies, pam_entitlements, scc_mute_configs, scc_sha_custom_modules})",no,"a chart cannot read the caller's files: their entries go in the variables they feed (org_policies, pam_entitlements)",by-design
+gcp,folder,firewall_policy,"object({name, policy})",yes,,
+gcp,folder,folder_create,bool,yes,,
+gcp,folder,iam,map(list(string)),yes,,
+gcp,folder,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,folder,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,folder,iam_by_principals,map(list(string)),yes,,
+gcp,folder,iam_by_principals_additive,map(list(string)),yes,,
+gcp,folder,iam_by_principals_conditional,"map(object({condition, roles}))",yes,,
+gcp,folder,iam_deny_policies,"map(object({display_name, rules}))",no,Config Connector has no IAM deny policy kind (IAMDenyPolicy),gap
+gcp,folder,id,string,yes,,
+gcp,folder,logging_data_access,"map(object({ADMIN_READ, DATA_READ, DATA_WRITE}))",yes,,
+gcp,folder,logging_exclusions,map(string),yes,,
+gcp,folder,logging_settings,"object({disable_default_sink, kms_key_name, storage_location})",no,Config Connector has no kind for a folder's logging settings (LoggingSettings),gap
+gcp,folder,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +4}))",partial,intercept_children is refused (LoggingLogSink has no interceptChildren); a sink of type project is refused (LoggingLogSink's destination is never a project); a bigquery sink needs iam: false (dataset IAM is alpha),gap
+gcp,folder,name,string,yes,,
+gcp,folder,org_policies,"map(object({inherit_from_parent, reset, rules}))",yes,,
+gcp,folder,pam_entitlements,"map(object({additional_notification_targets, eligible_users, manual_approvals, max_request_duration, privileged_access, requester_justification_config}))",yes,,
+gcp,folder,parent,string,yes,,
+gcp,folder,scc_mute_configs,"map(object({description, filter, type}))",no,Config Connector has no Security Command Center v2 mute config kind (SecurityCenterMuteConfig),gap
+gcp,folder,scc_sha_custom_modules,"map(object({description, enablement_state, predicate, recommendation, resource_selector, severity}))",no,"SecurityCenterManagementSecurityHealthAnalyticsCustomModule is v1alpha1; not ported yet, even with allow_alpha",alpha
+gcp,folder,service_agents_config,"object({create_agents, services})",no,Config Connector has no kind for a folder's service identities (ServiceIdentity),gap
+gcp,folder,tag_bindings,map(string),yes,,
 gcp,organization,access_levels,"map(object({combining_function, conditions, description, title}))",no,,no-chart
 gcp,organization,access_policy,string,no,,no-chart
 gcp,organization,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,,no-chart

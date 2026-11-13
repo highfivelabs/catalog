@@ -1,0 +1,78 @@
+---
+# Source: folder/templates/folder.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Folder
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "folder"
+spec:
+  displayName: "catalog-mock-folder"
+  organizationRef:
+    external: "123450000000"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: mock
+  bindings:
+    - role: "roles/viewer"
+      members:
+        - member: "group:viewers@example.com"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-iam-browser
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-browser"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: mock
+  role: "roles/browser"
+  member: "user:one@example.com"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: mock-exclusion-no-gce
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce"
+spec:
+  resourceID: "no-gce"
+  folderRef:
+    name: mock
+  description: "no-gce (Terraform-managed)."
+  filter: "resource.type=gce_instance"

@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs that are not whole objects, for what
+# the chart ports: id (folders/N: the new folder's, read from its status,
+# else id), name (the new folder's display name), organization_policies_ids
+# and sink_writer_identities, keyed as fabric keys them. Not outputs:
+# asset_search_results (refused), assured_workload (refused),
+# scc_custom_sha_modules_ids (refused), service_agents (refused), and
+# fabric's whole object (folder; docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-folder
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'folder' in resources
+      ? (has(resources.folder.status.name) ? dyn(resources.folder.status.name) : null)
+      : dyn(inputs.id.startsWith('folders/') ? inputs.id : 'folders/' + inputs.id)
+    name: "'folder' in resources ? dyn(resources.folder.spec.displayName) : null"
+    organization_policies_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'OrgPolicyPolicy',
+        {v.spec.resourceID: ('folder' in resources
+          ? resources.folder.status.name
+          : (inputs.id.startsWith('folders/') ? inputs.id : 'folders/' + inputs.id))
+          + '/policies/' + v.spec.resourceID})
+    sink_writer_identities: >-
+      resources.transformMapEntry(k, v, v.kind == 'LoggingLogSink', {k.substring(13): v.status.writerIdentity})
