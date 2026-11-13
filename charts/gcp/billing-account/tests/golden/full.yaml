@@ -1,0 +1,105 @@
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: billingbudgets.cnrm.cloud.google.com/v1beta1
+kind: BillingBudgetsBudget
+metadata:
+  name: full-budget-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "budget:b"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+  displayName: "Budget"
+  amount:
+    specifiedAmount:
+      currencyCode: "EUR"
+      nanos: 500000000
+      units: 1000
+  budgetFilter:
+    creditTypesTreatment: "EXCLUDE_ALL_CREDITS"
+  allUpdatesRule:
+    schemaVersion: "1.0"
+    monitoringNotificationChannels:
+      - name: full-channel-ops
+---
+# Source: billing-account/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: billing.cnrm.cloud.google.com/v1beta1
+    external: 012345-6789AB-CDEF01
+    kind: BillingAccount
+  bindings:
+    - role: "roles/billing.viewer"
+      members:
+        - member: "group:viewers@example.com"
+---
+# Source: billing-account/templates/logging.yaml
+apiVersion: logging.gcp.hfl.dev/v1alpha1
+kind: LoggingBillingAccountSink
+metadata:
+  name: full-sink-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sink:all"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+  resourceID: "all"
+  description: "all (Terraform-managed)."
+  destination:
+    storageBucketRef:
+      external: "projects/_/buckets/my-bucket"
+  disabled: false
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  name: full-channel-ops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+    owner: "ops"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "channel:ops"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  type: "email"
+  description: "Ops."
+  enabled: false
+  forceDelete: true
+  labels:
+    email_address: "ops@example.com"

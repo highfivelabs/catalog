@@ -1,0 +1,118 @@
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: billingbudgets.cnrm.cloud.google.com/v1beta1
+kind: BillingBudgetsBudget
+metadata:
+  name: mock-budget-monthly
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "budget:monthly"
+spec:
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+  displayName: "Monthly"
+  amount:
+    specifiedAmount:
+      units: 100
+  budgetFilter:
+    creditTypesTreatment: "INCLUDE_ALL_CREDITS"
+    calendarPeriod: "MONTH"
+  thresholdRules:
+    - thresholdPercent: 0.5
+      spendBasis: "CURRENT_SPEND"
+  allUpdatesRule:
+    schemaVersion: "1.0"
+    monitoringNotificationChannels:
+      - name: mock-channel-ops
+---
+# Source: billing-account/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: billing.cnrm.cloud.google.com/v1beta1
+    external: 012345-6789AB-CDEF01
+    kind: BillingAccount
+  bindings:
+    - role: "roles/billing.viewer"
+      members:
+        - member: "group:billing-viewers@example.com"
+---
+# Source: billing-account/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-iam-user
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-additive-user"
+spec:
+  resourceRef:
+    apiVersion: billing.cnrm.cloud.google.com/v1beta1
+    external: 012345-6789AB-CDEF01
+    kind: BillingAccount
+  role: "roles/billing.user"
+  member: "user:user@example.com"
+---
+# Source: billing-account/templates/logging.yaml
+apiVersion: logging.gcp.hfl.dev/v1alpha1
+kind: LoggingBillingAccountSink
+metadata:
+  name: mock-sink-gcs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "sink:gcs"
+spec:
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+  resourceID: "gcs"
+  description: "gcs (Terraform-managed)."
+  destination:
+    storageBucketRef:
+      external: "projects/_/buckets/cat-mock-billing-logs"
+  disabled: false
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  name: mock-channel-ops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "channel:ops"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  type: "email"
+  enabled: true
+  labels:
+    email_address: "ops@example.com"

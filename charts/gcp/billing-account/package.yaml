@@ -1,0 +1,27 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"):
+# billing_budget_ids maps each budget's key to
+# billingAccounts/<id>/budgets/<budget>, the name the API gives it, which
+# Config Connector writes to spec.resourceID in full (the fake cloud's
+# run showed; a bare ID is completed);
+# monitoring_notification_channel_ids maps each channel's key to its
+# projects/<p>/notificationChannels/<n> (status.name).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-billing-account
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    billing_budget_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('budget:'),
+        {k.substring(7): v.spec.resourceID.startsWith('billingAccounts/') ? v.spec.resourceID
+          : 'billingAccounts/' + v.spec.billingAccountRef.external + '/budgets/' + v.spec.resourceID})
+    monitoring_notification_channel_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('channel:'),
+        {k.substring(8): v.status.name})

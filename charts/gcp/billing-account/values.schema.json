@@ -1,0 +1,646 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "billing-account values (fabric billing-account v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id"
+  ],
+  "definitions": {
+    "condition": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "expression",
+        "title"
+      ]
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). This chart gives no fixed names: log sinks are named by their keys.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of each log sink's name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every object (lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "allow_alpha": {
+      "description": "Accept config-connector-extensions' v1alpha1 LoggingBillingAccountSink for logging_sinks (not a Terraform variable).",
+      "type": "boolean"
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    },
+    "budget_notification_channels": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "campfire",
+              "email",
+              "google_chat",
+              "hipchat",
+              "pagerduty",
+              "pubsub",
+              "slack",
+              "sms",
+              "webhook_basicauth",
+              "webhook_tokenauth"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "force_delete": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "labels": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "sensitive_labels": {
+            "description": "Refused when set: secret values.",
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "user_labels": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "type"
+        ]
+      }
+    },
+    "budgets": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "currency_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "nanos": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "units": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "use_last_period": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownership_scope": {
+            "description": "Refused when set: BillingBudgetsBudget has no ownershipScope.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filter": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "credit_types_treatment": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "exclude_all": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "include_specified": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "enum": [
+                        "COMMITTED_USAGE_DISCOUNT",
+                        "COMMITTED_USAGE_DISCOUNT_DOLLAR_BASE",
+                        "DISCOUNT",
+                        "FREE_TIER",
+                        "PROMOTION",
+                        "RESELLER_MARGIN",
+                        "SUBSCRIPTION_BENEFIT",
+                        "SUSTAINED_USAGE_DISCOUNT"
+                      ]
+                    }
+                  }
+                }
+              },
+              "label": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ]
+              },
+              "period": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "calendar": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "custom": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "start_date": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "day": {
+                            "type": "integer"
+                          },
+                          "month": {
+                            "type": "integer"
+                          },
+                          "year": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "day",
+                          "month",
+                          "year"
+                        ]
+                      },
+                      "end_date": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "day": {
+                            "type": "integer"
+                          },
+                          "month": {
+                            "type": "integer"
+                          },
+                          "year": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "day",
+                          "month",
+                          "year"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "start_date"
+                    ]
+                  }
+                }
+              },
+              "projects": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "resource_ancestors": {
+                "description": "Refused when set: BillingBudgetsBudget has no budgetFilter.resourceAncestors.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "services": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "subaccounts": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "threshold_rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "percent": {
+                  "type": "number"
+                },
+                "forecasted_spend": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "percent"
+              ]
+            }
+          },
+          "update_rules": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "disable_default_iam_recipients": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "monitoring_notification_channels": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "pubsub_topic": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "amount"
+        ]
+      }
+    },
+    "context": {
+      "description": "Context-specific interpolations. Refused when set (use Bundt expressions).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "factories_config": {
+      "description": "Accepted and ignored: a chart cannot read the caller's files.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "budgets_data_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "iam": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "iam_bindings": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "required": [
+          "members",
+          "role"
+        ]
+      }
+    },
+    "iam_bindings_additive": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "member": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "required": [
+          "member",
+          "role"
+        ]
+      }
+    },
+    "iam_by_principals": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "logging_sinks": {
+      "description": "Log sinks: LoggingBillingAccountSink is v1alpha1, needs allow_alpha. destination and type are required (checked by the chart, so that allow_alpha is asked for first).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "bigquery",
+              "logging",
+              "project",
+              "pubsub",
+              "storage"
+            ]
+          },
+          "bq_partitioned_table": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "exclusions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "disabled": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "filter"
+              ]
+            }
+          },
+          "filter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "projects": {
+      "description": "Refused when set: the project chart's billing_account sets a project's billing account.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

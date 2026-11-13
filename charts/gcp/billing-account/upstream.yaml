@@ -1,0 +1,50 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/billing-account
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/billing-account
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/billing-account
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (a
+# v1alpha1 kind, accepted with allow_alpha: true) or by-design (Bundt
+# replaces it). partial: the variable is accepted, the reason says what is
+# refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: factories_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: accepted and ignored; each budget file's contents go under budgets.<file name>"
+    partial: true
+  - variable: projects
+    kind: gap
+    reason: "Config Connector has no kind for a project's billing link alone (google_billing_project_info): a project's billing account is its Project's billingAccountRef, which the project chart's billing_account sets"
+  - variable: budgets
+    kind: gap
+    reason: "ownership_scope and filter.resource_ancestors are refused: BillingBudgetsBudget has no ownershipScope or budgetFilter.resourceAncestors"
+    partial: true
+    fields: [ownership_scope, resource_ancestors]
+  - variable: budget_notification_channels
+    kind: gap
+    reason: "sensitive_labels are refused (secret values: the builder's open SECV question); display_name is refused, since Config Connector takes a channel's display name from its object's name (<release>-channel-<key>)"
+    partial: true
+    fields: [sensitive_labels, display_name]
+  - variable: logging_sinks
+    kind: alpha
+    reason: "config-connector-extensions' LoggingBillingAccountSink is v1alpha1: needs allow_alpha: true. The writer identity's grant on the destination is not made: no IAM kind can take a member from a LoggingBillingAccountSink, so grant the sink's status.writerIdentity on the destination elsewhere"
+    partial: true
+    needs_allow_alpha: true

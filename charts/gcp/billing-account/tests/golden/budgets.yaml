@@ -1,0 +1,104 @@
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: billingbudgets.cnrm.cloud.google.com/v1beta1
+kind: BillingBudgetsBudget
+metadata:
+  name: budgets-budget-folder-net-month-current-100
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "budgets"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "budget:folder-net-month-current-100"
+spec:
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+  displayName: "100 dollars in current spend"
+  amount:
+    specifiedAmount:
+      units: 100
+  budgetFilter:
+    creditTypesTreatment: "INCLUDE_ALL_CREDITS"
+    calendarPeriod: "MONTH"
+    projects:
+      - external: "projects/1234567890"
+  thresholdRules:
+    - thresholdPercent: 0.5
+      spendBasis: "CURRENT_SPEND"
+    - thresholdPercent: 0.75
+      spendBasis: "FORECASTED_SPEND"
+  allUpdatesRule:
+    schemaVersion: "1.0"
+    disableDefaultIamRecipients: true
+    monitoringNotificationChannels:
+      - name: budgets-channel-billing-default
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: billingbudgets.cnrm.cloud.google.com/v1beta1
+kind: BillingBudgetsBudget
+metadata:
+  name: budgets-budget-last-period
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "budgets"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "budget:last-period"
+spec:
+  billingAccountRef:
+    external: "012345-6789AB-CDEF01"
+  displayName: "last period"
+  amount:
+    lastPeriodAmount: {}
+  budgetFilter:
+    creditTypesTreatment: "INCLUDE_SPECIFIED_CREDITS"
+    creditTypes:
+      - DISCOUNT
+      - PROMOTION
+    customPeriod:
+      startDate:
+        day: 1
+        month: 1
+        year: 2027
+      endDate:
+        day: 31
+        month: 12
+        year: 2027
+    labels:
+      env:
+        values: ["prod"]
+    services:
+      - services/24E6-581D-38E5
+    subaccounts:
+      - external: "billingAccounts/012345-6789AB-CDEF02"
+  thresholdRules:
+    - thresholdPercent: 1
+      spendBasis: "CURRENT_SPEND"
+  allUpdatesRule:
+    schemaVersion: "1.0"
+    pubsubTopicRef:
+      external: "projects/my-project/topics/budget-alerts"
+    monitoringNotificationChannels:
+      - external: "projects/my-project/notificationChannels/123"
+---
+# Source: billing-account/templates/budgets.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  name: budgets-channel-billing-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "budgets"
+    app.kubernetes.io/name: billing-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "channel:billing-default"
+    cnrm.cloud.google.com/project-id: "tf-playground-simple"
+spec:
+  type: "email"
+  description: "Budget email notification billing-default."
+  enabled: true
+  labels:
+    email_address: "gcp-billing-admins@example.com"

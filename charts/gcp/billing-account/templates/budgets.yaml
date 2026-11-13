@@ -1,0 +1,174 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/billing-account/budgets.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_monitoring_notification_channel.default: one
+MonitoringNotificationChannel per entry, in its project. Config Connector
+takes a channel's display name from its object's name,
+<release>-channel-<key>, so display_name is refused; user_labels are its
+object's labels.
+sensitive_labels are refused: they hold secret values.
+google_billing_budget.default: one BillingBudgetsBudget per entry of
+budgets, on the billing account. A notification channel given as
+"$notification_channels:<key>" of budget_notification_channels references
+that channel's object; any other value is a channel ID. ownership_scope and
+filter.resource_ancestors are refused: the kind has neither.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $channels := $v.budget_notification_channels | default dict }}
+{{- $channelName := dict }}
+{{- range $k := keys $channels | sortAlpha }}
+{{- $c := index $channels $k }}
+{{- include "kcc.unsupported" (list $ (printf "budget_notification_channels.%s.sensitive_labels" $k) $c.sensitive_labels "they hold secret values (auth_token, password, service_key), which the catalog does not take; set them on the channel outside the component") }}
+{{- $name := include "kcc.name" (list $.Release.Name "channel" $k) }}
+{{- include "kcc.unsupported" (list $ (printf "budget_notification_channels.%s.display_name" $k) $c.display_name (printf "Config Connector takes a channel's display name from its object's name, which is %s" $name)) }}
+{{- $_ := set $channelName $k $name }}
+---
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $name "id" (printf "channel:%s" $k) "project" $c.project_id "abandon" $abandon "labels" ($c.user_labels | default dict)) | nindent 2 }}
+spec:
+  type: {{ $c.type | quote }}
+  {{- with $c.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  enabled: {{ ternary true $c.enabled (kindIs "invalid" $c.enabled) }}
+  {{- if not (kindIs "invalid" $c.force_delete) }}
+  forceDelete: {{ $c.force_delete }}
+  {{- end }}
+  {{- with $c.labels }}
+  labels:
+    {{- range $lk := keys . | sortAlpha }}
+    {{ $lk }}: {{ index $c.labels $lk | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- $budgets := $v.budgets | default dict }}
+{{- range $k := keys $budgets | sortAlpha }}
+{{- $b := index $budgets $k }}
+{{- $a := $b.amount | default dict }}
+{{- $f := $b.filter | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "budgets.%s.ownership_scope" $k) $b.ownership_scope "BillingBudgetsBudget has no ownershipScope") }}
+{{- include "kcc.unsupported" (list $ (printf "budgets.%s.filter.resource_ancestors" $k) $f.resource_ancestors "BillingBudgetsBudget has no budgetFilter.resourceAncestors") }}
+{{- if not (or (eq $a.use_last_period true) (not (kindIs "invalid" $a.units))) }}
+{{- fail (printf "%s: Each budget needs to have amount units specified, or use last period. (budgets.%s)" $.Chart.Name $k) }}
+{{- end }}
+{{- range $rk, $r := ($b.update_rules | default dict) }}
+{{- if and (kindIs "invalid" $r.monitoring_notification_channels) (kindIs "invalid" $r.pubsub_topic) }}
+{{- fail (printf "%s: Budget notification rules need either a pubsub topic or monitoring channels defined. (budgets.%s.update_rules.%s)" $.Chart.Name $k $rk) }}
+{{- end }}
+{{- end }}
+---
+apiVersion: billingbudgets.cnrm.cloud.google.com/v1beta1
+kind: BillingBudgetsBudget
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "budget" $k)) "id" (printf "budget:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  billingAccountRef:
+    external: {{ $v.id | quote }}
+  {{- with $b.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  amount:
+    {{- if eq $a.use_last_period true }}
+    lastPeriodAmount: {}
+    {{- else }}
+    specifiedAmount:
+      {{- with $a.currency_code }}
+      currencyCode: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $a.nanos) }}
+      nanos: {{ int64 $a.nanos }}
+      {{- end }}
+      units: {{ int64 $a.units }}
+    {{- end }}
+  {{- /* fabric always sets a budget_filter, with its credit types
+  treatment defaulting to INCLUDE_ALL_CREDITS. */}}
+  {{- $ct := $f.credit_types_treatment | default dict }}
+  budgetFilter:
+    creditTypesTreatment: {{ ternary "EXCLUDE_ALL_CREDITS" (ternary "INCLUDE_SPECIFIED_CREDITS" "INCLUDE_ALL_CREDITS" (not (kindIs "invalid" $ct.include_specified))) (eq $ct.exclude_all true) | quote }}
+    {{- with $ct.include_specified }}
+    creditTypes:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $f.period }}
+    {{- with .calendar }}
+    calendarPeriod: {{ . | quote }}
+    {{- end }}
+    {{- with .custom }}
+    customPeriod:
+      startDate:
+        day: {{ int64 .start_date.day }}
+        month: {{ int64 .start_date.month }}
+        year: {{ int64 .start_date.year }}
+      {{- with .end_date }}
+      endDate:
+        day: {{ int64 .day }}
+        month: {{ int64 .month }}
+        year: {{ int64 .year }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- with $f.label }}
+    labels:
+      {{ .key }}:
+        values: [{{ .value | quote }}]
+    {{- end }}
+    {{- with $f.projects }}
+    projects:
+      {{- range $p := . }}
+      - external: {{ $p | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $f.services }}
+    services:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $f.subaccounts }}
+    subaccounts:
+      {{- range $s := . }}
+      - external: {{ $s | quote }}
+      {{- end }}
+    {{- end }}
+  {{- with $b.threshold_rules }}
+  thresholdRules:
+    {{- range $r := . }}
+    - thresholdPercent: {{ $r.percent }}
+      spendBasis: {{ ternary "FORECASTED_SPEND" "CURRENT_SPEND" (eq $r.forecasted_spend true) | quote }}
+    {{- end }}
+  {{- end }}
+  {{- /* fabric's all_updates_rule is a dynamic block over update_rules:
+  the kind holds one, so a second rule is refused. */}}
+  {{- $rules := $b.update_rules | default dict }}
+  {{- if gt (len $rules) 1 }}
+  {{- fail (printf "%s: budgets.%s.update_rules has %d rules: a budget has one all-updates rule (the Billing Budget API's allUpdatesRule; Terraform's provider fails the same way)" $.Chart.Name $k (len $rules)) }}
+  {{- end }}
+  {{- range $rk, $r := $rules }}
+  allUpdatesRule:
+    schemaVersion: "1.0"
+    {{- with $r.pubsub_topic }}
+    pubsubTopicRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $r.disable_default_iam_recipients) }}
+    disableDefaultIamRecipients: {{ $r.disable_default_iam_recipients }}
+    {{- end }}
+    {{- with $r.monitoring_notification_channels }}
+    monitoringNotificationChannels:
+      {{- range $ch := . }}
+      {{- $ck := trimPrefix "$notification_channels:" $ch }}
+      {{- if and (hasPrefix "$notification_channels:" $ch) (hasKey $channelName $ck) }}
+      - name: {{ index $channelName $ck }}
+      {{- else if hasPrefix "$" $ch }}
+      {{- fail (printf "%s: budgets.%s.update_rules.%s: %s is not a key of budget_notification_channels, and other $context lookups are not supported (use the channel's ID)" $.Chart.Name $k $rk $ch) }}
+      {{- else }}
+      - external: {{ $ch | quote }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
