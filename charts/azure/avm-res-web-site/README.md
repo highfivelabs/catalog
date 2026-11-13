@@ -176,6 +176,12 @@ live rules forbid (docs/azure.md, "8. Charts").
 at `b9beb5ba`), run `off-catalog-1113105656-11634` (2026-11-13): the site, slot, the slot's private endpoint with its DNS zone group and lock, hostname binding, certificate and locks
 Ready and deleted, the outputs evaluated.
 
+aso-extensions `3d9ba27` computes a site's `defaultHostName` and
+`customDomainVerificationId`: run `off-catalog-1113155314-18721` (2026-11-13), all 9 objects Ready
+and deleted, every output evaluated, `resource_uri`
+(`catalog-app.azurewebsites.net`) and `custom_domain_verification_id`
+among them, no longer null.
+
 ## Changes
 
 - **0.2.0** (2026-11-13): a deployment slot's `private_endpoints` render

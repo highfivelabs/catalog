@@ -130,3 +130,10 @@ resource in Azure when the component is deleted.
 first line. `tests/mock.values.yaml` is applied to aso-extensions' fake
 cloud (`task test-mock-azure`), and the `psql` case of `hack/azure-live.sh`
 to the Azure sandbox (`docs/azure.md`, "8. Charts", Testing).
+
+Fake cloud: run `off-catalog-1113155314-18721` (stock ASO and
+aso-extensions' manager at `3d9ba27`, 2026-11-13): all 5 objects Ready
+and deleted and the outputs evaluated, `fqdn` among them
+(`<server>.postgres.database.azure.com`). Earlier runs at `b9beb5b` had
+every object Ready but no outputs: that fake computed no
+`fullyQualifiedDomainName`.
