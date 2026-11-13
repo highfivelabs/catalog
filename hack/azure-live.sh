@@ -19,14 +19,16 @@
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
-# avm-res-network-azurefirewall)
+# avm-res-network-azurefirewall,
+# avm-res-documentdb-databaseaccount)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
-# applies only those; the default is all but cog, vm and asp (asp: the
-# sandbox has no App Service quota, docs/azure.md). A case may first apply another
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos)
+# applies only those; the default is all but cog, vm, asp and cosmos (asp:
+# the sandbox has no App Service quota; cosmos: it has not registered
+# Microsoft.DocumentDB; docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
 # subnet), or ASO objects of no chart (CASE-pre.objects.yaml: the
 # firewall's network, subnets and public IPs), deleted after the case's own
@@ -79,6 +81,9 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
+# cosmos is not in the default for the same reason: Microsoft.DocumentDB is
+# not registered (run cat11130805699c, 2026-11-13: ASO's register call got
+# 403 AuthorizationFailed for Microsoft.DocumentDB/register/action).
 CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
@@ -173,7 +178,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*;documentdb.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -204,7 +209,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
     serverfarms.web.azure.com \
-    azurefirewalls.network.azure.com; do
+    azurefirewalls.network.azure.com \
+    databaseaccounts.documentdb.azure.com sqldatabases.documentdb.azure.com sqldatabasecontainers.documentdb.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -621,8 +627,28 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
+# A serverless SQL API account (billed per request and per GB stored, no
+# provisioned throughput: nothing while idle) in one region, not zone
+# redundant, with the free 7-day continuous backup, Entra only and no
+# public network access (the defaults), one database and one container.
+# An account takes about ten minutes to create and as long to delete
+# (CASE_TIMEOUT). AZURE_LIVE_COSMOS_LOCATION overrides the region.
+cat >"${WORK}/cosmos.yaml" <<EOF
+name: ${RUN}-cosmos
+location: ${AZURE_LIVE_COSMOS_LOCATION:-${LOCATION}}
+resource_group_name: ${RG}
+capabilities: [{name: EnableServerless}]
+geo_locations: [{location: ${AZURE_LIVE_COSMOS_LOCATION:-${LOCATION}}, failover_priority: 0, zone_redundant: false}]
+backup: {type: Continuous, tier: Continuous7Days}
+tags: {catalog-run: ${RUN}}
+sql_databases:
+  app:
+    name: app
+    containers:
+      items: {name: items, partition_key_paths: [/tenant], default_ttl: 86400}
+EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -749,7 +775,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
-    afw:avm-res-network-azurefirewall; do
+    afw:avm-res-network-azurefirewall \
+    cosmos:avm-res-documentdb-databaseaccount; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"

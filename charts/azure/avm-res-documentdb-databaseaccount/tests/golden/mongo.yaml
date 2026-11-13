@@ -1,0 +1,163 @@
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  name: mongo-cosmos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mongo"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "cosmos-mongo"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  apiProperties:
+    serverVersion: "4.2"
+  backupPolicy:
+    continuous:
+      type: Continuous
+      continuousModeProperties:
+        tier: Continuous30Days
+  capabilities:
+    - name: "EnableMongo"
+  capacity:
+    totalThroughputLimit: -1
+  consistencyPolicy:
+    defaultConsistencyLevel: BoundedStaleness
+    maxIntervalInSeconds: 5
+    maxStalenessPrefix: 100
+  databaseAccountOfferType: Standard
+  defaultIdentity: FirstPartyIdentity
+  disableKeyBasedMetadataWriteAccess: true
+  disableLocalAuth: false
+  enableAnalyticalStorage: false
+  enableAutomaticFailover: true
+  enableBurstCapacity: false
+  enableFreeTier: false
+  enableMultipleWriteLocations: false
+  enablePartitionMerge: false
+  isVirtualNetworkFilterEnabled: false
+  kind: MongoDB
+  locations:
+    - locationName: "eastus2"
+      failoverPriority: 0
+      isZoneRedundant: true
+  minimalTlsVersion: Tls12
+  networkAclBypass: None
+  publicNetworkAccess: Disabled
+---
+# Source: avm-res-documentdb-databaseaccount/templates/mongo.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: MongodbDatabase
+metadata:
+  name: mongo-cosmos-mongodb-autoscale
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mongo"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "mongo_database:autoscale"
+spec:
+  azureName: "autoscale"
+  owner:
+    name: mongo-cosmos
+  options:
+    autoscaleSettings:
+      maxThroughput: 4000
+  resource:
+    id: "autoscale"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/mongo.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: MongodbDatabase
+metadata:
+  name: mongo-cosmos-mongodb-database-collection-af93db44
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mongo"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "mongo_database:database_collection"
+spec:
+  azureName: "database_mongoDb_collections"
+  owner:
+    name: mongo-cosmos
+  options:
+    throughput: 400
+  resource:
+    id: "database_mongoDb_collections"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/mongo.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: MongodbDatabaseCollection
+metadata:
+  name: mongo-cosmos-mongoc-database-collection-collection-328df0e5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mongo"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "mongo_collection:database_collection/collection"
+spec:
+  azureName: "MongoDBcollection"
+  owner:
+    name: mongo-cosmos-mongodb-database-collection-af93db44
+  options:
+    throughput: 400
+  resource:
+    id: "MongoDBcollection"
+    indexes:
+      - key:
+          keys:
+          - _id
+        options:
+          unique: true
+      - key:
+          keys:
+          - _ts
+        options:
+          expireAfterSeconds: 3600
+    shardKey:
+      "_id": Hash
+---
+# Source: avm-res-documentdb-databaseaccount/templates/mongo.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: MongodbDatabaseCollection
+metadata:
+  name: mongo-cosmos-mongoc-database-collection-other-8e1618c3
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mongo"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "mongo_collection:database_collection/other"
+spec:
+  azureName: "other"
+  owner:
+    name: mongo-cosmos-mongodb-database-collection-af93db44
+  options:
+    autoscaleSettings:
+      maxThroughput: 1000
+  resource:
+    id: "other"
+    indexes:
+      - key:
+          keys:
+          - tenant
+          - createdAt
+        options:
+          unique: false
+      - key:
+          keys:
+          - _id
+        options:
+          unique: true

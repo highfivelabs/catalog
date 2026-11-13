@@ -1,0 +1,279 @@
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  name: gremlin-cosmos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "cosmos-gremlin"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  backupPolicy:
+    continuous:
+      type: Continuous
+      continuousModeProperties:
+        tier: Continuous30Days
+  capabilities:
+    - name: "EnableGremlin"
+  capacity:
+    totalThroughputLimit: -1
+  consistencyPolicy:
+    defaultConsistencyLevel: BoundedStaleness
+    maxIntervalInSeconds: 5
+    maxStalenessPrefix: 100
+  databaseAccountOfferType: Standard
+  defaultIdentity: FirstPartyIdentity
+  disableKeyBasedMetadataWriteAccess: true
+  disableLocalAuth: false
+  enableAnalyticalStorage: true
+  enableAutomaticFailover: true
+  enableBurstCapacity: false
+  enableFreeTier: false
+  enableMultipleWriteLocations: false
+  enablePartitionMerge: false
+  isVirtualNetworkFilterEnabled: false
+  kind: GlobalDocumentDB
+  locations:
+    - locationName: "eastus2"
+      failoverPriority: 0
+      isZoneRedundant: true
+  minimalTlsVersion: Tls12
+  networkAclBypass: None
+  publicNetworkAccess: Disabled
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabase
+metadata:
+  name: gremlin-cosmos-gremlindb-database-autoscale-throughput-e72e0b9d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_database:database_autoscale_throughput"
+spec:
+  azureName: "database_autoscale_throughput"
+  owner:
+    name: gremlin-cosmos
+  options:
+    autoscaleSettings:
+      maxThroughput: 4000
+  resource:
+    id: "database_autoscale_throughput"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabase
+metadata:
+  name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_database:database_with_graphs"
+spec:
+  azureName: "database_with_graphs"
+  owner:
+    name: gremlin-cosmos
+  options:
+    throughput: 400
+  resource:
+    id: "database_with_graphs"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabase
+metadata:
+  name: gremlin-cosmos-gremlindb-empty-database-7c78f985
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_database:empty_database"
+spec:
+  azureName: "empty_database"
+  owner:
+    name: gremlin-cosmos
+  options:
+    throughput: 400
+  resource:
+    id: "empty_database"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: gremlin-cosmos-graph-database-with-graphs-graph-autosc-54457832
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:database_with_graphs/graph_autoscale"
+spec:
+  azureName: "graph_autoscale"
+  owner:
+    name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  options:
+    autoscaleSettings:
+      maxThroughput: 4000
+  resource:
+    id: "graph_autoscale"
+    partitionKey:
+      kind: Hash
+      paths: ["/partitionKey"]
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: gremlin-cosmos-graph-database-with-graphs-graph-fixed-889ca0b4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:database_with_graphs/graph_fixed_throughput"
+spec:
+  azureName: "graph_fixed_throughput"
+  owner:
+    name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  options:
+    throughput: 400
+  resource:
+    id: "graph_fixed_throughput"
+    partitionKey:
+      kind: Hash
+      paths: ["/partitionKey"]
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: gremlin-cosmos-graph-database-with-graphs-graph-with-a-7a747dd1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:database_with_graphs/graph_with_analytical_storage"
+spec:
+  azureName: "graph_with_analytical_storage"
+  owner:
+    name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  resource:
+    id: "graph_with_analytical_storage"
+    analyticalStorageTtl: -1
+    partitionKey:
+      kind: Hash
+      paths: ["/partitionKey"]
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: gremlin-cosmos-graph-database-with-graphs-graph-with-i-cdf76db3
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:database_with_graphs/graph_with_index_policy"
+spec:
+  azureName: "graph_with_index_policy"
+  owner:
+    name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  resource:
+    id: "graph_with_index_policy"
+    conflictResolutionPolicy:
+      mode: LastWriterWins
+      conflictResolutionPath: "/_ts"
+    indexingPolicy:
+      automatic: true
+      compositeIndexes:
+        -
+          - path: "/name"
+            order: ascending
+          - path: "/age"
+            order: descending
+      excludedPaths:
+        - path: "/excluded/*"
+        - path: "/\"_etag\"/?"
+      includedPaths:
+        - path: "/"
+        - path: "/included/*"
+      indexingMode: consistent
+      spatialIndexes:
+        - path: "/location/*"
+          types: [Point, LineString, Polygon, MultiPolygon]
+    partitionKey:
+      kind: Hash
+      paths: ["/partitionKey"]
+    uniqueKeyPolicy:
+      uniqueKeys:
+        - paths:
+            - "/email"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: gremlin-cosmos-graph-database-with-graphs-graph-with-p-31c0a1fa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:database_with_graphs/graph_with_partition_key_v2"
+spec:
+  azureName: "graph_with_partition_key_v2"
+  owner:
+    name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  resource:
+    id: "graph_with_partition_key_v2"
+    partitionKey:
+      kind: Hash
+      paths: ["/largePartitionKey"]
+      version: 2
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: gremlin-cosmos-graph-database-with-graphs-graph-with-t-77f98c29
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gremlin"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:database_with_graphs/graph_with_ttl"
+spec:
+  azureName: "graph_with_ttl"
+  owner:
+    name: gremlin-cosmos-gremlindb-database-with-graphs-20825b8b
+  resource:
+    id: "graph_with_ttl"
+    defaultTtl: 3600
+    partitionKey:
+      kind: Hash
+      paths: ["/partitionKey"]
