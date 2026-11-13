@@ -1,0 +1,20 @@
+# A private endpoint whose DNS zone group the chart leaves alone
+# (private_endpoints_manage_dns_zone_group: false; Azure Policy, say,
+# manages it), in another group by name, with an IP configuration taking
+# the unmanaged default member name.
+name: redis-pe
+location: eastus2
+resource_group_name: rg-data
+subscription_id: 00000000-0000-0000-0000-000000000000
+sku_name: Premium
+capacity: 1
+private_endpoints_manage_dns_zone_group: false
+private_endpoints:
+  a:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    resource_group_name: rg-net
+    location: westus3
+    subresource_name: redisCache
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.redis.cache.windows.net]
+    ip_configurations:
+      one: {name: ipc1, private_ip_address: 10.0.2.10}

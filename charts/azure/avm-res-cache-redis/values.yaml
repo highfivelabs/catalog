@@ -1,0 +1,144 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-cache-redis (v0.5.0): same names, types and defaults, so a module
+# block's arguments become this file one to one. values.schema.json carries
+# the types and the module's validations.
+#
+# Descriptions quoted or condensed from terraform-azurerm-avm-res-cache-redis
+# (variables.tf, v0.5.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The cache's name in full, {redisCache}. A name set here takes no prefix;
+# one not set is name, with the namePrefix in front. Private endpoints are
+# named by their entries (else pep-<name>).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the cache's name and
+# of a private endpoint's name (never one set in full). Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's azurerm provider knows its subscription; ASO's owner is an
+# Azure resource ID. Not needed when resource_group_name is a resource
+# group's ID (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# (Required) The Azure region where this and supporting resources should be
+# deployed.
+location: ""
+# (Required) The name of the this resource: 1 to 63 letters, digits and
+# hyphens. Azure needs it globally unique.
+name: ""
+# (Required) The resource group where the resources will be deployed: its
+# name (with subscription_id) or its ID.
+resource_group_name: ""
+
+# The cache (main.rediscache.tf).
+#
+# Whether access key authentication is enabled (Azure's default true).
+# active_directory_authentication_enabled must be true to disable it.
+access_keys_authentication_enabled: null
+# The size of the cache: 0 to 6 for Basic and Standard (family C), 1 to 5
+# for Premium (family P). The family follows from sku_name, as in the
+# module.
+capacity: 2
+# Enable the non-TLS port 6379.
+enable_non_ssl_port: false
+# The minimum TLS version: 1.0, 1.1 or 1.2.
+minimum_tls_version: "1.2"
+# Patch schedule entries: {day_of_week (Saturday), maintenance_window
+# (PT5H), start_hour_utc (0)} each, as one RedisPatchSchedule. Empty
+# creates none.
+patch_schedule: []
+# The static IP address of a cache in a virtual network (subnet_resource_id).
+private_static_ip_address: null
+# Whether public network access is allowed.
+public_network_access_enabled: true
+# The redis_configuration block: {aof_backup_enabled,
+# aof_storage_connection_string_0 (refused), aof_storage_connection_string_1
+# (refused), enable_authentication, active_directory_authentication_enabled,
+# maxmemory_reserved, maxmemory_delta, maxfragmentationmemory_reserved,
+# maxmemory_policy, data_persistence_authentication_method,
+# rdb_backup_enabled, rdb_backup_frequency, rdb_backup_max_snapshot_count,
+# rdb_storage_connection_string (refused),
+# storage_account_subscription_resource_id, notify_keyspace_events}. The
+# storage connection strings are refused (by design): a connection string
+# carries the storage account's key, a secret value, which does not belong
+# in a component's inputs.
+redis_configuration: {}
+# The Redis major version: 4 or 6.
+redis_version: null
+# Replicas per master (Premium).
+replicas_per_master: null
+# Replicas per primary (Premium).
+replicas_per_primary: null
+# Shards of a Premium cluster.
+shard_count: null
+# Basic, Standard or Premium.
+sku_name: Premium
+# The ID of the subnet a Premium cache is deployed in.
+subnet_resource_id: null
+# A map of tenant settings.
+tenant_settings: {}
+# Availability zones. Basic caches take none: set [] for one.
+zones: ["1", "2", "3"]
+
+# Children.
+#
+# Access policies (main.accesspolicies.tf): {name, permissions} per entry.
+cache_access_policies: {}
+# Access policy assignments: {name, access_policy_name, object_id,
+# object_id_alias} per entry.
+cache_access_policy_assignments: {}
+# Firewall rules (main.firewallrules.tf): {name, start_ip, end_ip} per
+# entry.
+cache_firewall_rules: {}
+# Linked caches (main.linkedservers.tf, Premium):
+# {linked_redis_cache_resource_id, linked_redis_cache_location, server_role
+# (Primary or Secondary)} per entry.
+linked_redis_caches: {}
+
+# Interfaces (avm-utl-interfaces).
+#
+# Diagnostic settings: {name, log_categories, log_groups (["allLogs"]),
+# metric_categories (["AllMetrics"]), log_analytics_destination_type
+# (accepted; the module always sends null), workspace_resource_id,
+# storage_account_resource_id, event_hub_authorization_rule_resource_id,
+# event_hub_name, marketplace_partner_resource_id} per entry.
+diagnostic_settings: {}
+# Accepted; nothing is sent.
+enable_telemetry: true
+# {kind (CanNotDelete or ReadOnly), name}: an aso-extensions
+# ManagementLock on the cache.
+lock: null
+# {system_assigned, user_assigned_resource_ids}.
+managed_identities: {}
+# Private endpoints to the cache (sub-resource redisCache): {name,
+# role_assignments, lock {kind, name, notes}, tags, subnet_resource_id,
+# subresource_name, private_dns_zone_group_name ("default"),
+# private_dns_zone_resource_ids, application_security_group_associations,
+# private_service_connection_name, network_interface_name, location
+# (accepted; the module places an endpoint in the cache's location),
+# resource_group_name (a name, in subscription_id, or an ID),
+# ip_configurations {name, private_ip_address, member_name}} per entry.
+private_endpoints: {}
+# Whether the chart manages each private endpoint's DNS zone group (false:
+# Azure Policy, for one, manages it).
+private_endpoints_manage_dns_zone_group: true
+# Role assignments on the cache: {role_definition_id_or_name, principal_id,
+# description, skip_service_principal_aad_check, condition,
+# condition_version, delegated_managed_identity_resource_id,
+# principal_type} per entry.
+role_assignments: {}
+# Azure tags on the cache.
+tags: null
