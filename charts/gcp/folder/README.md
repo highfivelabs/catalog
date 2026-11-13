@@ -87,17 +87,16 @@ kinds for `google_logging_folder_settings`,
 
 ## Config Connector bugs
 
-- **config-connector-extensions' `IAMDenyPolicy` cannot be deleted once
-  its `Folder` object is gone.** In the fake cloud (2026-11-13, run
-  `off-catalog-1113174707-3197`, config-connector-extensions `3de8de68`),
-  a deny policy on the chart's new folder became Ready, but when every
-  object was deleted at once its delete failed with `referenced Folder
-  catalog-folder/mock not found`: the kind resolves its `folderRef` again
-  to delete (the generated kinds no longer do; this one is not generated).
-  Deleting a component should delete its deny policies before the folder,
-  or the kind should delete by its recorded name. The deny policy is out
-  of `tests/mock.values.yaml` until then; it is render-tested.
-
+- **Fixed: config-connector-extensions' `IAMDenyPolicy` could not be
+  deleted once its `Folder` object was gone.** In the fake cloud
+  (2026-11-13, run `off-catalog-1113174707-3197`, config-connector-extensions
+  `3de8de68`), a deny policy on the chart's new folder became Ready, but
+  when every object was deleted at once its delete failed with
+  `referenced Folder catalog-folder/mock not found`: the kind resolved its
+  `folderRef` again to delete. config-connector-extensions #120 (in
+  `c2f0c7d2`, the pin since then) deletes by `status.externalRef`
+  instead, and the deny policy is back in `tests/mock.values.yaml`
+  (Tests, below).
 - **An `OrgPolicyPolicy` on a `Folder` object cannot be deleted once the
   `Folder` object is gone.** In the fake cloud (2026-11-13, run
   `off-catalog-1113154153-13593`, config-connector-extensions `d54a2075`),
@@ -127,16 +126,15 @@ with every other module the catalog tracks. To take a newer release, see
 schemas, and the refusals in `tests/*.fail.yaml`.
 
 Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
-MOCK_CHARTS=folder`, run `off-catalog-1113160429-12717`, at
-config-connector-extensions `d54a2075`): `tests/mock.values.yaml`, a
+MOCK_CHARTS=folder`, run `off-catalog-1113221513-5208`, at
+config-connector-extensions `c2f0c7d2`): `tests/mock.values.yaml`, a
 folder under an organization with an authoritative role, an additive
-member and a logging exclusion: all 4 objects Ready, the outputs evaluated
-(`id` the folder's `folders/N`), all deleted. An earlier run with an org
-policy evaluated `organization_policies_ids` and left the policy undeleted
-("Config Connector bugs"). A run with an IAM deny policy (run
-`off-catalog-1113174707-3197`, config-connector-extensions `3de8de68`)
-had all 5 objects Ready, the deny policy included, and every one but the
-deny policy deleted (same section). Contacts, sinks, PAM, tag bindings, the
+member, a logging exclusion and an IAM deny policy: all 5 objects Ready,
+the outputs evaluated (`id` the folder's `folders/N`), all deleted, the
+deny policy included (an earlier run, `off-catalog-1113174707-3197` at
+`3de8de68`, left it undeleted: "Config Connector bugs"). An earlier run
+with an org policy evaluated `organization_policies_ids` and left the
+policy undeleted (same section). Contacts, sinks, PAM, tag bindings, the
 firewall policy association and Autokey are render-tested only.
 
 Not applied live: live runs are pending KEYLIVE (and the test provisioner's
