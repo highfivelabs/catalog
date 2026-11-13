@@ -1,0 +1,232 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/gke-cluster-standard/main.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+Backup for GKE, as config-connector-extensions' gkebackup.gcp.hfl.dev
+v1beta1 kinds: google_gke_backup_backup_channel and .restore_channel
+(GKEBackupBackupChannel, GKEBackupRestoreChannel, one per key), and, with
+enable_backup_agent, google_gke_backup_backup_plan and .restore_plan
+(GKEBackupBackupPlan, GKEBackupRestorePlan, one per key) on the cluster.
+Each is in its region, else the cluster's. A deletion_policy of ABANDON
+keeps that resource; PREVENT has no Config Connector equivalent.
+*/ -}}
+{{- $v := .Values }}
+{{- $bc := $v.backup_configs | default dict }}
+{{- $region := join "-" (slice (splitList "-" $v.location) 0 2) }}
+{{- $name := include "kcc.resourceName" (list $ "cluster" "cluster" $v.name 40 "letter") }}
+{{- $cluster := printf "projects/%s/locations/%s/clusters/%s" $v.project_id $v.location $name }}
+{{- $abandonAll := include "kcc.abandon" . }}
+{{- range $kind := list "backup" "restore" }}
+{{- range $key, $c := (index $bc (printf "%s_channels" $kind) | default dict) }}
+{{- if eq (toString $c.deletion_policy) "PREVENT" }}
+{{- fail (printf "gke-cluster-standard: backup_configs.%s_channels.%s.deletion_policy PREVENT has no Config Connector equivalent; use ABANDON (docs/design.md, \"Deletion\")" $kind $key) }}
+{{- end }}
+---
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: {{ ternary "GKEBackupBackupChannel" "GKEBackupRestoreChannel" (eq $kind "backup") }}
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name (printf "%s-channel" $kind) $key)) "id" (printf "%s_channel:%s" $kind $key) "project" $v.project_id "abandon" (or $abandonAll (eq (toString $c.deletion_policy) "ABANDON"))) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ (printf "%s channel" $kind) $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $c.region | default $region | quote }}
+  destinationProject: {{ ternary $c.destination_project (printf "projects/%s" $c.destination_project) (hasPrefix "projects/" $c.destination_project) | quote }}
+  {{- with $c.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $c.labels }}
+  labels: {{ toJson . }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- if $bc.enable_backup_agent }}
+{{- range $key, $p := ($bc.backup_plans | default dict) }}
+---
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupBackupPlan
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "backup-plan" $key)) "id" (printf "backup_plan:%s" $key) "project" $v.project_id "abandon" (or $abandonAll (eq (toString $p.deletion_policy) "ABANDON"))) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "backup plan" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $p.region | default $region | quote }}
+  cluster: {{ $cluster | quote }}
+  {{- with $p.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $p.labels }}
+  labels: {{ toJson . }}
+  {{- end }}
+  {{- if or (not (kindIs "invalid" $p.retention_policy_days)) (not (kindIs "invalid" $p.retention_policy_delete_lock_days)) (not (kindIs "invalid" $p.retention_policy_lock)) }}
+  retentionPolicy:
+    {{- if not (kindIs "invalid" $p.retention_policy_delete_lock_days) }}
+    backupDeleteLockDays: {{ $p.retention_policy_delete_lock_days | int64 }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $p.retention_policy_days) }}
+    backupRetainDays: {{ $p.retention_policy_days | int64 }}
+    {{- end }}
+    locked: {{ eq (toString $p.retention_policy_lock) "true" }}
+  {{- else }}
+  retentionPolicy:
+    locked: false
+  {{- end }}
+  {{- with $p.schedule }}
+  backupSchedule:
+    cronSchedule: {{ . | quote }}
+  {{- end }}
+  backupConfig:
+    includeVolumeData: {{ ne (toString $p.include_volume_data) "false" }}
+    includeSecrets: {{ ne (toString $p.include_secrets) "false" }}
+    {{- if not (kindIs "invalid" $p.permissive_mode) }}
+    permissiveMode: {{ $p.permissive_mode }}
+    {{- end }}
+    {{- with $p.encryption_key }}
+    encryptionKey:
+      gcpKmsEncryptionKey: {{ . | quote }}
+    {{- end }}
+    {{- if and (kindIs "invalid" $p.namespaces) (kindIs "invalid" $p.applications) }}
+    allNamespaces: true
+    {{- end }}
+    {{- with $p.namespaces }}
+    selectedNamespaces:
+      namespaces: {{ toJson . }}
+    {{- end }}
+    {{- with $p.applications }}
+    selectedApplications:
+      namespacedNames:
+        {{- range $ns := (keys . | sortAlpha) }}
+        {{- range $n := (index $p.applications $ns) }}
+        - {namespace: {{ $ns | quote }}, name: {{ $n | quote }}}
+        {{- end }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- range $key, $p := ($bc.restore_plans | default dict) }}
+{{- $s := $p.namespaced_restore_scope | default (dict "all_namespaces" true) }}
+{{- $crs := $p.cluster_resource_restore_scope }}
+{{- $bp := $p.backup_plan }}
+{{- if hasKey ($bc.backup_plans | default dict) $bp }}
+{{- $bp = printf "projects/%s/locations/%s/backupPlans/%s" $v.project_id ((index $bc.backup_plans $bp).region | default $region) (include "kcc.cloudName" (list $ "backup plan" $bp 63 "letter")) }}
+{{- end }}
+---
+apiVersion: gkebackup.gcp.hfl.dev/v1beta1
+kind: GKEBackupRestorePlan
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "restore-plan" $key)) "id" (printf "restore_plan:%s" $key) "project" $v.project_id "abandon" (or $abandonAll (eq (toString $p.deletion_policy) "ABANDON"))) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "restore plan" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $p.region | default $region | quote }}
+  cluster: {{ $cluster | quote }}
+  backupPlan: {{ $bp | quote }}
+  {{- with $p.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $p.labels }}
+  labels: {{ toJson . }}
+  {{- end }}
+  restoreConfig:
+    {{- if or (eq (toString $s.all_namespaces) "true") (and (ne (toString $s.no_namespaces) "true") (kindIs "invalid" $s.selected_namespaces) (kindIs "invalid" $s.excluded_namespaces) (kindIs "invalid" $s.applications)) }}
+    allNamespaces: true
+    {{- end }}
+    {{- if not (kindIs "invalid" $s.no_namespaces) }}
+    noNamespaces: {{ $s.no_namespaces }}
+    {{- end }}
+    {{- with $s.restore_mode }}
+    namespacedResourceRestoreMode: {{ . | quote }}
+    {{- end }}
+    {{- with $crs }}
+    {{- with .conflict_policy }}
+    clusterResourceConflictPolicy: {{ . | quote }}
+    {{- end }}
+    clusterResourceRestoreScope:
+      {{- if not (kindIs "invalid" .all_group_kinds) }}
+      allGroupKinds: {{ .all_group_kinds }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .no_group_kinds) }}
+      noGroupKinds: {{ .no_group_kinds }}
+      {{- end }}
+      {{- with .excluded_group_kinds }}
+      excludedGroupKinds: {{ include "gks.gk" . }}
+      {{- end }}
+      {{- with .selected_group_kinds }}
+      selectedGroupKinds: {{ include "gks.gk" . }}
+      {{- end }}
+    {{- end }}
+    {{- with $p.volume_data_restore }}
+    {{- with .policy }}
+    volumeDataRestorePolicy: {{ . | quote }}
+    {{- end }}
+    {{- with .bindings }}
+    volumeDataRestorePolicyBindings:
+      {{- range $t := (keys . | sortAlpha) }}
+      - volumeType: {{ $t | quote }}
+        policy: {{ index $p.volume_data_restore.bindings $t | quote }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- with $s.excluded_namespaces }}
+    excludedNamespaces:
+      namespaces: {{ toJson . }}
+    {{- end }}
+    {{- with $s.selected_namespaces }}
+    selectedNamespaces:
+      namespaces: {{ toJson . }}
+    {{- end }}
+    {{- with $s.applications }}
+    selectedApplications:
+      namespacedNames:
+        {{- range $ns := (keys . | sortAlpha) }}
+        {{- range $n := (index $s.applications $ns) }}
+        - {namespace: {{ $ns | quote }}, name: {{ $n | quote }}}
+        {{- end }}
+        {{- end }}
+    {{- end }}
+    {{- with $p.restore_order }}
+    restoreOrder:
+      groupKindDependencies:
+        {{- range . }}
+        - requiring: {{ first (fromJsonArray (include "gks.gk" (list .requiring))) | toJson }}
+          satisfying: {{ first (fromJsonArray (include "gks.gk" (list .satisfying))) | toJson }}
+        {{- end }}
+    {{- end }}
+    {{- with $p.transformation_rules }}
+    transformationRules:
+      {{- range . }}
+      - fieldActions:
+          {{- range .field_actions }}
+          - op: {{ .op | quote }}
+            {{- with .from_path }}
+            fromPath: {{ . | quote }}
+            {{- end }}
+            {{- with .path }}
+            path: {{ . | quote }}
+            {{- end }}
+            {{- with .value }}
+            value: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+        {{- with .description }}
+        description: {{ . | quote }}
+        {{- end }}
+        {{- with .resource_filter }}
+        resourceFilter:
+          {{- with .json_path }}
+          jsonPath: {{ . | quote }}
+          {{- end }}
+          {{- with .namespaces }}
+          namespaces: {{ toJson . }}
+          {{- end }}
+          {{- with .group_kinds }}
+          groupKinds: {{ include "gks.gk" . }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

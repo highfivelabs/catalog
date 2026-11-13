@@ -1,0 +1,38 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-vpn-static
+spec:
+  version: "1.0.0"
+  components:
+    - name: vpn
+      package:
+        name: gcp-net-vpn-static
+        version: "0.1.0"
+      inputs:
+        region: europe-west1
+        network: projects/my-project/global/networks/my-network
+        name: remote
+        remote_ranges:
+          - 10.10.0.0/24
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-vpn-static
+  scope: my-team
+spec:
+  template: net-vpn-static
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-vpn-static-dev
+  scope: my-team/dev
+spec:
+  stack: net-vpn-static
+  version: "1.0.0"
+  components:
+    vpn:
+      values:
+        project_id: my-project

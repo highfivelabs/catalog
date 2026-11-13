@@ -17,6 +17,7 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
+| Gap kinds commit | `f3d17ddac1f255c36dd07972b84042b58ceee53f` (config-connector-extensions main, 2026-11-12, round 2): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
 | Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
 | Azure Service Operator release | `v2.22.0` (2026-10-30) |
 | Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |

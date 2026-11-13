@@ -1,0 +1,53 @@
+# Every field the chart carries: two forwarding rules (one with a fixed
+# address, one IPv6 on two ports in a subnet), a group made by the chart, an
+# HTTP health check and the backend service's settings.
+project_id: my-project
+region: europe-west1
+name: nlb-full
+labels: {env: test}
+forwarding_rules_config:
+  "":
+    address: 34.1.2.3
+    description: the main rule
+    protocol: UDP
+  ipv6:
+    ipv6: true
+    ports: ["80", "443"]
+    name: custom-fr
+    subnetwork: https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west1/subnetworks/v6
+  named:
+    address: projects/my-project/regions/europe-west1/addresses/nlb
+group_configs:
+  my-group:
+    zone: europe-west1-b
+    name: custom-group
+    description: a group
+    instances: [projects/my-project/zones/europe-west1-b/instances/vm-a]
+    named_ports: {http: 80}
+backends:
+  - group: my-group
+  - group: projects/my-project/zones/europe-west1-c/instanceGroups/other
+    failover: true
+    description: failover group
+backend_service_config:
+  name: custom-bs
+  description: the backend
+  protocol: UNSPECIFIED
+  connection_draining_timeout_sec: 10
+  locality_lb_policy: WEIGHTED_MAGLEV
+  port_name: http
+  security_policy: projects/my-project/regions/europe-west1/securityPolicies/edge
+  session_affinity: CLIENT_IP_PROTO
+  timeout_sec: 30
+  connection_tracking: {idle_timeout_sec: 60, persist_conn_on_unhealthy: ALWAYS_PERSIST, track_per_session: false}
+  failover_config: {disable_conn_drain: false, drop_traffic_if_unhealthy: true, ratio: 0.25}
+  log_config: {enable: true, sample_rate: 1}
+health_check_config:
+  name: custom-hc
+  check_interval_sec: 5
+  healthy_threshold: 2
+  timeout_sec: 5
+  unhealthy_threshold: 3
+  enable_logging: true
+  http: {port: 80, request_path: /healthz, port_specification: USE_FIXED_PORT}
+deletion_policy: ABANDON
