@@ -2,7 +2,8 @@
 # org policies (boolean, list, conditional, dry run, parameters, reset) and
 # a custom constraint, a firewall policy association, tag keys, network
 # tags and tag bindings, data access logs, exclusions, sinks of each
-# destination type, and a PAM entitlement.
+# destination type, a PAM entitlement, access levels, an asset feed and a
+# workforce pool with an OIDC and a SAML provider.
 organization_id: organizations/123456789012
 iam:
   roles/viewer: ["group:viewers@example.org"]
@@ -130,3 +131,58 @@ pam_entitlements:
       admin_email_recipients: [admins@example.org]
       requester_email_recipients: [requesters@example.org]
 tags_config: {ignore_iam: false}
+access_policy: accessPolicies/1234567890
+access_levels:
+  corp:
+    combining_function: OR
+    description: Corporate devices.
+    conditions:
+      - device_policy:
+          allowed_device_management_levels: [COMPLETE]
+          allowed_encryption_statuses: [ENCRYPTED]
+          require_admin_approval: true
+          require_corp_owned: true
+          require_screen_lock: true
+          os_constraints:
+            - {os_type: DESKTOP_CHROME_OS, minimum_version: "100.0", require_verified_chrome_os: true}
+        members: ["user:one@example.org", "serviceAccount:sa@my-project.iam.gserviceaccount.com"]
+        negate: false
+        regions: [IT, FR]
+        required_access_levels: ["$access_levels:ips", accessPolicies/1234567890/accessLevels/other]
+  ips:
+    conditions:
+      - ip_subnetworks: [203.0.113.0/24]
+  empty: {}
+asset_feeds:
+  all:
+    billing_project: my-project
+    content_type: RESOURCE
+    asset_types: [compute.googleapis.com/Instance]
+    asset_names: [//compute.googleapis.com/projects/my-project/zones/europe-west1-b/instances/vm]
+    feed_output_config:
+      pubsub_destination: {topic: projects/my-project/topics/feeds}
+    condition: {expression: "!temporal_asset.deleted", title: live, description: Live assets., location: here}
+workforce_identity_pools:
+  corp:
+    display_name: Corp
+    description: Corporate users.
+    disabled: false
+    session_duration: 7200s
+    providers:
+      okta:
+        display_name: Okta
+        description: Okta SAML.
+        attribute_condition: "true"
+        attribute_mapping_template: okta
+        attribute_mapping: {google.subject: assertion.nameid}
+        disabled: true
+        detailed_audit_logging: false
+        identity_provider:
+          saml: {idp_metadata_xml: "<xml/>"}
+      entra:
+        identity_provider:
+          oidc:
+            issuer_uri: https://login.microsoftonline.com/x/v2.0
+            client_id: client
+            jwks_json: '{"keys": []}'
+            web_sso_config: {additional_scopes: [groups]}

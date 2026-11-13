@@ -1,0 +1,61 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization/assets.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_cloud_asset_organization_feed.default: one AssetFeed per entry of
+asset_feeds on the organization, its ID the key, publishing to the Pub/Sub
+topic (projects/<project>/topics/<topic>), with its content type (fabric's
+check), asset types and names and condition. billing_project is not
+carried: AssetFeed has no field for it, and Config Connector bills the call
+to the project its controller is configured with (README.md, "Differences
+from the module").
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $feeds := $v.asset_feeds | default dict }}
+{{- range $key := keys $feeds | sortAlpha }}
+{{- $f := index $feeds $key }}
+{{- if and $f.content_type (not (has $f.content_type (list "RESOURCE" "IAM_POLICY" "ORG_POLICY" "ACCESS_POLICY" "OS_INVENTORY" "RELATIONSHIP"))) }}
+{{- fail "organization: Content type must be one of RESOURCE, IAM_POLICY, ORG_POLICY, ACCESS_POLICY, OS_INVENTORY, RELATIONSHIP." }}
+{{- end }}
+{{- $topic := toString $f.feed_output_config.pubsub_destination.topic }}
+{{- include "organization.context" (list $ (printf "asset_feeds.%s.feed_output_config.pubsub_destination.topic" $key) $topic) }}
+{{- include "organization.context" (list $ (printf "asset_feeds.%s.billing_project" $key) $f.billing_project) }}
+---
+apiVersion: asset.cnrm.cloud.google.com/v1beta1
+kind: AssetFeed
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "feed" $key)) "id" (printf "asset-feed:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "asset feed" $key 100) | quote }}
+  organizationRef:
+    external: {{ include "organization.id" $ | quote }}
+  {{- with $f.content_type }}
+  contentType: {{ . | quote }}
+  {{- end }}
+  {{- with $f.asset_types }}
+  assetTypes: {{ toJson . }}
+  {{- end }}
+  {{- with $f.asset_names }}
+  assetNames: {{ toJson . }}
+  {{- end }}
+  feedOutputConfig:
+    pubsubDestination:
+      topicRef:
+        external: {{ $topic | quote }}
+  {{- with $f.condition }}
+  condition:
+    expression: {{ .expression | quote }}
+    {{- with .title }}
+    title: {{ . | quote }}
+    {{- end }}
+    {{- with .description }}
+    description: {{ . | quote }}
+    {{- end }}
+    {{- with .location }}
+    location: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
