@@ -1,0 +1,59 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"). IDs and names from the rendered objects, as fabric's
+# resources compute them; generated IDs from the backend services' status.
+# addresses is the address given for each subnetwork key (addresses), else
+# null: ComputeForwardingRule reports no allocated address (the field gap
+# net-lb-ext records). Not an output: fabric's whole forwarding_rules.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-lb-app-int-cross-region
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    addresses: >-
+      inputs.vpc_config.subnetworks.transformMapEntry(k, v, true,
+        {k: inputs.addresses != null && k in inputs.addresses ? dyn(inputs.addresses[k]) : null})
+    backend_service_generated_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeBackendService',
+        {k.substring(16): has(v.status) && has(v.status.generatedId) ? dyn(v.status.generatedId) : null})
+    backend_service_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeBackendService',
+        {k.substring(16): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/global/backendServices/' + v.spec.resourceID})
+    backend_service_names: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeBackendService',
+        {k.substring(16): v.spec.resourceID})
+    group_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeInstanceGroup',
+        {k.substring(6): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/zones/' + v.spec.zone + '/instanceGroups/' + v.spec.resourceID})
+    health_check_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeHealthCheck',
+        {k.substring(13): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/global/healthChecks/' + v.spec.resourceID})
+    ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeForwardingRule',
+        {k.substring(16): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/global/forwardingRules/' + v.spec.resourceID})
+    neg_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeNetworkEndpointGroup',
+        {k.substring(4): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/zones/' + v.spec.location + '/networkEndpointGroups/' + v.spec.resourceID})
+    psc_neg_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeRegionNetworkEndpointGroup' && k.startsWith('psc_neg:'),
+        {k.substring(8): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/regions/' + v.spec.region + '/networkEndpointGroups/' + v.spec.resourceID})
+    regional_neg_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'ComputeRegionNetworkEndpointGroup' && k.startsWith('serverless_neg:'),
+        {k.substring(15): 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+          + '/regions/' + v.spec.region + '/networkEndpointGroups/' + v.spec.resourceID})
+    url_map_id: >-
+      'projects/' + resources.url_map.metadata.annotations['cnrm.cloud.google.com/project-id']
+      + '/global/urlMaps/' + resources.url_map.spec.resourceID
