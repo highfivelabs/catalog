@@ -24,12 +24,13 @@
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
 # artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int,
-# net-lb-ext, net-vpn-static and net-address. Each needs the runner's
-# roles on its resources: the pilot's are catalog-live-tests',
+# net-lb-ext, net-vpn-static, net-address and net-cloud-armor. Each needs
+# the runner's roles on its resources: the pilot's are catalog-live-tests',
 # artifact-registry needs roles/artifactregistry.admin, net-vpc-firewall
 # roles/compute.securityAdmin (cce-live-tests has both), net-lb-int,
 # net-lb-ext, net-vpn-static and net-address roles/compute.networkAdmin
-# (both have it). A chart whose case
+# (both have it), net-cloud-armor roles/compute.securityAdmin
+# (cce-live-tests). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -77,6 +78,7 @@ NLB="${RUN}-nlb"
 VPN="${RUN}-vpn"
 ADDR_G="${RUN}-ga"
 ADDR_E="${RUN}-ea"
+ARMOR="${RUN}-armor"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
@@ -127,6 +129,7 @@ sweep_run() {
   for n in "${r}-ilb-psc" "${r}-ilb-sn"; do
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
+  "${G[@]}" compute security-policies delete "${r}-armor" >/dev/null 2>&1 && echo "swept security policy ${r}-armor" || true
   for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
@@ -142,6 +145,7 @@ sweep_old() {
     "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
     "${G[@]}" compute addresses list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(ga\|ea\)$/\1/p'
+    "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-armor$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
   done || true
@@ -161,6 +165,7 @@ list_left() {
   "${G[@]}" compute service-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
   "${G[@]}" compute target-vpn-gateways list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute addresses list --format='value(name)' | grep -E '^(vpn-)?cat-' || true
+  "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
@@ -411,6 +416,20 @@ external_addresses:
   ${ADDR_E}: {region: ${REGION}, tier: STANDARD, description: catalog live test ${RUN}}
 VALUES
 
+cat >"${OUT}/net-cloud-armor.values.yaml" <<VALUES
+name: ${ARMOR}
+parent_id: {project_id: ${PROJECT}}
+description: catalog live test ${RUN}
+labels: {catalog-run: ${RUN}}
+rules:
+  deny-ip: {priority: 1000, action: deny(403), match: {src_ip_ranges: [192.0.2.0/24]}}
+  throttle:
+    priority: 2000
+    action: throttle
+    match: {src_ip_ranges: ["*"]}
+    rate_limit_options: {exceed_action: deny(429), rate_limit_threshold: {count: 100, interval_sec: 60}, enforce_on_key: IP}
+VALUES
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -432,8 +451,10 @@ for chart in ${LIVE_CHARTS}; do
   fi
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}.rendered.yaml"
   # Fully qualified (kind.version.group/name): "Service" alone is the core kind.
+  # One object comes back as itself, not a List (net-cloud-armor's policy):
+  # make it one, as hack/mock-apply.sh does.
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" -o json \
-    | jq -r '.items[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
+    | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
   declare -A ready=() msgs=()
   deadline=$(( $(date +%s) + TIMEOUT ))
   for o in "${objects[@]}"; do
@@ -441,7 +462,8 @@ for chart in ${LIVE_CHARTS}; do
     if kubectl wait -n "${NS}" --for=condition=Ready "$o" --timeout="${left}s" >/dev/null 2>&1; then ready[$o]=yes; else ready[$o]=no; fi
     msgs[$o]="$(kubectl get -n "${NS}" "$o" -o jsonpath='{.status.conditions[?(@.type=="Ready")].message}' 2>/dev/null | tr '\n|' '  ' | cut -c1-200 || true)"
   done
-  kubectl get -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" -o json >"${OUT}/${chart}.live.json"
+  kubectl get -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" -o json \
+    | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${chart}.live.json"
   bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}.live.json" "${dir}/values.yaml" "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.outputs.json" 2>&1 || failed=$((failed + 1))
   cat "${OUT}/${chart}.outputs.json"
   kubectl delete -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" --wait=false >/dev/null
@@ -505,6 +527,7 @@ for chart in ${LIVE_CHARTS}; do
       gone=yes
       "${G[@]}" compute addresses describe "${ADDR_G}" --global >/dev/null 2>&1 && gone=no
       "${G[@]}" compute addresses describe "${ADDR_E}" --region "${REGION}" >/dev/null 2>&1 && gone=no ;;
+    net-cloud-armor) "${G[@]}" compute security-policies describe "${ARMOR}" >/dev/null 2>&1 && gone=no || gone=yes ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
