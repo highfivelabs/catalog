@@ -4,8 +4,10 @@ An existing Google Cloud organization's IAM, custom roles, organization
 policies and custom constraints, essential contacts, logging sinks,
 exclusions and data access logs, PAM entitlements, tag keys and values,
 network tags, tag bindings, hierarchical firewall policy association,
-access levels, asset feeds and Workforce Identity Federation pools, as
-Config Connector objects. A partial port of Cloud Foundation Fabric's
+access levels, asset feeds and Workforce Identity Federation pools, and,
+behind `allow_alpha`, IAM deny policies, the Cloud Armor policy
+association, user access bindings, the Model Armor floor setting and
+Security Health Analytics custom modules, as Config Connector objects. A partial port of Cloud Foundation Fabric's
 [`modules/organization`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/f706bc3b6166787df01402f73a96f1de57097477/modules/organization)
 at v60.0.0 (`f706bc3b`), Apache-2.0, Copyright Google LLC. Bundt Package
 `gcp-organization` (`package.yaml`). Checked against Config Connector
@@ -59,9 +61,14 @@ The module's variables, with the same names, types and defaults.
 | `access_policy`, `access_levels` | a basic `AccessContextManagerAccessLevel` per entry in the access policy `access_policy` (its number), named by its key (with a `namePrefix`, `<namePrefix>_<key>`, hyphens as underscores), titled by its title or key, with its combining function and conditions: device policy, IP subnetworks, members (users and service accounts, fabric's check), `negate`, regions, required access levels (another level's resource name, or `$access_levels:<key>` for one of this chart's); fabric's checks of the combining function, encryption statuses and management levels. A condition's `vpc_subnets` is refused (`AccessContextManagerAccessLevel` has no `vpcNetworkSources`) |
 | `asset_feeds` | an `AssetFeed` per entry on the organization, its ID the key, to the Pub/Sub topic `projects/<project>/topics/<topic>`, with its content type (fabric's check), asset types and names and condition. `billing_project` is not carried ("Differences from the module") |
 | `workforce_identity_pools` | an `IAMWorkforcePool` per entry on the organization (location `global`, its ID the key) and an `IAMWorkforcePoolProvider` per provider: attribute condition and mapping (on fabric's `azuread` or `okta` template when named), `disabled`, and an OIDC (issuer, client ID, JWKS, web SSO config) or SAML identity provider, with fabric's checks. Refused: `access_restrictions` (`IAMWorkforcePool` has none); a provider's `detailed_audit_logging: true`, `scim_usage` and `oauth2_client_config` (`IAMWorkforcePoolProvider` has none); `scim_tenant` (no kind); an OIDC `client_secret` (its value would be in the rendered manifest, and `path` names a file on the caller's machine) |
+| `allow_alpha` | not a fabric variable: `true` accepts the variables below that need a `v1alpha1` Config Connector kind (`docs/design.md`, "Alpha kinds"); without it they stop the render, naming the kind |
+| `iam_deny_policies` | alpha: an `IAMDenyPolicy` per entry on the organization, its ID the key (it takes the `namePrefix`), with its display name and rules: denied and exception principals and permissions, denial condition; fabric's check that each rule denies a principal and a permission |
+| `cloud_armor_policy` | alpha: a `ComputeOrganizationSecurityPolicyAssociation` of the hierarchical Cloud Armor policy `policy_id` with the organization, named `name` or `organization-<id>`; `excluded_folders` and `excluded_projects` are refused (the kind has no such fields) |
+| `context_aware_access_bindings` | alpha: an `AccessContextManagerGCPUserAccessBinding` per entry, binding the group `group_key` to its access levels (resource names, or `$access_levels:<key>` for this chart's level in `access_policy`); `scoped_access_settings` is refused (no such field) |
+| `model_armor_floor_setting` | alpha: the organization's `ModelArmorFloorSetting` (location `global`), as fabric builds it: enforcement (default true), malicious URI, prompt injection and jailbreak, responsible AI and sensitive data filters, multi-language detection; fabric's checks, and its refusal of `integrated_services` on an organization. The floor setting always exists, so the object is always abandoned: deleting it leaves the setting, as removing fabric's variable does |
+| `scc_sha_custom_modules` | alpha: a `SecurityCenterManagementSecurityHealthAnalyticsCustomModule` per entry (location `global`), its display name the key, with its predicate, resource types, description, recommendation, severity and enablement state (default `ENABLED`) |
 | `context`, `factories_config`, `asset_search` | refused, by design: Bundt replaces `$context` lookups with `${...}` expressions; a chart cannot read the caller's files (their entries go in `custom_roles`, `org_policies`, `org_policy_custom_constraints`, `pam_entitlements` and `tags`); a search is a read at plan time, not a resource |
-| `cloud_armor_policy`, `context_aware_access_bindings`, `iam_deny_policies`, `model_armor_floor_setting`, `scc_mute_configs`, `scc_sha_custom_modules` | refused: `ComputeOrganizationSecurityPolicyAssociation`, `AccessContextManagerGCPUserAccessBinding`, `IAMDenyPolicy`, `ModelArmorFloorSetting`, `SecurityCenterMuteConfig` and `SecurityCenterManagementSecurityHealthAnalyticsCustomModule` are `v1alpha1` kinds, not ported yet |
-| `logging_settings`, `service_agents_config` | refused, gaps: Config Connector has no kind for an organization's logging settings or its service identities (`ServiceIdentity` takes only a project) |
+| `logging_settings`, `scc_mute_configs`, `service_agents_config` | refused, gaps: Config Connector has no kind for an organization's logging settings, a Security Command Center v2 mute config (its `SecurityCenterMuteConfig` is the v1 API's, `organizations/N/muteConfigs`, a different resource from fabric's `organizations/N/locations/global/muteConfigs`) or its service identities (`ServiceIdentity` takes only a project) |
 | `deletion_policy` | not a fabric variable; `ABANDON` keeps the cloud resources |
 
 ## Outputs
@@ -74,11 +81,13 @@ The module's variables, with the same names, types and defaults.
 or value's `tagKeys/N` or `tagValues/N`), `workforce_identity_pool_ids`
 and `workforce_identity_provider_names` (`locations/global/workforcePools/...`),
 keyed as fabric keys them. Not outputs: `asset_search_results`,
-`context_aware_access_bindings`, `logging_identities`,
-`scc_custom_sha_modules_ids`, `scc_mute_configs`, `scim_tenants` and
-`service_agents` (their variables are refused), and fabric's whole objects
-(`access_levels`, `custom_roles`, `logging_sinks`,
-`workforce_identity_providers`; `docs/design.md`, "Outputs").
+`logging_identities`, `scc_mute_configs`, `scim_tenants` and
+`service_agents` (their variables are refused),
+`scc_custom_sha_modules_ids` (Google Cloud assigns a module's ID, and the
+alpha kind does not report it), and fabric's whole objects
+(`access_levels`, `context_aware_access_bindings`, `custom_roles`,
+`logging_sinks`, `workforce_identity_providers`; `docs/design.md`,
+"Outputs").
 
 ## From Terraform
 
@@ -105,8 +114,12 @@ Found porting this module, for config-connector-extensions:
 `allowedValuesRegex`; `AccessContextManagerAccessLevel` has no
 `vpcNetworkSources`; `IAMWorkforcePool` has no `accessRestrictions`;
 `IAMWorkforcePoolProvider` has no `detailedAuditLogging`, `scimUsage` or
-OAuth 2.0 client attributes; `AssetFeed` has no billing project; no kinds
-for `google_logging_organization_settings`,
+OAuth 2.0 client attributes; `AssetFeed` has no billing project;
+`ComputeOrganizationSecurityPolicyAssociation` has no excluded folders or
+projects; `AccessContextManagerGCPUserAccessBinding` has no scoped access
+settings; no kinds
+for `google_scc_v2_organization_mute_config`,
+`google_logging_organization_settings`,
 `google_organization_service_identity` or
 `google_iam_workforce_pool_provider_scim_tenant`
 (`docs/coverage/blocked-kinds.md`).
@@ -135,11 +148,13 @@ with every other module the catalog tracks. To take a newer release, see
 ## Tests
 
 `task test CHART=organization`: render cases `basic`, `iam-bpc`,
-`custom-constraints`, `tags`, `logging`, `pam`, `workforce` and
-`access-levels` (the module README's
-examples, less what the chart refuses), `full` (every value the chart
-carries), `names` and `mock`, validated against Config Connector
+`custom-constraints`, `tags`, `logging`, `pam`, `workforce`,
+`access-levels` and `alpha` (the module README's
+examples, less what the chart refuses), `alpha-defaults` (the alpha parts
+with fabric's defaults), `full` (every value the chart carries), `names`
+and `mock`, validated against Config Connector
 v1.160.0's CRD schemas, and the refusals in `tests/*.fail.yaml`.
+The alpha parts are render-tested only, against their `v1alpha1` schemas.
 
 Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
 MOCK_CHARTS=organization`, run `off-catalog-1113170855-30420`, at
@@ -160,6 +175,11 @@ organization the test identity may change (nothing can create one).
 
 ## Changes
 
+- **0.3.0** (2026-11-13): behind `allow_alpha`, IAM deny policies, the
+  Cloud Armor policy association, user access bindings, the Model Armor
+  floor setting and Security Health Analytics custom modules;
+  `scc_mute_configs` is a gap (Config Connector's mute config is the v1
+  API's).
 - **0.2.0** (2026-11-13): access levels (`access_policy`,
   `access_levels`), asset feeds and Workforce Identity Federation pools
   and providers; the `workforce_identity_pool_ids` and
