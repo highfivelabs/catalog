@@ -1,0 +1,78 @@
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: routines
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "routines"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dataset"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "my_dataset"
+  location: "EU"
+  description: "Terraform managed."
+  maxTimeTravelHours: "168"
+---
+# Source: bigquery-dataset/templates/routines.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryRoutine
+metadata:
+  name: routines-routine-auth-routine-12a97f90
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "routines"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "routine:auth_routine"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "auth_routine"
+  routineType: "TABLE_VALUED_FUNCTION"
+  definitionBody: "SELECT 1 + value AS value"
+  description: "Adds one."
+  language: "SQL"
+  determinismLevel: "DETERMINISTIC"
+  returnTableType: "{\"columns\":[{\"name\":\"value\",\"type\":{\"typeKind\":\"INT64\"}}]}"
+  arguments:
+    - name: "value"
+      argumentKind: "FIXED_TYPE"
+      dataType: "{\"typeKind\":\"INT64\"}"
+---
+# Source: bigquery-dataset/templates/routines.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryRoutine
+metadata:
+  name: routines-routine-custom-masking-routine-935f1a18
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "routines"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "routine:custom_masking_routine"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "custom_masking_routine"
+  routineType: "SCALAR_FUNCTION"
+  definitionBody: "SAFE.REGEXP_REPLACE(ssn, '[0-9]', 'X')"
+  language: "SQL"
+  returnType: "{\"typeKind\" :  \"STRING\"}"
+  arguments:
+    - name: "ssn"
+      dataType: "{\"typeKind\" :  \"STRING\"}"

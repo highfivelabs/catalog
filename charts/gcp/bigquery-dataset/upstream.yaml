@@ -1,0 +1,57 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/bigquery-dataset
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/bigquery-dataset
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigquery-dataset
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (a
+# v1alpha1 kind, accepted with allow_alpha: true) or by-design (Bundt
+# replaces it). partial: the variable is accepted, the reason says what is
+# refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: access
+    kind: alpha
+    reason: "with fabric's default dataset_access: false each entry is a BigQueryDatasetAccess, which is v1alpha1: needs allow_alpha: true. With dataset_access: true the entries are the dataset's own access list and need nothing"
+    partial: true
+    needs_allow_alpha: true
+  - variable: authorized_views
+    kind: alpha
+    reason: "with fabric's default dataset_access: false each view is a BigQueryDatasetAccess, which is v1alpha1: needs allow_alpha: true. With dataset_access: true the views are in the dataset's own access list and need nothing"
+    partial: true
+    needs_allow_alpha: true
+  - variable: authorized_datasets
+    kind: alpha
+    reason: "with fabric's default dataset_access: false each dataset is a BigQueryDatasetAccess, which is v1alpha1: needs allow_alpha: true. With dataset_access: true the datasets are in the dataset's own access list and need nothing"
+    partial: true
+    needs_allow_alpha: true
+  - variable: authorized_routines
+    kind: gap
+    reason: "accepted with dataset_access: true only (the dataset's own access list): BigQueryDatasetAccess, fabric's default, has no routine"
+    partial: true
+  - variable: iam_bindings_additive
+    kind: alpha
+    reason: "config-connector-extensions' IAMMember is v1alpha1: rendered only with allow_alpha: true"
+    partial: true
+    needs_allow_alpha: true
+  - variable: routines
+    kind: gap
+    reason: "data_governance_type, spark_options and remote_function_options are refused: BigQueryRoutine has no dataGovernanceType, sparkOptions or remoteFunctionOptions"
+    partial: true
+    fields: [data_governance_type, spark_options, remote_function_options]

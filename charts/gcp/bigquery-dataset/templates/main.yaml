@@ -1,0 +1,108 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/bigquery-dataset/main.tf and
+tags.tf (v60.0.0), Copyright 2022 and 2023 Google LLC, Apache-2.0.
+
+google_bigquery_dataset.default: one BigQueryDataset. With dataset_access,
+its access list holds the access rules and the authorized views, datasets
+and routines (spec.access); options.delete_contents_on_destroy is Config
+Connector's delete-contents-on-destroy annotation.
+google_bigquery_dataset_access.*: access.yaml.
+google_bigquery_table.*: tables.yaml. google_bigquery_routine.default:
+routines.yaml. google_bigquery_dataset_iam_*: iam.yaml.
+google_tags_location_tag_binding.binding: one TagsLocationTagBinding per
+tag binding, in the dataset's location.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "dataset")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $o := $v.options | default dict }}
+{{- $annotations := dict }}
+{{- if $o.delete_contents_on_destroy }}{{ $_ := set $annotations "cnrm.cloud.google.com/delete-contents-on-destroy" "true" }}{{ end }}
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "dataset" "project" $v.project_id "abandon" $abandon "annotations" $annotations) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  resourceID: {{ include "bigqueryDataset.name" . | quote }}
+  location: {{ $v.location | quote }}
+  {{- with $v.friendly_name }}
+  friendlyName: {{ . | quote }}
+  {{- end }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $o.default_collation }}
+  defaultCollation: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $o.default_table_expiration_ms) }}
+  defaultTableExpirationMs: {{ int64 $o.default_table_expiration_ms }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $o.default_partition_expiration_ms) }}
+  defaultPartitionExpirationMs: {{ int64 $o.default_partition_expiration_ms }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $o.is_case_insensitive) }}
+  isCaseInsensitive: {{ $o.is_case_insensitive }}
+  {{- end }}
+  {{- /* fabric's default is 168 (null too); the kind takes a string. */}}
+  maxTimeTravelHours: {{ $o.max_time_travel_hours | default 168 | int64 | toString | quote }}
+  {{- with $o.storage_billing_model }}
+  storageBillingModel: {{ . | quote }}
+  {{- end }}
+  {{- with $v.encryption_key }}
+  defaultEncryptionConfiguration:
+    kmsKeyRef:
+      external: {{ . | quote }}
+  {{- end }}
+  {{- if $v.dataset_access }}
+  {{- $access := include "bigqueryDataset.access" . | fromJson }}
+  {{- $any := or $access.members $access.views $access.datasets $access.routines }}
+  {{- if $any }}
+  access:
+    {{- range $k := keys $access.members | sortAlpha }}
+    {{- $m := index $access.members $k }}
+    - role: {{ $m.role | quote }}
+      {{ $m.field }}: {{ $m.identity | quote }}
+    {{- end }}
+    {{- range $k := keys $access.views | sortAlpha }}
+    {{- $view := index $access.views $k }}
+    - view:
+        projectId: {{ $view.project_id | quote }}
+        datasetId: {{ $view.dataset_id | quote }}
+        tableId: {{ $view.table_id | quote }}
+    {{- end }}
+    {{- range $k := keys $access.datasets | sortAlpha }}
+    {{- $d := index $access.datasets $k }}
+    - dataset:
+        dataset:
+          projectId: {{ $d.project_id | quote }}
+          datasetId: {{ $d.dataset_id | quote }}
+        targetTypes: ["VIEWS"]
+    {{- end }}
+    {{- range $k := keys $access.routines | sortAlpha }}
+    {{- $r := index $access.routines $k }}
+    - routine:
+        projectId: {{ $r.project_id | quote }}
+        datasetId: {{ $r.dataset_id | quote }}
+        routineId: {{ $r.routine_id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+{{- $tags := $v.tag_bindings | default dict }}
+{{- range $tk := keys $tags | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tag" $tk)) "id" (printf "tag:%s" $tk) "project" $v.project_id) | nindent 2 }}
+spec:
+  parentRef:
+    external: {{ printf "//bigquery.googleapis.com/%s" (include "bigqueryDataset.id" $) | quote }}
+  tagValueRef:
+    external: {{ index $tags $tk | quote }}
+  location: {{ $v.location | quote }}
+{{- end }}

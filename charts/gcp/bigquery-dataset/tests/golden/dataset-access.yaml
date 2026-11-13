@@ -1,0 +1,47 @@
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: dataset-access
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dataset-access"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dataset"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "my_dataset"
+  location: "EU"
+  description: "Terraform managed."
+  maxTimeTravelHours: "168"
+  access:
+    - role: "READER"
+      domain: "example.com"
+    - role: "OWNER"
+      userByEmail: "owner@example.com"
+    - role: "OWNER"
+      specialGroup: "projectOwners"
+    - role: "READER"
+      groupByEmail: "readers@example.com"
+    - view:
+        projectId: "view_project"
+        datasetId: "view_dataset"
+        tableId: "view_id_1"
+    - view:
+        projectId: "view_project"
+        datasetId: "view_dataset"
+        tableId: "view_id_2"
+    - dataset:
+        dataset:
+          projectId: "auth_dataset_project"
+          datasetId: "auth_dataset"
+        targetTypes: ["VIEWS"]
+    - routine:
+        projectId: "auth_routine_project"
+        datasetId: "auth_routine_dataset"
+        routineId: "auth_routine"

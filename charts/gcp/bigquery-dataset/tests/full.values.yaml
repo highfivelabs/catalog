@@ -1,0 +1,121 @@
+# Every accepted variable and field.
+project_id: my-project
+id: my_dataset
+friendly_name: My dataset
+description: Everything.
+location: europe-west1
+encryption_key: projects/kms-project/locations/europe-west1/keyRings/r/cryptoKeys/k
+deletion_policy: ABANDON
+labels: {env: prod}
+tags: {team: data}
+options:
+  default_collation: und:ci
+  default_table_expiration_ms: 86400000
+  default_partition_expiration_ms: 172800000
+  delete_contents_on_destroy: true
+  is_case_insensitive: true
+  max_time_travel_hours: 96
+  storage_billing_model: PHYSICAL
+tag_bindings:
+  env: tagValues/1234567890
+tables:
+  events:
+    description: Events.
+    friendly_name: Events
+    labels: {kind: events}
+    require_partition_filter: true
+    schema: '[{"name":"ts","type":"TIMESTAMP"},{"name":"id","type":"INT64"},{"name":"user","type":"INT64"}]'
+    options:
+      clustering: [id]
+      encryption_key: projects/kms-project/locations/europe-west1/keyRings/r/cryptoKeys/k
+      expiration_time: 1893456000000
+      max_staleness: "0-0 0 10:0:0"
+    partitioning:
+      time: {type: DAY, expiration_ms: 7776000000, field: ts}
+    table_constraints:
+      primary_key_columns: [id]
+      foreign_keys:
+        name: fk_user
+        referenced_table: {project_id: my-project, dataset_id: my_dataset, table_id: users}
+        column_references: {referencing_column: user, referenced_column: id}
+  ranged:
+    schema: '[{"name":"num","type":"INT64"}]'
+    partitioning:
+      field: num
+      range: {start: 0, end: 100, interval: 10}
+  external:
+    external_data_configuration:
+      autodetect: false
+      source_uris: ["gs://my-bucket/data/*.csv"]
+      compression: GZIP
+      connection_id: projects/my-project/locations/eu/connections/c
+      ignore_unknown_values: true
+      max_bad_records: 10
+      metadata_cache_mode: AUTOMATIC
+      reference_file_schema_uri: gs://my-bucket/schema.json
+      schema: '[{"name":"a","type":"STRING"}]'
+      source_format: CSV
+      file_set_spec_type: FILE_SET_SPEC_TYPE_FILE_SYSTEM_MATCH
+      csv_options:
+        quote: '"'
+        allow_jagged_rows: true
+        allow_quoted_newlines: false
+        encoding: UTF-8
+        field_delimiter: ","
+        skip_leading_rows: 1
+      hive_partitioning_options:
+        mode: AUTO
+        require_partition_filter: false
+        source_uri_prefix: gs://my-bucket/data
+  sheet:
+    external_data_configuration:
+      autodetect: true
+      source_uris: ["https://docs.google.com/spreadsheets/d/x"]
+      source_format: GOOGLE_SHEETS
+      google_sheets_options: {range: "Sheet1!A1:B10", skip_leading_rows: 1}
+  parquet:
+    external_data_configuration:
+      autodetect: true
+      source_uris: ["gs://my-bucket/p/*.parquet"]
+      source_format: PARQUET
+      parquet_options: {enum_as_string: true, enable_list_inference: true}
+  avro:
+    external_data_configuration:
+      autodetect: true
+      source_uris: ["gs://my-bucket/a/*.avro"]
+      source_format: AVRO
+      avro_logical_types: true
+  json:
+    external_data_configuration:
+      autodetect: true
+      source_uris: ["gs://my-bucket/j/*.json"]
+      source_format: NEWLINE_DELIMITED_JSON
+      json_options_encoding: UTF-8
+      object_metadata: null
+views:
+  recent:
+    query: SELECT * FROM my_dataset.events
+    use_legacy_sql: false
+    labels: {kind: view}
+materialized_views:
+  daily:
+    query: SELECT DATE(ts) AS day, COUNT(*) AS n FROM my_dataset.events GROUP BY day
+    description: Daily counts.
+    friendly_name: Daily
+    labels: {kind: mview}
+    enable_refresh: true
+    refresh_interval_ms: 1800000
+    allow_non_incremental_definition: false
+    require_partition_filter: false
+    options: {clustering: [day], expiration_time: 1893456000000}
+    partitioning:
+      time: {type: DAY, field: day}
+routines:
+  add_one:
+    routine_type: SCALAR_FUNCTION
+    language: SQL
+    definition_body: x + 1
+    imported_libraries: []
+    arguments:
+      x: {data_type: '{"typeKind":"INT64"}', argument_kind: FIXED_TYPE, mode: IN}
+    return_type: '{"typeKind":"INT64"}'

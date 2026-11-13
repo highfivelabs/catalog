@@ -1,0 +1,70 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/bigquery-dataset/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_bigquery_routine.default: one BigQueryRoutine per routine, its
+arguments named by their keys. data_governance_type, spark_options and
+remote_function_options are refused: the kind has no dataGovernanceType,
+sparkOptions or remoteFunctionOptions. The routine names its dataset by its
+ID (the kind's external form), so it can be deleted after the dataset's
+object is gone.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $dataset := include "bigqueryDataset.name" . }}
+{{- range $k := keys ($v.routines | default dict) | sortAlpha }}
+{{- $r := index $v.routines $k }}
+{{- include "kcc.unsupported" (list $ (printf "routines.%s.data_governance_type" $k) $r.data_governance_type "BigQueryRoutine has no dataGovernanceType") }}
+{{- include "kcc.unsupported" (list $ (printf "routines.%s.spark_options" $k) $r.spark_options "BigQueryRoutine has no sparkOptions") }}
+{{- include "kcc.unsupported" (list $ (printf "routines.%s.remote_function_options" $k) $r.remote_function_options "BigQueryRoutine has no remoteFunctionOptions") }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryRoutine
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "routine" $k)) "id" (printf "routine:%s" $k) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  datasetRef:
+    external: {{ $dataset | quote }}
+  resourceID: {{ $k | quote }}
+  routineType: {{ $r.routine_type | quote }}
+  definitionBody: {{ $r.definition_body | quote }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $r.language }}
+  language: {{ . | quote }}
+  {{- end }}
+  {{- with $r.imported_libraries }}
+  importedLibraries:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $r.determinism_level }}
+  determinismLevel: {{ . | quote }}
+  {{- end }}
+  {{- with $r.return_type }}
+  returnType: {{ . | quote }}
+  {{- end }}
+  {{- with $r.return_table_type }}
+  returnTableType: {{ . | quote }}
+  {{- end }}
+  {{- with $r.arguments }}
+  arguments:
+    {{- range $name := keys . | sortAlpha }}
+    {{- $a := index $r.arguments $name }}
+    - name: {{ $name | quote }}
+      {{- with $a.argument_kind }}
+      argumentKind: {{ . | quote }}
+      {{- end }}
+      {{- with $a.mode }}
+      mode: {{ . | quote }}
+      {{- end }}
+      {{- with $a.data_type }}
+      dataType: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

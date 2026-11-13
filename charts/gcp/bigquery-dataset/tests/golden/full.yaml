@@ -1,0 +1,393 @@
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "dataset"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+    cnrm.cloud.google.com/delete-contents-on-destroy: "true"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "my_dataset"
+  location: "europe-west1"
+  friendlyName: "My dataset"
+  description: "Everything."
+  defaultCollation: "und:ci"
+  defaultTableExpirationMs: 86400000
+  defaultPartitionExpirationMs: 172800000
+  isCaseInsensitive: true
+  maxTimeTravelHours: "96"
+  storageBillingModel: "PHYSICAL"
+  defaultEncryptionConfiguration:
+    kmsKeyRef:
+      external: "projects/kms-project/locations/europe-west1/keyRings/r/cryptoKeys/k"
+---
+# Source: bigquery-dataset/templates/routines.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryRoutine
+metadata:
+  name: full-routine-add-one-d1b7c11f
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "routine:add_one"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "add_one"
+  routineType: "SCALAR_FUNCTION"
+  definitionBody: "x + 1"
+  language: "SQL"
+  returnType: "{\"typeKind\":\"INT64\"}"
+  arguments:
+    - name: "x"
+      argumentKind: "FIXED_TYPE"
+      mode: "IN"
+      dataType: "{\"typeKind\":\"INT64\"}"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-avro
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:avro"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "avro"
+  description: "Terraform managed."
+  externalDataConfiguration:
+    autodetect: true
+    sourceUris:
+      - gs://my-bucket/a/*.avro
+    sourceFormat: "AVRO"
+    avroOptions:
+      useAvroLogicalTypes: true
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-events
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    kind: "events"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:events"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "events"
+  friendlyName: "Events"
+  description: "Events."
+  clustering:
+    - id
+  expirationTime: 1893456000000
+  maxStaleness: "0-0 0 10:0:0"
+  schema: "[{\"name\":\"ts\",\"type\":\"TIMESTAMP\"},{\"name\":\"id\",\"type\":\"INT64\"},{\"name\":\"user\",\"type\":\"INT64\"}]"
+  requirePartitionFilter: true
+  encryptionConfiguration:
+    kmsKeyRef:
+      external: "projects/kms-project/locations/europe-west1/keyRings/r/cryptoKeys/k"
+  tableConstraints:
+    primaryKey:
+      columns:
+        - id
+    foreignKeys:
+      - referencedTable:
+          projectId: "my-project"
+          datasetId: "my_dataset"
+          tableId: "users"
+        columnReferences:
+          referencingColumn: "user"
+          referencedColumn: "id"
+        name: "fk_user"
+  timePartitioning:
+    type: "DAY"
+    expirationMs: 7776000000
+    field: "ts"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-external
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:external"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "external"
+  description: "Terraform managed."
+  externalDataConfiguration:
+    autodetect: false
+    sourceUris:
+      - gs://my-bucket/data/*.csv
+    compression: "GZIP"
+    connectionId: "projects/my-project/locations/eu/connections/c"
+    fileSetSpecType: "FILE_SET_SPEC_TYPE_FILE_SYSTEM_MATCH"
+    metadataCacheMode: "AUTOMATIC"
+    referenceFileSchemaUri: "gs://my-bucket/schema.json"
+    schema: "[{\"name\":\"a\",\"type\":\"STRING\"}]"
+    sourceFormat: "CSV"
+    ignoreUnknownValues: true
+    maxBadRecords: 10
+    csvOptions:
+      quote: "\""
+      allowJaggedRows: true
+      allowQuotedNewlines: false
+      encoding: "UTF-8"
+      fieldDelimiter: ","
+      skipLeadingRows: 1
+    hivePartitioningOptions:
+      mode: "AUTO"
+      requirePartitionFilter: false
+      sourceUriPrefix: "gs://my-bucket/data"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-json
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:json"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "json"
+  description: "Terraform managed."
+  externalDataConfiguration:
+    autodetect: true
+    sourceUris:
+      - gs://my-bucket/j/*.json
+    sourceFormat: "NEWLINE_DELIMITED_JSON"
+    jsonOptions:
+      encoding: "UTF-8"
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-parquet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:parquet"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "parquet"
+  description: "Terraform managed."
+  externalDataConfiguration:
+    autodetect: true
+    sourceUris:
+      - gs://my-bucket/p/*.parquet
+    sourceFormat: "PARQUET"
+    parquetOptions:
+      enumAsString: true
+      enableListInference: true
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-ranged
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:ranged"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "ranged"
+  description: "Terraform managed."
+  schema: "[{\"name\":\"num\",\"type\":\"INT64\"}]"
+  rangePartitioning:
+    field: "num"
+    range:
+      start: 0
+      end: 100
+      interval: 10
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-table-sheet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "table:sheet"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "sheet"
+  description: "Terraform managed."
+  externalDataConfiguration:
+    autodetect: true
+    sourceUris:
+      - https://docs.google.com/spreadsheets/d/x
+    sourceFormat: "GOOGLE_SHEETS"
+    googleSheetsOptions:
+      range: "Sheet1!A1:B10"
+      skipLeadingRows: 1
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-view-recent
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    kind: "view"
+    team: "data"
+  annotations:
+    hfl.dev/id: "view:recent"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "recent"
+  description: "Terraform managed."
+  view:
+    query: "SELECT * FROM my_dataset.events"
+    useLegacySql: false
+---
+# Source: bigquery-dataset/templates/tables.yaml
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: full-mview-daily
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    kind: "mview"
+    team: "data"
+  annotations:
+    hfl.dev/id: "materialized-view:daily"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  datasetRef:
+    external: "my_dataset"
+  resourceID: "daily"
+  friendlyName: "Daily"
+  description: "Daily counts."
+  clustering:
+    - day
+  expirationTime: 1893456000000
+  requirePartitionFilter: false
+  timePartitioning:
+    type: "DAY"
+    field: "day"
+  materializedView:
+    query: "SELECT DATE(ts) AS day, COUNT(*) AS n FROM my_dataset.events GROUP BY day"
+    enableRefresh: true
+    refreshIntervalMs: 1800000
+    allowNonIncrementalDefinition: false
+---
+# Source: bigquery-dataset/templates/main.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  name: full-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: bigquery-dataset
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+    team: "data"
+  annotations:
+    hfl.dev/id: "tag:env"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentRef:
+    external: "//bigquery.googleapis.com/projects/my-project/datasets/my_dataset"
+  tagValueRef:
+    external: "tagValues/1234567890"
+  location: "europe-west1"
