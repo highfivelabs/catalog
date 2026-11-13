@@ -1,0 +1,69 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/folder/deny-policies.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_iam_deny_policy.default: an IAMDenyPolicy of config-connector-
+extensions (iam.gcp.hfl.dev/v1beta1) per entry of iam_deny_policies, on
+the folder, named by its key: its rules with their denied and exception
+principals and permissions and the denial condition. fabric's $context
+principal lookups are refused with context.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $key := keys ($v.iam_deny_policies | default dict) | sortAlpha }}
+{{- $p := index $v.iam_deny_policies $key }}
+{{- /* fabric's validation, with its message. */}}
+{{- range $r := $p.rules | default list }}
+{{- if not (and $r.denied_principals $r.denied_permissions) }}
+{{- fail "folder: Each rule in iam_deny_policies must have at least one denied principal and one denied permission." }}
+{{- end }}
+{{- end }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMDenyPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "deny" $key)) "id" (printf "iam_deny_policy:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $key | quote }}
+  folderRef:
+    {{- include "folder.ref" $ | nindent 4 }}
+  {{- with $p.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  rules:
+    {{- range $r := $p.rules | default list }}
+    - denyRule:
+        deniedPrincipals:
+          {{- range $r.denied_principals }}
+          - {{ . | quote }}
+          {{- end }}
+        deniedPermissions:
+          {{- range $r.denied_permissions }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- with $r.exception_principals }}
+        exceptionPrincipals:
+          {{- range . }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with $r.exception_permissions }}
+        exceptionPermissions:
+          {{- range . }}
+          - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with $r.denial_condition }}
+        denialCondition:
+          {{- include "kcc.condition" . | nindent 10 }}
+          {{- with .location }}
+          location: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- with $r.description }}
+      description: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+{{- end }}
