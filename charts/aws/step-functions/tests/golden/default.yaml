@@ -1,0 +1,40 @@
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: default-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "default"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "plain"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"states.us-east-1.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+  name: default-state-machine
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "default"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "state-machine"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "plain"
+  definition: "{\"StartAt\": \"Done\", \"States\": {\"Done\": {\"Type\": \"Succeed\"}}}"
+  roleRef:
+    from:
+      name: default-role
+  type_: "STANDARD"
+  tags:
+    - key: "Name"
+      value: "plain"

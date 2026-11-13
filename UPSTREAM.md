@@ -46,6 +46,8 @@ charts use are copied in `crds/ack-extensions`.
 | `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
 | `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
 | `sqs-controller` | `v1.9.0` | `0810c99dd5b0c45939727e0ca04e4810ced1fdfa` | Queue |
+| `sfn-controller` | `v1.9.1` | `8de3cc822d99a9fd8682789a21dd65acb0ecc3de` | StateMachine |
+| `cloudwatchlogs-controller` | `v1.10.0` | `01e3ea012e97a2bb079e8cd4c9c5036bb33ef217` | LogGroup |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in
