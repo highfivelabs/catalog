@@ -1,0 +1,91 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-authorization-roleassignment
+repo: https://github.com/Azure/terraform-azurerm-avm-res-authorization-roleassignment
+path: .
+version: v0.3.1
+commit: 8f90a2110e81def1c63f8f81f44e60554793e50e
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-authorization-roleassignment/tree/v0.3.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-authorization-roleassignment/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap, not-ported or by-design (Bundt replaces it).
+# partial: the variable is accepted, the reason says what is refused.
+#
+# The module's lookups: it resolves principals in Microsoft Entra through
+# azuread data sources (users by user principal name, mail, mail nickname or
+# employee ID; groups by display name or mail nickname; applications and
+# service principals by display name, client ID or application object ID)
+# and resources, identities and management groups in Resource Manager. A
+# render reads neither, and neither ASO nor aso-extensions has a kind that
+# looks a principal up (ASO's Entra kinds create what they name). So each
+# lookup by name is refused, and principals are taken by object ID
+# (*_by_object_id and *_by_principal_id, which the module only checks).
+refused:
+  - variable: users_by_user_principal_name
+    kind: gap
+    reason: "the module looks the user up in Microsoft Entra (data azuread_user); a render cannot read Entra and no ASO or aso-extensions kind resolves a user principal name: give the object ID in users_by_object_id"
+  - variable: users_by_mail
+    kind: gap
+    reason: "the module looks the user up by mail in Microsoft Entra (data azuread_user); a render cannot read Entra: give the object ID in users_by_object_id"
+  - variable: users_by_mail_nickname
+    kind: gap
+    reason: "the module looks the user up by mail nickname in Microsoft Entra (data azuread_user); a render cannot read Entra: give the object ID in users_by_object_id"
+  - variable: users_by_employee_id
+    kind: gap
+    reason: "the module looks the user up by employee ID in Microsoft Entra (data azuread_user); a render cannot read Entra: give the object ID in users_by_object_id"
+  - variable: groups_by_display_name
+    kind: gap
+    reason: "the module looks the group up by display name in Microsoft Entra (data azuread_group); a render cannot read Entra: give the object ID in groups_by_object_id"
+  - variable: groups_by_mail_nickname
+    kind: gap
+    reason: "the module looks the group up by mail nickname in Microsoft Entra (data azuread_group); a render cannot read Entra: give the object ID in groups_by_object_id"
+  - variable: app_registrations_by_client_id
+    kind: gap
+    reason: "the module looks the service principal up by client ID in Microsoft Entra (data azuread_service_principal); a render cannot read Entra: give the service principal's object ID in app_registrations_by_principal_id"
+  - variable: app_registrations_by_display_name
+    kind: gap
+    reason: "the module looks the application, then its service principal, up in Microsoft Entra (data azuread_application); a render cannot read Entra: give the service principal's object ID in app_registrations_by_principal_id"
+  - variable: app_registrations_by_object_id
+    kind: gap
+    reason: "the module reads the application's client ID, then its service principal, from Microsoft Entra (data azuread_application); a render cannot read Entra: give the service principal's object ID in app_registrations_by_principal_id"
+  - variable: system_assigned_managed_identities_by_client_id
+    kind: gap
+    reason: "the module looks the identity's service principal up by client ID in Microsoft Entra; a render cannot read Entra: give its principal ID in system_assigned_managed_identities_by_principal_id"
+  - variable: system_assigned_managed_identities_by_display_name
+    kind: gap
+    reason: "the module looks the identity's service principal up by display name in Microsoft Entra; a render cannot read Entra: give its principal ID in system_assigned_managed_identities_by_principal_id"
+  - variable: user_assigned_managed_identities_by_client_id
+    kind: gap
+    reason: "the module looks the identity's service principal up by client ID in Microsoft Entra; a render cannot read Entra: give its principal ID in user_assigned_managed_identities_by_principal_id"
+  - variable: user_assigned_managed_identities_by_display_name
+    kind: gap
+    reason: "the module looks the identity's service principal up by display name in Microsoft Entra; a render cannot read Entra: give its principal ID in user_assigned_managed_identities_by_principal_id"
+  - variable: user_assigned_managed_identities_by_resource_group_and_name
+    kind: gap
+    reason: "the module reads the identity's principal ID from Resource Manager (data azurerm_user_assigned_identity), which a render cannot read: give it in user_assigned_managed_identities_by_principal_id (the identity chart's principal_id output)"
+  - variable: role_definitions
+    kind: gap
+    partial: true
+    reason: "id and name are mapped (name as ASO's wellKnownName, which ASO resolves); scope is refused: the module looks a role name up at that scope, and ASO resolves a name itself, with no lookup scope"
+  - variable: entra_id_role_definitions
+    kind: gap
+    partial: true
+    reason: "template_id is mapped; display_name is refused: the module finds and activates the directory role by display name (azuread_directory_role), a Microsoft Entra lookup a render cannot make"
+  - variable: role_assignments_for_management_groups
+    kind: gap
+    partial: true
+    reason: "management_group_id is mapped (the owner /providers/Microsoft.Management/managementGroups/<id>); management_group_display_name alone is refused: the module looks the group up by display name (data azurerm_management_group)"
+  - variable: role_assignments_for_resources
+    kind: gap
+    partial: true
+    reason: "mapped when an entry also gives resource_type (not a module field): the module finds the resource by name and group in Resource Manager's resource list (data azurerm_resources), which a render cannot read, so it needs the type to make the resource's ID"
