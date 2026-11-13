@@ -1,0 +1,56 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"). api_id, gateway_id and the service account's from inputs, as
+# fabric's resources compute them; api_config_id from the rendered config
+# (its name ends with a hash of the spec, which CEL cannot compute);
+# default_hostname from the gateway's status (null until the gateway
+# reports it; the fake cloud's never does). api, api_config, gateway and
+# service_account are whole Terraform objects in fabric; here each is the
+# resource's ID (projects/<p>/locations/global/apis/<api>,
+# .../configs/<config>, projects/<p>/locations/<region>/gateways/<gateway>,
+# projects/<p>/serviceAccounts/<email>), the field a consumer takes.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-api-gateway
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    api: >-
+      'projects/' + inputs.project_id + '/locations/global/apis/' +
+      ('api' in inputs.names && inputs.names.api != '' ? inputs.names.api : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.api_id)
+    api_id: >-
+      'api' in inputs.names && inputs.names.api != '' ? inputs.names.api : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.api_id
+    api_config: >-
+      'projects/' + inputs.project_id + '/locations/global/apis/' + resources.api_config.spec.api +
+      '/configs/' + resources.api_config.spec.resourceID
+    api_config_id: resources.api_config.spec.resourceID
+    default_hostname: >-
+      has(resources.gateway.status.observedState.defaultHostname)
+      ? dyn(resources.gateway.status.observedState.defaultHostname) : null
+    gateway: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.region + '/gateways/' +
+      ('gateway' in inputs.names && inputs.names.gateway != '' ? inputs.names.gateway : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + 'gw-' + inputs.api_id)
+    gateway_id: >-
+      'gateway' in inputs.names && inputs.names.gateway != '' ? inputs.names.gateway : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + 'gw-' + inputs.api_id
+    service_account: >-
+      inputs.service_account_create
+      ? dyn('projects/' + inputs.project_id + '/serviceAccounts/' +
+        ('serviceAccount' in inputs.names && inputs.names.serviceAccount != '' ? inputs.names.serviceAccount : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + 'sa-api-cfg-' + inputs.api_id) +
+        '@' + inputs.project_id + '.iam.gserviceaccount.com')
+      : null
+    service_account_email: >-
+      inputs.service_account_create
+      ? dyn(('serviceAccount' in inputs.names && inputs.names.serviceAccount != '' ? inputs.names.serviceAccount : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + 'sa-api-cfg-' + inputs.api_id) +
+        '@' + inputs.project_id + '.iam.gserviceaccount.com')
+      : inputs.service_account_email
+    service_account_iam_email: >-
+      inputs.service_account_create
+      ? dyn('serviceAccount:' + ('serviceAccount' in inputs.names && inputs.names.serviceAccount != '' ? inputs.names.serviceAccount : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + 'sa-api-cfg-' + inputs.api_id) +
+        '@' + inputs.project_id + '.iam.gserviceaccount.com')
+      : (inputs.service_account_email == null ? null : dyn('serviceAccount:' + inputs.service_account_email))
