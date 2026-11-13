@@ -87,6 +87,17 @@ kinds for `google_compute_organization_security_policy_association`,
 
 ## Config Connector bugs
 
+- **config-connector-extensions' `IAMDenyPolicy` cannot be deleted once
+  its `Folder` object is gone.** In the fake cloud (2026-11-13, run
+  `off-catalog-1113174707-3197`, config-connector-extensions `3de8de68`),
+  a deny policy on the chart's new folder became Ready, but when every
+  object was deleted at once its delete failed with `referenced Folder
+  catalog-folder/mock not found`: the kind resolves its `folderRef` again
+  to delete (the generated kinds no longer do; this one is not generated).
+  Deleting a component should delete its deny policies before the folder,
+  or the kind should delete by its recorded name. The deny policy is out
+  of `tests/mock.values.yaml` until then; it is render-tested.
+
 - **An `OrgPolicyPolicy` on a `Folder` object cannot be deleted once the
   `Folder` object is gone.** In the fake cloud (2026-11-13, run
   `off-catalog-1113154153-13593`, config-connector-extensions `d54a2075`),
@@ -112,7 +123,7 @@ with every other module the catalog tracks. To take a newer release, see
 
 `task test CHART=folder`: render cases `basic` (fabric's README example),
 `full` (every value the chart carries), `existing` (an existing folder),
-`names` and `mock`, validated against Config Connector v1.160.0's CRD
+`names`, `deny` (IAM deny policies) and `mock`, validated against Config Connector v1.160.0's CRD
 schemas, and the refusals in `tests/*.fail.yaml`.
 
 Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
@@ -122,7 +133,10 @@ folder under an organization with an authoritative role, an additive
 member and a logging exclusion: all 4 objects Ready, the outputs evaluated
 (`id` the folder's `folders/N`), all deleted. An earlier run with an org
 policy evaluated `organization_policies_ids` and left the policy undeleted
-("Config Connector bugs"). Contacts, sinks, PAM, tag bindings, the
+("Config Connector bugs"). A run with an IAM deny policy (run
+`off-catalog-1113174707-3197`, config-connector-extensions `3de8de68`)
+had all 5 objects Ready, the deny policy included, and every one but the
+deny policy deleted (same section). Contacts, sinks, PAM, tag bindings, the
 firewall policy association and Autokey are render-tested only.
 
 Not applied live: live runs are pending KEYLIVE (and the test provisioner's
@@ -131,7 +145,7 @@ folder, `docs/design.md`, "The test provisioner").
 ## Changes
 
 - **0.2.0** (2026-11-13): `iam_deny_policies` as config-connector-extensions'
-  `IAMDenyPolicy`, applied to the fake cloud.
+  `IAMDenyPolicy`.
 - **0.1.0** (2026-11-13): the port: the folder, its IAM, organization
   policies, contacts, logging, PAM entitlements, tag bindings, firewall
   policy association and Autokey configuration.
