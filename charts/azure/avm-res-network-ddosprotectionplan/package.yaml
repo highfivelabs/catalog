@@ -1,0 +1,27 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs): the plan's name and ARM ID, and resource,
+# the module's azurerm object, with the attributes ASO's status has (id,
+# name, location, resource group, tags and the IDs of the virtual networks
+# that use the plan; Azure omits the list while none does).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-ddosprotectionplan
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.ddos_protection_plan.spec.azureName
+    resource_id: resources.ddos_protection_plan.status.id
+    resource: >-
+      {'id': resources.ddos_protection_plan.status.id,
+      'name': resources.ddos_protection_plan.spec.azureName,
+      'location': resources.ddos_protection_plan.spec.location,
+      'resource_group_name': inputs.resource_group_name.startsWith('/') ? inputs.resource_group_name.split('/')[4] : inputs.resource_group_name,
+      'tags': 'tags' in resources.ddos_protection_plan.status ? resources.ddos_protection_plan.status.tags : {},
+      'virtual_network_ids': 'virtualNetworks' in resources.ddos_protection_plan.status ? resources.ddos_protection_plan.status.virtualNetworks.map(n, n.id) : []}
