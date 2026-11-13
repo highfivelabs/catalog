@@ -739,6 +739,15 @@ flexible server FQDNs, a Cosmos DB account's endpoints and locations, an
 Automation account's DSC endpoint, and has the tenant root management
 group. The charts map them (section 8).
 
+**At aso-extensions `f73f5ca` (2026-11-13, 236 CRDs; `ASOX_COMMIT`
+since)** #86 fixed the generated owners of four kinds whose parent is an
+ASO kind: `ServersDatabasesGeoBackupPolicy` is owned by ASO's
+`ServersDatabase`, `DatabaseAccountsSqlDatabasesClientEncryptionKey` by
+`SqlDatabase`, and `AccountsProjectsConnection` and
+`AccountsProjectsCapabilityHost` by `Project` (each had named an
+`*.azure.hfl.dev` kind by its ARM name, which no controller serves). Their
+CRDs are copied in `crds/aso-extensions`.
+
 Already built in aso-extensions and needed by the top modules:
 
 - `VaultSecret` for keyvault, virtual machine, storage account and
@@ -892,7 +901,7 @@ copied in `crds/aso-extensions`), which updates the SOA record set Azure
 makes with the zone and leaves it when deleted.
 
 The rest of what the charts refused for want of a kind now has one in
-aso-extensions (at `3d9ba27`, the commit `ASOX_COMMIT` pins; 236 CRDs).
+aso-extensions (at `f73f5ca`, the commit `ASOX_COMMIT` pins; 236 CRDs).
 Each is a mapping still to land or landing, not a gap:
 
 | Chart | Variable | aso-extensions kind | Mapped in |
