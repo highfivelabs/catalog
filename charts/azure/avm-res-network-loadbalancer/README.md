@@ -124,8 +124,14 @@ repository, release, commit, licence and the date last synced.
 `task test CHART=avm-res-network-loadbalancer`: render cases `basic`,
 `full`, `names` and `mock`, each validated against ASO v2.22.0's CRD
 schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
-`tests/*.fail.yaml`. `task test-live-azure` (case `lb`) and
-`task test-mock-azure`: results below.
+`tests/*.fail.yaml`. `task test-live-azure` (case `lb`) applies a public
+Standard load balancer with the public IP it makes, a pool, a probe, a
+rule, a NAT rule and an outbound rule to the Azure sandbox with Azure
+Service Operator, evaluates the outputs, deletes it and checks Azure no
+longer has it: passed on 2026-11-13 (run `cat11130126a761`). `task
+test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions' fake
+cloud: passed on 2026-11-13, both objects Ready and deleted, the outputs
+evaluated.
 
 ## Changes
 
