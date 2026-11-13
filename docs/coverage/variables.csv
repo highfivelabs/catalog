@@ -4634,34 +4634,34 @@ azure,avm-res-network-bastionhost,tags,map(string),yes,,
 azure,avm-res-network-bastionhost,tunneling_enabled,bool,yes,,
 azure,avm-res-network-bastionhost,virtual_network_id,string,yes,,
 azure,avm-res-network-bastionhost,zones,set(string),yes,,
-azure,avm-res-sql-server,administrator_login,string,no,,no-chart
-azure,avm-res-sql-server,administrator_login_password,string,no,,no-chart
-azure,avm-res-sql-server,administrator_login_password_key_vault_configuration,"object({content_type, expiration_date, key_vault_resource_id, secret_name, tags})",no,,no-chart
-azure,avm-res-sql-server,administrator_login_password_wo,string,no,,no-chart
-azure,avm-res-sql-server,administrator_login_password_wo_version,number,no,,no-chart
-azure,avm-res-sql-server,azuread_administrator,"object({azuread_authentication_only, login_username, object_id, tenant_id})",no,,no-chart
-azure,avm-res-sql-server,connection_policy,string,no,,no-chart
-azure,avm-res-sql-server,databases,"map(object({auto_pause_delay_in_minutes, collation, create_mode, diagnostic_settings, elastic_pool_key, geo_backup_enabled, +26}))",no,,no-chart
-azure,avm-res-sql-server,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-sql-server,elastic_pools,"map(object({diagnostic_settings, license_type, location, lock, maintenance_configuration_name, max_size_bytes, +7}))",no,,no-chart
-azure,avm-res-sql-server,enable_telemetry,bool,no,,no-chart
-azure,avm-res-sql-server,express_vulnerability_assessment_enabled,bool,no,,no-chart
-azure,avm-res-sql-server,firewall_rules,"map(object({end_ip_address, start_ip_address, timeouts}))",no,,no-chart
-azure,avm-res-sql-server,generate_administrator_login_password,bool,no,,no-chart
-azure,avm-res-sql-server,location,string,no,,no-chart
-azure,avm-res-sql-server,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-sql-server,managed_identities,"object({system_assigned, user_assigned_resource_ids})",no,,no-chart
-azure,avm-res-sql-server,name,string,no,,no-chart
-azure,avm-res-sql-server,outbound_network_restriction_enabled,bool,no,,no-chart
-azure,avm-res-sql-server,primary_user_assigned_identity_id,string,no,,no-chart
-azure,avm-res-sql-server,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,,no-chart
-azure,avm-res-sql-server,private_endpoints_manage_dns_zone_group,bool,no,,no-chart
-azure,avm-res-sql-server,public_network_access_enabled,bool,no,,no-chart
-azure,avm-res-sql-server,resource_group_name,string,no,,no-chart
-azure,avm-res-sql-server,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-sql-server,server_version,string,no,,no-chart
-azure,avm-res-sql-server,tags,map(string),no,,no-chart
-azure,avm-res-sql-server,transparent_data_encryption_key_vault_key_id,string,no,,no-chart
+azure,avm-res-sql-server,administrator_login,string,yes,,
+azure,avm-res-sql-server,administrator_login_password,string,no,"a password is a secret value, which does not belong in a component's inputs; ASO's administratorLoginPassword is a reference to a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open). Use Entra-only authentication (azuread_administrator with azuread_authentication_only: true)",by-design
+azure,avm-res-sql-server,administrator_login_password_key_vault_configuration,"object({content_type, expiration_date, key_vault_resource_id, secret_name, tags})",no,"it stores the administrator password, a secret value the chart does not take, in Key Vault; aso-extensions' VaultSecret takes its value from a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open)",by-design
+azure,avm-res-sql-server,administrator_login_password_wo,string,no,"a write-only password is a secret value, refused as administrator_login_password is",by-design
+azure,avm-res-sql-server,administrator_login_password_wo_version,number,no,"the version of administrator_login_password_wo, which is refused",by-design
+azure,avm-res-sql-server,azuread_administrator,"object({azuread_authentication_only, login_username, object_id, tenant_id})",yes,,
+azure,avm-res-sql-server,connection_policy,string,yes,,
+azure,avm-res-sql-server,databases,"map(object({auto_pause_delay_in_minutes, collation, create_mode, diagnostic_settings, elastic_pool_key, geo_backup_enabled, +26}))",partial,"accepted, except import (a .bacpac import is a POST action with a storage key and an administrator password, secret values, and no ASO kind), threat_detection_policy.storage_account_access_key (a secret value; ASO takes it only from a Kubernetes Secret) and geo_backup_enabled false on a DataWarehouse (DW) SKU (Microsoft.Sql/servers/databases/geoBackupPolicies has no ASO or aso-extensions kind; azurerm sets it only for DW SKUs). managed_identities.system_assigned is accepted and ignored, as the module ignores it",gap
+azure,avm-res-sql-server,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-sql-server,elastic_pools,"map(object({diagnostic_settings, license_type, location, lock, maintenance_configuration_name, max_size_bytes, +7}))",yes,,
+azure,avm-res-sql-server,enable_telemetry,bool,yes,,
+azure,avm-res-sql-server,express_vulnerability_assessment_enabled,bool,partial,"accepted at false only: true needs Microsoft.Sql/servers/sqlVulnerabilityAssessments (the express configuration), which has no ASO or aso-extensions kind (ASO's ServersVulnerabilityAssessment is the classic, storage-backed one)",gap
+azure,avm-res-sql-server,firewall_rules,"map(object({end_ip_address, start_ip_address, timeouts}))",partial,"accepted, but a rule's timeouts are refused: Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit",by-design
+azure,avm-res-sql-server,generate_administrator_login_password,bool,no,"a generated password is a secret value, refused as administrator_login_password is (the module's random_password is not ported)",by-design
+azure,avm-res-sql-server,location,string,yes,,
+azure,avm-res-sql-server,lock,"object({kind, name})",yes,,
+azure,avm-res-sql-server,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
+azure,avm-res-sql-server,name,string,yes,,
+azure,avm-res-sql-server,outbound_network_restriction_enabled,bool,yes,,
+azure,avm-res-sql-server,primary_user_assigned_identity_id,string,yes,,
+azure,avm-res-sql-server,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
+azure,avm-res-sql-server,private_endpoints_manage_dns_zone_group,bool,yes,,
+azure,avm-res-sql-server,public_network_access_enabled,bool,yes,,
+azure,avm-res-sql-server,resource_group_name,string,yes,,
+azure,avm-res-sql-server,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-sql-server,server_version,string,yes,,
+azure,avm-res-sql-server,tags,map(string),yes,,
+azure,avm-res-sql-server,transparent_data_encryption_key_vault_key_id,string,yes,,
 azure,avm-res-network-azurefirewall,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
 azure,avm-res-network-azurefirewall,enable_telemetry,bool,yes,,
 azure,avm-res-network-azurefirewall,firewall_ip_configuration,"list(object({name, public_ip_address_id, subnet_id}))",yes,,
@@ -4817,78 +4817,78 @@ azure,avm-res-cache-redis,subnet_resource_id,string,yes,,
 azure,avm-res-cache-redis,tags,map(string),yes,,
 azure,avm-res-cache-redis,tenant_settings,map(string),yes,,
 azure,avm-res-cache-redis,zones,list(string),yes,,
-azure,avm-res-app-managedenvironment,app_insights_configuration,object({connection_string}),no,,no-chart
-azure,avm-res-app-managedenvironment,app_logs_configuration,"object({destination, log_analytics_configuration})",no,,no-chart
-azure,avm-res-app-managedenvironment,availability_zones,list(string),no,,no-chart
-azure,avm-res-app-managedenvironment,certificate_password,string,no,,no-chart
-azure,avm-res-app-managedenvironment,certificate_password_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,certificate_value,string,no,,no-chart
-azure,avm-res-app-managedenvironment,certificate_value_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,certificates,"map(object({certificate_key_vault_properties, location, name, password, password_version, tags, +2}))",no,,no-chart
-azure,avm-res-app-managedenvironment,connection_string,string,no,,no-chart
-azure,avm-res-app-managedenvironment,connection_string_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_identity,string,no,,no-chart
-azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_url,string,no,,no-chart
-azure,avm-res-app-managedenvironment,custom_domain_certificate_password,string,no,,no-chart
-azure,avm-res-app-managedenvironment,custom_domain_certificate_value,string,no,,no-chart
-azure,avm-res-app-managedenvironment,custom_domain_configuration,"object({certificate_key_vault_properties, certificate_value, dns_suffix})",no,,no-chart
-azure,avm-res-app-managedenvironment,custom_domain_dns_suffix,string,no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_ai_connection_string,string,no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_ai_connection_string_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key,string,no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_application_insights_connection_string,string,no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_components,"map(object({component_type, dapr_components_version, ignore_errors, init_timeout, metadata, name, +4}))",no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_configuration,object({}),no,,no-chart
-azure,avm-res-app-managedenvironment,dapr_subscriptions,"map(object({bulk_subscribe, dead_letter_topic, metadata, name, pubsub_name, routes, +2}))",no,,no-chart
-azure,avm-res-app-managedenvironment,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-app-managedenvironment,disk_encryption_configuration,object({key_vault_configuration}),no,,no-chart
-azure,avm-res-app-managedenvironment,dot_net_components,"map(object({component_type, configurations, name, service_binds}))",no,,no-chart
-azure,avm-res-app-managedenvironment,enable_telemetry,bool,no,,no-chart
-azure,avm-res-app-managedenvironment,http_route_configs,"map(object({custom_domains, name, rules}))",no,,no-chart
-azure,avm-res-app-managedenvironment,ignore_body_changes,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,,no-chart
-azure,avm-res-app-managedenvironment,infrastructure_resource_group,string,no,,no-chart
-azure,avm-res-app-managedenvironment,infrastructure_resource_group_name,string,no,,no-chart
-azure,avm-res-app-managedenvironment,infrastructure_subnet_id,string,no,,no-chart
-azure,avm-res-app-managedenvironment,ingress_configuration,"object({header_count_limit, request_idle_timeout, termination_grace_period_seconds, workload_profile_name})",no,,no-chart
-azure,avm-res-app-managedenvironment,internal_load_balancer_enabled,bool,no,,no-chart
-azure,avm-res-app-managedenvironment,java_components,"map(object({component_type, configurations, ingress, name, scale, service_binds}))",no,,no-chart
-azure,avm-res-app-managedenvironment,keda_configuration,object({}),no,,no-chart
-azure,avm-res-app-managedenvironment,key,string,no,,no-chart
-azure,avm-res-app-managedenvironment,key_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,kind,string,no,,no-chart
-azure,avm-res-app-managedenvironment,location,string,no,,no-chart
-azure,avm-res-app-managedenvironment,lock,"object({kind, name, notes})",no,,no-chart
-azure,avm-res-app-managedenvironment,log_analytics_workspace,object({resource_id}),no,,no-chart
-azure,avm-res-app-managedenvironment,log_analytics_workspace_customer_id,string,no,,no-chart
-azure,avm-res-app-managedenvironment,log_analytics_workspace_destination,string,no,,no-chart
-azure,avm-res-app-managedenvironment,log_analytics_workspace_primary_shared_key,string,no,,no-chart
-azure,avm-res-app-managedenvironment,maintenance_configurations,"map(object({name, scheduled_entries}))",no,,no-chart
-azure,avm-res-app-managedenvironment,managed_certificates,"map(object({domain_control_validation, location, name, subject_name, tags}))",no,,no-chart
-azure,avm-res-app-managedenvironment,managed_identities,"object({system_assigned, user_assigned_resource_ids})",no,,no-chart
-azure,avm-res-app-managedenvironment,name,string,no,,no-chart
-azure,avm-res-app-managedenvironment,open_telemetry_configuration,"object({destinations_configuration, logs_configuration, metrics_configuration, traces_configuration})",no,,no-chart
-azure,avm-res-app-managedenvironment,parent_id,string,no,,no-chart
-azure,avm-res-app-managedenvironment,peer_authentication,object({mtls}),no,,no-chart
-azure,avm-res-app-managedenvironment,peer_authentication_enabled,bool,no,,no-chart
-azure,avm-res-app-managedenvironment,peer_traffic_configuration,object({encryption}),no,,no-chart
-azure,avm-res-app-managedenvironment,peer_traffic_encryption_enabled,bool,no,,no-chart
-azure,avm-res-app-managedenvironment,public_network_access,any,no,,no-chart
-azure,avm-res-app-managedenvironment,public_network_access_enabled,bool,no,,no-chart
-azure,avm-res-app-managedenvironment,resource_group_name,string,no,,no-chart
-azure,avm-res-app-managedenvironment,resource_types,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,,no-chart
-azure,avm-res-app-managedenvironment,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,,no-chart
-azure,avm-res-app-managedenvironment,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",no,,no-chart
-azure,avm-res-app-managedenvironment,shared_key,string,no,,no-chart
-azure,avm-res-app-managedenvironment,shared_key_version,number,no,,no-chart
-azure,avm-res-app-managedenvironment,storages,"map(object({account_key, account_key_version, azure_file, name, nfs_azure_file}))",no,,no-chart
-azure,avm-res-app-managedenvironment,tags,map(string),no,,no-chart
-azure,avm-res-app-managedenvironment,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-app-managedenvironment,vnet_configuration,"object({docker_bridge_cidr, infrastructure_subnet_id, internal, platform_reserved_cidr, platform_reserved_dns_ip})",no,,no-chart
-azure,avm-res-app-managedenvironment,workload_profile,"set(object({maximum_count, minimum_count, name, workload_profile_type}))",no,,no-chart
-azure,avm-res-app-managedenvironment,workload_profiles,"list(object({maximum_count, minimum_count, name, workload_profile_type}))",no,,no-chart
-azure,avm-res-app-managedenvironment,zone_redundancy_enabled,bool,no,,no-chart
-azure,avm-res-app-managedenvironment,zone_redundant,bool,no,,no-chart
+azure,avm-res-app-managedenvironment,app_insights_configuration,object({connection_string}),no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no appInsightsConfiguration",gap
+azure,avm-res-app-managedenvironment,app_logs_configuration,"object({destination, log_analytics_configuration})",partial,"accepted with destination azure-monitor (or none), but destination log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,availability_zones,list(string),no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no availabilityZones",gap
+azure,avm-res-app-managedenvironment,certificate_password,string,no,"the custom domain certificate's password, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
+azure,avm-res-app-managedenvironment,certificate_password_version,number,no,"tracks certificate_password, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,certificate_value,string,no,"the custom domain certificate's blob, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
+azure,avm-res-app-managedenvironment,certificate_value_version,number,no,"tracks certificate_value, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,certificates,"map(object({certificate_key_vault_properties, location, name, password, password_version, tags, +2}))",partial,"accepted with a Key Vault certificate (certificate_key_vault_properties), but password and value are refused: secret values the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,connection_string,string,no,"the Application Insights connection string of appInsightsConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides",gap
+azure,avm-res-app-managedenvironment,connection_string_version,number,no,"tracks connection_string, whose appInsightsConfiguration ASO's ManagedEnvironment (2025-01-01) does not have",gap
+azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_identity,string,yes,,
+azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_url,string,yes,,
+azure,avm-res-app-managedenvironment,custom_domain_certificate_password,string,no,"deprecated; the custom domain certificate's password, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,custom_domain_certificate_value,string,no,"deprecated; the custom domain certificate's blob, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,custom_domain_configuration,"object({certificate_key_vault_properties, certificate_value, dns_suffix})",partial,"accepted with a Key Vault certificate (certificate_key_vault_properties) and dns_suffix, but certificate_value is refused: a certificate's blob is a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,custom_domain_dns_suffix,string,yes,,
+azure,avm-res-app-managedenvironment,dapr_ai_connection_string,string,no,"an Application Insights connection string for Dapr, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_ai_connection_string_version,number,no,"tracks dapr_ai_connection_string, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key,string,no,"an instrumentation key for Dapr, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key_version,number,no,"tracks dapr_ai_instrumentation_key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_application_insights_connection_string,string,no,"deprecated; an Application Insights connection string for Dapr, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_components,"map(object({component_type, dapr_components_version, ignore_errors, init_timeout, metadata, name, +4}))",partial,"accepted, with Key Vault secret references (key_vault_url and identity), but a secret's value is refused: a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_configuration,object({}),yes,,
+azure,avm-res-app-managedenvironment,dapr_subscriptions,"map(object({bulk_subscribe, dead_letter_topic, metadata, name, pubsub_name, routes, +2}))",no,no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/daprSubscriptions,gap
+azure,avm-res-app-managedenvironment,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-app-managedenvironment,disk_encryption_configuration,object({key_vault_configuration}),no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no diskEncryptionConfiguration",gap
+azure,avm-res-app-managedenvironment,dot_net_components,"map(object({component_type, configurations, name, service_binds}))",no,no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/dotNetComponents,gap
+azure,avm-res-app-managedenvironment,enable_telemetry,bool,yes,,
+azure,avm-res-app-managedenvironment,http_route_configs,"map(object({custom_domains, name, rules}))",yes,,
+azure,avm-res-app-managedenvironment,ignore_body_changes,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes),gap
+azure,avm-res-app-managedenvironment,infrastructure_resource_group,string,yes,,
+azure,avm-res-app-managedenvironment,infrastructure_resource_group_name,string,yes,,
+azure,avm-res-app-managedenvironment,infrastructure_subnet_id,string,yes,,
+azure,avm-res-app-managedenvironment,ingress_configuration,"object({header_count_limit, request_idle_timeout, termination_grace_period_seconds, workload_profile_name})",no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no ingressConfiguration",gap
+azure,avm-res-app-managedenvironment,internal_load_balancer_enabled,bool,yes,,
+azure,avm-res-app-managedenvironment,java_components,"map(object({component_type, configurations, ingress, name, scale, service_binds}))",partial,"accepted for SpringBootAdmin, SpringCloudConfig and SpringCloudEureka, but Nacos and SpringCloudGateway components and ingress are refused: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2025-01-01) has neither",gap
+azure,avm-res-app-managedenvironment,keda_configuration,object({}),yes,,
+azure,avm-res-app-managedenvironment,key,string,no,"the DataDog key of openTelemetryConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides",gap
+azure,avm-res-app-managedenvironment,key_version,number,no,"tracks key, whose openTelemetryConfiguration ASO's ManagedEnvironment (2025-01-01) does not have",gap
+azure,avm-res-app-managedenvironment,kind,string,yes,,
+azure,avm-res-app-managedenvironment,location,string,yes,,
+azure,avm-res-app-managedenvironment,lock,"object({kind, name, notes})",yes,,
+azure,avm-res-app-managedenvironment,log_analytics_workspace,object({resource_id}),no,"the module reads the workspace's primary shared key and sends it, a secret value the chart does not take (send logs to Azure Monitor with diagnostic_settings)",not-ported
+azure,avm-res-app-managedenvironment,log_analytics_workspace_customer_id,string,no,"deprecated; a Log Analytics destination needs the workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,log_analytics_workspace_destination,string,partial,"deprecated; accepted as azure-monitor, but log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,log_analytics_workspace_primary_shared_key,string,no,"deprecated; the workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,maintenance_configurations,"map(object({name, scheduled_entries}))",yes,,
+azure,avm-res-app-managedenvironment,managed_certificates,"map(object({domain_control_validation, location, name, subject_name, tags}))",yes,,
+azure,avm-res-app-managedenvironment,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
+azure,avm-res-app-managedenvironment,name,string,yes,,
+azure,avm-res-app-managedenvironment,open_telemetry_configuration,"object({destinations_configuration, logs_configuration, metrics_configuration, traces_configuration})",no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no openTelemetryConfiguration",gap
+azure,avm-res-app-managedenvironment,parent_id,string,yes,,
+azure,avm-res-app-managedenvironment,peer_authentication,object({mtls}),yes,,
+azure,avm-res-app-managedenvironment,peer_authentication_enabled,bool,yes,,
+azure,avm-res-app-managedenvironment,peer_traffic_configuration,object({encryption}),yes,,
+azure,avm-res-app-managedenvironment,peer_traffic_encryption_enabled,bool,yes,,
+azure,avm-res-app-managedenvironment,public_network_access,any,no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no publicNetworkAccess",gap
+azure,avm-res-app-managedenvironment,public_network_access_enabled,bool,no,deprecated form of public_network_access: ASO's ManagedEnvironment (2025-01-01) has no publicNetworkAccess,gap
+azure,avm-res-app-managedenvironment,resource_group_name,string,yes,,
+azure,avm-res-app-managedenvironment,resource_types,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,"ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01 or 2026-01-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)",by-design
+azure,avm-res-app-managedenvironment,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
+azure,avm-res-app-managedenvironment,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
+azure,avm-res-app-managedenvironment,shared_key,string,no,"the Log Analytics workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,shared_key_version,number,no,"tracks shared_key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,storages,"map(object({account_key, account_key_version, azure_file, name, nfs_azure_file}))",partial,"accepted for NFS and Azure Files shares, but the account key (account_key, azure_file.account_key) is refused, a secret value the chart does not take, and azure_file.account_key_vault_properties too: aso-extensions' ManagedEnvironmentsStorage is at ARM API version 2025-01-01, which has no accountKeyVaultProperties",gap
+azure,avm-res-app-managedenvironment,tags,map(string),yes,,
+azure,avm-res-app-managedenvironment,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-app-managedenvironment,vnet_configuration,"object({docker_bridge_cidr, infrastructure_subnet_id, internal, platform_reserved_cidr, platform_reserved_dns_ip})",yes,,
+azure,avm-res-app-managedenvironment,workload_profile,"set(object({maximum_count, minimum_count, name, workload_profile_type}))",yes,,
+azure,avm-res-app-managedenvironment,workload_profiles,"list(object({maximum_count, minimum_count, name, workload_profile_type}))",yes,,
+azure,avm-res-app-managedenvironment,zone_redundancy_enabled,bool,yes,,
+azure,avm-res-app-managedenvironment,zone_redundant,bool,yes,,
 azure,avm-res-network-applicationgateway,authentication_certificates,"list(object({data, name, properties}))",no,"ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled (docs/azure.md, section 8)",not-ported
 azure,avm-res-network-applicationgateway,autoscale_configuration,"object({max_capacity, min_capacity})",yes,,
 azure,avm-res-network-applicationgateway,backend_address_pools,"list(object({backend_addresses, name, properties}))",yes,,

@@ -1,0 +1,54 @@
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: pe-unmanaged-sql-pe-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a"
+spec:
+  azureName: "pe-sql-pe-hub"
+  location: "westus3"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  privateLinkServiceConnections:
+    - name: "psc-hub"
+      groupIds: [sqlServer]
+      privateLinkServiceReference:
+        group: sql.azure.com
+        kind: Server
+        name: pe-unmanaged-sql
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: Server
+metadata:
+  name: pe-unmanaged-sql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "sql-pe"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data"
+  administrators:
+    administratorType: ActiveDirectory
+    azureADOnlyAuthentication: true
+    login: "dba"
+    sid: "33333333-4444-5555-6666-777777777777"
+  minimalTlsVersion: "1.2"
+  publicNetworkAccess: Disabled
+  version: "12.0"

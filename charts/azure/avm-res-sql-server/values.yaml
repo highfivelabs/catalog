@@ -1,0 +1,149 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-sql-server (v0.2.1): same names, types and defaults, so a module
+# block's arguments become this file one to one. values.schema.json
+# carries the types and the module's validations.
+#
+# Descriptions quoted or condensed from terraform-azurerm-avm-res-sql-server
+# (variables*.tf, v0.2.1), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The server's name in full, {server}. A name set here takes no prefix; one
+# not set is name, with the namePrefix in front. Private endpoints are
+# named by their entries (else pep-<server name>).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the server's name
+# and of a private endpoint's default name (never one set in full).
+# Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's azurerm provider knows its subscription; ASO's owner is an
+# Azure resource ID. Not needed when resource_group_name is a resource
+# group's ID (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# (Required) Azure region where the resource should be deployed.
+location: ""
+# The name of the this resource: 2 to 63 lower-case letters, digits and
+# hyphens, starting and ending with a letter or digit. Required by the
+# chart (azurerm needs it too).
+name: ""
+# (Required) The resource group where the resources will be deployed: its
+# name (with subscription_id) or its ID.
+resource_group_name: ""
+
+# Server (variables.sqlserver.tf).
+#
+# (Required) The version of the server: 2.0 (v11) or 12.0 (v12).
+server_version: null
+# The administrator login name. Azure needs a password with it unless the
+# server is Entra-only; the chart takes no password (below), so a server
+# the chart creates is Entra-only, and this is only passed through.
+administrator_login: null
+# Refused (by-design): a password is a secret value, which does not belong
+# in a component's inputs. ASO takes it from a Kubernetes Secret
+# (administratorLoginPassword); how a component supplies that Secret is
+# open. Use Entra-only authentication (azuread_administrator).
+administrator_login_password: null
+# Refused, as administrator_login_password.
+administrator_login_password_key_vault_configuration: null
+# Refused, as administrator_login_password.
+administrator_login_password_wo: null
+# Refused, as administrator_login_password_wo.
+administrator_login_password_wo_version: null
+# Refused when true: a generated password is a secret value.
+generate_administrator_login_password: false
+# {azuread_authentication_only, login_username, object_id, tenant_id}: the
+# server's Entra administrator (a database-level administrator, not an
+# Azure role assignment). The chart takes no password, so it needs this
+# with azuread_authentication_only: true.
+azuread_administrator: null
+# Default, Proxy or Redirect. Null leaves Azure's (Default).
+connection_policy: null
+# Refused when true: the express vulnerability assessment
+# (Microsoft.Sql/servers/sqlVulnerabilityAssessments) has no ASO kind.
+express_vulnerability_assessment_enabled: false
+# Whether outbound network traffic is restricted. Null leaves Azure's
+# (false).
+outbound_network_restriction_enabled: null
+# The primary user-assigned identity's resource ID (one of
+# managed_identities.user_assigned_resource_ids).
+primary_user_assigned_identity_id: null
+# Whether public network access is allowed.
+public_network_access_enabled: false
+# The versioned Key Vault key URL for transparent data encryption with a
+# customer-managed key.
+transparent_data_encryption_key_vault_key_id: null
+
+# Children.
+#
+# Databases, the module's database submodule: {name, auto_pause_delay_in_minutes,
+# create_mode (Default), collation, elastic_pool_key, geo_backup_enabled
+# (true), maintenance_configuration_name, ledger_enabled (false),
+# license_type, max_size_gb, min_capacity, restore_point_in_time,
+# recover_database_id, restore_dropped_database_id, read_replica_count,
+# read_scale, sample_name, sku_name, storage_account_type (Geo),
+# transparent_data_encryption_enabled (true),
+# transparent_data_encryption_key_vault_key_id,
+# transparent_data_encryption_key_automatic_rotation_enabled,
+# zone_redundant, import (refused), long_term_retention_policy,
+# short_term_retention_policy, threat_detection_policy, role_assignments,
+# lock, diagnostic_settings, managed_identities, tags} per entry.
+databases: {}
+# Elastic pools, the module's elasticpool submodule: {name, location, sku
+# {name, capacity, tier, family}, per_database_settings {min_capacity,
+# max_capacity}, maintenance_configuration_name (SQL_Default),
+# zone_redundant (true), license_type, max_size_gb, max_size_bytes,
+# role_assignments, lock, diagnostic_settings, tags} per entry.
+elastic_pools: {}
+# Firewall rules, named by their keys: {start_ip_address, end_ip_address,
+# timeouts (refused)} per entry.
+firewall_rules: {}
+
+# Interfaces (avm-utl-interfaces).
+#
+# Diagnostic settings on the server: {name, log_categories, log_groups
+# (["allLogs"]), metric_categories (["AllMetrics"]),
+# log_analytics_destination_type (Dedicated), workspace_resource_id,
+# storage_account_resource_id, event_hub_authorization_rule_resource_id,
+# event_hub_name, marketplace_partner_resource_id} per entry.
+diagnostic_settings: {}
+# Accepted; nothing is sent.
+enable_telemetry: true
+# {kind (CanNotDelete or ReadOnly), name}: an aso-extensions
+# ManagementLock on the server.
+lock: null
+# {system_assigned, user_assigned_resource_ids}.
+managed_identities: {}
+# Private endpoints to the server (sub-resource sqlServer): {name,
+# role_assignments, lock, tags, subnet_resource_id, subresource_name
+# (accepted; the module always connects sqlServer),
+# private_dns_zone_group_name ("default"), private_dns_zone_resource_ids,
+# application_security_group_associations, private_service_connection_name,
+# network_interface_name, location, resource_group_name (a name, in
+# subscription_id, or an ID), ip_configurations {name,
+# private_ip_address}} per entry. An entry's role_assignments and lock,
+# which the module declares and does not create, are created on the
+# endpoint.
+private_endpoints: {}
+# Whether the chart manages each private endpoint's DNS zone group (false:
+# Azure Policy, for one, manages it).
+private_endpoints_manage_dns_zone_group: true
+# Role assignments on the server: {role_definition_id_or_name,
+# principal_id, description, skip_service_principal_aad_check, condition,
+# condition_version, delegated_managed_identity_resource_id,
+# principal_type} per entry.
+role_assignments: {}
+# Azure tags on the server.
+tags: null

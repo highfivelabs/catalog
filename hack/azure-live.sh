@@ -23,6 +23,8 @@
 # avm-res-documentdb-databaseaccount,
 # avm-res-cache-redis,
 # avm-ptn-alz-management,
+# avm-res-app-managedenvironment,
+# avm-res-sql-server,
 # avm-ptn-network-private-link-private-dns-zones,
 # avm-res-network-dnsresolver,
 # avm-res-app-containerapp)
@@ -30,7 +32,7 @@
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos redis pldns dnspr ca alz)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos redis pldns dnspr ca alz cae sql)
 # applies only those; the default is all but cog, vm, asp, redis and
 # cosmos (asp: the sandbox has no App Service quota; cog, redis and cosmos:
 # their providers are not registered, docs/azure.md). A case may first apply what it needs:
@@ -93,7 +95,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # redis is not in the default for the same reason: Microsoft.Cache is not
 # registered (run cat11130800eaa5, 2026-11-13: 403 AuthorizationFailed on
 # Microsoft.Cache/register/action).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw pldns dnspr ca alz}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw cae pldns dnspr ca alz sql}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -234,6 +236,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     serverfarms.web.azure.com \
     azurefirewalls.network.azure.com \
     databaseaccounts.documentdb.azure.com sqldatabases.documentdb.azure.com sqldatabasecontainers.documentdb.azure.com \
+    managedenvironments.app.azure.com \
+    servers.sql.azure.com serversdatabases.sql.azure.com serversfirewallrules.sql.azure.com \
     redis.cache.azure.com redisfirewallrules.cache.azure.com \
     datacollectionrules.insights.azure.com \
     dnsresolvers.network.azure.com dnsresolversinboundendpoints.network.azure.com dnsresolversoutboundendpoints.network.azure.com \
@@ -676,6 +680,55 @@ sql_databases:
     containers:
       items: {name: items, partition_key_paths: [/tenant], default_ttl: 86400}
 EOF
+# A Consumption-only Container Apps environment (no network, no logs
+# destination, not zone redundant: Azure needs an infrastructure subnet for
+# that) with one Dapr component that names no secret (a blob state store by
+# account and container name; Azure does not reach the account until an app
+# loads the component). The sandbox subscription may hold one environment
+# per region, and the container app case (ca) makes one in the run's
+# LOCATION, so this case makes its own in AZURE_LIVE_CAE_LOCATION
+# (centralus by default). An environment takes several minutes to create
+# and to delete (CASE_TIMEOUT).
+CAE_LOCATION="${AZURE_LIVE_CAE_LOCATION:-centralus}"
+cat >"${WORK}/cae.yaml" <<EOF
+name: ${RUN}-cae
+location: ${CAE_LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+zone_redundant: false
+tags: {catalog-run: ${RUN}}
+dapr_components:
+  state:
+    name: statestore
+    component_type: state.azure.blobstorage
+    dapr_components_version: v1
+    metadata:
+      - {name: accountName, value: ${RUN}}
+      - {name: containerName, value: state}
+    scopes: [none]
+EOF
+# The smallest Azure SQL server: Entra-only authentication (the chart takes
+# no password), the live identity itself as its Entra administrator (a
+# login on this server, not an Azure role assignment; its object ID is the
+# oid of the identity's own token, as the psql case's), one Basic database
+# (5 DTUs, about 0.007 USD an hour) with locally redundant backups, and a
+# firewall rule for one documentation address (TEST-NET-3).
+# The region is AZURE_LIVE_SQL_LOCATION, else centralus: eastus2 refuses
+# Azure SQL servers for the sandbox subscription ("Provisioning is
+# restricted in this region", 2026-11-13; the chart's README).
+cat >"${WORK}/sql.yaml" <<EOF
+name: ${RUN}-sql
+location: ${AZURE_LIVE_SQL_LOCATION:-centralus}
+resource_group_name: ${RG}
+server_version: "12.0"
+public_network_access_enabled: true
+azuread_administrator: {azuread_authentication_only: true, login_username: aso-extensions-live-tests, object_id: ${SP_OID}, tenant_id: ${AZURE_TENANT_ID}}
+tags: {catalog-run: ${RUN}}
+databases:
+  app: {name: app, sku_name: Basic, storage_account_type: Local, tags: {catalog-run: ${RUN}}}
+firewall_rules:
+  doc: {start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.10}
+EOF
 # The cheapest Azure Cache for Redis: Basic C0 (about 0.02 USD an hour),
 # zoneless (a Basic cache takes no zones), TLS 1.2 only, with one firewall
 # rule for one documentation address (TEST-NET-3). No access key leaves
@@ -823,7 +876,7 @@ spec:
   tags: {catalog-run: ${RUN}}
 EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400 [redis]=2700 [dnspr]=1800 [ca]=2400)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400 [redis]=2700 [dnspr]=1800 [ca]=2400 [cae]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -952,6 +1005,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     asp:avm-res-web-serverfarm \
     afw:avm-res-network-azurefirewall \
     cosmos:avm-res-documentdb-databaseaccount \
+    cae:avm-res-app-managedenvironment \
+    sql:avm-res-sql-server \
     redis:avm-res-cache-redis \
     alz:avm-ptn-alz-management \
     pldns:avm-ptn-network-private-link-private-dns-zones \
@@ -1022,7 +1077,10 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     outputs_ok=no
   fi
   echo "-- outputs (${outputs_ok})"; cat "${OUT}/${chart}/outputs.json" "${OUT}/${chart}/outputs.err"
-  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
+  # --ignore-not-found: deleting an owner lets Kubernetes collect the
+  # children ASO gave it as owner references, which can go before
+  # kubectl reaches them in the file (the fake cloud deletes fast).
+  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false --ignore-not-found >/dev/null
   # Until every object is gone (kubectl get -f fails as soon as one is),
   # then what the case needed first.
   wait_gone "${limit}" "${objects[@]}"

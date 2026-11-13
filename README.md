@@ -128,14 +128,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 13 ported, 90 partial, 64 blocked, 10 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 13 ported, 92 partial, 64 blocked, 8 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 798 of 1478 (54.0%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 791 of 1170 (67.6%) |
-| **All** | **177** | | **2122 of 4996 (42.5%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 853 of 1170 (72.9%) |
+| **All** | **177** | | **2184 of 4996 (43.7%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -273,7 +273,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### Azure: Azure Verified Modules
 
-5 ported, 27 partial, 0 blocked, 5 not started.
+5 ported, 29 partial, 0 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -302,11 +302,13 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-network-privateendpoint`](https://github.com/Azure/terraform-azurerm-avm-res-network-privateendpoint/tree/v0.3.1) ([chart](charts/azure/avm-res-network-privateendpoint)) | ![avm-res-network-privateendpoint](docs/coverage/bars/azure-avm-res-network-privateendpoint.svg) 17 of 21 | 5 of 5 | 1 | partial |
 | [`avm-res-authorization-roleassignment`](https://github.com/Azure/terraform-azurerm-avm-res-authorization-roleassignment/tree/v0.3.1) ([chart](charts/azure/avm-res-authorization-roleassignment)) | ![avm-res-authorization-roleassignment](docs/coverage/bars/azure-avm-res-authorization-roleassignment.svg) 17 of 31 | 11 of 11 | 3 | partial |
 | [`avm-res-network-bastionhost`](https://github.com/Azure/terraform-azurerm-avm-res-network-bastionhost/tree/v0.9.0) ([chart](charts/azure/avm-res-network-bastionhost)) | ![avm-res-network-bastionhost](docs/coverage/bars/azure-avm-res-network-bastionhost.svg) 21 of 21 | 3 of 4 | 4 | ported |
+| [`avm-res-sql-server`](https://github.com/Azure/terraform-azurerm-avm-res-sql-server/tree/v0.2.1) ([chart](charts/azure/avm-res-sql-server)) | ![avm-res-sql-server](docs/coverage/bars/azure-avm-res-sql-server.svg) 23 of 28 | 6 of 8 | 10 | partial |
 | [`avm-res-network-azurefirewall`](https://github.com/Azure/terraform-azurerm-avm-res-network-azurefirewall/tree/v0.5.0) ([chart](charts/azure/avm-res-network-azurefirewall)) | ![avm-res-network-azurefirewall](docs/coverage/bars/azure-avm-res-network-azurefirewall.svg) 18 of 23 | 2 of 4 | 1 | partial |
 | [`avm-res-web-serverfarm`](https://github.com/Azure/terraform-azurerm-avm-res-web-serverfarm/tree/v2.0.8) ([chart](charts/azure/avm-res-web-serverfarm)) | ![avm-res-web-serverfarm](docs/coverage/bars/azure-avm-res-web-serverfarm.svg) 24 of 27 | 2 of 2 | 1 | partial |
 | [`avm-res-documentdb-databaseaccount`](https://github.com/Azure/terraform-azurerm-avm-res-documentdb-databaseaccount/tree/v0.12.0) ([chart](charts/azure/avm-res-documentdb-databaseaccount)) | ![avm-res-documentdb-databaseaccount](docs/coverage/bars/azure-avm-res-documentdb-databaseaccount.svg) 38 of 38 | 43 of 47 | 16 | ported |
 | [`avm-res-network-dnsresolver`](https://github.com/Azure/terraform-azurerm-avm-res-network-dnsresolver/tree/v0.8.0) ([chart](charts/azure/avm-res-network-dnsresolver)) | ![avm-res-network-dnsresolver](docs/coverage/bars/azure-avm-res-network-dnsresolver.svg) 10 of 10 | 7 of 7 | 8 | ported |
 | [`avm-res-cache-redis`](https://github.com/Azure/terraform-azurerm-avm-res-cache-redis/tree/v0.5.0) ([chart](charts/azure/avm-res-cache-redis)) | ![avm-res-cache-redis](docs/coverage/bars/azure-avm-res-cache-redis.svg) 31 of 31 | 4 of 5 | 10 | partial |
+| [`avm-res-app-managedenvironment`](https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0) ([chart](charts/azure/avm-res-app-managedenvironment)) | ![avm-res-app-managedenvironment](docs/coverage/bars/azure-avm-res-app-managedenvironment.svg) 39 of 72 | 16 of 18 | 1 | partial |
 | [`avm-res-network-applicationgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway/tree/v0.6.0) ([chart](charts/azure/avm-res-network-applicationgateway)) | ![avm-res-network-applicationgateway](docs/coverage/bars/azure-avm-res-network-applicationgateway.svg) 41 of 50 | 10 of 11 | 4 | partial |
 | [`avm-ptn-network-private-link-private-dns-zones`](https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones/tree/v0.23.2) ([chart](charts/azure/avm-ptn-network-private-link-private-dns-zones)) | ![avm-ptn-network-private-link-private-dns-zones](docs/coverage/bars/azure-avm-ptn-network-private-link-private-dns-zones.svg) 18 of 19 | 3 of 3 | 1 | partial |
 | [`avm-res-network-ddosprotectionplan`](https://github.com/Azure/terraform-azurerm-avm-res-network-ddosprotectionplan/tree/v0.3.0) ([chart](charts/azure/avm-res-network-ddosprotectionplan)) | ![avm-res-network-ddosprotectionplan](docs/coverage/bars/azure-avm-res-network-ddosprotectionplan.svg) 7 of 7 | 3 of 3 | 3 | ported |
@@ -318,9 +320,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | --- | ---: | ---: | --- |
 | [`avm-ptn-alz-sub-vending`](https://github.com/Azure/terraform-azure-avm-ptn-alz-sub-vending/tree/v0.3.4) | ![avm-ptn-alz-sub-vending](docs/coverage/bars/azure-avm-ptn-alz-sub-vending.svg) 0 of 29 | 0 of 14 | 13 | not started |
 | [`avm-res-web-site`](https://github.com/Azure/terraform-azurerm-avm-res-web-site/tree/v0.24.1) | ![avm-res-web-site](docs/coverage/bars/azure-avm-res-web-site.svg) 0 of 99 | 0 of 14 | 3 | not started |
-| [`avm-res-sql-server`](https://github.com/Azure/terraform-azurerm-avm-res-sql-server/tree/v0.2.1) | ![avm-res-sql-server](docs/coverage/bars/azure-avm-res-sql-server.svg) 0 of 28 | 0 of 8 | 10 | not started |
 | [`avm-ptn-alz`](https://github.com/Azure/terraform-azurerm-avm-ptn-alz/tree/v0.22.0) | ![avm-ptn-alz](docs/coverage/bars/azure-avm-ptn-alz.svg) 0 of 26 | 0 of 7 | 3 | not started |
-| [`avm-res-app-managedenvironment`](https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0) | ![avm-res-app-managedenvironment](docs/coverage/bars/azure-avm-res-app-managedenvironment.svg) 0 of 72 | 0 of 18 | 1 | not started |
 
 Every module, variable and output: [`modules.csv`](docs/coverage/modules.csv), [`variables.csv`](docs/coverage/variables.csv), [`outputs.csv`](docs/coverage/outputs.csv), [`resource-types.csv`](docs/coverage/resource-types.csv). `task coverage` regenerates this section and those files; `task coverage-check` fails when they are out of date.
 <!-- coverage:end -->

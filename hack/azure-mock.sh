@@ -204,7 +204,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --set useWorkloadIdentityAuth=true \
   --set azureResourceManagerEndpoint=https://fakearm.fake-cloud.svc \
   --set azureResourceManagerAudience=https://fakearm.fake-cloud.svc \
-  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;cache.azure.com/*;app.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;app.azure.com/*;cache.azure.com/*')" \
   --timeout 10m >/dev/null
 # The fake cloud's CA, trusted through SSL_CERT_FILE.
 kubectl -n "${ASO_NS}" patch deployment azureserviceoperator-controller-manager --type strategic -p '{
@@ -274,7 +274,10 @@ for dir in "${dirs[@]}"; do
     outputs="not evaluated: $(tr '\n|' '  ' <"${OUT}/${chart}/outputs.err" | cut -c1-120)"
     failed=$((failed + 1))
   fi
-  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
+  # --ignore-not-found: deleting an owner lets Kubernetes collect the
+  # children ASO gave it as owner references, which can go before
+  # kubectl reaches them in the file (the fake cloud deletes fast).
+  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false --ignore-not-found >/dev/null
   deadline=$(( $(date +%s) + TIMEOUT ))
   while (( $(date +%s) < deadline )); do
     left=0
