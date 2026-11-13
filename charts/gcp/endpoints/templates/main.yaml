@@ -1,0 +1,72 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/endpoints/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_endpoints_service.default: one EndpointsService
+(config-connector-extensions, servicemanagement.gcp.hfl.dev/v1alpha1: the
+chart renders only with allow_alpha), its OpenAPI document or gRPC
+configuration and protoc output from files_data (a chart cannot read the
+files fabric's paths name).
+google_endpoints_service_iam_binding.default: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per role of iam,
+exact per role as fabric's.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "service")) }}
+{{- /* The namePrefix is checked, and goes into no name: the service's
+is a DNS name given in full. */}}
+{{- $_ := include "kcc.namePrefix" . }}
+{{- include "kcc.alpha" (list $ "service_name" $v.service_name "EndpointsService (config-connector-extensions)") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- if not $v.project_id }}
+{{- fail "endpoints: project_id is required: a chart has no provider project to default to (fabric's null takes the Terraform provider's)" }}
+{{- end }}
+{{- $files := $v.files_data | default dict }}
+{{- if and $v.openapi_config $v.grpc_config }}
+{{- fail "endpoints: set either openapi_config or grpc_config, not both (the API takes one configuration)" }}
+{{- end }}
+{{- if not (or $v.openapi_config $v.grpc_config) }}
+{{- fail "endpoints: openapi_config or grpc_config must be specified" }}
+{{- end }}
+{{- if and $v.openapi_config (not $files.openapi_config) }}
+{{- fail (printf "endpoints: openapi_config.yaml_path %q: a chart cannot read the file; put its contents in files_data.openapi_config" $v.openapi_config.yaml_path) }}
+{{- end }}
+{{- if and $v.grpc_config (not (and $files.grpc_config $files.protoc_output_base64)) }}
+{{- fail (printf "endpoints: grpc_config (%q, %q): a chart cannot read the files; put their contents in files_data.grpc_config and files_data.protoc_output_base64 (base64-encoded)" $v.grpc_config.yaml_path $v.grpc_config.protoc_output_path) }}
+{{- end }}
+{{- $service := $v.service_name }}
+{{- with ($v.names | default dict).service }}{{ $service = . }}{{ end }}
+---
+apiVersion: servicemanagement.gcp.hfl.dev/v1alpha1
+kind: EndpointsService
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "service" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ printf "projects/%s" $v.project_id | quote }}
+  resourceID: {{ $service | quote }}
+  {{- if $v.openapi_config }}
+  openapiConfig: {{ $files.openapi_config | quote }}
+  {{- else }}
+  grpcConfig: {{ $files.grpc_config | quote }}
+  protocOutputBase64: {{ regexReplaceAll "\\s" $files.protoc_output_base64 "" | quote }}
+  {{- end }}
+{{- range $role, $members := ($v.iam | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam" $role)) "id" (printf "iam:%s" $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: servicemanagement.gcp.hfl.dev/v1alpha1
+    kind: EndpointsService
+    name: {{ $.Release.Name }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}

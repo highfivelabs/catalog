@@ -1,0 +1,53 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's endpoints module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables. names.service sets the service's name in full, in
+# place of service_name. The service's name is a DNS name given in full,
+# so the namePrefix does not go into it.
+names: {}
+namePrefix: ""
+# Kubernetes labels on every object (the service has no cloud labels).
+labels: {}
+# Cloud labels: a Cloud Endpoints service has none; accepted for the
+# catalog's convention and put on the objects' Kubernetes labels only.
+tags: {}
+
+# Not a fabric variable: the service is config-connector-extensions'
+# EndpointsService, a v1alpha1 kind, so the chart renders only with
+# allow_alpha: true. An alpha kind's schema may change between releases
+# (docs/design.md, "Alpha kinds").
+allow_alpha: false
+
+# The configuration for a gRPC endpoint. Either this or openapi_config must
+# be specified: {yaml_path, protoc_output_path}. A chart cannot read the
+# caller's files: the paths are accepted and ignored, and the files'
+# contents go under files_data.
+grpc_config: null
+# IAM bindings for topic in {ROLE => [MEMBERS]} format.
+iam: {}
+# The configuration for an OpenAPI endopoint. Either this or grpc_config
+# must be specified: {yaml_path}; the file's contents go under files_data.
+openapi_config: null
+# The project ID that the service belongs to.
+project_id: null
+# The name of the service. Usually of the form
+# '$apiname.endpoints.$projectid.cloud.goog'.
+service_name: ""
+
+# Not a fabric variable: the contents of the files the paths above name.
+# openapi_config: the OpenAPI document (yaml_path's file); grpc_config: the
+# gRPC service configuration (grpc_config.yaml_path's file);
+# protoc_output_base64: the protoc output (protoc_output_path's file),
+# base64-encoded, as fabric's base64encode(file(...)) sends it.
+files_data: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# service when the component is deleted. PREVENT has no Config Connector
+# equivalent.
+deletion_policy: null
