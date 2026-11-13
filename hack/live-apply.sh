@@ -162,7 +162,7 @@ rm -rf "${CCE_DIR}" && mkdir -p "${CCE_DIR}"
 gcloud storage cat "${CCE_TARBALL:?set CCE_TARBALL}" | tar -xz -C "${CCE_DIR}"
 git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
   git -C "${CCE_DIR}" -c user.email=live@example.com -c user.name=live commit -qm "cce from ${CCE_TARBALL}"
-(cd "${CCE_DIR}" && make upstream >/dev/null)
+(cd "${CCE_DIR}" && hack/upstream.sh >/dev/null)
 mkdir -p "${CCE_DIR}/cmd/realcloud"
 cp hack/live/realcloud.go.txt "${CCE_DIR}/cmd/realcloud/main.go"
 (cd "${CCE_DIR}" && GOTOOLCHAIN=auto go build -o "${ROOT}/bin/realcloud" ./cmd/realcloud)
