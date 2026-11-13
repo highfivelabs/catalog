@@ -1,0 +1,74 @@
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeCatalog
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "catalog"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us"
+  resourceID: "catalog_mock_lake"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeDatabase
+metadata:
+  name: mock-database-mock-db-0716681c
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "database:mock_db"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us"
+  catalog: "catalog_mock_lake"
+  resourceID: "mock_db"
+  type: "HIVE"
+  hiveOptions:
+    locationUri: "gs://catalog-mock-bucket/db"
+    parameters:
+      "owner": "catalog"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+kind: BigLakeTable
+metadata:
+  name: mock-table-mock-db-mock-table-0c3bd6c8
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "table:mock_db-mock_table"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  parentDatabaseRef:
+    external: "projects/mock-project/locations/us/catalogs/catalog_mock_lake/databases/mock_db"
+  resourceID: "mock_table"
+  type: "HIVE"
+  hiveOptions:
+    tableType: "EXTERNAL_TABLE"
+    storageDescriptor:
+      locationURI: "gs://catalog-mock-bucket/db/table"
+      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
+      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"
+    parameters:
+      "provider": "iceberg"

@@ -1,0 +1,101 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/api-gateway/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_api_gateway_api.api: one APIGatewayAPI (Config Connector, v1beta1).
+google_service_account.service_account: one IAMServiceAccount with
+service_account_create.
+google_api_gateway_api_config.api_config: one APIGatewayAPIConfig
+(config-connector-extensions, apigateway.gcp.hfl.dev/v1beta1), the spec
+as its OpenAPI document spec.yaml.
+google_api_gateway_gateway.gateway: one APIGatewayGateway
+(config-connector-extensions, apigateway.gcp.hfl.dev/v1beta1) serving the
+config in the region.
+google_api_gateway_{api,api_config,gateway}_iam_binding: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per role of iam on
+each of the three, exact per role as fabric's.
+google_project_service.service: not rendered. It enables the API's
+managed service, whose name the API is given only when it is created
+(README, "Differences from the module").
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "api" "gateway" "serviceAccount")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $api := include "apigw.api" . }}
+{{- $gateway := include "apigw.gateway" . }}
+{{- $config := include "apigw.config" . }}
+{{- $configObject := include "apigw.configObject" . }}
+{{- $sa := include "apigw.serviceAccountEmail" . }}
+{{- $project := printf "projects/%s" $v.project_id }}
+---
+apiVersion: apigateway.cnrm.cloud.google.com/v1beta1
+kind: APIGatewayAPI
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "api" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  resourceID: {{ $api | quote }}
+  displayName: {{ $api | quote }}
+{{- if $v.service_account_create }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "sa")) "id" "service_account" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "apigw.serviceAccount" . | quote }}
+  displayName: {{ printf "Service account to create API configs for %s API" $api | quote }}
+{{- end }}
+---
+apiVersion: apigateway.gcp.hfl.dev/v1beta1
+kind: APIGatewayAPIConfig
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $configObject "id" "api_config" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: global
+  api: {{ $api | quote }}
+  resourceID: {{ $config | quote }}
+  displayName: {{ $config | quote }}
+  openapiDocuments:
+    - document:
+        path: spec.yaml
+        contents: {{ b64enc $v.spec | quote }}
+  {{- with $sa }}
+  gatewayServiceAccount: {{ . | quote }}
+  {{- end }}
+---
+apiVersion: apigateway.gcp.hfl.dev/v1beta1
+kind: APIGatewayGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "gateway")) "id" "gateway" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $gateway | quote }}
+  displayName: {{ $gateway | quote }}
+  apiConfig: {{ printf "%s/locations/global/apis/%s/configs/%s" $project $api $config | quote }}
+{{- range $role, $members := ($v.iam | default dict) }}
+{{- range $t := list (list "api" "apigateway.cnrm.cloud.google.com/v1beta1" "APIGatewayAPI" $.Release.Name) (list "api_config" "apigateway.gcp.hfl.dev/v1beta1" "APIGatewayAPIConfig" $configObject) (list "gateway" "apigateway.gcp.hfl.dev/v1beta1" "APIGatewayGateway" (include "kcc.name" (list $.Release.Name "gateway"))) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list (index $t 3) "iam" $role)) "id" (printf "iam:%s/%s" (index $t 0) $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: {{ index $t 1 }}
+    kind: {{ index $t 2 }}
+    name: {{ index $t 3 }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,42 @@
+---
+# Source: sns/templates/topic.yaml
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Subscription
+metadata:
+  name: mock-subscription-queue
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: sns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscriptions/queue"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  topicRef:
+    from:
+      name: mock-topic
+  protocol: "sqs"
+  endpoint: "arn:aws:sqs:us-east-1:000000000000:catalog-test-topic-subscriber"
+  rawMessageDelivery: "true"
+---
+# Source: sns/templates/topic.yaml
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Topic
+metadata:
+  name: mock-topic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: sns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "topic"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "catalog-test-topic"
+  displayName: "catalog test"
+  policy: "{\"Statement\":[{\"Action\":[\"sns:Subscribe\",\"sns:SetTopicAttributes\",\"sns:RemovePermission\",\"sns:Publish\",\"sns:ListSubscriptionsByTopic\",\"sns:GetTopicAttributes\",\"sns:DeleteTopic\",\"sns:AddPermission\"],\"Condition\":{\"StringEquals\":{\"AWS:SourceAccount\":[\"000000000000\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Resource\":[\"arn:aws:sns:us-east-1:000000000000:catalog-test-topic\"],\"Sid\":\"DefaultStatementID\"},{\"Action\":[\"sns:Publish\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"events.amazonaws.com\"]},\"Resource\":[\"arn:aws:sns:us-east-1:000000000000:catalog-test-topic\"],\"Sid\":\"publish\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"

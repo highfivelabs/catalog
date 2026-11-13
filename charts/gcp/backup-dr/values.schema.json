@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "backup-dr values (fabric backup-dr v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["location", "project_id"],
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vault": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"},
+        "managementServer": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every name not set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "backup_plans": {
+      "description": "Map of Backup Plans to create in this Vault.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resource_type", "backup_rules"],
+        "properties": {
+          "resource_type": {"type": "string", "minLength": 1},
+          "description": {"type": ["string", "null"]},
+          "backup_rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["rule_id", "backup_retention_days", "standard_schedule"],
+              "properties": {
+                "rule_id": {"type": "string", "minLength": 1},
+                "backup_retention_days": {"type": "integer"},
+                "standard_schedule": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["recurrence_type", "time_zone", "backup_window"],
+                  "properties": {
+                    "recurrence_type": {"type": "string"},
+                    "hourly_frequency": {"type": ["integer", "null"]},
+                    "days_of_week": {"type": ["array", "null"], "items": {"type": "string"}},
+                    "days_of_month": {"type": ["array", "null"], "items": {"type": "integer"}},
+                    "months": {"type": ["array", "null"], "items": {"type": "string"}},
+                    "week_day_of_month": {
+                      "type": ["object", "null"],
+                      "additionalProperties": false,
+                      "required": ["week_of_month", "day_of_week"],
+                      "properties": {
+                        "week_of_month": {"type": "string"},
+                        "day_of_week": {"type": "string"}
+                      }
+                    },
+                    "time_zone": {"type": "string"},
+                    "backup_window": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["start_hour_of_day", "end_hour_of_day"],
+                      "properties": {
+                        "start_hour_of_day": {"type": "integer"},
+                        "end_hour_of_day": {"type": "integer"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "location": {
+      "description": "Location for the Backup Vault and Plans (e.g. us-central1).",
+      "type": "string",
+      "minLength": 1
+    },
+    "management_server_config": {
+      "description": "Configuration to create a Management Server. If null, no server is created.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {"type": ["string", "null"]},
+        "network_config": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["network"],
+          "properties": {
+            "network": {"type": "string", "minLength": 1},
+            "peering_mode": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "name": {
+      "description": "Name of the Backup Vault to create. Leave null if reusing an existing vault via `vault_reuse`.",
+      "type": ["string", "null"]
+    },
+    "project_id": {
+      "description": "Project ID.",
+      "type": "string",
+      "minLength": 1
+    },
+    "vault_config": {
+      "description": "Configuration for the Backup Vault. Only used if `vault_reuse` is null.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {"type": ["string", "null"]},
+        "labels": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+        "annotations": {"type": ["object", "null"], "additionalProperties": {"type": "string"}},
+        "access_restriction": {"type": ["string", "null"]},
+        "backup_minimum_enforced_retention_duration": {"type": ["string", "null"]},
+        "backup_retention_inheritance": {"type": ["string", "null"]},
+        "force_update": {"type": ["boolean", "null"]},
+        "ignore_inactive_datasources": {"type": ["boolean", "null"]},
+        "ignore_backup_plan_references": {"type": ["boolean", "null"]},
+        "allow_missing": {"type": ["boolean", "null"]}
+      }
+    },
+    "vault_reuse": {
+      "description": "Configuration to reuse an existing Backup Vault.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["vault_id"],
+      "properties": {
+        "vault_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}

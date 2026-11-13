@@ -1,0 +1,26 @@
+# Applied to the fake cloud by hack/mock-apply.sh: forwarding rules in two
+# regions' subnets (tests/mock.needs.yaml makes the network and subnets),
+# a hybrid NEG with one endpoint as the backend, and an instance group
+# beside it (the API refuses instance groups and NEGs as backends of one
+# service; mockgcp does not, README "Tests").
+name: catalog-mock-xilb
+project_id: mock-project
+port: 80
+labels: {env: test}
+vpc_config:
+  network: projects/mock-project/global/networks/catalog-mock-xilb-net
+  subnetworks:
+    us-central1: projects/mock-project/regions/us-central1/subnetworks/catalog-mock-xilb-sn1
+    us-east1: projects/mock-project/regions/us-east1/subnetworks/catalog-mock-xilb-sn2
+group_configs:
+  a: {zone: us-central1-a, named_ports: {tcp: 80}}
+neg_configs:
+  hybrid:
+    hybrid:
+      zone: us-east1-b
+      network: projects/mock-project/global/networks/catalog-mock-xilb-net
+      endpoints:
+        e1: {ip_address: 10.20.0.5, port: 80}
+backend_service_config:
+  backends:
+    - {group: hybrid, max_connections: {per_endpoint: 100}}

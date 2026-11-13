@@ -1,0 +1,42 @@
+# Every field the chart carries: DNS-authorized and private-CA certificates,
+# a DNS authorization, an issuance config, a map with a matcher entry.
+project_id: my-project
+map:
+  name: my-map
+  description: My certificate map
+  labels: {env: dev}
+  entries:
+    primary:
+      description: the primary entry
+      labels: {entry: primary}
+      certificates: [dns-cert, private-cert]
+      matcher: PRIMARY
+certificates:
+  dns-cert:
+    description: DNS-authorized
+    labels: {kind: dns}
+    scope: DEFAULT
+    managed:
+      domains: [example.com, "*.example.com"]
+      dns_authorizations: [example-com]
+  private-cert:
+    location: global
+    scope: ALL_REGIONS
+    managed:
+      domains: [internal.example.com]
+      issuance_config: private-ca
+dns_authorizations:
+  example-com:
+    domain: example.com
+    description: example.com
+    type: PER_PROJECT_RECORD
+    labels: {ignored: "yes"}
+issuance_configs:
+  private-ca:
+    ca_pool: projects/my-project/locations/us-central1/caPools/my-pool
+    description: private CA
+    key_algorithm: ECDSA_P256
+    labels: {ca: private}
+    lifetime: 1814400s
+    rotation_window_percentage: 34
+deletion_policy: ABANDON
