@@ -106,7 +106,10 @@ CRDs (`crds/config-connector-extensions`), and the refusals in
 `tests/*.fail.yaml`.
 
 Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a service from an
-OpenAPI document and one role on it. Not yet run.
+OpenAPI document and one role on it. On 2026-11-13 (offload VM
+`off-catalog-1113091757-26368`, config-connector-extensions `d54a2075`,
+whose fake Service Management sits in front of mockgcp) both objects
+became Ready, the outputs evaluated and both were deleted.
 
 Not applied live: the live-test service account has no Service Management
 role (config-connector-extensions' own live test of the kind skips for
