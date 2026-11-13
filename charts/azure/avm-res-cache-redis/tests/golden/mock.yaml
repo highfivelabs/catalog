@@ -1,0 +1,109 @@
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: Redis
+metadata:
+  name: mock-redis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache"
+spec:
+  azureName: "catalog-redis"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  sku:
+    name: Premium
+    family: P
+    capacity: 1
+  enableNonSslPort: false
+  identity:
+    type: "SystemAssigned"
+  minimumTlsVersion: "1.2"
+  publicNetworkAccess: Enabled
+  redisConfiguration:
+    aad-enabled: "true"
+    maxmemory-policy: "allkeys-lru"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisAccessPolicy
+metadata:
+  name: mock-redis-policy-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_policy:reader"
+spec:
+  azureName: "catalog-reader"
+  owner:
+    name: mock-redis
+  permissions: "+@read +@connection"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisAccessPolicyAssignment
+metadata:
+  name: mock-redis-assign-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_policy_assignment:app"
+spec:
+  azureName: "catalog-app"
+  owner:
+    name: mock-redis
+  accessPolicyName: "catalog-reader"
+  objectId: "22222222-3333-4444-5555-666666666666"
+  objectIdAlias: "catalog-app"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisFirewallRule
+metadata:
+  name: mock-redis-fw-doc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_rule:doc"
+spec:
+  azureName: "docnet"
+  owner:
+    name: mock-redis
+  startIP: "203.0.113.10"
+  endIP: "203.0.113.10"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisPatchSchedule
+metadata:
+  name: mock-redis-patch
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "patch_schedule"
+spec:
+  owner:
+    name: mock-redis
+  scheduleEntries:
+    - dayOfWeek: Sunday
+      maintenanceWindow: "PT5H"
+      startHourUtc: 2
