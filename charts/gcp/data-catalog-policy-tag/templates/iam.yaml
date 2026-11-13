@@ -1,0 +1,24 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/data-catalog-policy-tag/iam.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+On the taxonomy: iam and iam_by_principals (with the factory file's iam;
+google_data_catalog_taxonomy_iam_binding.authoritative) and iam_bindings
+(.bindings) one IAMPartialPolicy, iam_bindings_additive (.bindings, the
+member resource) one IAMPolicyMember each. On each policy tag, the same
+from the tag's iam, iam_bindings and iam_bindings_additive
+(docs/design.md, "IAM"; IAMBinding does not take these kinds, so
+iam_bindings are bindings of the IAMPartialPolicy).
+*/ -}}
+{{- $v := .Values }}
+{{- $f := $v.factories_data.taxonomy | default dict }}
+{{- $iam := dict }}
+{{- range $role, $m := ($v.iam | default dict) }}{{ $_ := set $iam $role (concat (get $iam $role | default list) $m) }}{{ end }}
+{{- range $role, $m := ($f.iam | default dict) }}{{ $_ := set $iam $role (concat (get $iam $role | default list) $m) }}{{ end }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (dict "apiVersion" "datacatalog.cnrm.cloud.google.com/v1beta1" "kind" "DataCatalogTaxonomy" "name" .Release.Name) "v" (dict "iam" $iam "iam_by_principals" $v.iam_by_principals "iam_bindings" (merge (dict) ($v.iam_bindings | default dict) ($f.iam_bindings | default dict)) "iam_bindings_additive" (merge (dict) ($v.iam_bindings_additive | default dict) ($f.iam_bindings_additive | default dict)))) }}
+{{- range $k, $t := (include "dataCatalogPolicyTag.tags" . | fromJson) }}
+{{- $name := include "kcc.name" (list $.Release.Name "tag" $k) }}
+{{- include "kcc.iam" (dict "root" $ "base" $name "idPrefix" (printf "tag:%s/" $k) "resourceRef" (dict "apiVersion" "datacatalog.cnrm.cloud.google.com/v1beta1" "kind" "DataCatalogPolicyTag" "name" $name) "v" (dict "iam" $t.iam "iam_bindings" $t.iam_bindings "iam_bindings_additive" $t.iam_bindings_additive)) }}
+{{- end }}

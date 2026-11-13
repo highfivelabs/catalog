@@ -1,0 +1,172 @@
+---
+# Source: data-catalog-policy-tag/templates/main.yaml
+apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+kind: DataCatalogPolicyTag
+metadata:
+  name: full-tag-high
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "tag:high"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  taxonomyRef:
+    name: full
+  displayName: "high"
+  description: "high - Terraform managed."
+---
+# Source: data-catalog-policy-tag/templates/main.yaml
+apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+kind: DataCatalogPolicyTag
+metadata:
+  name: full-tag-low
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "tag:low"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  taxonomyRef:
+    name: full
+  displayName: "low"
+  description: "Low sensitivity"
+---
+# Source: data-catalog-policy-tag/templates/main.yaml
+apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+kind: DataCatalogTaxonomy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "taxonomy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  displayName: "classification"
+  description: "Data classification"
+  activatedPolicyTypes:
+    - "FINE_GRAINED_ACCESS_CONTROL"
+    - "POLICY_TYPE_UNSPECIFIED"
+---
+# Source: data-catalog-policy-tag/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+    kind: DataCatalogTaxonomy
+    name: full
+  bindings:
+    - role: "roles/datacatalog.categoryAdmin"
+      members:
+        - member: "group:data-admins@example.com"
+        - member: "group:data-stewards@example.com"
+    - role: "roles/datacatalog.viewer"
+      members:
+        - member: "group:data-stewards@example.com"
+    - role: "roles/datacatalog.viewer"
+      members:
+        - member: "group:analysts@example.com"
+      condition:
+        title: "weekdays"
+        expression: "request.time.getDayOfWeek() < 5"
+---
+# Source: data-catalog-policy-tag/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-tag-high-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "tag:high/iam"
+spec:
+  resourceRef:
+    apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+    kind: DataCatalogPolicyTag
+    name: full-tag-high
+  bindings:
+    - role: "roles/datacatalog.categoryFineGrainedReader"
+      members:
+        - member: "group:high-readers@example.com"
+    - role: "roles/datacatalog.categoryFineGrainedReader"
+      members:
+        - member: "group:temp@example.com"
+      condition:
+        title: "until-2027"
+        expression: "request.time < timestamp('2027-01-01T00:00:00Z')"
+        description: "temporary"
+---
+# Source: data-catalog-policy-tag/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-auditor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "iam-additive-auditor"
+spec:
+  resourceRef:
+    apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+    kind: DataCatalogTaxonomy
+    name: full
+  role: "roles/datacatalog.viewer"
+  member: "user:auditor@example.com"
+---
+# Source: data-catalog-policy-tag/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-tag-high-iam-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: data-catalog-policy-tag
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "tag:high/iam-additive-one"
+spec:
+  resourceRef:
+    apiVersion: datacatalog.cnrm.cloud.google.com/v1beta1
+    kind: DataCatalogPolicyTag
+    name: full-tag-high
+  role: "roles/datacatalog.categoryFineGrainedReader"
+  member: "user:one@example.com"
