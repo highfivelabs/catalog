@@ -1,0 +1,610 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "data-catalog-policy-tag values (fabric data-catalog-policy-tag v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "location",
+    "name",
+    "project_id"
+  ],
+  "properties": {
+    "names": {
+      "description": "The taxonomy's display name in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "taxonomy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the taxonomy's display name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "activated_policy_types": {
+      "description": "A list of policy types that are activated for this taxonomy.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "enum": [
+          "FINE_GRAINED_ACCESS_CONTROL",
+          "POLICY_TYPE_UNSPECIFIED"
+        ]
+      }
+    },
+    "context": {
+      "description": "Not supported: use Bundt's ${...} expressions and valueFrom instead.",
+      "type": "object"
+    },
+    "description": {
+      "description": "Description of this taxonomy.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "factories_config": {
+      "description": "Unused: a chart cannot read the caller's files; use factories_data.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "taxonomy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "location": {
+      "description": "Data Catalog Taxonomy location.",
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "description": "Name of this taxonomy.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "GCP project id.",
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iam": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "iam_bindings": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "members",
+                "role"
+              ],
+              "properties": {
+                "members": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "role": {
+                  "type": "string"
+                },
+                "condition": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "expression",
+                    "title"
+                  ],
+                  "properties": {
+                    "expression": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "iam_bindings_additive": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "member",
+                "role"
+              ],
+              "properties": {
+                "member": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "condition": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "expression",
+                    "title"
+                  ],
+                  "properties": {
+                    "expression": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Data Catalog policy tags to be created, with their optional IAM, in {TAG => {description, iam, iam_bindings, iam_bindings_additive}} format."
+    },
+    "iam": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "IAM bindings in {ROLE => [MEMBERS]} format."
+    },
+    "iam_by_principals": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Authoritative IAM binding in {PRINCIPAL => [ROLES]} format. Merged with iam."
+    },
+    "iam_bindings": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "members",
+          "role"
+        ],
+        "properties": {
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "expression",
+              "title"
+            ],
+            "properties": {
+              "expression": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "Authoritative IAM bindings in {KEY => {role, members, condition}}."
+    },
+    "iam_bindings_additive": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "member",
+          "role"
+        ],
+        "properties": {
+          "member": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "expression",
+              "title"
+            ],
+            "properties": {
+              "expression": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "Individual additive IAM bindings."
+    },
+    "factories_data": {
+      "description": "Not a fabric variable: the taxonomy factory file's content.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "taxonomy": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tags": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "iam": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "iam_bindings": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "members",
+                        "role"
+                      ],
+                      "properties": {
+                        "members": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "condition": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": false,
+                          "required": [
+                            "expression",
+                            "title"
+                          ],
+                          "properties": {
+                            "expression": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "iam_bindings_additive": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "member",
+                        "role"
+                      ],
+                      "properties": {
+                        "member": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "condition": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": false,
+                          "required": [
+                            "expression",
+                            "title"
+                          ],
+                          "properties": {
+                            "expression": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "iam": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "iam_bindings": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "members",
+                  "role"
+                ],
+                "properties": {
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "condition": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": false,
+                    "required": [
+                      "expression",
+                      "title"
+                    ],
+                    "properties": {
+                      "expression": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "iam_bindings_additive": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "member",
+                  "role"
+                ],
+                "properties": {
+                  "member": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "condition": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": false,
+                    "required": [
+                      "expression",
+                      "title"
+                    ],
+                    "properties": {
+                      "expression": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

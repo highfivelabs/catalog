@@ -1,0 +1,115 @@
+---
+# Source: source-repository/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: full-trigger-foo
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "trigger:foo"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  location: global
+  filename: "ci/workflow-foo.yaml"
+  includedFiles: ["**/*yaml"]
+  serviceAccountRef:
+    external: "projects/my-project/serviceAccounts/builder@my-project.iam.gserviceaccount.com"
+  substitutions:
+    "_ENV": "dev"
+  triggerTemplate:
+    repoRef:
+      name: full
+    branchName: "main"
+---
+# Source: source-repository/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: full-trigger-release
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "trigger:release"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  location: global
+  filename: "ci/release.yaml"
+  triggerTemplate:
+    repoRef:
+      name: full
+    tagName: "^v.*"
+---
+# Source: source-repository/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: sourcerepo.cnrm.cloud.google.com/v1beta1
+    kind: SourceRepoRepository
+    name: full
+  bindings:
+    - role: "roles/source.reader"
+      members:
+        - member: "group:devs@example.com"
+        - member: "user:foo@example.com"
+    - role: "roles/source.writer"
+      members:
+        - member: "group:devs@example.com"
+    - role: "roles/source.admin"
+      members:
+        - member: "group:admins@example.com"
+---
+# Source: source-repository/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-bot
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-bot"
+spec:
+  resourceRef:
+    apiVersion: sourcerepo.cnrm.cloud.google.com/v1beta1
+    kind: SourceRepoRepository
+    name: full
+  role: "roles/source.writer"
+  member: "serviceAccount:bot@my-project.iam.gserviceaccount.com"
+---
+# Source: source-repository/templates/main.yaml
+apiVersion: sourcerepo.cnrm.cloud.google.com/v1beta1
+kind: SourceRepoRepository
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: source-repository
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "repository"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-repo"

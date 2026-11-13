@@ -1,0 +1,513 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/gke-cluster-standard/main.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_container_cluster.cluster: the ContainerCluster, the chart's core
+object, with fabric's defaults for every optional setting.
+google_pubsub_topic.notifications: a PubSubTopic for upgrade
+notifications, when they are on and no topic_id is given.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "cluster" "topic")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $name := include "kcc.resourceName" (list $ "cluster" "cluster" $v.name 40 "letter") }}
+{{- $ac := include "gks.d" (list $v.access_config (dict "dns_access" dict "private_nodes" true)) | fromJson }}
+{{- $dns := include "gks.d" (list $ac.dns_access (dict "allow_external_traffic" true)) | fromJson }}
+{{- $ip := $ac.ip_access }}
+{{- $ad := include "gks.d" (list $v.enable_addons (dict "cloudrun" false "config_connector" false "dns_cache" true "gce_persistent_disk_csi_driver" true "gcp_filestore_csi_driver" true "gcs_fuse_csi_driver" true "horizontal_pod_autoscaling" true "http_load_balancing" true "kalm" false "network_policy" false "stateful_ha" false)) | fromJson }}
+{{- $ef := include "gks.d" (list $v.enable_features (dict "binary_authorization" false "cilium_clusterwide_network_policy" false "cost_management" true "multi_networking" false "dataplane_v2" true "fqdn_network_policy" true "gateway_api" false "identity_service" false "image_streaming" false "intranode_visibility" false "l4_ilb_subsetting" false "pod_security_policy" false "service_external_ips" true "shielded_nodes" false "tpu" false "vertical_pod_autoscaling" false "workload_identity" true)) | fromJson }}
+{{- $lc := include "gks.d" (list $v.logging_config (dict "enable_system_logs" true "enable_workloads_logs" false "enable_api_server_logs" false "enable_scheduler_logs" false "enable_controller_manager_logs" false)) | fromJson }}
+{{- $mc := include "gks.d" (list $v.monitoring_config (dict "enable_system_metrics" true "enable_api_server_metrics" false "enable_controller_manager_metrics" false "enable_scheduler_metrics" false "enable_daemonset_metrics" false "enable_deployment_metrics" false "enable_hpa_metrics" false "enable_pod_metrics" false "enable_statefulset_metrics" false "enable_storage_metrics" false "enable_cadvisor_metrics" false "enable_managed_prometheus" true)) | fromJson }}
+{{- $dn := include "gks.d" (list $v.default_nodepool (dict "remove_pool" true "initial_node_count" 1)) | fromJson }}
+{{- $nc := $v.node_config | default dict }}
+{{- $npac := include "gks.d" (list $v.node_pool_auto_config (dict "network_tags" list "resource_manager_tags" dict)) | fromJson }}
+{{- $vpc := $v.vpc_config }}
+{{- $cas := $v.cluster_autoscaling }}
+{{- $mcfg := $v.maintenance_config | default dict }}
+{{- $un := $ef.upgrade_notifications }}
+{{- if $un }}{{ $un = include "gks.d" (list $un (dict "enabled" true "event_types" list)) | fromJson }}{{ end }}
+
+{{- /* fabric's validations, with its messages. */}}
+{{- if and (eq (toString (dig "disable_public_endpoint" "" ($ip | default dict))) "true") (ne $ac.private_nodes true) }}
+{{- fail "gke-cluster-standard: Private endpoint can only be enabled with private nodes." }}
+{{- end }}
+{{- if and $ef.fqdn_network_policy (not $ef.dataplane_v2) }}
+{{- fail "gke-cluster-standard: FQDN network policy is only supported for clusters with Dataplane v2." }}
+{{- end }}
+{{- if and (not $lc.enable_system_logs) (or $lc.enable_workloads_logs $lc.enable_api_server_logs $lc.enable_scheduler_logs $lc.enable_controller_manager_logs) }}
+{{- fail "gke-cluster-standard: System logs are the minimum required component for enabling log collection." }}
+{{- end }}
+{{- $ksm := or $mc.enable_daemonset_metrics $mc.enable_deployment_metrics $mc.enable_hpa_metrics $mc.enable_pod_metrics $mc.enable_statefulset_metrics $mc.enable_storage_metrics $mc.enable_cadvisor_metrics }}
+{{- if and (not $mc.enable_system_metrics) (or $ksm $mc.enable_api_server_metrics $mc.enable_controller_manager_metrics $mc.enable_scheduler_metrics) }}
+{{- fail "gke-cluster-standard: System metrics are the minimum required component for enabling metrics collection." }}
+{{- end }}
+{{- if and $ksm (not $mc.enable_managed_prometheus) }}
+{{- fail "gke-cluster-standard: Kube state metrics collection requires Google Cloud Managed Service for Prometheus to be enabled." }}
+{{- end }}
+{{- if and (not $dn.remove_pool) (kindIs "invalid" $dn.initial_node_count) }}
+{{- fail "gke-cluster-standard: If `remove_pool` is set to false, `initial_node_count` needs to be set." }}
+{{- end }}
+
+{{- /* What Config Connector cannot carry (upstream.yaml, refused). */}}
+{{- $gap := "ContainerCluster has no " }}
+{{- include "kcc.unsupported" (list $ "enable_addons.agent_sandbox" $ad.agent_sandbox (print $gap "addonsConfig.agentSandboxConfig")) }}
+{{- include "kcc.unsupported" (list $ "enable_addons.stateful_ha" $ad.stateful_ha (print $gap "addonsConfig.statefulHaConfig")) }}
+{{- include "kcc.unsupported" (list $ "enable_features.anonymous_authentication" $ef.anonymous_authentication (print $gap "anonymousAuthenticationConfig")) }}
+{{- include "kcc.unsupported" (list $ "enable_features.dns.additive_vpc_scope_dns_domain" (dig "additive_vpc_scope_dns_domain" "" ($ef.dns | default dict)) (print $gap "dnsConfig.additiveVpcScopeDnsDomain")) }}
+{{- include "kcc.unsupported" (list $ "enable_features.managed_opentelemetry" $ef.managed_opentelemetry (print $gap "managedOpentelemetryConfig")) }}
+{{- include "kcc.unsupported" (list $ "enable_features.rbac_binding_config" $ef.rbac_binding_config (print $gap "rbacBindingConfig")) }}
+{{- include "kcc.unsupported" (list $ "enable_features.secret_manager_config" $ef.secret_manager_config (print $gap "secretManagerConfig")) }}
+{{- include "kcc.unsupported" (list $ "enable_features.secret_sync_config" $ef.secret_sync_config (print $gap "secretSyncConfig")) }}
+{{- include "kcc.unsupported" (list $ "access_config.dns_access.enable_k8s_certs" $dns.enable_k8s_certs (print $gap "controlPlaneEndpointsConfig.dnsEndpointConfig.enableK8sCertsViaDns")) }}
+{{- include "kcc.unsupported" (list $ "access_config.ip_access.private_endpoint_authorized_ranges_enforcement" (dig "private_endpoint_authorized_ranges_enforcement" false ($ip | default dict)) (print $gap "masterAuthorizedNetworksConfig.privateEndpointEnforcementEnabled")) }}
+{{- include "kcc.unsupported" (list $ "node_config.kubelet_readonly_port_enabled" (not (kindIs "invalid" $nc.kubelet_readonly_port_enabled)) "neither nodeConfig nor nodePoolDefaults has insecureKubeletReadonlyPortEnabled") }}
+{{- include "kcc.unsupported" (list $ "node_pool_auto_config.kubelet_readonly_port_enabled" (not (kindIs "invalid" $npac.kubelet_readonly_port_enabled)) (print $gap "nodePoolAutoConfig.nodeKubeletConfig")) }}
+{{- include "kcc.unsupported" (list $ "node_pool_auto_config.cgroup_mode" $npac.cgroup_mode (print $gap "nodePoolAutoConfig.linuxNodeConfig")) }}
+{{- include "kcc.unsupported" (list $ "fleet_project" $v.fleet_project (print $gap "fleet; GKEHubMembership registers a cluster with a fleet, and the gke-hub chart ports it")) }}
+{{- with $mc.advanced_datapath_observability }}
+{{- include "kcc.unsupported" (list $ "monitoring_config.advanced_datapath_observability.enable_relay" .enable_relay "ContainerCluster has only the deprecated relayMode, not enableRelay") }}
+{{- end }}
+{{- if $cas }}
+{{- include "kcc.unsupported" (list $ "cluster_autoscaling.auto_provisioning_locations" $cas.auto_provisioning_locations "ContainerCluster's clusterAutoscaling has no autoProvisioningLocations") }}
+{{- with $cas.auto_provisioning_defaults }}
+{{- if and .disk_type (ne .disk_type "pd-standard") }}
+{{- include "kcc.unsupported" (list $ "cluster_autoscaling.auto_provisioning_defaults.disk_type" .disk_type "autoProvisioningDefaults has no diskType, so only fabric's default, pd-standard, is accepted (and not sent: GKE's default applies)") }}
+{{- end }}
+{{- with .upgrade_settings }}
+{{- if and (not (kindIs "invalid" .blue_green)) (not (kindIs "invalid" .surge)) }}
+{{- fail "gke-cluster-standard: Upgrade settings can only use blue/green or surge." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- $annotations := dict }}
+{{- if $dn.remove_pool }}{{ $_ := set $annotations "cnrm.cloud.google.com/remove-default-node-pool" "true" }}{{ end }}
+---
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "cluster" "project" $v.project_id "annotations" $annotations "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  location: {{ $v.location | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $v.node_locations }}
+  nodeLocations: {{ toJson . }}
+  {{- end }}
+  {{- with $v.min_master_version }}
+  minMasterVersion: {{ . | quote }}
+  {{- end }}
+  networkRef:
+    external: {{ include "gks.ref" $vpc.network | quote }}
+  subnetworkRef:
+    external: {{ include "gks.ref" $vpc.subnetwork | quote }}
+  {{- if not (kindIs "invalid" $vpc.disable_l4_lb_firewall_reconciliation) }}
+  disableL4LbFirewallReconciliation: {{ $vpc.disable_l4_lb_firewall_reconciliation }}
+  {{- end }}
+  defaultMaxPodsPerNode: {{ $v.max_pods_per_node | int64 }}
+  enableMultiNetworking: {{ $ef.multi_networking }}
+  enableIntranodeVisibility: {{ $ef.intranode_visibility }}
+  enableL4IlbSubsetting: {{ $ef.l4_ilb_subsetting }}
+  enableShieldedNodes: {{ $ef.shielded_nodes }}
+  enableFqdnNetworkPolicy: {{ $ef.fqdn_network_policy }}
+  enableTpu: {{ $ef.tpu }}
+  initialNodeCount: {{ $dn.initial_node_count | int64 }}
+  enableCiliumClusterwideNetworkPolicy: {{ $ef.cilium_clusterwide_network_policy }}
+  {{- if $ef.dataplane_v2 }}
+  datapathProvider: ADVANCED_DATAPATH
+  {{- end }}
+  {{- if not (kindIs "invalid" $vpc.disable_default_snat) }}
+  defaultSnatStatus:
+    disabled: {{ $vpc.disable_default_snat }}
+  {{- end }}
+  {{- $ncs := or $nc.boot_disk_kms_key $nc.service_account $nc.tags $nc.k8s_labels $nc.labels $nc.resource_manager_tags $ef.shielded_nodes $nc.workload_metadata_config_mode }}
+  {{- if $ncs }}
+  nodeConfig:
+    {{- with $nc.boot_disk_kms_key }}
+    bootDiskKMSCryptoKeyRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $nc.service_account }}
+    serviceAccountRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $nc.tags }}
+    tags: {{ toJson . }}
+    {{- end }}
+    {{- with $nc.k8s_labels }}
+    labels: {{ toJson . }}
+    {{- end }}
+    {{- with $nc.labels }}
+    resourceLabels: {{ toJson . }}
+    {{- end }}
+    {{- with $nc.resource_manager_tags }}
+    resourceManagerTags: {{ toJson . }}
+    {{- end }}
+    {{- if $ef.shielded_nodes }}
+    shieldedInstanceConfig:
+      enableSecureBoot: true
+      enableIntegrityMonitoring: true
+    {{- end }}
+    {{- with $nc.workload_metadata_config_mode }}
+    workloadMetadataConfig:
+      mode: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  nodePoolDefaults:
+    nodeConfigDefaults:
+      gcfsConfig:
+        enabled: {{ $ef.image_streaming }}
+  {{- if and $cas (ne (toString $cas.enabled) "false") }}
+  {{- if or $npac.network_tags $npac.resource_manager_tags }}
+  nodePoolAutoConfig:
+    {{- with $npac.network_tags }}
+    networkTags:
+      tags: {{ toJson . }}
+    {{- end }}
+    {{- with $npac.resource_manager_tags }}
+    resourceManagerTags: {{ toJson . }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  addonsConfig:
+    cloudrunConfig:
+      disabled: {{ not $ad.cloudrun }}
+    configConnectorConfig:
+      enabled: {{ $ad.config_connector }}
+    dnsCacheConfig:
+      enabled: {{ $ad.dns_cache }}
+    gcePersistentDiskCsiDriverConfig:
+      enabled: {{ $ad.gce_persistent_disk_csi_driver }}
+    gcpFilestoreCsiDriverConfig:
+      enabled: {{ $ad.gcp_filestore_csi_driver }}
+    gcsFuseCsiDriverConfig:
+      enabled: {{ $ad.gcs_fuse_csi_driver }}
+    gkeBackupAgentConfig:
+      enabled: {{ dig "enable_backup_agent" false ($v.backup_configs | default dict) }}
+    horizontalPodAutoscaling:
+      disabled: {{ not $ad.horizontal_pod_autoscaling }}
+    httpLoadBalancing:
+      disabled: {{ not $ad.http_load_balancing }}
+    istioConfig:
+      disabled: {{ empty $ad.istio }}
+      auth: {{ ternary "AUTH_MUTUAL_TLS" "AUTH_NONE" (eq (toString (dig "enable_tls" false ($ad.istio | default dict))) "true") }}
+    kalmConfig:
+      enabled: {{ $ad.kalm }}
+    networkPolicyConfig:
+      disabled: {{ not $ad.network_policy }}
+  {{- with $ef.groups_for_rbac }}
+  authenticatorGroupsConfig:
+    securityGroup: {{ . | quote }}
+  {{- end }}
+  {{- if $ef.binary_authorization }}
+  binaryAuthorization:
+    evaluationMode: PROJECT_SINGLETON_POLICY_ENFORCE
+  {{- end }}
+  {{- if $ef.cost_management }}
+  costManagementConfig:
+    enabled: true
+  {{- end }}
+  {{- if $cas }}
+  {{- $apd := $cas.auto_provisioning_defaults }}
+  clusterAutoscaling:
+    enabled: {{ ne (toString $cas.enabled) "false" }}
+    autoscalingProfile: {{ $cas.autoscaling_profile | default "BALANCED" | quote }}
+    {{- if $apd }}
+    autoProvisioningDefaults:
+      {{- with $apd.boot_disk_kms_key }}
+      bootDiskKMSKeyRef:
+        external: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $apd.disk_size) }}
+      diskSize: {{ $apd.disk_size | int64 }}
+      {{- end }}
+      {{- with $apd.image_type }}
+      imageType: {{ . | quote }}
+      {{- end }}
+      {{- with $apd.oauth_scopes }}
+      oauthScopes: {{ toJson . }}
+      {{- end }}
+      {{- with $apd.service_account }}
+      serviceAccountRef:
+        external: {{ . | quote }}
+      {{- end }}
+      {{- with $apd.management }}
+      management:
+        autoRepair: {{ ne (toString .auto_repair) "false" }}
+        autoUpgrade: {{ ne (toString .auto_upgrade) "false" }}
+      {{- end }}
+      {{- with $apd.shielded_instance_config }}
+      shieldedInstanceConfig:
+        enableIntegrityMonitoring: {{ ne (toString .integrity_monitoring) "false" }}
+        enableSecureBoot: {{ eq (toString .secure_boot) "true" }}
+      {{- end }}
+      {{- with $apd.upgrade_settings }}
+      upgradeSettings:
+        strategy: {{ ternary "BLUE_GREEN" "SURGE" (not (kindIs "invalid" .blue_green)) }}
+        {{- with .surge }}
+        {{- if not (kindIs "invalid" .max) }}
+        maxSurge: {{ .max | int64 }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .unavailable) }}
+        maxUnavailable: {{ .unavailable | int64 }}
+        {{- end }}
+        {{- end }}
+        {{- with .blue_green }}
+        blueGreenSettings:
+          {{- with .node_pool_soak_duration }}
+          nodePoolSoakDuration: {{ . | quote }}
+          {{- end }}
+          {{- with .standard_rollout_policy }}
+          standardRolloutPolicy:
+            {{- if not (kindIs "invalid" .batch_node_count) }}
+            batchNodeCount: {{ .batch_node_count | int64 }}
+            {{- end }}
+            {{- if not (kindIs "invalid" .batch_percentage) }}
+            batchPercentage: {{ .batch_percentage }}
+            {{- end }}
+            {{- with .batch_soak_duration }}
+            batchSoakDuration: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- $limits := list }}
+    {{- with $cas.cpu_limits }}{{ $limits = append $limits (dict "resourceType" "cpu" "minimum" (.min | default 0) "maximum" .max) }}{{ end }}
+    {{- with $cas.mem_limits }}{{ $limits = append $limits (dict "resourceType" "memory" "minimum" (.min | default 0) "maximum" .max) }}{{ end }}
+    {{- range $r := ($cas.accelerator_resources | default list) }}{{ $limits = append $limits (dict "resourceType" $r.resource_type "minimum" ($r.min | default 0) "maximum" $r.max) }}{{ end }}
+    {{- with $limits }}
+    resourceLimits:
+      {{- range . }}
+      - resourceType: {{ .resourceType | quote }}
+        minimum: {{ .minimum | int64 }}
+        maximum: {{ .maximum | int64 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  controlPlaneEndpointsConfig:
+    dnsEndpointConfig:
+      allowExternalTraffic: {{ eq (toString $dns.allow_external_traffic) "true" }}
+      {{- if not (kindIs "invalid" $dns.enable_k8s_tokens) }}
+      enableK8sTokensViaDns: {{ $dns.enable_k8s_tokens }}
+      {{- end }}
+    ipEndpointsConfig:
+      enabled: {{ not (kindIs "invalid" $ip) }}
+  {{- with $ef.database_encryption }}
+  databaseEncryption:
+    state: {{ .state | quote }}
+    keyName: {{ .key_name | quote }}
+  {{- end }}
+  {{- with $ef.dns }}
+  {{- if or .provider .scope .domain }}
+  dnsConfig:
+    {{- with .provider }}
+    clusterDns: {{ . | quote }}
+    {{- end }}
+    {{- with .scope }}
+    clusterDnsScope: {{ . | quote }}
+    {{- end }}
+    {{- with .domain }}
+    clusterDnsDomain: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ef.beta_apis) }}
+  enableK8sBetaApis:
+    enabledApis: {{ toJson $ef.beta_apis }}
+  {{- end }}
+  {{- if $ef.gateway_api }}
+  gatewayApiConfig:
+    channel: CHANNEL_STANDARD
+  {{- end }}
+  {{- if $ef.identity_service }}
+  identityServiceConfig:
+    enabled: true
+  {{- end }}
+  {{- $ipa := or $vpc.secondary_range_blocks $vpc.secondary_range_names }}
+  {{- if $ipa }}
+  ipAllocationPolicy:
+    {{- with $vpc.secondary_range_blocks }}
+    clusterIpv4CidrBlock: {{ .pods | quote }}
+    servicesIpv4CidrBlock: {{ .services | quote }}
+    {{- end }}
+    {{- with $vpc.secondary_range_names }}
+    {{- with .pods }}
+    clusterSecondaryRangeName: {{ . | quote }}
+    {{- end }}
+    {{- with .services }}
+    servicesSecondaryRangeName: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    {{- with $vpc.stack_type }}
+    stackType: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $vpc.additional_ranges) }}
+    additionalPodRangesConfig:
+      podRangeNames: {{ toJson $vpc.additional_ranges }}
+    {{- end }}
+  {{- end }}
+  loggingConfig:
+    {{- if $lc.enable_system_logs }}
+    {{- $comp := list }}
+    {{- if $lc.enable_api_server_logs }}{{ $comp = append $comp "APISERVER" }}{{ end }}
+    {{- if $lc.enable_controller_manager_logs }}{{ $comp = append $comp "CONTROLLER_MANAGER" }}{{ end }}
+    {{- if $lc.enable_scheduler_logs }}{{ $comp = append $comp "SCHEDULER" }}{{ end }}
+    {{- $comp = append $comp "SYSTEM_COMPONENTS" }}
+    {{- if $lc.enable_workloads_logs }}{{ $comp = append $comp "WORKLOADS" }}{{ end }}
+    enableComponents: {{ toJson $comp }}
+    {{- else }}
+    enableComponents: []
+    {{- end }}
+  maintenancePolicy:
+    {{- with $mcfg.daily_window_start_time }}
+    dailyMaintenanceWindow:
+      startTime: {{ . | quote }}
+    {{- end }}
+    {{- with $mcfg.recurring_window }}
+    recurringWindow:
+      startTime: {{ .start_time | quote }}
+      endTime: {{ .end_time | quote }}
+      recurrence: {{ .recurrence | quote }}
+    {{- end }}
+    {{- with $mcfg.maintenance_exclusions }}
+    maintenanceExclusion:
+      {{- range . }}
+      - exclusionName: {{ .name | quote }}
+        startTime: {{ .start_time | quote }}
+        endTime: {{ .end_time | quote }}
+        {{- with .scope }}
+        exclusionOptions:
+          scope: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: {{ eq (toString $v.issue_client_certificate) "true" }}
+  {{- $ipm := $ip | default dict }}
+  {{- if or (not (kindIs "invalid" $ipm.authorized_ranges)) (not (kindIs "invalid" $ipm.gcp_public_cidrs_access_enabled)) (not (kindIs "invalid" $ipm.private_endpoint_authorized_ranges_enforcement)) }}
+  masterAuthorizedNetworksConfig:
+    {{- if not (kindIs "invalid" $ipm.gcp_public_cidrs_access_enabled) }}
+    gcpPublicCidrsAccessEnabled: {{ $ipm.gcp_public_cidrs_access_enabled }}
+    {{- end }}
+    {{- with $ipm.authorized_ranges }}
+    cidrBlocks:
+      {{- range $display, $cidr := . }}
+      - cidrBlock: {{ $cidr | quote }}
+        displayName: {{ $display | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ef.mesh_certificates) }}
+  meshCertificates:
+    enableCertificates: {{ $ef.mesh_certificates }}
+  {{- end }}
+  monitoringConfig:
+    {{- $mcomp := list }}
+    {{- range $p := list (list "enable_system_metrics" "SYSTEM_COMPONENTS") (list "enable_api_server_metrics" "APISERVER") (list "enable_scheduler_metrics" "SCHEDULER") (list "enable_controller_manager_metrics" "CONTROLLER_MANAGER") (list "enable_storage_metrics" "STORAGE") (list "enable_hpa_metrics" "HPA") (list "enable_pod_metrics" "POD") (list "enable_daemonset_metrics" "DAEMONSET") (list "enable_deployment_metrics" "DEPLOYMENT") (list "enable_statefulset_metrics" "STATEFULSET") (list "enable_cadvisor_metrics" "CADVISOR") }}
+    {{- if index $mc (index $p 0) }}{{ $mcomp = append $mcomp (index $p 1) }}{{ end }}
+    {{- end }}
+    enableComponents: {{ toJson $mcomp }}
+    managedPrometheus:
+      enabled: {{ $mc.enable_managed_prometheus }}
+    {{- with $mc.advanced_datapath_observability }}
+    advancedDatapathObservabilityConfig:
+      - enableMetrics: {{ .enable_metrics }}
+    {{- end }}
+  {{- if and $ad.network_policy (not $ef.dataplane_v2) }}
+  networkPolicy:
+    enabled: true
+    provider: CALICO
+  {{- end }}
+  {{- if $un }}
+  notificationConfig:
+    pubsub:
+      enabled: {{ $un.enabled }}
+      {{- with $un.event_types }}
+      filter:
+        eventType: {{ toJson . }}
+      {{- end }}
+      topicRef:
+        {{- with $un.topic_id }}
+        external: {{ . | quote }}
+        {{- else }}
+        name: {{ include "kcc.name" (list $.Release.Name "notifications") }}
+        {{- end }}
+  {{- end }}
+  {{- if $ac.private_nodes }}
+  {{- $pec := dig "private_endpoint_config" nil $ipm }}
+  privateClusterConfig:
+    enablePrivateNodes: true
+    {{- if not (kindIs "invalid" $ipm.disable_public_endpoint) }}
+    enablePrivateEndpoint: {{ $ipm.disable_public_endpoint }}
+    {{- end }}
+    {{- with $ac.master_ipv4_cidr_block }}
+    masterIpv4CidrBlock: {{ . | quote }}
+    {{- end }}
+    {{- with $pec }}
+    {{- with .endpoint_subnetwork }}
+    privateEndpointSubnetworkRef:
+      external: {{ include "gks.ref" . | quote }}
+    {{- end }}
+    {{- if ne (toString .global_access) "false" }}
+    masterGlobalAccessConfig:
+      enabled: true
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if $ef.pod_security_policy }}
+  podSecurityPolicyConfig:
+    enabled: true
+  {{- end }}
+  {{- with $ef.security_posture_config }}
+  securityPostureConfig:
+    mode: {{ .mode | quote }}
+    vulnerabilityMode: {{ .vulnerability_mode | quote }}
+  {{- end }}
+  {{- with $v.release_channel }}
+  releaseChannel:
+    channel: {{ . | quote }}
+  {{- end }}
+  {{- with $ef.resource_usage_export }}
+  resourceUsageExportConfig:
+    {{- if not (kindIs "invalid" .enable_network_egress_metering) }}
+    enableNetworkEgressMetering: {{ .enable_network_egress_metering }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .enable_resource_consumption_metering) }}
+    enableResourceConsumptionMetering: {{ .enable_resource_consumption_metering }}
+    {{- end }}
+    bigqueryDestination:
+      datasetId: {{ .dataset | quote }}
+  {{- end }}
+  {{- if not $ef.service_external_ips }}
+  serviceExternalIpsConfig:
+    enabled: false
+  {{- end }}
+  {{- if $ef.vertical_pod_autoscaling }}
+  verticalPodAutoscaling:
+    enabled: true
+  {{- end }}
+  {{- if $ef.workload_identity }}
+  workloadIdentityConfig:
+    workloadPool: {{ printf "%s.svc.id.goog" $v.project_id | quote }}
+  {{- end }}
+{{- if and $un (not $un.topic_id) }}
+---
+apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+kind: PubSubTopic
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "notifications")) "id" "notifications" "project" $v.project_id "labels" (dict "content" "gke-notifications") "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "topic" "topic" "gke-pubsub-notifications" 255 "letter") | quote }}
+  {{- with $un.kms_key_name }}
+  kmsKeyRef:
+    external: {{ . | quote }}
+  {{- end }}
+{{- end }}

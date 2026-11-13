@@ -1,0 +1,25 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# fabric's one output, id, the policy's fully qualified ID: for a
+# hierarchical policy locations/global/firewallPolicies/<number>, the
+# number the cloud assigns (Config Connector writes it to spec.resourceID);
+# for a network policy projects/<project>/global/firewallPolicies/<name>
+# or .../regions/<region>/firewallPolicies/<name>.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-firewall-policy
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      resources.policy.kind == 'ComputeFirewallPolicy'
+      ? 'locations/global/firewallPolicies/'
+        + (has(resources.policy.spec.resourceID) ? resources.policy.spec.resourceID : resources.policy.status.id)
+      : 'projects/' + inputs.parent_id
+        + (resources.policy.kind == 'ComputeRegionNetworkFirewallPolicy' ? '/regions/' + inputs.region : '/global')
+        + '/firewallPolicies/' + resources.policy.spec.resourceID

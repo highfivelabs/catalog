@@ -1,0 +1,24 @@
+# A cluster on GKE (virtual_cluster_config).
+project_id: my-project
+name: my-gke-cluster
+region: europe-west8
+dataproc_config:
+  virtual_cluster_config:
+    staging_bucket: my-staging
+    auxiliary_services_config:
+      metastore_config: {dataproc_metastore_service: projects/my-project/locations/europe-west8/services/metastore}
+      spark_history_server_config: {dataproc_cluster: projects/my-project/regions/europe-west8/clusters/history}
+    kubernetes_cluster_config:
+      kubernetes_namespace: dataproc
+      kubernetes_software_config:
+        component_version: {SPARK: 3.1-dataproc-7}
+        properties: {"spark:spark.eventLog.enabled": "true"}
+      gke_cluster_config:
+        gke_cluster_target: projects/my-project/locations/europe-west8/clusters/gke
+        node_pool_target:
+          node_pool: projects/my-project/locations/europe-west8/clusters/gke/nodePools/dp
+          roles: [DEFAULT]
+          node_pool_config:
+            autoscaling: {min_node_count: 1, max_node_count: 6}
+            config: {machine_type: n1-standard-4, preemptible: true, local_ssd_count: 0, spot: false}
+            locations: [europe-west8-b]
