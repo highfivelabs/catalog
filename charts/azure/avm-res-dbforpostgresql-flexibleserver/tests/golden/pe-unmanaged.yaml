@@ -1,0 +1,58 @@
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServer
+metadata:
+  name: pe-unmanaged-psql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "psql-pe"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data"
+  authConfig:
+    activeDirectoryAuth: Enabled
+    passwordAuth: Disabled
+  highAvailability:
+    mode: ZoneRedundant
+  maintenanceWindow:
+    customWindow: Enabled
+    dayOfWeek: 0
+    startHour: 0
+    startMinute: 0
+  network:
+    publicNetworkAccess: Disabled
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: pe-unmanaged-psql-pe-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a"
+spec:
+  azureName: "pe-psql-pe-hub"
+  location: "westus3"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  privateLinkServiceConnections:
+    - name: "psc-hub"
+      groupIds: [postgresqlServer]
+      privateLinkServiceReference:
+        group: dbforpostgresql.azure.com
+        kind: FlexibleServer
+        name: pe-unmanaged-psql

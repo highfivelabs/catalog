@@ -1,0 +1,16 @@
+# Applied to the fake AWS by hack/mock-apply-aws.sh: a role trusting EKS
+# Pod Identity, with a custom policy and an AWS managed policy attached by
+# ARN (so the custom policy's ARN is built from the fake's account,
+# tests/mock.set.yaml). No association: one needs an EKS cluster, which the
+# fake-AWS layer does not make (an EKS cluster is the eks chart's).
+name: catalog-pod-identity
+region: us-east-1
+account_id: "000000000000"
+attach_custom_policy: true
+policy_statements:
+  - sid: Read
+    actions: ["s3:GetObject"]
+    resources: ["arn:aws:s3:::catalog-test/*"]
+additional_policy_arns:
+  readonly: arn:aws:iam::aws:policy/ReadOnlyAccess
+tags: {catalog-test: "true"}

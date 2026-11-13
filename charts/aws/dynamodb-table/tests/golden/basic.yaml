@@ -1,0 +1,47 @@
+---
+# Source: dynamodb-table/templates/table.yaml
+apiVersion: dynamodb.services.k8s.aws/v1alpha1
+kind: Table
+metadata:
+  name: basic-table
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dynamodb-table
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table"
+spec:
+  tableName: "my-table"
+  billingMode: "PAY_PER_REQUEST"
+  attributeDefinitions:
+    - attributeName: "id"
+      attributeType: "N"
+    - attributeName: "title"
+      attributeType: "S"
+    - attributeName: "age"
+      attributeType: "N"
+  keySchema:
+    - attributeName: "id"
+      keyType: HASH
+    - attributeName: "title"
+      keyType: RANGE
+  tableClass: "STANDARD"
+  deletionProtectionEnabled: false
+  globalSecondaryIndexes:
+    - indexName: "TitleIndex"
+      keySchema:
+        - attributeName: "title"
+          keyType: HASH
+        - attributeName: "age"
+          keyType: RANGE
+      projection:
+        projectionType: "INCLUDE"
+        nonKeyAttributes: ["id"]
+  tags:
+    - key: "Environment"
+      value: "staging"
+    - key: "Name"
+      value: "my-table"
+    - key: "Terraform"
+      value: "true"

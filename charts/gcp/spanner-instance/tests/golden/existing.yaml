@@ -1,0 +1,40 @@
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: existing-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    external: projects/my-project/instances/my-instance
+    kind: SpannerInstance
+  bindings:
+    - role: "roles/spanner.databaseUser"
+      members:
+        - member: "group:dev@example.com"
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerDatabase
+metadata:
+  name: existing-db-my-database
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:my-database"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-database"
+  instanceRef:
+    external: "my-instance"

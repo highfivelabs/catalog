@@ -1,0 +1,41 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-dbforpostgresql-flexibleserver
+repo: https://github.com/Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver
+path: .
+version: v0.2.3
+commit: 70d6e9c947f8b2c24b706bb3484228d53cf7858a
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver/tree/v0.2.3
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-dbforpostgresql-flexibleserver/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  - variable: administrator_password
+    kind: by-design
+    reason: "a password is a secret value, which does not belong in a component's inputs; ASO's administratorLoginPassword is a reference to a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open). Use Entra authentication (authentication.password_auth_enabled: false)"
+  - variable: administrator_password_wo
+    kind: by-design
+    reason: "a write-only password is a secret value, refused as administrator_password is"
+  - variable: administrator_password_wo_version
+    kind: by-design
+    reason: "the version of administrator_password_wo, which is refused"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: databases
+    kind: by-design
+    reason: "accepted, but a database's timeouts are refused: Azure Service Operator has no per-request timeouts"
+    partial: true
+    fields: [timeouts]

@@ -1,0 +1,418 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "geap-agent-runtime values (fabric geap-agent-runtime v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id",
+    "region"
+  ],
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"): agent (the engine's display name), serviceAccount (the service account ID), bucket. A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "serviceAccount": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 30
+        },
+        "bucket": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 63
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every name not set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label on the engine and the bucket.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on the engine and the bucket (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "agent_runtime_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "agent_framework": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "class_methods": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "container_concurrency": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "environment_variables": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "identity_type": {
+          "description": "AGENT_IDENTITY (fabric's default; refused: the kind has no identityType) or SERVICE_ACCOUNT.",
+          "enum": [
+            "AGENT_IDENTITY",
+            "SERVICE_ACCOUNT"
+          ]
+        },
+        "max_instances": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "min_instances": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "python_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resource_limits": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cpu",
+            "memory"
+          ]
+        },
+        "secret_environment_variables": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "secret_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "secret_id"
+            ]
+          }
+        }
+      },
+      "description": "The agent configuration. Supported values for agent_framework: 'google-adk', 'langchain', 'langgraph', 'ag2', 'llama-index', 'custom'."
+    },
+    "bucket_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uniform_bucket_level_access": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "description": "The GCS bucket configuration."
+    },
+    "context": {
+      "description": "Context-specific interpolations. Refused when set (use Bundt expressions).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "deployment_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "container_config": {
+          "description": "Refused: the kind has no containerSpec.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "package_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "are_paths_local": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "dependencies_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pickle_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "requirements_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "source_files_config": {
+          "description": "Refused: the kind has no sourceCodeSpec.",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "description": "The deployment configuration."
+    },
+    "description": {
+      "description": "The GEAP Agent Runtime description.",
+      "type": "string"
+    },
+    "enable_deletion_protection": {
+      "description": "Whether deletion protection should be enabled. false is refused.",
+      "type": "boolean"
+    },
+    "encryption_key": {
+      "description": "The full resource name of the Cloud KMS CryptoKey.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "managed": {
+      "description": "Whether the Terraform module should control the code updates. false is refused.",
+      "type": "boolean"
+    },
+    "memory_bank_config": {
+      "description": "Configuration for the memory bank. Refused when set: the kind has no contextSpec.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "The name of the agent.",
+      "type": "string",
+      "minLength": 1
+    },
+    "networking_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "agent_gateways": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "egress": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ingress": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "dns_peering_configs": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "target_network_name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "target_project_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "target_network_name"
+            ]
+          }
+        },
+        "network_attachment_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "description": "Networking configuration."
+    },
+    "project_id": {
+      "description": "The id of the project where to deploy the agent.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "The region where to deploy the agent.",
+      "type": "string",
+      "minLength": 1
+    },
+    "service_account_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "roles": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Service account configurations."
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

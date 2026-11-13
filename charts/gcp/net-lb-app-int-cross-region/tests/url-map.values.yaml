@@ -1,0 +1,28 @@
+# fabric's README, "URL Map".
+name: ilb-test
+project_id: my-project
+backend_service_configs:
+  default:
+    backends:
+      - group: projects/myprj/zones/europe-west1-a/instanceGroups/my-ig-1-ew1
+      - group: projects/myprj/zones/europe-west4-a/instanceGroups/my-ig-1-ew4
+  video:
+    backends:
+      - group: projects/myprj/zones/europe-west1-a/instanceGroups/my-ig-2-ew1
+      - group: projects/myprj/zones/europe-west1-a/instanceGroups/my-ig-2-ew4
+urlmap_config:
+  default_service: default
+  host_rules:
+    - hosts: ["*"]
+      path_matcher: pathmap
+  path_matchers:
+    pathmap:
+      default_service: default
+      path_rules:
+        - paths: [/video, /video/*]
+          service: video
+vpc_config:
+  network: projects/my-project/global/networks/my-vpc
+  subnetworks:
+    europe-west1: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+    europe-west4: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
