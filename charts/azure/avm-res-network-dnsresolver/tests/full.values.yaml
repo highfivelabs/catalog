@@ -1,0 +1,69 @@
+# Every input the chart carries: the group by ID, module tags, a static
+# and a dynamic inbound endpoint (default name, own tags not merged), two
+# outbound endpoints, rulesets with and without the default link, rules
+# enabled and disabled with metadata, additional links (named and by the
+# module's default name), a lock and role assignments (by name, by ID with
+# the Entra check skipped), which the module puts on the resolver and on
+# every ruleset.
+name: dnspr-hub
+location: westeurope
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub
+virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+enable_telemetry: false
+tags: {environment: prod}
+lock: {kind: CanNotDelete}
+role_assignments:
+  dnsops:
+    role_definition_id_or_name: DNS Resolver Contributor
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+    description: DNS operators
+  deployer:
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+    principal_id: 7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f
+    skip_service_principal_aad_check: true
+inbound_endpoints:
+  static:
+    name: in-static
+    subnet_name: snet-inbound
+    private_ip_allocation_method: Static
+    private_ip_address: 10.0.0.4
+    tags: {tier: inbound}
+  dynamic:
+    subnet_name: snet-inbound
+    tags: {own: only}
+    merge_with_module_tags: false
+outbound_endpoints:
+  primary:
+    name: out-primary
+    subnet_name: snet-outbound
+    tags: {tier: outbound}
+    forwarding_ruleset:
+      corp:
+        name: rs-corp
+        metadata_for_outbound_endpoint_virtual_network_link: {owner: platform}
+        tags: {ruleset: corp}
+        additional_outbound_endpoint_link: {outbound_endpoint_key: secondary}
+        additional_virtual_network_links:
+          spoke1:
+            name: link-spoke1
+            vnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke1
+            metadata: {spoke: "1"}
+          spoke2:
+            vnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke2
+        rules:
+          corp:
+            domain_name: corp.contoso.com.
+            destination_ip_addresses: {"10.10.0.4": "53", "10.10.0.5": "53"}
+            metadata: {site: dc1}
+          legacy:
+            domain_name: legacy.contoso.com.
+            destination_ip_addresses: {"192.168.1.10": "5353"}
+            enabled: false
+  secondary:
+    subnet_name: snet-outbound2
+    merge_with_module_tags: false
+    forwarding_ruleset:
+      onprem:
+        link_with_outbound_endpoint_virtual_network: false
+        merge_with_module_tags: false

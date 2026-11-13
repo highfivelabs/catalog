@@ -1,0 +1,46 @@
+# Every input the chart carries, the workspace and resource group made
+# here: the group by ID, the Automation account linked to the workspace
+# (in another region, with customer-managed key encryption and two
+# identities), a non-default workspace (capacity reservation, quota, CMK
+# for query, public access and local authentication off), a custom
+# solution list, Sentinel onboarding with its defaults, the three data
+# collection rules with their own region and tags (one with SQL query
+# collection on), and the AMA identity with its own name, region and
+# tags.
+automation_account_name: aa-platform-mgmt
+location: westeurope
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform-mgmt
+enable_telemetry: false
+tags: {environment: prod}
+linked_automation_account_creation_enabled: true
+automation_account_location: northeurope
+automation_account_sku_name: Basic
+automation_account_local_authentication_enabled: false
+automation_account_public_network_access_enabled: false
+automation_account_encryption:
+  key_vault_key_id: https://kv-platform.vault.azure.net/keys/cmk-automation/0123456789abcdef0123456789abcdef
+  user_assigned_identity_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform-mgmt/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-cmk
+automation_account_identity:
+  type: SystemAssigned, UserAssigned
+  identity_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-platform-mgmt/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-cmk]
+log_analytics_workspace_name: law-platform-mgmt
+log_analytics_workspace_sku: CapacityReservation
+log_analytics_workspace_reservation_capacity_in_gb_per_day: 100
+log_analytics_workspace_retention_in_days: 90
+log_analytics_workspace_daily_quota_gb: 10.5
+log_analytics_workspace_cmk_for_query_forced: true
+log_analytics_workspace_internet_ingestion_enabled: false
+log_analytics_workspace_internet_query_enabled: false
+log_analytics_workspace_local_authentication_enabled: false
+log_analytics_workspace_allow_resource_only_permissions: false
+log_analytics_solution_plans:
+  - product: OMSGallery/ContainerInsights
+  - product: OMSGallery/Updates
+    publisher: Microsoft
+sentinel_onboarding: {}
+data_collection_rules:
+  change_tracking: {name: dcr-ct, location: northeurope, tags: {rule: ct}}
+  vm_insights: {name: dcr-vmi}
+  defender_sql: {name: dcr-sql, enable_collection_of_sql_queries_for_security_research: true}
+user_assigned_managed_identities:
+  ama: {name: id-ama, location: northeurope, tags: {role: ama}}

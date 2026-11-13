@@ -1,0 +1,54 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-ddosprotectionplan main.tf
+(v0.3.0), Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_network_ddos_protection_plan.this: one ASO DdosProtectionPlan
+(network.azure.com/v20250301), owned by the resource group
+resource_group_name names. azurerm_management_lock.this: an aso-extensions
+ManagementLock, with the module's notes. azurerm_role_assignment.this: one
+ASO RoleAssignment each. The telemetry is not ported.
+A plan is billed from its creation (about 2,944 USD a month; README.md).
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.names" (list $ (list "ddosProtectionPlan")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-ddosprotectionplan: name is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-network-ddosprotectionplan: location is required" }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-ddosprotectionplan: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "ddos") }}
+---
+apiVersion: network.azure.com/v20250301
+kind: DdosProtectionPlan
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "ddos_protection_plan" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "ddosProtectionPlan" "DDoS protection plan" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with (include "aso.tags" (list $ dict) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "DdosProtectionPlan" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := ($v.role_assignments | default dict) }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}

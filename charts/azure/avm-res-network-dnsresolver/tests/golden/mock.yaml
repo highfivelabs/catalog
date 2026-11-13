@@ -1,0 +1,181 @@
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsForwardingRule
+metadata:
+  name: mock-rule-a-corp-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:a-ruleset-a-corp-corp"
+spec:
+  azureName: "corp"
+  owner:
+    name: mock-frs-a-corp
+  domainName: "corp.example.com."
+  forwardingRuleState: Enabled
+  targetDnsServers:
+    - ipAddress: "10.0.1.4"
+      port: 53
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsVirtualNetworkLink
+metadata:
+  name: mock-dlink-a-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network_link:a-ruleset-a-corp"
+spec:
+  azureName: "default-ruleset-a-corp"
+  owner:
+    name: mock-frs-a-corp
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleset
+metadata:
+  name: mock-frs-a-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_ruleset:a-ruleset-a-corp"
+spec:
+  azureName: "ruleset-a-corp"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  dnsResolverOutboundEndpoints:
+    - reference:
+        group: network.azure.com
+        kind: DnsResolversOutboundEndpoint
+        name: mock-out-a
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolver
+metadata:
+  name: mock-dnsr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dns_resolver"
+spec:
+  azureName: "catalog-dnspr"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  tags:
+    catalog: mock
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversInboundEndpoint
+metadata:
+  name: mock-in-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "inbound_endpoint:a"
+spec:
+  azureName: "in-a-dnsResolver-inbound"
+  location: "eastus2"
+  owner:
+    name: mock-dnsr
+  ipConfigurations:
+    - privateIpAllocationMethod: Static
+      privateIpAddress: "10.0.0.4"
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-inbound"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversOutboundEndpoint
+metadata:
+  name: mock-out-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "outbound_endpoint:a"
+spec:
+  azureName: "out-a-dnsResolver-outbound"
+  location: "eastus2"
+  owner:
+    name: mock-dnsr
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-outbound"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-frs-a-corp-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/a-ruleset-a-corp/lock"
+spec:
+  azureName: "lock-a-ruleset-a-corp"
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: mock-frs-a-corp
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-dnsr-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: DnsResolver
+    name: mock-dnsr
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
