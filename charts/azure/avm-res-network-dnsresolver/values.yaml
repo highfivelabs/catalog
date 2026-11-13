@@ -1,0 +1,80 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-network-dnsresolver (v0.8.0): same names, types and defaults, so
+# a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-network-dnsresolver
+# (variables.tf, v0.8.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The resolver's name in full, {dnsResolver}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front. Endpoints,
+# rules and links are named inside the resolver or a ruleset; rulesets
+# take the namePrefix in front of their names.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the resolver's and
+# each ruleset's name (never one set under names). Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's azurerm provider knows its subscription; ASO's owner is an
+# Azure resource ID. Not needed when resource_group_name is a resource
+# group's ID (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# A map of inbound endpoints to create for this DNS resolver.
+# Each: {name (default in-<key>-dnsResolver-inbound), subnet_name (a subnet
+# of virtual_network_resource_id), private_ip_allocation_method (Dynamic or
+# Static), private_ip_address, tags, merge_with_module_tags (true)}.
+inbound_endpoints: {}
+# (Required) Azure region where the resource should be deployed.
+location: null
+# Controls the Resource Lock configuration for this resource, and for each
+# forwarding ruleset. {kind (CanNotDelete or ReadOnly), name (default
+# lock-<kind> on the resolver, lock-<outbound key>-<ruleset name> on a
+# ruleset)}.
+lock: null
+# (Required) The name of the dns resolver.
+name: null
+# A map of outbound endpoints to create for this DNS resolver.
+# Each: {name (default out-<key>-dnsResolver-outbound), tags,
+# merge_with_module_tags (true), subnet_name, forwarding_ruleset}, where
+# forwarding_ruleset is a map of rulesets on that endpoint, each {name
+# (default ruleset-<outbound key>-<key>),
+# link_with_outbound_endpoint_virtual_network (true),
+# metadata_for_outbound_endpoint_virtual_network_link, tags,
+# merge_with_module_tags (true), additional_outbound_endpoint_link
+# ({outbound_endpoint_key}), additional_virtual_network_links (a map of
+# {name, vnet_id, metadata}), rules (a map of {name, domain_name,
+# destination_ip_addresses (a map of IP address to port), enabled (true),
+# metadata})}.
+outbound_endpoints: {}
+# (Required) The resource group where the resources will be deployed (its
+# name, or its ID).
+resource_group_name: ""
+# A map of role assignments to create on the resolver and on each
+# forwarding ruleset. Each: {role_definition_id_or_name, principal_id,
+# description, skip_service_principal_aad_check, condition,
+# condition_version, delegated_managed_identity_resource_id,
+# principal_type}.
+role_assignments: {}
+# (Optional) Tags of the resource.
+tags: null
+# (Required) The ID of the virtual network to deploy the inbound and
+# outbound endpoints into.
+virtual_network_resource_id: null

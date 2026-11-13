@@ -1,0 +1,38 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). private_dns_zone_resource_ids is {<zone
+# key>: ARM ID} from each zone's status. private_link_private_dns_zones_map
+# is the module's final map, {<zone key>: {zone_key, zone_name,
+# virtual_network_links: {<link key>: {virtual_network_id, name,
+# private_dns_zone_supports_private_link, registration_enabled,
+# resolution_policy, tags}}}}, read back from the zones and links as
+# applied (a link is its zone's when it names the zone's object as its
+# owner); resolution_policy is null for a zone that does not support
+# Private Link, where the module reports the policy it did not send.
+# resource_group_resource_id is parent_id.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-ptn-network-private-link-private-dns-zones
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    private_dns_zone_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_dns_zone:'), {k.substring(17): v.status.id})
+    private_link_private_dns_zones_map: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_dns_zone:'), {k.substring(17): {
+      'zone_key': k.substring(17),
+      'zone_name': v.spec.azureName,
+      'virtual_network_links': resources.transformMapEntry(lk, l, lk.startsWith('virtual_network_link:') && l.spec.owner.name == v.metadata.name, {lk.substring(5 + k.size()): {
+      'virtual_network_id': l.spec.virtualNetwork.reference.armId,
+      'name': l.spec.azureName,
+      'private_dns_zone_supports_private_link': has(l.spec.resolutionPolicy),
+      'registration_enabled': l.spec.registrationEnabled,
+      'resolution_policy': has(l.spec.resolutionPolicy) ? l.spec.resolutionPolicy : null,
+      'tags': has(l.spec.tags) ? l.spec.tags : null}})}})
+    resource_group_resource_id: inputs.parent_id

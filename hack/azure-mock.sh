@@ -33,7 +33,10 @@
 # must evaluate too. A VaultKey reads its key in the vault's data plane:
 # <vault>.vault.azure.net is fakearm inside the cluster (a CoreDNS rewrite;
 # the fixtures' certificate carries the name), and fakearm is given ASO's
-# tenant, which Key Vault's challenge names.
+# tenant, which Key Vault's challenge names. aso-extensions' Entra kinds
+# (a DirectoryRoleAssignment) reach a fake Microsoft Graph (cmd/fakegraph,
+# MICROSOFT_GRAPH_ENDPOINT on the manager), whose directory holds the
+# principals the mock values name (GRAPH_PRINCIPALS).
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
@@ -51,6 +54,10 @@ SUB=00000000-0000-0000-0000-000000000000
 TENANT=11111111-2222-3333-4444-555555555555
 CLIENT=22222222-3333-4444-5555-666666666666
 RG="/subscriptions/${SUB}/resourceGroups/catalog-rg"
+# The fake Graph directory's users, groups and service principals: the
+# object IDs the mock values assign directory roles to
+# (avm-res-authorization-roleassignment's mock-user).
+GRAPH_PRINCIPALS=0a0a0a0a-0000-4000-8000-000000000001
 mkdir -p "${OUT}"
 
 for t in docker kind kubectl helm go jq; do
@@ -65,10 +72,10 @@ trap cleanup EXIT
 source "${ROOT}/hack/asox-manager.sh"
 asox_fetch "${WORK}"
 
-echo "== the fake cloud: fakearm and fakeentra from ${ASOX_TARBALL:-${ASOX_DIR}}"
-(cd "${ASOX_DIR}" && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./cmd/fakearm ./cmd/fakeentra \
+echo "== the fake cloud: fakearm, fakeentra and fakegraph from ${ASOX_TARBALL:-${ASOX_DIR}}"
+(cd "${ASOX_DIR}" && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./cmd/fakearm ./cmd/fakeentra ./cmd/fakegraph \
   && go run ./tests/operator/fixtures --out "${WORK}/fixtures" --tenant "${TENANT}" --client "${CLIENT}")
-for b in fakearm fakeentra; do
+for b in fakearm fakeentra fakegraph; do
   mkdir -p "${WORK}/img-${b}"
   cp "${WORK}/bin/${b}" "${WORK}/img-${b}/${b}"
   printf 'FROM scratch\nCOPY %s /%s\nENTRYPOINT ["/%s"]\n' "${b}" "${b}" "${b}" >"${WORK}/img-${b}/Dockerfile"
@@ -79,11 +86,11 @@ kind create cluster --name "${CLUSTER}" --wait 180s
 export KUBECONFIG="${WORK}/kubeconfig"
 kind get kubeconfig --name "${CLUSTER}" >"${KUBECONFIG}"
 asox_build_manager "${WORK}"
-for b in fakearm fakeentra; do kind load docker-image "catalog.local/${b}:mock" --name "${CLUSTER}" >/dev/null; done
+for b in fakearm fakeentra fakegraph; do kind load docker-image "catalog.local/${b}:mock" --name "${CLUSTER}" >/dev/null; done
 
 kubectl create namespace fake-cloud >/dev/null
 kubectl create namespace "${ASO_NS}" >/dev/null
-for b in fakearm fakeentra; do
+for b in fakearm fakeentra fakegraph; do
   kubectl -n fake-cloud create secret tls "${b}-tls" --cert "${WORK}/fixtures/${b}.crt" --key "${WORK}/fixtures/${b}.key" >/dev/null
 done
 kubectl -n "${ASO_NS}" create configmap fake-cloud-ca --from-file=ca.crt="${WORK}/fixtures/ca.crt" >/dev/null
@@ -146,10 +153,36 @@ metadata: {name: fakeentra, namespace: fake-cloud}
 spec:
   selector: {app: fakeentra}
   ports: [{port: 443, targetPort: 443}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: fakegraph, namespace: fake-cloud}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: fakegraph}}
+  template:
+    metadata: {labels: {app: fakegraph}}
+    spec:
+      containers:
+      - name: fakegraph
+        image: catalog.local/fakegraph:mock
+        imagePullPolicy: Never
+        args: [--listen=:443, --audience=https://fakegraph.fake-cloud.svc, "--trust=${CLIENT}=${ASOX_SUBJECT}", "--principal=${GRAPH_PRINCIPALS}"]
+        ports: [{containerPort: 443}]
+        volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
+      volumes: [{name: tls, secret: {secretName: fakegraph-tls}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: fakegraph, namespace: fake-cloud}
+spec:
+  selector: {app: fakegraph}
+  ports: [{port: 443, targetPort: 443}]
 EOF
 kubectl apply -f "${WORK}/fake-cloud.yaml" >/dev/null
 kubectl -n fake-cloud rollout status deploy/fakearm --timeout=180s
 kubectl -n fake-cloud rollout status deploy/fakeentra --timeout=180s
+kubectl -n fake-cloud rollout status deploy/fakegraph --timeout=180s
 # login.microsoftonline.com is the fake Entra inside the cluster, and every
 # vault's data plane (<vault>.vault.azure.net, which ASO's VaultKey reads) is
 # fakearm, which holds the keys and whose certificate carries the name.
@@ -171,7 +204,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --set useWorkloadIdentityAuth=true \
   --set azureResourceManagerEndpoint=https://fakearm.fake-cloud.svc \
   --set azureResourceManagerAudience=https://fakearm.fake-cloud.svc \
-  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;cache.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;cache.azure.com/*;app.azure.com/*')" \
   --timeout 10m >/dev/null
 # The fake cloud's CA, trusted through SSL_CERT_FILE.
 kubectl -n "${ASO_NS}" patch deployment azureserviceoperator-controller-manager --type strategic -p '{
@@ -186,14 +219,16 @@ kubectl wait --for=condition=Established crd --all --timeout=300s >/dev/null
 
 echo "== aso-extensions' manager beside ASO, against the same fake cloud"
 # Its token as ASO's: a projected service account token for Entra's
-# audience where ASO's credential reads it, and the fake cloud's CA.
+# audience where ASO's credential reads it, the fake cloud's CA, and the
+# fake Microsoft Graph for its Entra kinds.
 asox_install_manager "${CLUSTER}" '{
   "spec": {"template": {"spec": {
     "volumes": [
       {"name": "azure-identity", "projected": {"sources": [{"serviceAccountToken": {"audience": "api://AzureADTokenExchange", "expirationSeconds": 3600, "path": "azure-identity"}}]}},
       {"name": "fake-cloud-ca", "configMap": {"name": "fake-cloud-ca"}}],
     "containers": [{"name": "manager",
-      "env": [{"name": "SSL_CERT_FILE", "value": "/fake-cloud-ca/ca.crt"}],
+      "env": [{"name": "SSL_CERT_FILE", "value": "/fake-cloud-ca/ca.crt"},
+        {"name": "MICROSOFT_GRAPH_ENDPOINT", "value": "https://fakegraph.fake-cloud.svc"}],
       "volumeMounts": [
         {"name": "azure-identity", "mountPath": "/var/run/secrets/tokens", "readOnly": true},
         {"name": "fake-cloud-ca", "mountPath": "/fake-cloud-ca", "readOnly": true}]}]}}}}'
@@ -204,7 +239,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Azure fake-cloud apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); aso-extensions ${ASOX_TARBALL:-${ASOX_DIR}}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager on kind against fakearm and fakeentra."
+  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); aso-extensions ${ASOX_TARBALL:-${ASOX_DIR}}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager on kind against fakearm, fakeentra and fakegraph."
   echo
   echo "| Chart | Object | Ready | Deleted | Message |"
   echo "| --- | --- | --- | --- | --- |"
@@ -263,6 +298,7 @@ kubectl -n "${ASO_NS}" logs deployment/azureserviceoperator-controller-manager -
 asox_manager_logs "${OUT}/asox-manager.log"
 kubectl -n fake-cloud logs deployment/fakearm --tail=-1 >"${OUT}/fakearm.log" 2>&1 || true
 kubectl -n fake-cloud logs deployment/fakeentra --tail=-1 >"${OUT}/fakeentra.log" 2>&1 || true
+kubectl -n fake-cloud logs deployment/fakegraph --tail=-1 >"${OUT}/fakegraph.log" 2>&1 || true
 {
   echo
   echo "${total} objects; ${failed} failures (an object not Ready or not deleted, or a chart's outputs not evaluated)."
