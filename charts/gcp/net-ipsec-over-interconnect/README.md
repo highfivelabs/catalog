@@ -94,7 +94,10 @@ and `mock`, validated against Config Connector v1.160.0's CRD schemas and
 config-connector-extensions' (`ComputeRouterRoutePolicy`), and the
 refusals in `tests/*.fail.yaml`.
 
-FAKE_CLOUD_RESULT
+Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
+MOCK_CHARTS=net-ipsec-over-interconnect`, run `off-catalog-1113152746-28240`, at
+config-connector-extensions `d54a2075`, whose fake cloud runs its
+`ComputeRouterRoutePolicy` controller): the HA VPN gateway, the external peer gateway, the router and an import route policy (`allow_alpha`) on a network from `tests/mock.needs.yaml`: all 4 objects Ready, the outputs evaluated, all deleted. mockgcp has no interconnect attachments and does not look up the two the gateway names, so the attachments themselves are not exercised.
 
 Not applied live: live runs are pending KEYLIVE.
 
