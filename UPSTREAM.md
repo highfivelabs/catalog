@@ -48,6 +48,7 @@ charts use are copied in `crds/ack-extensions`.
 | `sqs-controller` | `v1.9.0` | `0810c99dd5b0c45939727e0ca04e4810ced1fdfa` | Queue |
 | `sns-controller` | `v1.13.0` | `a1f0e5b19582a199ae3e6fbb071ced23b40d9655` | Topic, Subscription |
 | `ssm-controller` | `v1.8.0` | `d07ea0193aef939118ac220a60ff3d3f9d496f46` | Parameter |
+| `dynamodb-controller` | `v1.14.2` | `2fcea71a4f8d6049c9e03d729561a26735245346` | Table |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in
