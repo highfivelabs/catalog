@@ -1,0 +1,266 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-containerservice-managedcluster (v0.9.0): same names, types and
+# defaults, so a module block's arguments become this file one to one.
+# values.schema.json carries the types; README.md says what each maps to.
+#
+# Descriptions quoted (first paragraph) from
+# terraform-azurerm-avm-res-containerservice-managedcluster (variables*.tf,
+# v0.9.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The cluster's name in full, {managedCluster}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the cluster's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# AADProfile specifies attributes for Azure Active Directory integration.
+# For more details see [managed AAD on
+# AKS](https://docs.microsoft.com/azure/aks/managed-aad).
+aad_profile: null
+# Azure Policy addon profile for the managed cluster. Not applicable for
+# clusters in automatic mode.
+addon_profile_azure_policy: {"enabled":false}
+# Confidential Computing addon profile for the managed cluster.
+addon_profile_confidential_computing: null
+# Ingress Application Gateway addon profile for the managed cluster.
+addon_profile_ingress_application_gateway: null
+# Key Vault Secrets Provider addon profile for the managed cluster.
+addon_profile_key_vault_secrets_provider: null
+# OMS Agent addon profile for the managed cluster.
+addon_profile_oms_agent: null
+# Additional addon profiles of managed cluster add-on. Will be merged with
+# the predefined addon variables like `addon_profile_oms_agent` and
+# `addon_profile_azure_policy`.
+addon_profiles_extra: {}
+# Map of instances for the submodule with the following attributes:
+agent_pools: {}
+# - `create` - (Defaults to 60 minutes) Used when creating the Kubernetes
+# Cluster Node Pool. - `delete` - (Defaults to 60 minutes) Used when
+# deleting the Kubernetes Cluster Node Pool. - `read` - (Defaults to 5
+# minutes) Used when retrieving the Kubernetes Cluster Node Pool. - `update`
+# - (Defaults to 60 minutes) Used when updating the Kubernetes Cluster Node
+# Pool. Refused: ASO has no per-request timeouts.
+agentpool_timeouts: null
+# When enabling the operator, a set of AKS managed CRDs and controllers will
+# be installed in the cluster. The operator automates the deployment of OSS
+# models for inference and/or training purposes. It provides a set of preset
+# models and enables distributed inference against them.
+ai_toolchain_operator_profile: null
+# The email address to send alerts to. Refused: not mapped yet.
+alert_email: null
+# Access profile for managed cluster API server.
+api_server_access_profile: null
+# Parameters to be applied to the cluster-autoscaler when enabled
+auto_scaler_profile: null
+# Auto upgrade profile for a managed cluster.
+auto_upgrade_profile: null
+# Azure Monitor addon profiles for monitoring the managed cluster.
+azure_monitor_profile: null
+# The bootstrap profile.
+bootstrap_profile: null
+# - `create` - (Defaults to 60 minutes) Used when creating the Kubernetes
+# Cluster Node Pool. - `delete` - (Defaults to 60 minutes) Used when
+# deleting the Kubernetes Cluster Node Pool. - `read` - (Defaults to 5
+# minutes) Used when retrieving the Kubernetes Cluster Node Pool. - `update`
+# - (Defaults to 60 minutes) Used when updating the Kubernetes Cluster Node
+# Pool. Refused: ASO has no per-request timeouts.
+cluster_timeouts: null
+# When enabled, allows Terraform to create new agent pools before destroying
+# the old ones during updates that require replacement. This can help reduce
+# downtime during updates but may incur additional costs due to temporarily
+# having more resources allocated. Refused when true: ASO updates agent
+# pools in place.
+create_agentpools_before_destroy: false
+# Configuration block for the default agent pool of the Kubernetes cluster.
+# See `var.agent_pools` for details on the available options.
+default_agent_pool: {}
+# A map of diagnostic settings to create on the Key Vault. The map key is
+# deliberately arbitrary to avoid issues where map keys maybe unknown at
+# plan time.
+diagnostic_settings: {}
+# If local accounts should be disabled on the Managed Cluster. If set to
+# true, getting static credentials will be disabled for this cluster. This
+# must only be used on Managed Clusters that are AAD enabled. For more
+# details see [disable local
+# accounts](https://docs.microsoft.com/azure/aks/managed-aad#disable-local-
+# accounts-preview).
+disable_local_accounts: false
+# The Resource ID of the disk encryption set to use for enabling encryption
+# at rest. This is of the form: '/subscriptions/{subscriptionId}/resourceGro
+# ups/{resourceGroupName}/providers/Microsoft.Compute/diskEncryptionSets/{en
+# cryptionSetName}'
+disk_encryption_set_id: null
+# The DNS prefix of the Managed Cluster. This cannot be updated once the
+# Managed Cluster has been created. If not specified, a random DNS prefix
+# will be generated. This property is mutually exclusive with
+# `fqdn_subdomain`. When `fqdn_subdomain` is set, `dns_prefix` is
+# automatically omitted. Without dns_prefix or fqdn_subdomain the chart
+# takes 10 characters of the SHA-256 of the release and name (the module: a
+# random_string).
+dns_prefix: null
+# Whether to enable Kubernetes Role-Based Access Control.
+enable_rbac: null
+# This variable controls whether or not telemetry is enabled for the module.
+# For more information see <https://aka.ms/avm/telemetryinfo>. If it is set
+# to false, then no telemetry will be collected. Accepted; the chart never
+# sends telemetry.
+enable_telemetry: true
+# The complex type of the extended location.
+extended_location: null
+# The FQDN subdomain of the private cluster with custom private dns zone.
+# This cannot be updated once the Managed Cluster has been created.
+fqdn_subdomain: null
+# Hosted system profile for the managed cluster. Used by AKS Automatic
+# clusters provisioned into a customer-owned (BYO) virtual network to
+# declare the subnets that the hosted system components use.
+hosted_system_profile: null
+# Cluster HTTP proxy configuration.
+http_proxy_config: null
+# The user identity associated with the managed cluster. This identity will
+# be used by the kubelet. Only one user assigned identity is allowed. The
+# only accepted key is "kubeletidentity", with value of "resourceId": "/subs
+# criptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Mi
+# crosoft.ManagedIdentity/userAssignedIdentities/{identityName}".
+identity_profile: null
+# Body-relative paths to ignore for each AzAPI resource, in dot notation.
+# Changes take effect only after apply, and ignored configuration is not
+# sent to Azure until the path is removed. Refused: ASO applies the whole
+# spec.
+ignore_body_changes: {}
+# Ingress profile for the container service cluster.
+ingress_profile: null
+# The kind of the managed cluster. This is only used to distinguish
+# different types of managed clusters. Possible values are 'Base' or can be
+# left null. This property is used internally.
+kind: null
+# Kube-proxy configuration for the managed cluster. This AKS feature is in
+# preview and requires the
+# `Microsoft.ContainerService/KubeProxyConfigurationPreview` subscription
+# feature.
+kube_proxy_config: null
+# The version of Kubernetes specified by the user. Both patch version
+# <major.minor.patch> (e.g. 1.20.13) and <major.minor> (e.g. 1.20) are
+# supported. When <major.minor> is specified, the latest supported GA patch
+# version is chosen automatically. Updating the cluster with the same
+# <major.minor> once it has been created (e.g. 1.14.x -> 1.14) will not
+# trigger an upgrade, even if a newer patch version is available. When you
+# upgrade a supported AKS cluster, Kubernetes minor versions cannot be
+# skipped. All upgrades must be performed sequentially by major version
+# number. For example, upgrades between 1.14.x -> 1.15.x or 1.15.x -> 1.16.x
+# are allowed, however 1.14.x -> 1.16.x is not allowed. See [upgrading an
+# AKS cluster](https://docs.microsoft.com/azure/aks/upgrade-cluster) for
+# more details.
+kubernetes_version: null
+# Profile for Linux VMs in the container service cluster.
+linux_profile: null
+# The location of the resource.
+location: ""
+# Controls the Resource Lock configuration for this resource. The following
+# properties can be specified:
+lock: null
+# Map of instances for the submodule with the following attributes:
+maintenanceconfiguration: {}
+# Controls the Managed Identity configuration on this resource. For this
+# resource we enable system assigned identity by default, This allows the
+# cluster to support deployment of managed resources. If you don't want to
+# use managed identity, then you must supply `service_principal_profile`.
+# Using managed identity is stringly recommended over service principal.
+managed_identities: {"system_assigned":true}
+# The metrics profile for the ManagedCluster.
+metrics_profile: null
+# The name of the resource.
+name: null
+# Map of instances for the submodule with the following attributes:
+namespace: {}
+# Profile of network configuration.
+network_profile: null
+# The nodeProvisioningProfile of the resource.
+node_provisioning_profile: null
+# The name of the resource group containing agent pool nodes.
+node_resource_group: null
+# Node resource group lockdown profile for a managed cluster.
+node_resource_group_profile: null
+# The OIDC issuer profile of the Managed Cluster.
+oidc_issuer_profile: null
+# Whether to enable recommended alerts. Set to false to disable alerts even
+# if monitoring is enabled and alert_email is provided. Refused when true:
+# not mapped yet.
+onboard_alerts: false
+# Whether to enable monitoring resources. Set to false to disable monitoring
+# even if workspace IDs are provided. Refused when true: not mapped yet.
+onboard_monitoring: false
+# The parent resource ID for this resource.
+parent_id: ""
+# The pod identity profile of the Managed Cluster. See [use AAD pod
+# identity](https://docs.microsoft.com/azure/aks/use-azure-ad-pod-identity)
+# for more details on pod identity integration.
+pod_identity_profile: null
+# A map of private endpoints to create on this resource. Refused: not mapped
+# yet.
+private_endpoints: {}
+# Whether to manage private DNS zone groups with this module. Accepted;
+# without private_endpoints it changes nothing.
+private_endpoints_manage_dns_zone_group: true
+# Private link resources associated with the cluster.
+private_link_resources: null
+# The monitor workspace resource ID for managed Prometheus. Refused: not
+# mapped yet.
+prometheus_workspace_id: null
+# PublicNetworkAccess of the managedCluster. Allow or deny public network
+# access for AKS
+public_network_access: null
+# AzAPI resource types and API versions used by this module. Refused: ASO's
+# kinds fix the API versions.
+resource_types: {}
+# Retry configuration applied to every AzAPI resource declared by this
+# module and cascaded to its submodules. Refused: ASO retries by itself.
+retry: null
+# A map of role assignments to create on the <RESOURCE>. The map key is
+# deliberately arbitrary to avoid issues where map keys maybe unknown at
+# plan time.
+role_assignments: {}
+# Security profile for the container service cluster.
+security_profile: null
+# Service mesh profile for a managed cluster.
+service_mesh_profile: null
+# Information about a service principal identity for the cluster to use for
+# manipulating Azure APIs.
+service_principal_profile: null
+# The SKU of a Managed Cluster.
+sku: null
+# Storage profile for the container service cluster.
+storage_profile: null
+# Different support tiers for AKS managed clusters
+support_plan: null
+# (Optional) Tags of the resource.
+tags: null
+# Per-operation timeouts applied to every AzAPI resource declared by this
+# module and cascaded to its submodules. Each value is a Go duration string,
+# for example `30m`. Refused: ASO has no per-request timeouts.
+timeouts: null
+# Settings for upgrading a cluster.
+upgrade_settings: null
+# Profile for Windows VMs in the managed cluster.
+windows_profile: null
+# (Optional) The Admin Password for Windows VMs. Length must be between 14
+# and 123 characters. Refused: a secret value.
+windows_profile_password: null
+# (Optional) The version of the Admin Password for Windows VM. Refused with
+# windows_profile_password.
+windows_profile_password_version: null
+# Workload Auto-scaler profile for the managed cluster.
+workload_auto_scaler_profile: null

@@ -1,0 +1,81 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's
+# net-lb-app-int-cross-region module (v60.0.0): same names, types and
+# defaults, so a module block's arguments become this file one to one
+# (README.md, "From Terraform"). values.schema.json carries the types.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.targetProxy and names.urlMap set those cloud names in full (else
+# fabric's: the proxy config's name, or name). Forwarding rules, service
+# attachments, backend services, health checks, groups and network
+# endpoint groups are named in their own entries (the entry's name, or
+# <name>-<key>, with the namePrefix).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the chart
+# derives or is given in an entry, never one set under names. Empty (the
+# default) changes nothing.
+namePrefix: ""
+# fabric's labels: Kubernetes labels on every object. An unprefixed key also
+# becomes a Google Cloud label (the forwarding rules take labels; the other
+# resources none), so it must be a valid one.
+labels: {}
+# Cloud labels on every resource that takes them (the forwarding rules).
+tags: {}
+
+# Optional IP addresses used for the forwarding rules, mapped by subnetwork
+# key.
+addresses: null
+# Backend service level configuration, by key.
+backend_service_configs: {}
+# Context-specific interpolations. Refused when set: Bundt expressions
+# (${...}) and valueFrom replace fabric's $context lookups.
+context: {}
+# Optional description used for resources.
+description: Terraform managed.
+# Optional unmanaged groups to create. Can be referenced in backends via key
+# or outputs.
+group_configs: {}
+# Optional auto-created health check configurations, by key. null (the
+# default) is fabric's default, {default: {http: {port_specification:
+# USE_SERVING_PORT}}}; {} creates none. (Helm merges a map given in values
+# into a map default, where Terraform replaces it, so the default is
+# applied by the chart.)
+health_check_configs: null
+# HTTP proxy configuration.
+http_proxy_config: {}
+# HTTPS proxy configuration.
+https_proxy_config: {}
+# Load balancer name.
+name: ""
+# Optional network endpoint groups to create. Can be referenced in backends
+# via key or outputs.
+neg_configs: {}
+# Optional ports for HTTP load balancer (at most one).
+ports: null
+# Project id.
+project_id: ""
+# Protocol supported by this load balancer: HTTP or HTTPS.
+protocol: HTTP
+# PSC service attachments, one per forwarding rule.
+service_attachment: null
+# Service directory namespace and service used to register this load
+# balancer. Refused when set: ComputeForwardingRule's
+# serviceDirectoryRegistrations takes a service only.
+service_directory_registration: null
+# The URL map configuration. null (the default) is fabric's default,
+# {default_service: default}. (Helm merges an object given in values into
+# an object default, where Terraform replaces it, so the default is applied
+# by the chart.)
+urlmap_config: null
+# VPC-level configuration: {network, subnetworks: {KEY: SUBNETWORK}}.
+vpc_config: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# load balancer's resources when the component is deleted. PREVENT has no
+# Config Connector equivalent.
+deletion_policy: null

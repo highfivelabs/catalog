@@ -1,0 +1,133 @@
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: health-check-external-bs-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "health-check-external"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-default"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP"
+  healthChecks:
+    - healthCheckRef:
+        external: "projects/myprj/global/healthChecks/custom"
+  backend:
+    - balancingMode: "UTILIZATION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        instanceGroupRef:
+          external: "projects/myprj/zones/europe-west1-a/instanceGroups/my-ig-ew1"
+    - balancingMode: "UTILIZATION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        instanceGroupRef:
+          external: "projects/myprj/zones/europe-west4-a/instanceGroups/my-ig-ew4"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: health-check-external-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "health-check-external"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-europe-west1"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+  target:
+    targetHTTPProxyRef:
+      name: health-check-external
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: health-check-external-fr-europe-west4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "health-check-external"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west4"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test-europe-west4"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+  target:
+    targetHTTPProxyRef:
+      name: health-check-external
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetHTTPProxy
+metadata:
+  name: health-check-external
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "health-check-external"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test"
+  location: global
+  description: "Terraform managed."
+  urlMapRef:
+    name: health-check-external
+---
+# Source: net-lb-app-int-cross-region/templates/urlmap.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeURLMap
+metadata:
+  name: health-check-external
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "health-check-external"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "url_map"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-test"
+  location: global
+  description: "Terraform managed."
+  defaultService:
+    backendServiceRef:
+      name: health-check-external-bs-default

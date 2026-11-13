@@ -1,0 +1,53 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: biglake-catalog
+spec:
+  version: "1.0.0"
+  components:
+    - name: biglake-catalog
+      package:
+        name: gcp-biglake-catalog
+        version: "0.1.0"
+      inputs:
+        name: my_catalog
+        location: US
+        databases:
+          my_database:
+            hive_options:
+              location_uri: gs://my-bucket/my-database-folder
+              parameters:
+                owner: John Doe
+            tables:
+              my_table:
+                hive_options:
+                  input_format: org.apache.hadoop.mapred.SequenceFileInputFormat
+                  location_uri: gs://my-bucket/my-table-folder
+                  output_format: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat
+                  parameters:
+                    owner: John Doe
+                    provider: iceberg
+                  table_type: MANAGED_TABLE
+                type: HIVE
+            type: HIVE
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: biglake-catalog
+  scope: my-team
+spec:
+  template: biglake-catalog
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: biglake-catalog-dev
+  scope: my-team/dev
+spec:
+  stack: biglake-catalog
+  version: "1.0.0"
+  components:
+    biglake-catalog:
+      values:
+        project_id: myproject

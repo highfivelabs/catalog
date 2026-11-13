@@ -1,0 +1,42 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-runtime/identity.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_service_account.service_account: an IAMServiceAccount when
+service_account_config.create and identity_type is SERVICE_ACCOUNT.
+google_project_iam_member.iam_member_sa: one IAMPolicyMember on the
+project per role in service_account_config.roles, the account as member.
+google_project_iam_member.iam_member_identity (the roles granted to the
+engine's agent identity) is not rendered: identity_type AGENT_IDENTITY is
+refused in agent.yaml.
+*/ -}}
+{{- if include "geapAgentRuntime.saCreate" . }}
+{{- $v := .Values }}
+{{- $sa := $v.service_account_config | default dict }}
+{{- $saName := include "kcc.name" (list .Release.Name "sa") }}
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $saName "id" "service_account" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "geapAgentRuntime.accountId" . }}
+  displayName: {{ $sa.display_name | default $sa.name | default $v.name | quote }}
+{{- range $role := (uniq ($sa.roles | default list) | sortAlpha) }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "sa" $role)) "id" (printf "iam-member-sa:%s" $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: {{ printf "projects/%s" $v.project_id | quote }}
+  role: {{ $role | quote }}
+  memberFrom:
+    serviceAccountRef:
+      name: {{ $saName }}
+{{- end }}
+{{- end }}

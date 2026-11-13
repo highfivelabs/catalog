@@ -1,0 +1,159 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-bastionhost main.tf,
+locals.tf, variables.tf and variables.interfaces.tf (v0.9.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azapi_resource.bastion and .bastion_developer: one ASO BastionHost, owned
+by the resource group parent_id names (Developer: the virtual network
+only; the others: one IP configuration, the flags, scale units and zones).
+module.public_ip_address (avm-res-network-publicipaddress 0.2.0, its
+defaults: a Standard, static IPv4 address): one ASO PublicIPAddress, which
+the IP configuration references by Kubernetes name.
+azurerm_management_lock.this and .pip: aso-extensions ManagementLocks.
+azurerm_role_assignment.this and .pip: ASO RoleAssignments, every entry
+on the host and on the public IP it makes, as the module does.
+azurerm_monitor_diagnostic_setting.this: ASO DiagnosticSettings, the
+destination type left to Azure, as the module leaves it. The telemetry is
+not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := "avm-res-network-bastionhost" }}
+{{- include "aso.names" (list $ (list "bastionHost")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $n) }}{{ end }}
+{{- $dev := eq $v.sku "Developer" }}
+{{- $std := has $v.sku (list "Standard" "Premium") }}
+{{- $ip := $v.ip_configuration }}
+{{- /* The module's validations. */ -}}
+{{- if and (not $v.copy_paste_enabled) (not $std) }}{{ fail (printf "%s: Copy-paste functionality is only available for the Standard and the Premium SKU." $n) }}{{ end }}
+{{- if and $v.file_copy_enabled (not $std) }}{{ fail (printf "%s: File copy functionality is only available for the Standard and the Premium SKU." $n) }}{{ end }}
+{{- if and $v.ip_connect_enabled (not $std) }}{{ fail (printf "%s: IP connect functionality is only available for the Standard and the Premium SKU." $n) }}{{ end }}
+{{- if and $v.shareable_link_enabled (not $std) }}{{ fail (printf "%s: Shareable link functionality is only available for the Standard and the Premium SKU." $n) }}{{ end }}
+{{- if and $v.kerberos_enabled $dev }}{{ fail (printf "%s: Kerberos authentication is not available for the Developer SKU." $n) }}{{ end }}
+{{- if and $v.private_only_enabled (ne $v.sku "Premium") }}{{ fail (printf "%s: Private only functionality is only available for Premium SKU." $n) }}{{ end }}
+{{- if and $v.session_recording_enabled (ne $v.sku "Premium") }}{{ fail (printf "%s: Session recording functionality is only availble for Premium SKU." $n) }}{{ end }}
+{{- if and $v.session_recording_enabled $v.tunneling_enabled }}{{ fail (printf "%s: Tunneling functionality is not compatible with session recording functionality." $n) }}{{ end }}
+{{- if not (or (and $dev (not $ip)) (and (not $dev) $ip)) }}{{ fail (printf "%s: The IP configuration is required for all skus other than the Developer SKU." $n) }}{{ end }}
+{{- if not (or (and $dev $v.virtual_network_id) (and (not $dev) (not $v.virtual_network_id))) }}{{ fail (printf "%s: The virtual_network_id is required for the Developer SKU (Only)." $n) }}{{ end }}
+{{- $zones := list }}
+{{- range ($v.zones | default list) }}{{ $zones = append $zones (toString .) }}{{ end }}
+{{- $zones = uniq $zones | sortAlpha }}
+{{- if and $dev $zones }}{{ fail (printf "%s: The Developer SKU does not support availability zones. Please set the zones to an empty list. zones = [  ]" $n) }}{{ end }}
+{{- $createPip := false }}
+{{- if $ip }}
+{{- $createPip = ne $ip.create_public_ip false }}
+{{- if and $v.private_only_enabled (or $createPip $ip.public_ip_address_id) }}{{ fail (printf "%s: Public IP must not be provided when private only is enabled." $n) }}{{ end }}
+{{- if and (not $v.private_only_enabled) (not $createPip) (not $ip.public_ip_address_id) }}{{ fail (printf "%s: Public IP address ID must be provided when create_public_ip is set to false." $n) }}{{ end }}
+{{- if and $createPip $ip.public_ip_address_id }}{{ fail (printf "%s: Both create_public_ip and public_ip_address_id cannot be supplied at the same time." $n) }}{{ end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "bastion") }}
+{{- $pobj := include "aso.name" (list .Release.Name "pip") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $owner := include "aso.owner" (list $ "parent_id" $v.parent_id) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: BastionHost
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "bastion_host" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "bastionHost" "bastion host" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- $owner | nindent 4 }}
+  sku:
+    name: {{ $v.sku }}
+  {{- if $dev }}
+  virtualNetwork:
+    reference:
+      armId: {{ $v.virtual_network_id | quote }}
+  {{- else }}
+  disableCopyPaste: {{ not $v.copy_paste_enabled }}
+  enableFileCopy: {{ $v.file_copy_enabled }}
+  enableIpConnect: {{ $v.ip_connect_enabled }}
+  enableKerberos: {{ $v.kerberos_enabled }}
+  enablePrivateOnlyBastion: {{ $v.private_only_enabled }}
+  enableSessionRecording: {{ $v.session_recording_enabled }}
+  enableShareableLink: {{ $v.shareable_link_enabled }}
+  enableTunneling: {{ $v.tunneling_enabled }}
+  ipConfigurations:
+    - name: {{ $ip.name | default (printf "ipconfig-%s" $v.name) | quote }}
+      privateIPAllocationMethod: Dynamic
+      {{- if $createPip }}
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: {{ $pobj }}
+      {{- else if and $ip.public_ip_address_id (not $v.private_only_enabled) }}
+      publicIPAddress:
+        reference:
+          armId: {{ $ip.public_ip_address_id | quote }}
+      {{- end }}
+      subnet:
+        reference:
+          armId: {{ $ip.subnet_id | quote }}
+  scaleUnits: {{ $v.scale_units | int }}
+  {{- with $zones }}
+  zones:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $bowner := dict "group" "network.azure.com" "kind" "BastionHost" "name" $obj }}
+{{- $notes := "" }}
+{{- with $v.lock }}
+{{- $notes = ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $bowner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" .kind)) "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $bowner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $bowner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}
+{{- if $createPip }}
+{{- $ptags := dict }}
+{{- if kindIs "map" $ip.public_ip_tags }}
+{{- if ne $ip.public_ip_merge_with_module_tags false }}
+{{- $ptags = merge (deepCopy $ip.public_ip_tags) ($v.tags | default dict) }}
+{{- else }}
+{{- $ptags = $ip.public_ip_tags }}
+{{- end }}
+{{- else if ne $ip.public_ip_merge_with_module_tags false }}
+{{- $ptags = $v.tags | default dict }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pobj "id" "public_ip" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "public IP" ($ip.public_ip_address_name | default (printf "pip-%s" $v.name)) 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- $owner | nindent 4 }}
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  {{- with $zones }}
+  zones:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $ptags }}
+  tags:
+    {{- range $tk, $tv := . }}
+    {{ $tk | quote }}: {{ toString $tv | quote }}
+    {{- end }}
+  {{- end }}
+{{- $powner := dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" $pobj }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $pobj "idPrefix" "pip-" "owner" $powner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s-pip" .kind)) "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pobj "idPrefix" "pip-" "owner" $powner "v" $v.role_assignments) }}
+{{- end }}

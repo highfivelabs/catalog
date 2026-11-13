@@ -1,0 +1,77 @@
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupPlan
+metadata:
+  name: mock-plan-catalog-mock-plan
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backup_plan:catalog-mock-plan"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "catalog-mock-plan"
+  resourceType: "compute.googleapis.com/Instance"
+  backupVaultRef:
+    name: mock-vault
+  backupRules:
+    - ruleID: "daily"
+      backupRetentionDays: 7
+      standardSchedule:
+        recurrenceType: "DAILY"
+        timeZone: "UTC"
+        backupWindow:
+          startHourOfDay: 1
+          endHourOfDay: 5
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupVault
+metadata:
+  name: mock-vault
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backup_vault"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "catalog-mock-vault"
+  backupMinimumEnforcedRetentionDuration: "100000s"
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.gcp.hfl.dev/v1beta1
+kind: BackupDRManagementServer
+metadata:
+  name: mock-management-server
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "management_server"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "catalog-mock-ms"
+  type: "BACKUP_RESTORE"
+  networks:
+    - network: "projects/mock-project/global/networks/default"
+      peeringMode: "PRIVATE_SERVICE_ACCESS"

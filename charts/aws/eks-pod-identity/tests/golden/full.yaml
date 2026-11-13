@@ -1,0 +1,102 @@
+---
+# Source: eks-pod-identity/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: full-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: eks-pod-identity
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "full"
+  path: "/eks/"
+  description: "Pod identity for the app"
+  maxSessionDuration: 7200
+  permissionsBoundary: "arn:aws:iam::111122223333:policy/boundary"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\",\"sts:TagSession\"],\"Condition\":{\"StringEquals\":{\"aws:SourceAccount\":[\"111122223333\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"pods.eks.amazonaws.com\"]}},{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:role/ci\"]},\"Sid\":\"Ci\"}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::111122223333:policy/eks/full"
+    - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+  tags:
+    - key: "Environment"
+      value: "prod"
+---
+# Source: eks-pod-identity/templates/associations.yaml
+apiVersion: eks.services.k8s.aws/v1alpha1
+kind: PodIdentityAssociation
+metadata:
+  name: full-association-web
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: eks-pod-identity
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "association-web"
+    services.k8s.aws/region: "us-west-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  clusterName: "prod"
+  namespace: "app"
+  serviceAccount: "web"
+  roleRef:
+    from:
+      name: full-role
+  tags:
+    "Default": "yes"
+    "Environment": "prod"
+    "Tier": "web"
+---
+# Source: eks-pod-identity/templates/associations.yaml
+apiVersion: eks.services.k8s.aws/v1alpha1
+kind: PodIdentityAssociation
+metadata:
+  name: full-association-worker
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: eks-pod-identity
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "association-worker"
+    services.k8s.aws/region: "us-west-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  clusterName: "prod"
+  namespace: "jobs"
+  serviceAccount: "worker"
+  roleRef:
+    from:
+      name: full-role
+  targetRoleARN: "arn:aws:iam::444455556666:role/target"
+  disableSessionTags: true
+  tags:
+    "Default": "yes"
+    "Environment": "prod"
+---
+# Source: eks-pod-identity/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: eks-pod-identity
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "full"
+  path: "/eks/"
+  description: "The app's policy"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"s3:GetObject\"],\"Condition\":{\"StringEquals\":{\"s3:ExistingObjectTag/team\":[\"app\"]}},\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::app/*\"],\"Sid\":\"Read\"},{\"Action\":\"sqs:SendMessage\",\"Effect\":\"Deny\",\"Resource\":\"*\",\"Sid\":\"Keep\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Environment"
+      value: "prod"

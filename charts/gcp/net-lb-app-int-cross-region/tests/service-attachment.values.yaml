@@ -1,0 +1,32 @@
+# fabric's README, "PSC service attachment", without domain_name and
+# reconcile_connections, which ComputeServiceAttachment has no fields for
+# (refused: tests/attachment-domain.fail.yaml).
+name: ilb-test
+project_id: my-project
+backend_service_configs:
+  default:
+    backends:
+      - group: neg-ew1
+      - group: neg-ew4
+    health_checks: []
+health_check_configs: {}
+neg_configs:
+  neg-ew1:
+    cloudrun:
+      region: europe-west1
+      target_service: {name: my-run-service-ew1}
+  neg-ew4:
+    cloudrun:
+      region: europe-west4
+      target_service: {name: my-run-service-ew4}
+vpc_config:
+  network: projects/my-project/global/networks/my-vpc
+  subnetworks:
+    europe-west1: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+    europe-west4: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
+service_attachment:
+  nat_subnets:
+    europe-west1: [projects/my-project/regions/europe-west1/subnetworks/psc-1]
+    europe-west4: [projects/my-project/regions/europe-west4/subnetworks/psc-2]
+  consumer_accept_lists:
+    my-project: 10
