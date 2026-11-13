@@ -12,7 +12,13 @@ builds (_site.tpl, site.body with slot true) and its app settings and
 metadata inline, as the site's. Its lock (the entry's, else the site's when
 deployment_slots_inherit_lock) and role assignments: the AVM interfaces on
 the slot. module.slot_hostname_binding: one aso-extensions
-SitesSlotsHostNameBinding per entry of a slot's custom_domains.
+SitesSlotsHostNameBinding per entry of a slot's custom_domains. The slot
+module's private endpoints (its avm_interfaces, scoped to the site): one
+ASO PrivateEndpoint per entry of a slot's private_endpoints to the site's
+sites-<slot> subresource (subresource_name, by default), named as the
+site's are (pep-<subresource>-<uuidv5 of the site's ID>), with its DNS zone
+group, its lock (the entry's, else the slot's when
+private_endpoints_inherit_lock) and role assignments.
 */ -}}
 {{- $v := .Values }}
 {{- $n := .Chart.Name }}
@@ -24,7 +30,6 @@ SitesSlotsHostNameBinding per entry of a slot's custom_domains.
 {{- $p := printf "deployment_slots.%s" $key }}
 {{- include "aso.unsupported" (list $ (printf "%s.connection_strings" $p) $in.connection_strings "a connection string's value is a secret (ASO's siteConfig.connectionStrings takes it in plain text); how a component supplies one is the builder's decision") }}
 {{- include "aso.unsupported" (list $ (printf "%s.storage_shares_to_mount" $p) $in.storage_shares_to_mount "each mount needs the storage account's access key (slots_storage_shares_to_mount_sensitive_values), a secret value; how a component supplies one is the builder's decision") }}
-{{- include "aso.unsupported" (list $ (printf "%s.private_endpoints" $p) $in.private_endpoints "a slot's private endpoints (subresource sites-<slot>) are not mapped yet; the site's private_endpoints are") }}
 {{- include "aso.unsupported" (list $ (printf "%s.zip_deploy_file" $p) $in.zip_deploy_file "a zip deploy uploads a local file to the slot's Kudu (extensions/zipDeploy), application code a Package does not carry") }}
 {{- with $in.site_config }}
 {{- include "aso.unsupported" (list $ (printf "%s.site_config.application_insights_connection_string" $p) .application_insights_connection_string "the Application Insights connection string, which the module marks sensitive as application_insights_connection_string; a secret value is the builder's decision") }}
@@ -73,6 +78,88 @@ spec:
 {{- if and (not $lock) (eq (toString $v.deployment_slots_inherit_lock) "true") }}{{ $lock = $v.lock }}{{ end }}
 {{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" (printf "slot:%s/" $key) "owner" $owner "v" $lock) }}
 {{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "slot:%s/" $key) "owner" $owner "v" $s.role_assignments) }}
+{{- $siteId := printf "%s/providers/Microsoft.Web/sites/%s" $v.parent_id (include "site.siteName" $) }}
+{{- range $k, $pe := ($s.private_endpoints | default dict) }}
+{{- $sr := $pe.subresource_name | default (printf "sites-%s" $name) }}
+{{- $computed := printf "pep-%s-%s" $sr (include "site.uuidv5" $siteId) }}
+{{- $peName := $pe.name | default $computed }}
+{{- $nic := $pe.network_interface_name | default (ternary (printf "nic-%s--%s" $sr $pe.name) (printf "nic-%s" $computed) (not (empty $pe.name))) }}
+{{- $psc := $pe.private_service_connection_name | default (ternary (printf "pcon-%s-%s" $sr $pe.name) (printf "pcon-%s" $computed) (not (empty $pe.name))) }}
+{{- $parent := $v.parent_id }}
+{{- with $pe.resource_group_name }}
+{{- $parent = ternary . (printf "%s/resourceGroups/%s" (regexFind "^/subscriptions/[^/]+" (toString $v.parent_id)) .) (hasPrefix "/subscriptions/" .) }}
+{{- end }}
+{{- $peObj := include "aso.name" (list $obj "pe" $k) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $peObj "id" (printf "slot:%s/private_endpoint:%s" $key $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $peName | quote }}
+  location: {{ $pe.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "%s.private_endpoints.%s.resource_group_name" $p $k) $parent) | nindent 4 }}
+  {{- with $pe.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $_, $id := . }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  customNetworkInterfaceName: {{ $nic | quote }}
+  {{- with $pe.ip_configurations }}
+  ipConfigurations:
+    {{- range $_, $c := . }}
+    - name: {{ $c.name | quote }}
+      groupId: {{ $sr | quote }}
+      memberName: {{ $c.member_name | default (printf "sites-%s" $name) | quote }}
+      privateIPAddress: {{ $c.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $psc | quote }}
+      groupIds:
+        - {{ $sr | quote }}
+      privateLinkServiceReference:
+        group: web.azure.com
+        kind: Site
+        name: {{ $site }}
+  subnet:
+    reference:
+      armId: {{ $pe.subnet_resource_id | quote }}
+  {{- with $pe.tags }}
+  tags:
+    {{- range $tk, $tv := . }}
+    {{ $tk | quote }}: {{ toString $tv | quote }}
+    {{- end }}
+  {{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $peObj }}
+{{- $group := $pe.private_dns_zone_group_name | default "default" }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $pe.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $peObj "dns")) "id" (printf "slot:%s/private_endpoint:%s/dns_zone_group" $key $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $group | quote }}
+  owner:
+    name: {{ $peObj }}
+  privateDnsZoneConfigs:
+    {{- range (uniq $pe.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ $group | quote }}
+      privateDnsZoneReference:
+        armId: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- $peLock := $pe.lock }}
+{{- if and (not $peLock) (eq (toString $v.private_endpoints_inherit_lock) "true") }}{{ $peLock = $lock }}{{ end }}
+{{- with $peLock }}
+{{- include "aso.lock" (dict "root" $ "base" $peObj "idPrefix" (printf "slot:%s/private_endpoint:%s/" $key $k) "owner" $peOwner "v" (dict "kind" .kind "name" .name "notes" .notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $peObj "idPrefix" (printf "slot:%s/private_endpoint:%s/" $key $k) "owner" $peOwner "v" $pe.role_assignments) }}
+{{- end }}
 {{- range $dk, $d := ($s.custom_domains | default dict) }}
 {{- if and $d.thumbprint $d.certificate_key }}{{ fail (printf "%s: Each `custom_domains` entry must set at most one of `thumbprint` or `certificate_key`." $n) }}{{ end }}
 {{- include "aso.unsupported" (list $ (printf "%s.custom_domains.%s.certificate_key" $p $dk) $d.certificate_key "the binding takes the certificate's thumbprint, which Azure computes when it makes the certificate and a render cannot read; set thumbprint (the certificate's status.thumbprint)") }}

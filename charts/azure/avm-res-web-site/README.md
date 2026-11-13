@@ -34,6 +34,7 @@ true` is required (below).
 | `module.slot` | one per `deployment_slots` entry | aso-extensions `SitesSlot` (`web.azure.hfl.dev/v20260715`), `slot:<key>`, owned by the `Site`, its app settings and metadata inline; its lock `slot:<key>/lock` and role assignments `slot:<key>/role-assignment-<k>` |
 | `module.hostname_binding` | one per `custom_domains` entry | aso-extensions `SitesHostNameBinding`, `hostname_binding:<key>`, named for the hostname |
 | `module.slot_hostname_binding` | one per slot `custom_domains` entry | aso-extensions `SitesSlotsHostNameBinding`, `slot:<key>/hostname_binding:<k>` |
+| the slot module's `azapi_resource.private_endpoint`, `.private_dns_zone_group`, `.lock_private_endpoint`, `.role_assignment_private_endpoint` | one per slot `private_endpoints` entry | ASO `PrivateEndpoint`, `slot:<key>/private_endpoint:<k>`, to the `Site`'s `sites-<slot name>` subresource (unless `subresource_name`; members `sites-<slot name>` unless given), named as the site's endpoints are; its zone group, lock (its own, else the slot's when `private_endpoints_inherit_lock`) and role assignments under `slot:<key>/private_endpoint:<k>/` |
 | `module.certificate` | one per `certificates` entry | aso-extensions `Certificate`, `certificate:<key>`, in the resource group, on the site's plan, from Key Vault |
 | `azapi_resource.private_endpoint`, `.private_dns_zone_group` | one per `private_endpoints` entry | ASO `PrivateEndpoint` (`network.azure.com/v20250301`), `private_endpoint:<key>`, to the `Site` (subresource `sites`), with the interfaces module's names; `PrivateEndpointsPrivateDnsZoneGroup` when it has zones and `private_endpoints_manage_dns_zone_group` |
 | `azapi_resource.lock`, `.lock_private_endpoint` | `lock` set | aso-extensions `ManagementLock`, `lock` (and `private_endpoint:<key>/lock`), named `lock-<kind>` by default |
@@ -100,7 +101,7 @@ module's `ignore_null_property`.
 | `scm_publish_basic_authentication_enabled` (in part) | gap | `false` is refused (the `scm` policy) |
 | `delete_empty_service_plan` (in part) | gap | `false` is refused: ASO sends no `deleteEmptyServerFarm` |
 | `site_config` (in part) | not-ported | `application_insights_connection_string`, `application_insights_key`: secret values |
-| `deployment_slots` (in part) | not-ported | a slot must set `ftp_publish_basic_authentication_enabled` and `webdeploy_publish_basic_authentication_enabled` to `true`; its `connection_strings`, `storage_shares_to_mount`, `private_endpoints` (not mapped yet), `zip_deploy_file`, `site_config.application_insights_*` and `custom_domains.*.certificate_key` are refused |
+| `deployment_slots` (in part) | not-ported | a slot must set `ftp_publish_basic_authentication_enabled` and `webdeploy_publish_basic_authentication_enabled` to `true`; its `connection_strings`, `storage_shares_to_mount`, `zip_deploy_file`, `site_config.application_insights_*` and `custom_domains.*.certificate_key` are refused |
 | `certificates` (in part) | not-ported | `pfx_blob`, `password`: secret material. Use Key Vault |
 | `custom_domains` (in part) | not-ported | `certificate_key`: the binding takes the thumbprint Azure computes for the certificate, which a render cannot read; set `thumbprint` |
 
@@ -173,4 +174,7 @@ live rules forbid (docs/azure.md, "8. Charts").
 
 ## Changes
 
+- **0.2.0** (2026-11-13): a deployment slot's `private_endpoints` render
+  ASO `PrivateEndpoint`s to the site's `sites-<slot>` subresource, with
+  their DNS zone groups, locks and role assignments.
 - **0.1.0** (2026-11-13): the port.

@@ -589,6 +589,8 @@ the fake does not compute a site's `defaultHostName` or
 `customDomainVerificationId`, so `resource_uri` and
 `custom_domain_verification_id` were null there (a gap for aso-extensions'
 `pkg/fakecloud/arm/computed.go`).
+From 0.2.0 (2026-11-13) a deployment slot's private endpoints are mapped
+too (to the site's `sites-<slot>` subresource).
 
 ### 23. avm-res-network-privateendpoint (v0.3.1; azapi)
 
