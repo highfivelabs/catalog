@@ -5,10 +5,11 @@
 # Apply the Azure charts (avm-res-network-virtualnetwork,
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
-# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
+# avm-res-network-natgateway, avm-res-network-publicipaddress,
+# avm-res-dbforpostgresql-flexibleserver) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip psql)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -45,7 +46,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip psql}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -135,7 +136,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*' \
+  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;dbforpostgresql.azure.com/*' \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -149,7 +150,10 @@ kubectl -n azureserviceoperator-system rollout status deployment azureserviceope
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
-    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    flexibleservers.dbforpostgresql.azure.com flexibleserversdatabases.dbforpostgresql.azure.com \
+    flexibleserversfirewallrules.dbforpostgresql.azure.com flexibleserversconfigurations.dbforpostgresql.azure.com \
+    flexibleserversadministrators.dbforpostgresql.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -227,6 +231,35 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# The smallest server (Burstable B1ms, 32 GiB, no high availability), Entra
+# authentication only (the chart takes no password), with a database, a
+# firewall rule for one documentation address (TEST-NET-3), a server
+# parameter and the live identity itself as its Entra administrator (a
+# PostgreSQL role on this server, not an Azure role assignment; its object
+# ID is the oid of the identity's own token). AZURE_LIVE_PSQL_LOCATION
+# overrides the region (PostgreSQL is offered per region per subscription).
+SP_OID="$(arm_token | cut -d. -f2 | tr '_-' '/+' | awk '{ n = length($0) % 4; if (n) $0 = $0 substr("===", 1, 4 - n); print }' | base64 -d | jq -er .oid)"
+cat >"${WORK}/psql.yaml" <<EOF
+name: ${RUN}-psql
+location: ${AZURE_LIVE_PSQL_LOCATION:-${LOCATION}}
+resource_group_name: ${RG}
+sku_name: B_Standard_B1ms
+server_version: "16"
+storage_mb: 32768
+high_availability: null
+maintenance_window: null
+public_network_access_enabled: true
+authentication: {active_directory_auth_enabled: true, password_auth_enabled: false, tenant_id: ${AZURE_TENANT_ID}}
+tags: {catalog-run: ${RUN}}
+databases:
+  app: {name: app}
+firewall_rules:
+  doc: {name: doc-net, start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.10}
+server_configuration:
+  slow: {name: log_min_duration_statement, config: "1000"}
+ad_administrator:
+  live: {tenant_id: ${AZURE_TENANT_ID}, object_id: ${SP_OID}, principal_name: aso-extensions-live-tests, principal_type: ServicePrincipal}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -240,7 +273,7 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress; do
+    pip:avm-res-network-publicipaddress psql:avm-res-dbforpostgresql-flexibleserver; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"

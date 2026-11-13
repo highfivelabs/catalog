@@ -447,6 +447,13 @@ The ARM side is covered. Database users are the data plane: `aso-ext`
 `dbforpostgresql.azure.hfl.dev/User` (Entra principals, privileges, schema
 and default privileges, ownership).
 
+Charted as `charts/azure/avm-res-dbforpostgresql-flexibleserver`
+(2026-11-12): 36 of 40 variables and 6 of 6 outputs, private endpoints
+included. The administrator password (`administrator_password` and its
+write-only pair) is refused: a secret value does not belong in a
+component's inputs, so a server the chart creates uses Entra
+authentication only (section 8).
+
 ### 18. avm-res-cognitiveservices-account (v0.11.1)
 
 | Submodule | ARM types | ASO (2025-06-01) |
@@ -760,6 +767,25 @@ and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
 Azure answering 404, nothing left.
+
+The PostgreSQL flexible server (`avm-res-dbforpostgresql-flexibleserver`,
+case `psql`: Burstable B1ms, 32 GiB, Entra authentication only, a
+database, a firewall rule for one documentation address, a server
+parameter, and the live identity itself as its Entra administrator, a
+PostgreSQL role on the server and not an Azure role assignment) passed in
+run `cat11130237573e` in centralus: 5 objects Ready, outputs evaluated
+(the FQDN among them), deleted, Azure answering 404. eastus2, the runs'
+default region, refuses the SKU for this subscription ("Specified SKU is
+not supported in this region"), so the case takes
+`AZURE_LIVE_PSQL_LOCATION` (`centralus`). Run `cat11130155a5d6` found that
+Azure cannot delete a server parameter (it goes with the server), so the
+chart's `FlexibleServersConfiguration` is always detached on delete.
+Against the fake cloud (PR #98's `hack/azure-mock.sh`, aso-extensions
+`b9beb5b`, `dbforpostgresql.azure.com/*` added to its CRD pattern; run
+`off-catalog-1113011910-13823`) all 5 objects became Ready and were
+deleted, but the outputs did not evaluate: the fake Resource Manager does
+not compute a server's `fullyQualifiedDomainName` (a gap for
+aso-extensions' `pkg/fakecloud/arm/computed.go`).
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
