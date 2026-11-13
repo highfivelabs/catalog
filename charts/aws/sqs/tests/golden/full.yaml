@@ -1,0 +1,28 @@
+---
+# Source: sqs/templates/queue.yaml
+apiVersion: sqs.services.k8s.aws/v1alpha1
+kind: Queue
+metadata:
+  name: full-queue
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: sqs
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "queue"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  queueName: "full"
+  delaySeconds: "5"
+  kmsDataKeyReusePeriodSeconds: "3600"
+  kmsMasterKeyID: "alias/sqs-full"
+  maximumMessageSize: "2048"
+  messageRetentionPeriod: "86400"
+  policy: "{\"Statement\":[{\"Action\":\"sqs:GetQueueAttributes\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::111122223333:root\"},\"Resource\":\"*\",\"Sid\":\"Source\"},{\"Action\":\"sqs:ReceiveMessage\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Resource\":\"*\",\"Sid\":\"Replaced\"},{\"Action\":[\"sqs:*\"],\"Condition\":{\"Bool\":{\"aws:SecureTransport\":[\"true\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"arn:aws:iam::111122223333:root\"]},\"Resource\":[\"*\"],\"Sid\":\"account\"},{\"Action\":[\"sqs:SendMessage\"],\"Condition\":{\"ArnEquals\":{\"aws:SourceArn\":[\"arn:aws:sns:us-east-1:111122223333:full\"]}},\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"sns.amazonaws.com\"]},\"Resource\":[\"arn:aws:sqs:us-east-1:111122223333:full\"],\"Sid\":\"SNSPublish\"}],\"Version\":\"2012-10-17\"}"
+  receiveMessageWaitTimeSeconds: "20"
+  redrivePolicy: "{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:111122223333:full-dlq\",\"maxReceiveCount\":3}"
+  visibilityTimeout: "60"
+  tags:
+    "Environment": "dev"
