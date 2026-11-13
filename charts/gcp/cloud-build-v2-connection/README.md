@@ -135,15 +135,16 @@ and `mock`, each validated against Config Connector's CRDs and those in
 `tests/*.fail.yaml`.
 
 Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a GitHub
-connection in `us-central1`. On 2026-11-12 (offload VM
-`off-catalog-1113032030-7592`; config-connector-extensions `0ee17dd4`) the
-connection became Ready, the outputs evaluated (`id` set; no repositories
-or triggers in the case) and it was deleted. mockgcp reads neither the
-secret version nor the app installation, so a credential that does not
-exist passes there and fails in the real cloud. The case has no `iam`: in
-an earlier run (`off-catalog-1113030045-30049`) mockgcp answered
-`getIamPolicy` on a connection with 404, so the `IAMBinding`s are only
-render-tested. Repositories and triggers (on the `v1alpha1`
+connection in `us-central1` and a role on it (`iam`). On 2026-11-13
+(offload VM `off-catalog-1113061109-28826`; config-connector-extensions `35833eb8`, whose fake
+cloud serves `getIamPolicy` on a connection) the connection and its
+`IAMBinding` became Ready, the outputs evaluated (`id` set; no
+repositories or triggers in the case) and both were deleted. mockgcp
+reads neither the secret version nor the app installation, so a
+credential that does not exist passes there and fails in the real cloud.
+The `iam_by_principals`, `iam_bindings` and `iam_bindings_additive`
+variables render the same `IAMBinding` kind (or the `v1alpha1`
+`IAMMember`) and are only render-tested. Repositories and triggers (on the `v1alpha1`
 `CloudBuildRepository`) and the `IAMMember`s (`v1alpha1`) are only
 render-tested: alpha features are not in fake-cloud cases.
 
