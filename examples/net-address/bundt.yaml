@@ -1,0 +1,47 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-address
+spec:
+  version: "1.0.0"
+  components:
+    - name: addresses
+      package:
+        name: gcp-net-address
+        version: "0.1.0"
+      inputs:
+        external_addresses:
+          one:
+            region: europe-west1
+        internal_addresses:
+          ilb-1:
+            purpose: SHARED_LOADBALANCER_VIP
+            region: europe-west1
+            subnetwork: projects/my-project/regions/europe-west1/subnetworks/default
+        psc_addresses:
+          googleapis:
+            address: 10.0.0.32
+            network: projects/my-project/global/networks/my-network
+            service_attachment:
+              psc_service_attachment_link: all-apis
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-address
+  scope: my-team
+spec:
+  template: net-address
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-address-dev
+  scope: my-team/dev
+spec:
+  stack: net-address
+  version: "1.0.0"
+  components:
+    addresses:
+      values:
+        project_id: my-project

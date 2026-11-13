@@ -1,0 +1,66 @@
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: tcp-port
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tcp-port"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-tcp"
+  location: "europe-west1"
+  description: "Terraform managed."
+  loadBalancingScheme: EXTERNAL
+  protocol: "UNSPECIFIED"
+  healthChecks:
+    - healthCheckRef:
+        name: tcp-port
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: tcp-port-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tcp-port"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-tcp"
+  location: "europe-west1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: tcp-port
+  loadBalancingScheme: EXTERNAL
+  allPorts: true
+---
+# Source: net-lb-ext/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: tcp-port
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tcp-port"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-tcp"
+  location: "europe-west1"
+  description: "Terraform managed."
+  tcpHealthCheck:
+    port: 80

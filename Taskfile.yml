@@ -19,16 +19,17 @@ vars:
   LIVE_SA: '{{.GCP_LIVE_SA}}'
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
-  CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
+  CCE_COMMIT: 11baa460f60ad9f9345cefcb6f2b594a95ce0568
   # The offramp's root modules, one per directory, relative to this
   # repository (offramp/fixtures until they move to the
   # terraform-offramp-demo repository's layout).
   FIXTURES: '{{.FIXTURES | default "offramp/fixtures"}}'
   CCE_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
-  # ack-extensions at this commit supplies the fake AWS (moto), its
-  # no-real-AWS guard and its kinds for the AWS charts' fake-AWS runs; the
-  # CRDs in crds/ack-extensions are copied from the same commit.
-  ACKX_COMMIT: 52556a276e902db1c835e2f7cd3b3d034f0465e8
+  # ack-extensions at this commit supplies the fakes (AWS Emulator's pinned
+  # package and moto), the no-real-AWS guard and its kinds for the AWS
+  # charts' fake-AWS runs; crds/ack-extensions/README.md says which commit
+  # each copied CRD comes from.
+  ACKX_COMMIT: 74d322ff304f19badbc121e0d8769dc28e416342
   ACKX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/ackx-{{.ACKX_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
@@ -167,7 +168,7 @@ tasks:
     status:
       - gcloud storage ls {{.CCE_TARBALL}}
     cmds:
-      - git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}
+      - bash -c 'set -o pipefail; git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}'
 
   test-mock:
     desc: Apply each chart's tests/mock.values.yaml to the fake cloud on an offload VM (MOCK_CHARTS="gcs net-vpc" for some)
@@ -183,10 +184,10 @@ tasks:
     status:
       - gcloud storage ls {{.ACKX_TARBALL}}
     cmds:
-      - git -C ../ack-extensions archive --format=tar.gz {{.ACKX_COMMIT}} | gcloud storage cp --quiet - {{.ACKX_TARBALL}}
+      - bash -c 'set -o pipefail; git -C ../ack-extensions archive --format=tar.gz {{.ACKX_COMMIT}} | gcloud storage cp --quiet - {{.ACKX_TARBALL}}'
 
   test-mock-aws:
-    desc: Apply each AWS chart's tests/mock.values.yaml to the fake AWS (the pinned ACK controllers and ack-extensions against moto, on kind) on an offload VM (MOCK_CHARTS="vpc kms" for some)
+    desc: Apply each AWS chart's tests/mock.values.yaml to a fake AWS (the pinned ACK controllers and ack-extensions on kind, against AWS Emulator first and moto for what fails there) on an offload VM (MOCK_CHARTS="vpc kms" for some, MOCK_BACKENDS="moto" for one fake)
     deps: [test, ackx-snapshot]
     cmds:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env ACKX_TARBALL={{.ACKX_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply-aws.sh'
