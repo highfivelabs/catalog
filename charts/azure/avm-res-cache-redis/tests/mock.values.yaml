@@ -1,0 +1,21 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
+# Premium cache with a system-assigned identity, a patch schedule, an
+# access policy and its assignment, and a firewall rule, in the fake
+# cloud's resource group.
+name: catalog-redis
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+sku_name: Premium
+capacity: 1
+zones: []
+managed_identities: {system_assigned: true}
+redis_configuration: {active_directory_authentication_enabled: true, maxmemory_policy: allkeys-lru}
+tags: {catalog: mock}
+patch_schedule:
+  - {day_of_week: Sunday, start_hour_utc: 2}
+cache_access_policies:
+  reader: {name: catalog-reader, permissions: "+@read +@connection"}
+cache_access_policy_assignments:
+  app: {name: catalog-app, access_policy_name: catalog-reader, object_id: 22222222-3333-4444-5555-666666666666, object_id_alias: catalog-app}
+cache_firewall_rules:
+  doc: {name: docnet, start_ip: 203.0.113.10, end_ip: 203.0.113.10}
