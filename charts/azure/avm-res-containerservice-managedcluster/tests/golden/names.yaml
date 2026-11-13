@@ -1,0 +1,59 @@
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20260501
+kind: ManagedCluster
+metadata:
+  name: names-aks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "managed_cluster"
+spec:
+  addonProfiles:
+    azurepolicy:
+      enabled: false
+  agentPoolProfiles:
+  - count: 3
+    mode: System
+    name: systempool
+    osType: Linux
+    tags:
+      team: shop
+  azureName: aks-shop-dev-eus2
+  disableLocalAccounts: false
+  dnsPrefix: 3af7a53f83
+  identity:
+    type: SystemAssigned
+  location: eastus2
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev
+  tags:
+    team: shop
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: names-default-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "default_agent_pool"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "systempool"
+  owner:
+    name: names-aks
+  count: 3
+  mode: System
+  osType: Linux
+  tags:
+    team: shop

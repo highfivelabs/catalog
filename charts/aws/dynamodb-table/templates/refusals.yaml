@@ -1,0 +1,31 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+The module variables this chart keeps in its values but cannot carry
+(upstream.yaml, "refused"): each stops the render, naming the gap, when it
+is set to anything but its Terraform default. Renders nothing.
+*/ -}}
+{{- $v := .Values }}
+{{- $aas := "the module's Application Auto Scaling targets and policies (applicationautoscaling-controller's ScalableTarget and ScalingPolicy) are not ported yet" }}
+{{- include "ack.unsupported" (list $ "autoscaling_enabled" $v.autoscaling_enabled $aas) }}
+{{- include "ack.unsupported" (list $ "autoscaling_indexes" $v.autoscaling_indexes $aas) }}
+{{- include "ack.unsupported" (list $ "autoscaling_read" $v.autoscaling_read $aas) }}
+{{- include "ack.unsupported" (list $ "autoscaling_write" $v.autoscaling_write $aas) }}
+{{- include "ack.unsupported" (list $ "global_table_witness" $v.global_table_witness "ACK's Table (dynamodb-controller v1.14.2) has no witness region field (multi-Region strong consistency)") }}
+{{- include "ack.unsupported" (list $ "ignore_changes_global_secondary_index" $v.ignore_changes_global_secondary_index "ACK has no way to leave a table's global secondary indexes alone: the controller reconciles them to the spec") }}
+{{- include "ack.unsupported" (list $ "import_table" $v.import_table "ACK's Table has no import from S3 (ImportTable) field") }}
+{{- range $k := list "restore_date_time" "restore_source_name" "restore_source_table_arn" "restore_to_latest_time" }}
+{{- include "ack.unsupported" (list $ $k (index $v $k) "ACK's Table has no restore from a point in time or a backup") }}
+{{- end }}
+{{- include "ack.unsupported" (list $ "warm_throughput" $v.warm_throughput "ACK's Table (dynamodb-controller v1.14.2) has no warm throughput field") }}
+{{- range $i, $g := ($v.global_secondary_indexes | default list) }}
+{{- include "ack.unsupported" (list $ (printf "global_secondary_indexes[%d].warm_throughput" $i) $g.warm_throughput "ACK's Table has no warm throughput field") }}
+{{- end }}
+{{- range $i, $r := ($v.replica_regions | default list) }}
+{{- range $f := list "propagate_tags" "point_in_time_recovery" "deletion_protection_enabled" "consistency_mode" }}
+{{- if not (kindIs "invalid" (index $r $f)) }}
+{{- fail (printf "dynamodb-table: replica_regions[%d].%s is not supported: ACK's Table replicas take a region, a KMS key, a table class and throughput overrides only (docs/aws.md)" $i $f) }}
+{{- end }}
+{{- end }}
+{{- end }}

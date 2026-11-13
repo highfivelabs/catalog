@@ -1,0 +1,25 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# table outputs, from the live Table (resources.table). Terraform's id of a
+# table is its name. Not provided: the replica outputs
+# (dynamodb_table_replicas and the replicas' ARNs, stream ARNs and labels),
+# which ACK's Table does not report per replica.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-dynamodb-table
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    dynamodb_table_arn: >-
+      'table' in resources ? resources.table.status.ackResourceMetadata.arn : ''
+    dynamodb_table_id: >-
+      'table' in resources ? resources.table.spec.tableName : ''
+    dynamodb_table_stream_arn: >-
+      'table' in resources && has(resources.table.status.latestStreamARN) ? resources.table.status.latestStreamARN : ''
+    dynamodb_table_stream_label: >-
+      'table' in resources && has(resources.table.status.latestStreamLabel) ? resources.table.status.latestStreamLabel : ''
