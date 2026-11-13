@@ -1,0 +1,21 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). resource_id is the policy's ARM ID from
+# ASO's status. rule_collection_groups is the rule_collection_groups
+# submodule's resource_id output per entry, keyed like the value. The
+# module's resource output (the whole azurerm object) is not an output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-firewallpolicy
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    resource_id: resources.firewall_policy.status.id
+    rule_collection_groups: >-
+      resources.transformMapEntry(k, v, k.startsWith('rule_collection_group:'), {k.substring(22): {'resource_id': v.status.id}})
