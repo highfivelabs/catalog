@@ -833,7 +833,6 @@ or `node_resource_group`) beside the sandbox's one resource group, at
 subscription scope, where the live identity has no rights and the live
 rules allow no change. Its renders and the fake cloud are its tests.
 
-
 Layer 2 (the fake cloud, `task test-mock-azure`, `hack/azure-mock.sh`): on
 an offload VM, kind runs aso-extensions' fake Resource Manager
 (`cmd/fakearm`, a store of resources by ARM ID) and fake Entra
