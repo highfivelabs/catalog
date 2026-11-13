@@ -144,4 +144,5 @@ CCE = {
  "google_project_service_identity": "ServiceIdentity",
  "google_logging_folder_settings": "LoggingSettings", "google_logging_organization_settings": "LoggingSettings",
  "google_compute_vpn_tunnel": "ComputeVPNTunnel",
+ "google_cloudbuildv2_repository": "CloudBuildRepository",
 }

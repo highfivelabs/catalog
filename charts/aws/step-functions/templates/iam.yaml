@@ -1,0 +1,157 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "IAM Role" to "IAM policy for Cloudwatch Logs": the role the state
+machine runs as (aws_iam_role, iam/Role), trusting states.<region>, and
+the policies the module makes and attaches (aws_iam_policy with
+aws_iam_policy_attachment, iam/Policy in the role's policyRefs): one per
+service integration (from the module's map, sfn.servicePolicies), the
+policy_json and policy_jsons documents, the policy_statements and the
+CloudWatch Logs delivery policy. The policy ARNs it is given (policy,
+policies; aws_iam_role_policy_attachment) are the role's policies.
+*/ -}}
+{{- $v := .Values -}}
+{{- $n := include "sfn.names" . | fromJson -}}
+{{- if and $v.create $v.create_role (not $v.use_existing_role) }}
+{{- if not $n.role }}
+{{- fail "step-functions: name or role_name (or names.role) is required: the IAM role's name" }}
+{{- end }}
+{{- $region := $v.aws_region_assume_role | default $v.region | default "" }}
+{{- if not $region }}
+{{- fail "step-functions: region or aws_region_assume_role is required for the role's trust policy (states.<region>.amazonaws.com): the module reads the provider's region, which a chart cannot" }}
+{{- end }}
+{{- $logging := ne (toString (get ($v.logging_configuration | default dict) "level" | default "OFF")) "OFF" }}
+{{- $policies := list }}
+{{- if $v.attach_policies_for_integrations }}
+{{- $all := include "sfn.servicePolicies" . | fromJson }}
+{{- range $k := keys ($v.service_integrations | default dict) | sortAlpha }}
+{{- if not (hasKey $all $k) }}
+{{- fail (printf "step-functions: service_integrations.%s is not one of the module's service integrations (locals.tf, aws_service_policies)" $k) }}
+{{- end }}
+{{- $stmts := list }}
+{{- $given := index $v.service_integrations $k }}
+{{- range $sk := keys $given | sortAlpha }}
+{{- $t := index (index $all $k) $sk | default dict }}
+{{- if not $t }}
+{{- fail (printf "step-functions: service_integrations.%s.%s is not a statement of that integration (locals.tf)" $k $sk) }}
+{{- end }}
+{{- $val := index $given $sk }}
+{{- $res := list }}
+{{- if kindIs "bool" $val }}
+{{- if not $t.default_resources }}
+{{- fail (printf "step-functions: service_integrations.%s.%s: true needs the integration's default resources, and it has none: give the resources" $k $sk) }}
+{{- end }}
+{{- range $r := $t.default_resources }}
+{{- if contains "@ACCOUNT@" $r }}{{ include "sfn.need" (list $ "account_id" (printf "service_integrations.%s.%s's default resources" $k $sk)) }}{{ end }}
+{{- $res = append $res (replace "@ACCOUNT@" (toString $v.account_id) (replace "@REGION@" $region $r)) }}
+{{- end }}
+{{- else }}
+{{- $res = $val }}
+{{- end }}
+{{- $stmts = append $stmts (include "sfn.statement" (dict "sid" (regexReplaceAll "[^0-9A-Za-z]" (printf "%s%s" $k (title $sk)) "") "effect" ($t.effect | default "Allow") "actions" $t.actions "resources" $res "condition" ($t.condition | default list)) | fromJson) }}
+{{- end }}
+{{- $policies = append $policies (dict "id" (printf "service-%s" $k) "name" (printf "%s-%s" $n.role $k) "doc" (toJson (dict "Version" "2012-10-17" "Statement" $stmts))) }}
+{{- end }}
+{{- end }}
+{{- if $v.attach_policy_json }}
+{{- $policies = append $policies (dict "id" "json" "name" $n.role "doc" ($v.policy_json | default "")) }}
+{{- end }}
+{{- if $v.attach_policy_jsons }}
+{{- range $i := until (int $v.number_of_policy_jsons) }}
+{{- if ge $i (len $v.policy_jsons) }}
+{{- fail (printf "step-functions: number_of_policy_jsons is %d, and policy_jsons has %d (Terraform: index out of range)" (int $v.number_of_policy_jsons) (len $v.policy_jsons)) }}
+{{- end }}
+{{- $policies = append $policies (dict "id" (printf "jsons-%d" $i) "name" (printf "%s-%d" $n.role $i) "doc" (index $v.policy_jsons $i)) }}
+{{- end }}
+{{- end }}
+{{- if $v.attach_policy_statements }}
+{{- $stmts := list }}
+{{- range $k := keys ($v.policy_statements | default dict) | sortAlpha }}
+{{- $s := index $v.policy_statements $k }}
+{{- $stmts = append $stmts (include "sfn.statement" (merge (dict "sid" (get $s "sid" | default (regexReplaceAll "[^0-9A-Za-z]" $k ""))) (omit $s "sid")) | fromJson) }}
+{{- end }}
+{{- $policies = append $policies (dict "id" "inline" "name" (printf "%s-inline" $n.role) "doc" (toJson (dict "Version" "2012-10-17" "Statement" $stmts))) }}
+{{- end }}
+{{- if and $logging $v.attach_cloudwatch_logs_policy }}
+{{- $logs := dict "Effect" "Allow" "Action" (list "logs:CreateLogDelivery" "logs:GetLogDelivery" "logs:UpdateLogDelivery" "logs:DeleteLogDelivery" "logs:ListLogDeliveries" "logs:PutResourcePolicy" "logs:DescribeResourcePolicies" "logs:DescribeLogGroups") "Resource" (list "*") }}
+{{- $policies = append $policies (dict "id" "logs" "name" (printf "%s-logs" $n.role) "doc" (toJson (dict "Version" "2012-10-17" "Statement" (list $logs)))) }}
+{{- end }}
+{{- $arns := list }}
+{{- if and $v.attach_policy $v.policy }}{{ $arns = append $arns $v.policy }}{{ end }}
+{{- if $v.attach_policies }}
+{{- range $i := until (int $v.number_of_policies) }}
+{{- if ge $i (len $v.policies) }}
+{{- fail (printf "step-functions: number_of_policies is %d, and policies has %d (Terraform: index out of range)" (int $v.number_of_policies) (len $v.policies)) }}
+{{- end }}
+{{- $arns = append $arns (index $v.policies $i) }}
+{{- end }}
+{{- end }}
+{{- range $p := $policies }}
+{{- if not $p.doc }}
+{{- fail (printf "step-functions: the %s policy has no document (attach_policy_json needs policy_json)" $p.id) }}
+{{- end }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "policy" $p.id)) "id" (printf "policy-%s" $p.id)) | nindent 2 }}
+spec:
+  name: {{ $p.name | quote }}
+{{- with $v.policy_path }}
+  path: {{ . | quote }}
+{{- end }}
+  policyDocument: {{ $p.doc | quote }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- $principals := list (printf "states.%s.amazonaws.com" $region) }}
+{{- range $e := $v.trusted_entities }}{{ if not (has $e $principals) }}{{ $principals = append $principals $e }}{{ end }}{{ end }}
+{{- $trust := dict "Version" "2012-10-17" "Statement" (list (dict "Effect" "Allow" "Action" (list "sts:AssumeRole") "Principal" (dict "Service" $principals))) }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "role")) "id" "role") | nindent 2 }}
+spec:
+  name: {{ $n.role | quote }}
+{{- with $v.role_description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- with $v.role_path }}
+  path: {{ . | quote }}
+{{- end }}
+{{- with $v.role_permissions_boundary }}
+  permissionsBoundary: {{ . | quote }}
+{{- end }}
+  assumeRolePolicyDocument: {{ toJson $trust | quote }}
+{{- if and $policies $arns }}
+{{- /* ACK takes a role's policies as ARNs or as references, not both: with
+ARNs given, the ARNs of the policies made here are built, as IAM names them. */}}
+{{- include "sfn.need" (list $ "account_id" "attaching the policies this component makes beside policy or policies (ACK's Role takes ARNs or references, not both)") }}
+  policies:
+{{- range $p := $policies }}
+    - {{ printf "arn:%s:iam::%s:policy%s%s" $v.partition $v.account_id ($v.policy_path | default "/") $p.name | quote }}
+{{- end }}
+{{- range $arns }}
+    - {{ . | quote }}
+{{- end }}
+{{- else if $policies }}
+  policyRefs:
+{{- range $p := $policies }}
+    - from:
+        name: {{ include "ack.name" (list $.Release.Name "policy" $p.id) }}
+{{- end }}
+{{- else if $arns }}
+  policies:
+{{- range $arns }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags $v.role_tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

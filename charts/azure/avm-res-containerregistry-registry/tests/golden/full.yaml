@@ -1,0 +1,296 @@
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-acr-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-acrplatform"
+  owner:
+    group: containerregistry.azure.com
+    kind: Registry
+    name: full-acr
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-acr-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-acrplatform"
+  owner:
+    group: containerregistry.azure.com
+    kind: Registry
+    name: full-acr
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesCredentialSet
+metadata:
+  name: full-credset-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "credential_set:hub"
+spec:
+  azureName: "dockerhub"
+  owner:
+    name: full-acr
+  identity:
+    type: SystemAssigned
+  loginServer: "docker.io"
+  authCredentials:
+    - name: "Credential1"
+      usernameSecretIdentifier: "https://kv-acr.vault.azure.net/secrets/hub-user"
+      passwordSecretIdentifier: "https://kv-acr.vault.azure.net/secrets/hub-token"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesScopeMap
+metadata:
+  name: full-scopemap-pull
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull"
+spec:
+  azureName: "app-pull"
+  owner:
+    name: full-acr
+  actions:
+    - repositories/app/content/read
+    - repositories/app/metadata/read
+  description: "Pull the app repository"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesToken
+metadata:
+  name: full-token-pull-ci
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull:token:ci"
+spec:
+  azureName: "ci-pull"
+  owner:
+    name: full-acr
+  scopeMapReference:
+    group: containerregistry.azure.hfl.dev
+    kind: RegistriesScopeMap
+    name: full-scopemap-pull
+  status: enabled
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesToken
+metadata:
+  name: full-token-pull-old
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull:token:old"
+spec:
+  azureName: "old-pull"
+  owner:
+    name: full-acr
+  scopeMapReference:
+    group: containerregistry.azure.hfl.dev
+    kind: RegistriesScopeMap
+    name: full-scopemap-pull
+  status: disabled
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: Registry
+metadata:
+  name: full-acr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "registry"
+spec:
+  azureName: "acrplatform"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr"
+  adminUserEnabled: true
+  anonymousPullEnabled: true
+  dataEndpointEnabled: true
+  identity:
+    type: "SystemAssigned, UserAssigned"
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-acr"
+  networkRuleBypassAllowedForTasks: true
+  networkRuleBypassOptions: AzureServices
+  networkRuleSet:
+    defaultAction: Deny
+    ipRules:
+      - action: Allow
+        value: "203.0.113.0/24"
+  policies:
+    azureADAuthenticationAsArmPolicy:
+      status: disabled
+    exportPolicy:
+      status: disabled
+    quarantinePolicy:
+      status: enabled
+    retentionPolicy:
+      days: 30
+      status: enabled
+    trustPolicy:
+      status: enabled
+      type: Notary
+  publicNetworkAccess: Disabled
+  roleAssignmentMode: AbacRepositoryPermissions
+  sku:
+    name: Premium
+  zoneRedundancy: Enabled
+  tags:
+    environment: prod
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryCacheRule
+metadata:
+  name: full-cache-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache_rule:hub"
+spec:
+  azureName: "dockerhub-nginx"
+  owner:
+    name: full-acr
+  sourceRepository: "docker.io/library/nginx"
+  targetRepository: "cache/nginx"
+  credentialSetResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrplatform/credentialSets/dockerhub"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryCacheRule
+metadata:
+  name: full-cache-mcr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache_rule:mcr"
+spec:
+  azureName: "mcr-dotnet"
+  owner:
+    name: full-acr
+  sourceRepository: "mcr.microsoft.com/dotnet/runtime"
+  targetRepository: "cache/dotnet"
+  credentialSetResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrplatform/credentialSets/mcr"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryReplication
+metadata:
+  name: full-replica-northeurope
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "georeplication:northeurope"
+spec:
+  azureName: "northeurope"
+  location: "northeurope"
+  owner:
+    name: full-acr
+  regionEndpointEnabled: true
+  zoneRedundancy: Enabled
+  tags:
+    replica: "true"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryReplication
+metadata:
+  name: full-replica-swedencentral
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "georeplication:swedencentral"
+spec:
+  azureName: "swedencentral"
+  location: "swedencentral"
+  owner:
+    name: full-acr
+  regionEndpointEnabled: false
+  zoneRedundancy: Disabled
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-acr-role-pull
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-pull"
+spec:
+  owner:
+    group: containerregistry.azure.com
+    kind: Registry
+    name: full-acr
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "AcrPull"

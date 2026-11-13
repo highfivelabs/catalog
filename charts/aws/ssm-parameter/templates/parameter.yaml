@@ -1,0 +1,66 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the parameter (aws_ssm_parameter.this, ssm/Parameter). The type
+and the value are derived as the module's locals derive them: type, else
+StringList for values, else SecureString for secure_type, else String; a
+StringList's value is jsonencode(values) when values is set. A
+SecureString's value is in the Parameter's spec, as ACK takes it.
+*/ -}}
+{{- include "ack.names" (list $ (list "parameter")) -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $name := "" }}
+{{- if index ($v.names | default dict) "parameter" }}
+{{- $name = include "ack.resourceName" (list $ "parameter" "parameter" "" 2048) }}
+{{- else if $v.name }}
+{{- $pre := include "ack.namePrefix" $ }}
+{{- if and $pre (hasPrefix "/" $v.name) }}
+{{- $name = include "ack.fit" (list $ "parameter" (printf "/%s%s" $pre (trimPrefix "/" $v.name)) 2048) }}
+{{- else }}
+{{- $name = include "ack.cloudName" (list $ "parameter" $v.name 2048) }}
+{{- end }}
+{{- else }}
+{{- fail "ssm-parameter: name is required: the parameter's name (or names.parameter)" }}
+{{- end }}
+{{- $type := $v.type }}
+{{- if not $type }}
+{{- $type = ternary "StringList" (ternary "SecureString" "String" (eq (toString $v.secure_type) "true")) (gt (len ($v.values | default list)) 0) }}
+{{- end }}
+{{- $value := $v.value }}
+{{- if and (eq $type "StringList") (gt (len ($v.values | default list)) 0) }}
+{{- $value = $v.values | toJson }}
+{{- end }}
+{{- if kindIs "invalid" $value }}
+{{- fail "ssm-parameter: value (or values, for a StringList) is required: SSM keeps no parameter without one" }}
+{{- end }}
+---
+apiVersion: ssm.services.k8s.aws/v1alpha1
+kind: Parameter
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "parameter")) "id" "parameter" "region" ($v.region | default "")) | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+  type: {{ $type | quote }}
+  value: {{ $value | toString | quote }}
+{{- with $v.allowed_pattern }}
+  allowedPattern: {{ . | quote }}
+{{- end }}
+{{- with $v.data_type }}
+  dataType: {{ . | quote }}
+{{- end }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- if and (eq $type "SecureString") $v.key_id }}
+  keyID: {{ $v.key_id | quote }}
+{{- end }}
+{{- with $v.tier }}
+  tier: {{ . | quote }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

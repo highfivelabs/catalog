@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "api-gateway values (fabric api-gateway v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["api_id", "project_id", "region", "spec"],
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "api": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"},
+        "gateway": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"},
+        "serviceAccount": {"type": "string", "minLength": 6, "maxLength": 30, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])$"}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Map of labels (fabric's labels): Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "api_id": {
+      "description": "API identifier.",
+      "type": "string",
+      "minLength": 1
+    },
+    "iam": {
+      "description": "IAM bindings for the API in {ROLE => [MEMBERS]} format.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "project_id": {
+      "description": "Project identifier.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region.",
+      "type": "string",
+      "minLength": 1
+    },
+    "service_account_create": {
+      "description": "Flag indicating whether a service account needs to be created.",
+      "type": "boolean"
+    },
+    "service_account_email": {
+      "description": "Service account for creating API configs.",
+      "type": ["string", "null"]
+    },
+    "spec": {
+      "description": "String with the contents of the OpenAPI spec.",
+      "type": "string",
+      "minLength": 1
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}

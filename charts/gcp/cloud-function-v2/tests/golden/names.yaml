@@ -1,0 +1,197 @@
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: cloudfunctions2.gcp.hfl.dev/v1beta1
+kind: CloudFunctions2Function
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "function"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "shop-dev-fn"
+  description: "Terraform managed."
+  buildConfig:
+    runtime: "python313"
+    entryPoint: "main"
+    source:
+      storageSource:
+        bucket: "my-bucket"
+        object: "bundles/function.zip"
+  eventTrigger:
+    eventType: "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsubTopic: "projects/my-project/topics/my-topic"
+    triggerRegion: "europe-west1"
+    serviceAccountEmail: "shop-dev-fn-trigger@my-project.iam.gserviceaccount.com"
+    retryPolicy: "RETRY_POLICY_DO_NOT_RETRY"
+  serviceConfig:
+    allTrafficOnLatestRevision: true
+    availableCpu: "0.166"
+    availableMemory: "256M"
+    environmentVariables:
+      "LOG_EXECUTION_ID": "true"
+    maxInstanceCount: 1
+    minInstanceCount: 0
+    serviceAccountEmail: "shop-dev-fn@my-project.iam.gserviceaccount.com"
+    timeoutSeconds: 180
+    vpcConnector: "projects/my-project/locations/europe-west1/connectors/shop-dev-conn"
+  labels:
+    environment: "dev"
+    team: "shop"
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: names-invoker
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "invoker"
+spec:
+  resourceRef:
+    apiVersion: run.cnrm.cloud.google.com/v1beta1
+    kind: RunService
+    external: "projects/my-project/locations/europe-west1/services/shop-dev-fn"
+  role: roles/run.invoker
+  memberFrom:
+    serviceAccountRef:
+      name: names-trigger
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: names-sa-roles-logging-logwriter-39ce3988
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: names-sa
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: names-sa-roles-monitoring-metricwriter-bd9fca53
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: names-sa
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: names-trigger
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "trigger_service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-fn-trigger"
+  displayName: "Terraform trigger for Cloud Function test-cf-http."
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: names-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-fn"
+  displayName: "test-cf-http"
+---
+# Source: cloud-function-v2/templates/vpcconnector.yaml
+apiVersion: vpcaccess.cnrm.cloud.google.com/v1beta1
+kind: VPCAccessConnector
+metadata:
+  name: names-connector
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "vpc_connector"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "shop-dev-conn"
+  ipCidrRange: "10.8.0.0/28"
+  networkRef:
+    external: "vpc"

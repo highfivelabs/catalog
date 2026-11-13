@@ -1,0 +1,49 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: backup-dr
+spec:
+  version: "1.0.0"
+  components:
+    - name: dr
+      package:
+        name: gcp-backup-dr
+        version: "0.1.0"
+      inputs:
+        location: us-central1
+        name: backup-vault
+        backup_plans:
+          my-backup-plan:
+            backup_rules:
+              - backup_retention_days: 30
+                rule_id: daily-backup-rule
+                standard_schedule:
+                  backup_window:
+                    end_hour_of_day: 5
+                    start_hour_of_day: 1
+                  hourly_frequency: 6
+                  recurrence_type: HOURLY
+                  time_zone: America/Los_Angeles
+            description: Backup Plan for GCE Instances.
+            resource_type: compute.googleapis.com/Instance
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: backup-dr
+  scope: my-team
+spec:
+  template: backup-dr
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: backup-dr-dev
+  scope: my-team/dev
+spec:
+  stack: backup-dr
+  version: "1.0.0"
+  components:
+    dr:
+      values:
+        project_id: myproject

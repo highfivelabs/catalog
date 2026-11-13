@@ -1,0 +1,380 @@
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-law-diag-archive
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-archive"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-law-diag-self
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-self"
+spec:
+  azureName: "diag-law-platform"
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  logs:
+    - categoryGroup: "audit"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-ampls-ampls-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:ampls:lock"
+spec:
+  azureName: "ampls-platform-lock"
+  owner:
+    group: insights.azure.hfl.dev
+    kind: PrivateLinkScope
+    name: full-ampls-ampls
+  level: CanNotDelete
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-law-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: network.azure.hfl.dev/v20250501
+kind: NetworkSecurityPerimetersResourceAssociation
+metadata:
+  name: full-nsp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_security_perimeter_association"
+spec:
+  azureName: "nsp-assoc-law-platform"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Network/networkSecurityPerimeters/nsp-platform"
+  privateLinkResource:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law-platform"
+  profile:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Network/networkSecurityPerimeters/nsp-platform/profiles/default"
+  accessMode: Learning
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScope
+metadata:
+  name: full-ampls-ampls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:ampls"
+spec:
+  azureName: "ampls-platform"
+  location: global
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops"
+  accessModeSettings:
+    ingestionAccessMode: Open
+    queryAccessMode: PrivateOnly
+    exclusions:
+      - privateEndpointConnectionName: "pe-legacy"
+        ingestionAccessMode: PrivateOnly
+        queryAccessMode: Open
+  tags:
+    environment: prod
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScopesScopedResource
+metadata:
+  name: full-ampls-ampls-scoped
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:ampls:scoped_service"
+spec:
+  azureName: "law-platform"
+  owner:
+    name: full-ampls-ampls
+  linkedResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law-platform"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScopesScopedResource
+metadata:
+  name: full-scoped-shared
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scoped_resource:shared"
+spec:
+  azureName: "law-platform"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/microsoft.insights/privateLinkScopes/ampls-hub"
+  linkedResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law-platform"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-law-role-readers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-readers"
+spec:
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Log Analytics Reader"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  name: full-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "workspace"
+spec:
+  azureName: "law-platform"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops"
+  features:
+    disableLocalAuth: true
+    enableLogAccessUsingOnlyResourcePermissions: false
+  forceCmkForQuery: true
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-law"
+  publicNetworkAccessForIngestion: Enabled
+  publicNetworkAccessForQuery: SecuredByPerimeter
+  retentionInDays: 90
+  sku:
+    name: CapacityReservation
+    capacityReservationLevel: 100
+  workspaceCapping:
+    dailyQuotaGb: 10.5
+  tags:
+    environment: prod
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesDataExport
+metadata:
+  name: full-export-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_export:hub"
+spec:
+  azureName: "export-hub"
+  owner:
+    name: full-law
+  destination:
+    resourceReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.EventHub/namespaces/ehns"
+    eventHubName: "logs"
+  enable: false
+  tableNames:
+    - Syslog
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesDataExport
+metadata:
+  name: full-export-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_export:storage"
+spec:
+  azureName: "export-storage"
+  owner:
+    name: full-law
+  destination:
+    resourceReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stexport"
+  enable: true
+  tableNames:
+    - Heartbeat
+    - SecurityEvent
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesLinkedService
+metadata:
+  name: full-linked-cluster
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "linked_service"
+spec:
+  azureName: Cluster
+  owner:
+    name: full-law
+  writeAccessResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/clusters/la-cluster"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesLinkedStorageAccount
+metadata:
+  name: full-linked-storage-query
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "linked_storage_account:query"
+spec:
+  azureName: "Query"
+  owner:
+    name: full-law
+  storageAccountReferences:
+    - armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stquery"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesTable
+metadata:
+  name: full-table-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:app"
+spec:
+  azureName: "AppEvents_CL"
+  owner:
+    name: full-law
+  retentionInDays: 30
+  totalRetentionInDays: 90
+  plan: Analytics
+  schema:
+    name: "AppEvents_CL"
+    description: "Events from the app"
+    columns:
+      - name: "TimeGenerated"
+        type: dateTime
+      - name: "Message"
+        type: string
+      - name: "Count"
+        type: int
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesTable
+metadata:
+  name: full-table-update-heartbeat-573911fa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table_update:heartbeat"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Heartbeat"
+  owner:
+    name: full-law
+  retentionInDays: 60

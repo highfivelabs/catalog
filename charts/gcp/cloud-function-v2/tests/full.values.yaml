@@ -1,0 +1,43 @@
+# Every variable the chart carries.
+project_id: my-project
+region: europe-west1
+prefix: pfx
+name: full-fn
+description: A function.
+bucket_name: code
+bucket_config: {location: EU}
+bundle_config: {path: "gs://pfx-code/fn.zip", folder_options: {}}
+build_environment_variables: {GOOGLE_NODE_RUN_SCRIPTS: ""}
+build_service_account: projects/my-project/serviceAccounts/builder@my-project.iam.gserviceaccount.com
+build_worker_pool: projects/my-project/locations/europe-west1/workerPools/pool
+docker_repository_id: projects/my-project/locations/europe-west1/repositories/cf
+kms_key: projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k
+environment_variables: {LOG_EXECUTION_ID: "true", MODE: prod}
+function_config:
+  automatic_update_policy: true
+  binary_authorization_policy: default
+  cpu: "1"
+  entry_point: handler
+  instance_count: 5
+  max_instance_request_concurrency: 10
+  min_instance_count: 1
+  memory_mb: 512
+  runtime: nodejs22
+  timeout_seconds: 60
+ingress_settings: ALLOW_INTERNAL_ONLY
+secrets:
+  API_KEY: {is_volume: false, project_id: my-project, secret: api-key, versions: ["3"]}
+  /etc/creds: {is_volume: true, project_id: my-project, secret: creds, versions: ["latest:creds.json", "1:old.json"]}
+service_account_config:
+  name: fn-runner
+  display_name: Function runner
+  roles: [roles/logging.logWriter]
+vpc_connector:
+  egress_settings: PRIVATE_RANGES_ONLY
+vpc_connector_create:
+  ip_cidr_range: 10.8.0.0/28
+  machine_type: e2-micro
+  name: fn-conn
+  network: projects/my-project/global/networks/vpc
+  instances: {max: 3, min: 2}
+labels: {env: prod}

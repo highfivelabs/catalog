@@ -1,0 +1,30 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"): id is the policy's ID as Terraform's
+# google_dns_response_policy gives it,
+# projects/<project>/responsePolicies/<name>, from the rendered object, and
+# null when the chart makes no policy (policy_create: false), as fabric's
+# try(...) gives; name is computed from inputs as the chart names the
+# policy (names.policy, else name with the namePrefix), so it is known
+# before the policy exists and also names an existing policy. Not an
+# output: fabric's policy, the whole resource.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-dns-response-policy
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'policy' in resources
+      ? dyn('projects/' + resources.policy.spec.projectRef.external + '/responsePolicies/' + resources.policy.spec.resourceID)
+      : null
+    name: >-
+      'policy' in inputs.names && inputs.names.policy != ''
+      ? inputs.names.policy
+      : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name

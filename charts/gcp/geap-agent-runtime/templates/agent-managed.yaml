@@ -1,0 +1,143 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-runtime/agent-managed.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_vertex_ai_reasoning_engine.managed: one AIPlatformReasoningEngine
+(config-connector-extensions, aiplatform.gcp.hfl.dev/v1beta1; Config
+Connector's own is v1alpha1). agent-unmanaged.tf's engine differs only in
+ignoring later code changes (lifecycle ignore_changes), which Config
+Connector cannot do: managed false is refused.
+*/ -}}
+{{- $v := .Values }}
+{{- $rc := $v.agent_runtime_config | default dict }}
+{{- $dc := $v.deployment_config | default dict }}
+{{- $nc := $v.networking_config | default dict }}
+{{- $gw := $nc.agent_gateways | default dict }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.unsupported" (list $ "memory_bank_config" $v.memory_bank_config "AIPlatformReasoningEngine has no contextSpec (config-connector-extensions, aiplatform.gcp.hfl.dev/v1beta1)") }}
+{{- include "kcc.unsupported" (list $ "agent_runtime_config.class_methods" $rc.class_methods "AIPlatformReasoningEngine has no classMethods (commented out in Config Connector's type too)") }}
+{{- if ne (toString $rc.identity_type) "SERVICE_ACCOUNT" }}
+{{- fail (printf "geap-agent-runtime: agent_runtime_config.identity_type %s is not supported: AIPlatformReasoningEngine has no spec.identityType, so an engine gets no agent identity; set identity_type: SERVICE_ACCOUNT, which is what the kind does (docs/gcp-inventory.md, \"Gaps\")" (toString $rc.identity_type)) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ "deployment_config.container_config" $dc.container_config "AIPlatformReasoningEngine has no containerSpec") }}
+{{- include "kcc.unsupported" (list $ "deployment_config.source_files_config" $dc.source_files_config "AIPlatformReasoningEngine has no sourceCodeSpec") }}
+{{- include "kcc.unsupported" (list $ "networking_config.agent_gateways" (or $gw.egress $gw.ingress) "AIPlatformReasoningEngine's deploymentSpec has no agentGatewayConfig") }}
+{{- if not $v.enable_deletion_protection }}
+{{- fail "geap-agent-runtime: enable_deletion_protection false is not supported: AIPlatformReasoningEngine has no force deletion (Terraform's deletion_policy FORCE, which also deletes the engine's sessions and memories) (docs/gcp-inventory.md, \"Gaps\")" }}
+{{- end }}
+{{- if not $v.managed }}
+{{- fail "geap-agent-runtime: managed false is not supported: Config Connector reconciles every field it is given and has no ignore_changes, so it cannot leave the engine's code to another tool (docs/gcp-inventory.md, \"Gaps\")" }}
+{{- end }}
+{{- $pkgJson := include "geapAgentRuntime.package" . }}
+{{- $pkg := ternary ($pkgJson | fromJson) dict (ne $pkgJson "") }}
+{{- if and $pkgJson $pkg.are_paths_local }}
+{{- fail "geap-agent-runtime: deployment_config.package_config.are_paths_local true is not supported: a chart cannot read files from the caller's disk to upload them; upload the pickle, dependencies and requirements files and set are_paths_local: false with their gs:// URIs" }}
+{{- end }}
+{{- include "kcc.names" (list $ (list "agent" "bucket" "serviceAccount")) }}
+{{- /* An unset optional deploymentSpec field stays out, as fabric's
+has_deployment_spec decides whether the block is sent at all. */}}
+{{- $att := $nc.network_attachment_id }}
+{{- $hasDeploy := or (not (kindIs "invalid" $rc.container_concurrency)) (not (kindIs "invalid" $rc.max_instances)) (not (kindIs "invalid" $rc.min_instances)) $rc.resource_limits $att $rc.environment_variables $rc.secret_environment_variables }}
+{{- $cloud := include "geapAgentRuntime.cloudLabels" . | fromJson }}
+apiVersion: aiplatform.gcp.hfl.dev/v1beta1
+kind: AIPlatformReasoningEngine
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "agent" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  {{- /* The API assigns the engine's ID; the name the caller gives it is
+  its display name. */}}
+  displayName: {{ include "kcc.resourceName" (list $ "agent" "agent display" $v.name 128) | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  {{- with $v.encryption_key }}
+  encryptionSpec:
+    kmsKeyRef:
+      external: {{ . | quote }}
+  {{- end }}
+  {{- with $cloud }}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+  {{- $sa := $v.service_account_config | default dict }}
+  {{- if or $rc.agent_framework (include "geapAgentRuntime.saCreate" .) $sa.email $hasDeploy $pkgJson }}
+  spec:
+    {{- with $rc.agent_framework }}
+    agentFramework: {{ . | quote }}
+    {{- end }}
+    {{- if include "geapAgentRuntime.saCreate" . }}
+    serviceAccountRef:
+      name: {{ include "kcc.name" (list .Release.Name "sa") }}
+    {{- else if $sa.email }}
+    serviceAccountRef:
+      external: {{ $sa.email | quote }}
+    {{- end }}
+    {{- if $hasDeploy }}
+    deploymentSpec:
+      {{- if not (kindIs "invalid" $rc.container_concurrency) }}
+      containerConcurrency: {{ $rc.container_concurrency }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $rc.max_instances) }}
+      maxInstances: {{ $rc.max_instances }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $rc.min_instances) }}
+      minInstances: {{ $rc.min_instances }}
+      {{- end }}
+      {{- with $rc.resource_limits }}
+      resourceLimits:
+        cpu: {{ .cpu | quote }}
+        memory: {{ .memory | quote }}
+      {{- end }}
+      {{- with $rc.environment_variables }}
+      env:
+        {{- range $k := keys . | sortAlpha }}
+        - name: {{ $k | quote }}
+          value: {{ index $rc.environment_variables $k | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $att }}
+      pscInterfaceConfig:
+        networkAttachmentRef:
+          external: {{ . | quote }}
+        {{- with $nc.dns_peering_configs }}
+        dnsPeeringConfigs:
+          {{- range $domain := keys . | sortAlpha }}
+          {{- $p := index $nc.dns_peering_configs $domain }}
+          {{- $tp := $p.target_project_id | default $v.project_id }}
+          - domain: {{ $domain | quote }}
+            targetNetworkRef:
+              external: {{ ternary $p.target_network_name (printf "projects/%s/global/networks/%s" $tp $p.target_network_name) (hasPrefix "projects/" $p.target_network_name) | quote }}
+            targetProjectRef:
+              external: {{ $tp | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $rc.secret_environment_variables }}
+      secretEnv:
+        {{- range $k := keys . | sortAlpha }}
+        {{- $s := index $rc.secret_environment_variables $k }}
+        {{- $secret := ternary $s.secret_id (printf "projects/%s/secrets/%s" $v.project_id $s.secret_id) (hasPrefix "projects/" $s.secret_id) }}
+        - name: {{ $k | quote }}
+          secretRef:
+            secretRef:
+              external: {{ $secret | quote }}
+            versionRef:
+              external: {{ printf "%s/versions/%s" $secret ($s.version | default "latest") | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if $pkgJson }}
+    packageSpec:
+      pythonVersion: {{ $rc.python_version | default "3.13" | quote }}
+      dependencyFilesGCSURI: {{ $pkg.dependencies_path | quote }}
+      requirementsGCSURI: {{ $pkg.requirements_path | quote }}
+      pickleObjectGCSURI: {{ $pkg.pickle_path | quote }}
+    {{- end }}
+  {{- end }}

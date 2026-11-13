@@ -1,0 +1,343 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-containerservice-managedcluster
+main.tf, locals*.tf, main.default_agent_pool.tf and main.interfaces.tf
+(v0.9.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.ContainerService/managedClusters): one ASO
+ManagedCluster owned by the resource group parent_id names, at API
+2026-05-01 (the module: 2026-03-01), or at ASO's preview 2025-10-02-preview
+when kube_proxy_config, ingress_profile.application_load_balancer or
+security_profile.image_integrity is set (the module then takes
+2026-03-02-preview). The default agent pool is the cluster's first
+agentPoolProfiles entry, less the properties the module sets through its
+own update (azapi_update_resource.default_agent_pool), which is here a
+ManagedClustersAgentPool of the same pool that is never deleted (it leaves
+with the cluster). azapi_update_resource.kubernetes_version: the cluster's
+kubernetesVersion. azapi_resource.lock, role_assignments,
+diagnostic_settings: the AVM interfaces on the cluster. The kubeconfig
+actions (listClusterUserCredential, listClusterAdminCredential) are not
+ported: their result is a secret. The telemetry is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $why := dict "timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "cluster_timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "agentpool_timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "retry" "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready" "ignore_body_changes" "Azure Service Operator applies the whole spec; it cannot leave a field to another writer" "resource_types" "ASO's kinds fix the API versions (ManagedCluster 2026-05-01, its agent pools 2025-10-02-preview)" "create_agentpools_before_destroy" "Azure Service Operator updates an agent pool in place and never replaces it" "windows_profile_password" "a Windows administrator password is a secret value; how a component supplies one (a Kubernetes Secret ASO reads) is not settled" "windows_profile_password_version" "it versions windows_profile_password, which is refused" "private_endpoints" "ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet" "onboard_monitoring" "the module's monitoring submodule (data collection rules, endpoints and associations, ASO's insights kinds) is not mapped yet" "onboard_alerts" "the module's alerting submodule (Prometheus rule groups, action groups, metric alerts) is not mapped yet" "alert_email" "the module's alerting submodule is not mapped yet" "prometheus_workspace_id" "the module's monitoring submodule is not mapped yet" }}
+{{- range $name := keys $why | sortAlpha }}
+{{- include "aso.unsupported" (list $ $name (index $v $name) (index $why $name)) }}
+{{- end }}
+{{- with $v.aad_profile }}
+{{- include "aso.unsupported" (list $ "aad_profile.server_app_secret" .server_app_secret "a server application secret is a secret value; how a component supplies one is not settled") }}
+{{- end }}
+{{- with $v.service_principal_profile }}
+{{- include "aso.unsupported" (list $ "service_principal_profile.secret" .secret "a service principal secret is a secret value; how a component supplies one is not settled") }}
+{{- end }}
+{{- include "aso.names" (list $ (list "managedCluster")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- if not (regexMatch "^[a-zA-Z0-9]$|^[a-zA-Z0-9][-_a-zA-Z0-9]{0,61}[a-zA-Z0-9]$" $v.name) }}
+{{- fail (printf "%s: name must match the pattern: ^[a-zA-Z0-9]$|^[a-zA-Z0-9][-_a-zA-Z0-9]{0,61}[a-zA-Z0-9]$." $chart) }}
+{{- end }}
+{{- $automatic := false }}
+{{- with $v.sku }}{{ if eq (.name | default "") "Automatic" }}{{ $automatic = true }}{{ end }}{{ end }}
+{{- /* The module's validations. */ -}}
+{{- if and $v.onboard_alerts (not $v.alert_email) }}{{ fail (printf "%s: When `onboard_alerts` is true, `alert_email` must be provided." $chart) }}{{ end }}
+{{- with $v.addon_profile_ingress_application_gateway }}
+{{- if and .enabled (or (not .config) (eq (.config.application_gateway_id | default "") "")) }}
+{{- fail (printf "%s: If addon_profile_ingress_application_gateway.enabled is true, then addon_profile_ingress_application_gateway.config.application_gateway_id must be set." $chart) }}
+{{- end }}
+{{- end }}
+{{- with $v.addon_profile_oms_agent }}
+{{- if and .enabled (or (not .config) (eq (.config.log_analytics_workspace_resource_id | default "") "")) }}
+{{- fail (printf "%s: If addon_profile_oms_agent.enabled is true, then addon_profile_oms_agent.config.log_analytics_workspace_resource_id must be set." $chart) }}
+{{- end }}
+{{- end }}
+{{- with $v.hosted_system_profile }}
+{{- if and .enabled (or (not .node_subnet_id) (not .system_node_subnet_id)) }}
+{{- fail (printf "%s: When hosted_system_profile.enabled is true, both hosted_system_profile.node_subnet_id and hosted_system_profile.system_node_subnet_id must be set." $chart) }}
+{{- end }}
+{{- if not $automatic }}
+{{- fail (printf "%s: hosted_system_profile is only supported for AKS Automatic clusters (sku.name must be \"Automatic\")." $chart) }}
+{{- end }}
+{{- end }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := $mi.user_assigned_resource_ids | default list | uniq | sortAlpha }}
+{{- with $v.identity_profile }}
+{{- range $k, $_ := . }}{{ if ne $k "kubeletidentity" }}{{ fail (printf "%s: The only accepted key for identity_profile is 'kubeletidentity'." $chart) }}{{ end }}{{ end }}
+{{- if and (hasKey . "kubeletidentity") (ne (len $uai) 1) }}
+{{- fail (printf "%s: When kublet identity is specified in identity_profile, managed_identities.user_assigned_resource_ids must be configured." $chart) }}
+{{- end }}
+{{- end }}
+{{- with $v.kube_proxy_config }}
+{{- if and .ipvs_config (ne (.mode | default "") "IPVS") }}{{ fail (printf "%s: kube_proxy_config.ipvs_config can be specified only when kube_proxy_config.mode is \"IPVS\"." $chart) }}{{ end }}
+{{- if and (eq .enabled false) (ne (($v.network_profile | default dict).network_plugin | default "") "none") }}{{ fail (printf "%s: kube_proxy_config.enabled can be false only when network_profile.network_plugin is \"none\" for BYO CNI." $chart) }}{{ end }}
+{{- if $automatic }}{{ fail (printf "%s: kube_proxy_config is not supported for AKS Automatic clusters." $chart) }}{{ end }}
+{{- end }}
+{{- $default := $v.default_agent_pool | default dict }}
+{{- if and $default.kubelet_config $default.kubelet_config.seccomp_default }}
+{{- fail (printf "%s: default_agent_pool.kubelet_config.seccomp_default is not supported because the managedClusters parent API rejects it and the default agent pool child API treats kubelet configuration as immutable after creation. Use agent_pools[*].kubelet_config.seccomp_default for user pools." $chart) }}
+{{- end }}
+{{- $defaultName := $default.name | default "systempool" }}
+{{- range $k, $p := ($v.agent_pools | default dict) }}
+{{- if eq $p.name $defaultName }}{{ fail (printf "%s: The name must not be the same as the default agent pool name." $chart) }}{{ end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "aks") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $preview := false }}
+{{- if not (kindIs "invalid" $v.kube_proxy_config) }}{{ $preview = true }}{{ end }}
+{{- with $v.ingress_profile }}{{ if not (kindIs "invalid" .application_load_balancer) }}{{ $preview = true }}{{ end }}{{ end }}
+{{- with $v.security_profile }}{{ if not (kindIs "invalid" .image_integrity) }}{{ $preview = true }}{{ end }}{{ end }}
+{{- if $preview }}
+{{- with $v.hosted_system_profile }}{{ if or .node_subnet_id .system_node_subnet_id }}{{ fail (printf "%s: hosted_system_profile's subnets need ASO's ManagedCluster at 2026-05-01, and kube_proxy_config, ingress_profile.application_load_balancer or security_profile.image_integrity its 2025-10-02-preview; set one or the other" $chart) }}{{ end }}{{ end }}
+{{- with $v.ingress_profile }}{{ with .web_app_routing }}{{ if .gateway_api_implementations }}{{ fail (printf "%s: ingress_profile.web_app_routing.gateway_api_implementations needs ASO's ManagedCluster at 2026-05-01, and kube_proxy_config, ingress_profile.application_load_balancer or security_profile.image_integrity its 2025-10-02-preview; set one or the other" $chart) }}{{ end }}{{ end }}{{ end }}
+{{- end }}
+{{- /* The body's properties, converted from the module's inputs. */ -}}
+{{- $in := dict }}
+{{- range $name := list "aad_profile" "ai_toolchain_operator_profile" "api_server_access_profile" "auto_upgrade_profile" "azure_monitor_profile" "bootstrap_profile" "disable_local_accounts" "disk_encryption_set_id" "enable_rbac" "fqdn_subdomain" "hosted_system_profile" "http_proxy_config" "ingress_profile" "kube_proxy_config" "kubernetes_version" "linux_profile" "metrics_profile" "network_profile" "node_provisioning_profile" "node_resource_group" "node_resource_group_profile" "oidc_issuer_profile" "pod_identity_profile" "private_link_resources" "public_network_access" "security_profile" "service_mesh_profile" "service_principal_profile" "storage_profile" "support_plan" "upgrade_settings" "windows_profile" "workload_auto_scaler_profile" }}
+{{- $x := index $v $name }}
+{{- if not (kindIs "invalid" $x) }}{{ $_ := set $in $name (deepCopy $x) }}{{ end }}
+{{- end }}
+{{- with $in.network_profile }}
+{{- with $v.kube_proxy_config }}{{ $_ := set $in.network_profile "kube_proxy_config" . }}{{ end }}
+{{- else }}
+{{- with $v.kube_proxy_config }}{{ $_ := set $in "network_profile" (dict "kube_proxy_config" .) }}{{ end }}
+{{- end }}
+{{- $_ := unset $in "kube_proxy_config" }}
+{{- with $in.aad_profile }}{{ $_ := unset . "server_app_secret" }}{{ end }}
+{{- with $in.service_principal_profile }}{{ $_ := unset . "secret" }}{{ end }}
+{{- $props := index (include "aks.conv" (dict "k" "" "v" $in) | fromJson) "v" }}
+{{- with $v.auto_scaler_profile }}
+{{- $asp := dict }}
+{{- range $k, $x := . }}{{ if not (kindIs "invalid" $x) }}{{ $_ := set $asp (replace "_" "-" $k) $x }}{{ end }}{{ end }}
+{{- $_ := set $props "autoScalerProfile" $asp }}
+{{- end }}
+{{- if kindIs "invalid" $v.fqdn_subdomain }}
+{{- /* The module's random_string: a stable 10 characters from the release and name here. */ -}}
+{{- $_ := set $props "dnsPrefix" ($v.dns_prefix | default (sha256sum (printf "%s/%s" .Release.Name $v.name) | trunc 10)) }}
+{{- end }}
+{{- with $v.identity_profile }}
+{{- $ip := dict }}
+{{- range $k, $x := . }}{{ $_ := set $ip $k (dict "resourceReference" (dict "armId" $x.resource_id)) }}{{ end }}
+{{- $_ := set $props "identityProfile" $ip }}
+{{- end }}
+{{- /* locals.addon_profiles.tf */ -}}
+{{- $addons := dict }}
+{{- with $v.addon_profile_oms_agent }}
+{{- $cfg := dict }}
+{{- with .config }}{{ $cfg = dict "logAnalyticsWorkspaceResourceID" .log_analytics_workspace_resource_id "useAADAuth" (toString (eq .use_aad_auth true)) }}{{ end }}
+{{- $_ := set $addons "omsagent" (dict "enabled" .enabled "config" $cfg) }}
+{{- end }}
+{{- if and $v.addon_profile_azure_policy (not $automatic) }}
+{{- $a := dict "enabled" $v.addon_profile_azure_policy.enabled }}
+{{- with $v.addon_profile_azure_policy.config }}{{ $_ := set $a "config" . }}{{ end }}
+{{- $_ := set $addons "azurepolicy" $a }}
+{{- end }}
+{{- with $v.addon_profile_ingress_application_gateway }}
+{{- $a := dict "enabled" .enabled }}
+{{- with .config }}
+{{- $cfg := dict }}
+{{- range $k, $n := dict "application_gateway_id" "applicationGatewayId" "application_gateway_name" "applicationGatewayName" "subnet_cidr" "subnetCIDR" "subnet_id" "subnetId" }}{{ with index $.Values.addon_profile_ingress_application_gateway.config $k }}{{ $_ := set $cfg $n . }}{{ end }}{{ end }}
+{{- $_ := set $a "config" $cfg }}
+{{- end }}
+{{- $_ := set $addons "ingressApplicationGateway" $a }}
+{{- end }}
+{{- if and (not $automatic) $v.addon_profile_key_vault_secrets_provider }}
+{{- $a := dict "enabled" true }}
+{{- with $v.addon_profile_key_vault_secrets_provider.config }}
+{{- $cfg := dict "enableSecretRotation" (toString (eq .enable_secret_rotation true)) }}
+{{- with .rotation_poll_interval }}{{ $_ := set $cfg "rotationPollInterval" . }}{{ end }}
+{{- $_ := set $a "config" $cfg }}
+{{- end }}
+{{- $_ := set $addons "azureKeyvaultSecretsProvider" $a }}
+{{- end }}
+{{- with $v.addon_profile_confidential_computing }}
+{{- $_ := set $addons "ACCSGXDevicePlugin" (dict "enabled" .enabled) }}
+{{- end }}
+{{- range $k, $a := ($v.addon_profiles_extra | default dict) }}
+{{- $x := dict "enabled" $a.enabled }}
+{{- with $a.config }}{{ $_ := set $x "config" . }}{{ end }}
+{{- $_ := set $addons $k $x }}
+{{- end }}
+{{- with $addons }}{{ $_ := set $props "addonProfiles" . }}{{ end }}
+{{- /* The default agent pool: the cluster's first agentPoolProfiles entry (locals.agent_pool_profiles.tf). */ -}}
+{{- $poolIn := deepCopy $default }}
+{{- $_ := set $poolIn "mode" "System" }}
+{{- $_ := set $poolIn "os_type" "Linux" }}
+{{- if kindIs "invalid" $poolIn.count_of }}{{ $_ := set $poolIn "count_of" 3 }}{{ end }}
+{{- if kindIs "invalid" $poolIn.orchestrator_version }}{{ $_ := set $poolIn "orchestrator_version" $v.kubernetes_version }}{{ end }}
+{{- $_ := set $poolIn "tags" $v.tags }}
+{{- if not $automatic }}
+{{- $profile := include "aks.pool" (dict "root" $ "p" $poolIn "where" "default_agent_pool" "stable" true "drop" (list "artifact_streaming_profile" "node_image_version" "security_profile")) | fromJson }}
+{{- $_ := set $profile "name" $defaultName }}
+{{- $_ := set $props "agentPoolProfiles" (list $profile) }}
+{{- end }}
+{{- /* An Automatic cluster takes only some properties (locals.resource_body.tf, locals.network_profile.tf). */ -}}
+{{- if $automatic }}
+{{- $keep := list "aadProfile" "addonProfiles" "apiServerAccessProfile" "autoUpgradeProfile" "azureMonitorProfile" "diskEncryptionSetReference" "hostedSystemProfile" "ingressProfile" "kubernetesVersion" "metricsProfile" "networkProfile" "nodeProvisioningProfile" "nodeResourceGroup" "oidcIssuerProfile" "securityProfile" "serviceMeshProfile" "storageProfile" "workloadAutoScalerProfile" }}
+{{- range $k := keys $props }}{{ if not (has $k $keep) }}{{ $_ := unset $props $k }}{{ end }}{{ end }}
+{{- with $props.networkProfile }}
+{{- if eq (.outboundType | default "loadBalancer") "loadBalancer" }}
+{{- $_ := unset $props "networkProfile" }}
+{{- else }}
+{{- range $k := keys . }}{{ if not (has $k (list "advancedNetworking" "dnsServiceIP" "outboundType" "podCidr" "serviceCidr")) }}{{ $_ := unset $props.networkProfile $k }}{{ end }}{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $name := include "aso.resourceName" (list $ "managedCluster" "AKS cluster" $v.name 63 "^[a-zA-Z0-9]$|^[a-zA-Z0-9][-_a-zA-Z0-9]{0,61}[a-zA-Z0-9]$") }}
+{{- $spec := merge (dict "azureName" $name "location" $v.location "owner" (include "aso.owner" (list $ "parent_id" $v.parent_id) | fromYaml)) $props }}
+{{- with $v.extended_location }}{{ $_ := set $spec "extendedLocation" (index (include "aks.conv" (dict "k" "" "v" .) | fromJson) "v") }}{{ end }}
+{{- with $v.kind }}{{ $_ := set $spec "kind" . }}{{ end }}
+{{- with $v.sku }}{{ $_ := set $spec "sku" (index (include "aks.conv" (dict "k" "" "v" .) | fromJson) "v") }}{{ end }}
+{{- if $mi.system_assigned }}
+{{- if $uai }}
+{{- fail (printf "%s: managed_identities: an AKS cluster has a system-assigned or a user-assigned identity, not both (ASO's ManagedCluster takes SystemAssigned or UserAssigned)" $chart) }}
+{{- end }}
+{{- $_ := set $spec "identity" (dict "type" "SystemAssigned") }}
+{{- else if $uai }}
+{{- $ids := list }}{{ range $uai }}{{ $ids = append $ids (dict "reference" (dict "armId" .)) }}{{ end }}
+{{- $_ := set $spec "identity" (dict "type" "UserAssigned" "userAssignedIdentities" $ids) }}
+{{- end }}
+{{- with $tags }}{{ $_ := set $spec "tags" . }}{{ end }}
+---
+apiVersion: containerservice.azure.com/{{ ternary "v20251002preview" "v20260501" $preview }}
+kind: ManagedCluster
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "managed_cluster" "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- toYaml $spec | nindent 2 }}
+{{- $owner := dict "group" "containerservice.azure.com" "kind" "ManagedCluster" "name" $obj }}
+{{- if not $automatic }}
+{{- /* azapi_update_resource.default_agent_pool: the default pool, with the properties the module sets after creation; never deleted on its own. */ -}}
+{{- $pool := include "aks.pool" (dict "root" $ "p" $poolIn "where" "default_agent_pool") | fromJson }}
+---
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "default-pool")) "id" "default_agent_pool" "abandon" true) | nindent 2 }}
+spec:
+  azureName: {{ $defaultName | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- toYaml $pool | nindent 2 }}
+{{- end }}
+{{- range $k, $p := ($v.agent_pools | default dict) }}
+{{- if not $p.output_data_only }}
+{{- with $p.delete_options }}
+{{- include "aso.unsupported" (list $ (printf "agent_pools.%s.delete_options.ignore_pod_disruption_budget" $k) (eq .ignore_pod_disruption_budget true) "ASO deletes an agent pool without the ignore-pod-disruption-budget option") }}
+{{- end }}
+{{- $in := deepCopy $p }}
+{{- if kindIs "invalid" $in.orchestrator_version }}{{ $_ := set $in "orchestrator_version" $v.kubernetes_version }}{{ end }}
+{{- $pool := include "aks.pool" (dict "root" $ "p" $in "where" (printf "agent_pools.%s" $k)) | fromJson }}
+---
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "pool" $k)) "id" (printf "agent_pool:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- toYaml $pool | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- range $k, $m := ($v.maintenanceconfiguration | default dict) }}
+{{- $in := omit $m "name" "enable_telemetry" }}
+---
+apiVersion: containerservice.azure.com/v20260501
+kind: MaintenanceConfiguration
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "maintenance" $k)) "id" (printf "maintenance_configuration:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $m.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- with (index (include "aks.conv" (dict "k" "" "v" $in) | fromJson) "v") }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- range $k, $n := ($v.namespace | default dict) }}
+{{- $in := omit $n "name" "enable_telemetry" "location" "tags" }}
+---
+apiVersion: containerservice.azure.hfl.dev/v20260501
+kind: ManagedClustersManagedNamespace
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "namespace" $k)) "id" (printf "namespace:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $n.name | quote }}
+  location: {{ $n.location | default $v.location | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- with (index (include "aks.conv" (dict "k" "" "v" $in) | fromJson) "v") }}
+  properties:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $n.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- $lock := $v.lock }}
+{{- with $lock }}
+{{- $lock = merge (dict "notes" (ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq .kind "CanNotDelete"))) (omit . "notes") }}
+{{- with $v.lock.notes }}{{ $_ := set $lock "notes" . }}{{ end }}
+{{- end }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $lock) }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- /* main.diagnostic.tf: logs by category or by group, the other groups sent disabled. */ -}}
+{{- range $key, $d := ($v.diagnostic_settings | default dict) }}
+{{- $dest := $d.log_analytics_destination_type | default "Dedicated" }}
+{{- if not (has $dest (list "Dedicated" "AzureDiagnostics")) }}{{ fail (printf "%s: Log analytics destination type must be one of: 'Dedicated', 'AzureDiagnostics'." $chart) }}{{ end }}
+{{- $cats := $d.log_categories | default list | uniq | sortAlpha }}
+{{- $groups := ternary (list "allLogs") ($d.log_groups | default list) (kindIs "invalid" $d.log_groups) | uniq | sortAlpha }}
+{{- if and $cats $groups }}{{ fail (printf "%s: Each diagnostic setting must use either `log_categories` or `log_groups`, not both." $chart) }}{{ end }}
+{{- if not (or $d.workspace_resource_id $d.storage_account_resource_id $d.event_hub_authorization_rule_resource_id $d.marketplace_partner_resource_id) }}
+{{- fail (printf "%s: At least one of `workspace_resource_id`, `storage_account_resource_id`, `marketplace_partner_resource_id`, or `event_hub_authorization_rule_resource_id`, must be set." $chart) }}
+{{- end }}
+{{- $logs := list }}
+{{- range $cats }}{{ $logs = append $logs (dict "category" . "enabled" true "retentionPolicy" (dict "days" 0 "enabled" false)) }}{{ end }}
+{{- range $groups }}{{ $logs = append $logs (dict "categoryGroup" . "enabled" true "retentionPolicy" (dict "days" 0 "enabled" false)) }}{{ end }}
+{{- if not $cats }}
+{{- range (list "allLogs" "audit") }}{{ if not (has . $groups) }}{{ $logs = append $logs (dict "categoryGroup" . "enabled" false "retentionPolicy" (dict "days" 0 "enabled" false)) }}{{ end }}{{ end }}
+{{- end }}
+{{- $metrics := ternary (list "AllMetrics") ($d.metric_categories | default list) (kindIs "invalid" $d.metric_categories) | uniq | sortAlpha }}
+---
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "diag" $key)) "id" (printf "diagnostic-setting-%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | default (printf "diag-%s" $v.name) | quote }}
+  owner:
+    {{- toYaml $owner | nindent 4 }}
+  logAnalyticsDestinationType: {{ $dest | quote }}
+  {{- with $logs }}
+  logs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $metrics }}
+  metrics:
+    {{- range . }}
+    - category: {{ . | quote }}
+      enabled: true
+    {{- end }}
+  {{- end }}
+  {{- with $d.workspace_resource_id }}
+  workspaceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.storage_account_resource_id }}
+  storageAccountReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.event_hub_authorization_rule_resource_id }}
+  eventHubAuthorizationRuleReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.event_hub_name }}
+  eventHubName: {{ . | quote }}
+  {{- end }}
+  {{- with $d.marketplace_partner_resource_id }}
+  marketplacePartnerReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}

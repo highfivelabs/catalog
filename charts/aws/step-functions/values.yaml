@@ -1,0 +1,140 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules'
+# step-functions module (v5.1.1): same names, types and defaults, so a module
+# block's arguments become a values file one to one. values.schema.json
+# carries the types. A variable the chart cannot carry stays here and stops
+# the render when set (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# Whole AWS names: {stateMachine, role, logGroup}. A name set here takes no
+# namePrefix. Unset, the state machine is named name, the role role_name
+# (or name), the log group cloudwatch_log_group_name (or
+# /aws/vendedlogs/states/<the state machine's name>); the policies are
+# named after the role, as the module names them.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the state machine's,
+# the role's and a set log group's name (never one set under names). Empty
+# (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# The AWS account and partition, which the module reads from the provider
+# (aws_caller_identity, aws_partition). A chart cannot read them, so Bundt
+# fills account_id from the Environment. Needed for a service integration
+# whose default resources name the account (stepfunction_Sync's events
+# rule, ...), and (with region) for the log group's ARN the state machine
+# logs to when logging_configuration has no log_destination.
+account_id: null
+partition: aws
+# DELETE (default): deleting the component deletes the state machine, its
+# role, policies and log group. ABANDON keeps them
+# (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# Controls whether CloudWatch Logs policy should be added to IAM role for
+# Lambda Function
+attach_cloudwatch_logs_policy: true
+# Controls whether list of policies should be added to IAM role
+attach_policies: false
+# Whether to attach AWS Service policies to IAM role
+attach_policies_for_integrations: true
+# Controls whether policy should be added to IAM role
+attach_policy: false
+# Controls whether policy_json should be added to IAM role
+attach_policy_json: false
+# Controls whether policy_jsons should be added to IAM role
+attach_policy_jsons: false
+# Controls whether policy_statements should be added to IAM role
+attach_policy_statements: false
+# Name of AWS regions where IAM role can be assumed by the Step Function
+aws_region_assume_role: ""
+# The ARN of the KMS Key to use when encrypting log data.
+cloudwatch_log_group_kms_key_id: null
+# Name of Cloudwatch Logs group name to use.
+cloudwatch_log_group_name: null
+# Specifies the number of days you want to retain log events in the specified
+# log group. Possible values are: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180,
+# 365, 400, 545, 731, 1827, and 3653.
+cloudwatch_log_group_retention_in_days: null
+# A map of tags to assign to the resource.
+cloudwatch_log_group_tags: {}
+# Whether to create Step Function resource
+create: true
+# Whether to create IAM role for the Step Function
+create_role: true
+# The Amazon States Language definition of the Step Function
+definition: ""
+# Defines what encryption configuration is used to encrypt data in the State
+# Machine. For more information see: https://docs.aws.amazon.com/step-
+# functions/latest/apireference/API_EncryptionConfiguration.html
+# Not supported (gap): ACK's StateMachine (sfn-controller v1.9.1) has no
+# encryptionConfiguration field.
+encryption_configuration: {}
+# Defines what execution history events are logged and where they are logged
+logging_configuration: {}
+# The name of the Step Function
+name: ""
+# Number of policies to attach to IAM role
+number_of_policies: 0
+# Number of policies JSON to attach to IAM role
+number_of_policy_jsons: 0
+# List of policy statements ARN to attach to IAM role
+policies: []
+# An additional policy document ARN to attach to IAM role
+policy: null
+# An additional policy document as JSON to attach to IAM role
+policy_json: null
+# List of additional policy documents as JSON to attach to IAM role
+policy_jsons: []
+# Path of IAM policies to use for Step Function
+policy_path: null
+# Map of dynamic policy statements to attach to IAM role
+policy_statements: {}
+# Determines whether to set a version of the state machine when it is created.
+publish: false
+# Region where the resource(s) will be managed. Defaults to the region set in
+# the provider configuration
+region: null
+# The Amazon Resource Name (ARN) of the IAM role to use for this Step Function
+role_arn: ""
+# Description of IAM role to use for Step Function
+role_description: null
+# Specifies to force detaching any policies the IAM role has before destroying
+# it.
+# In part: true only: ACK detaches the role's managed policies before it
+# deletes the role, always.
+role_force_detach_policies: true
+# Name of IAM role to use for Step Function
+role_name: null
+# Path of IAM role to use for Step Function
+role_path: null
+# The ARN of the policy that is used to set the permissions boundary for the
+# IAM role used by Step Function
+role_permissions_boundary: null
+# A map of tags to assign to IAM role
+role_tags: {}
+# Map of AWS service integrations to allow in IAM role policy
+service_integrations: {}
+# Create, update, and delete timeout configurations for the step function.
+# Not supported (by design): Terraform's create, update and delete timeouts:
+# ACK retries until the state machine is synced, and Bundt waits for it.
+sfn_state_machine_timeouts: {}
+# Maps of tags to assign to the Step Function
+tags: {}
+# Step Function additional trusted entities for assuming roles (trust
+# relationship)
+trusted_entities: []
+# Determines whether a Standard or Express state machine is created. The
+# default is STANDARD. Valid Values: STANDARD | EXPRESS
+type: "STANDARD"
+# Whether to use an existing CloudWatch log group or create new
+use_existing_cloudwatch_log_group: false
+# Whether to use an existing IAM role for this Step Function
+use_existing_role: false
