@@ -7,8 +7,8 @@
 # resource_id is its ARM ID from ASO's status; each <type>_record_outputs
 # is {<key>: {id, fqdn}} from the record objects' status, as the module
 # builds it; virtual_network_link_outputs is {<key>: {id}}.
-# soa_record_outputs is {}: the module's output is empty unless
-# soa_record is set, which this chart refuses. The module's resource
+# soa_record_outputs is {default: {id}} from the SOA object's status when
+# soa_record is set, else {}, as the module's. The module's resource
 # output (the whole azapi object) is not an output.
 apiVersion: hfl.dev/v1
 kind: Package
@@ -35,6 +35,7 @@ spec:
       resources.transformMapEntry(k, v, k.startsWith('srv_record:'), {k.substring(11): {'id': v.status.id, 'fqdn': v.status.fqdn}})
     txt_record_outputs: >-
       resources.transformMapEntry(k, v, k.startsWith('txt_record:'), {k.substring(11): {'id': v.status.id, 'fqdn': v.status.fqdn}})
-    soa_record_outputs: '{}'
+    soa_record_outputs: >-
+      resources.transformMapEntry(k, v, k == 'soa_record', {'default': {'id': v.status.id}})
     virtual_network_link_outputs: >-
       resources.transformMapEntry(k, v, k.startsWith('virtual_network_link:'), {k.substring(21): {'id': v.status.id}})

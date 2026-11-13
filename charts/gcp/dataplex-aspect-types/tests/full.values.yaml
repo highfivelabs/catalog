@@ -1,0 +1,45 @@
+# Every variable: two aspect types from the variable and one from a file
+# that replaces the variable's entry of the same key, a regional location,
+# labels, authoritative bindings with a condition and an additive member.
+project_id: my-project
+location: europe-west1
+allow_alpha: true
+deletion_policy: ABANDON
+labels: {hfl.dev/team: data, env: prod}
+tags: {cost-center: c42}
+factories_config: {aspect_types: data/aspect-types}
+aspect_types:
+  quality:
+    description: Data quality facts.
+    display_name: Quality
+    labels: {domain: quality}
+    metadata_template: '{"name": "quality", "type": "record", "recordFields": [{"name": "score", "type": "double", "index": 1, "annotations": {"description": "0 to 100"}}, {"name": "checked", "type": "datetime", "index": 2}]}'
+    iam:
+      roles/dataplex.aspectTypeOwner: ["group:data-owners@example.com", "group:data-owners@example.com"]
+      roles/dataplex.aspectTypeUser: ["group:analysts@example.com"]
+    iam_bindings:
+      quality-user-temp:
+        role: roles/dataplex.aspectTypeUser
+        members: ["user:temp@example.com"]
+        condition:
+          title: expires
+          description: until the end of 2030
+          expression: request.time < timestamp('2031-01-01T00:00:00Z')
+    iam_bindings_additive:
+      quality-sa:
+        role: roles/dataplex.aspectTypeUser
+        member: serviceAccount:etl@my-project.iam.gserviceaccount.com
+        condition:
+          title: expires
+          expression: request.time < timestamp('2031-01-01T00:00:00Z')
+  owner:
+    display_name: from the variable, replaced by the file
+    metadata_template: '{"name": "owner", "type": "record", "recordFields": [{"name": "team", "type": "string", "index": 1}]}'
+factories_data:
+  aspect_types:
+    owner:
+      description: Who owns the entry.
+      display_name: Owner
+      labels: {domain: ownership}
+      metadata_template: |
+        {"name": "owner", "type": "record", "recordFields": [{"name": "team", "type": "string", "index": 1, "constraints": {"required": true}}, {"name": "contact", "type": "string", "index": 2}]}

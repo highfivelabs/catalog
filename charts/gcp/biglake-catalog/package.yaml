@@ -1,0 +1,43 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric's resources compute them:
+# catalog_id is the catalog's Terraform ID
+# (projects/<p>/locations/<l>/catalogs/<name>), database_ids and table_ids
+# the databases' and tables' IDs by fabric's keys (<database> and
+# <database>-<table>). catalog, databases and tables are whole Terraform
+# objects in fabric; here they are the same IDs, the field a consumer
+# takes.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-biglake-catalog
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    catalog_id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
+      ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    catalog: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
+      ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    database_ids: >-
+      inputs.databases.transformMapEntry(k, v,
+        {k: 'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
+          ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
+          '/databases/' + k})
+    databases: >-
+      inputs.databases.transformMapEntry(k, v,
+        {k: 'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
+          ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
+          '/databases/' + k})
+    table_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'BigLakeTable',
+        {k.substring(6): v.spec.parentDatabaseRef.external + '/tables/' + v.spec.resourceID})
+    tables: >-
+      resources.transformMapEntry(k, v, v.kind == 'BigLakeTable',
+        {k.substring(6): v.spec.parentDatabaseRef.external + '/tables/' + v.spec.resourceID})

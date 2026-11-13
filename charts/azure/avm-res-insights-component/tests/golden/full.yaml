@@ -1,0 +1,199 @@
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.com/v1api20200202
+kind: Component
+metadata:
+  name: full-appi
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "component"
+spec:
+  azureName: "appi-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon"
+  kind: "other"
+  Application_Type: other
+  DisableIpMasking: true
+  DisableLocalAuth: true
+  ForceCustomerStorageForProfiler: true
+  RetentionInDays: 30
+  SamplingPercentage: 12.5
+  publicNetworkAccessForIngestion: Disabled
+  publicNetworkAccessForQuery: Disabled
+  workspaceResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law"
+  tags:
+    env: prod
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-appi-diag-audit
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-audit"
+spec:
+  azureName: "audit"
+  owner:
+    group: insights.azure.com
+    kind: Component
+    name: full-appi
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - category: AppRequests
+      enabled: true
+      retentionPolicy:
+        days: 7
+        enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.Storage/storageAccounts/staudit"
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-appi-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-appi-full"
+  owner:
+    group: insights.azure.com
+    kind: Component
+    name: full-appi
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: allLogs
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  metrics:
+    - category: AllMetrics
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-appi-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-appi-full"
+  owner:
+    group: insights.azure.com
+    kind: Component
+    name: full-appi
+  level: CanNotDelete
+  notes: "keep"
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.com/v1api20171001
+kind: PricingPlan
+metadata:
+  name: full-appi-pricing
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "pricing_plan"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: full-appi
+  planType: Basic
+  cap: 2.5
+  stopSendNotificationWhenHitCap: true
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScopesScopedResource
+metadata:
+  name: full-appi-ampls-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:hub"
+spec:
+  azureName: "appi-full"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Insights/privateLinkScopes/ampls-hub"
+  linkedResourceReference:
+    group: insights.azure.com
+    kind: Component
+    name: full-appi
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScopesScopedResource
+metadata:
+  name: full-appi-ampls-named
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:named"
+spec:
+  azureName: "appi-full-link"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Insights/privateLinkScopes/ampls-spoke"
+  linkedResourceReference:
+    group: insights.azure.com
+    kind: Component
+    name: full-appi
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-appi-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  azureName: "6e1e8e0b-0f3e-4c1a-9d1e-2b8f6c0a1d2e"
+  owner:
+    group: insights.azure.com
+    kind: Component
+    name: full-appi
+  principalId: "44444444-5555-6666-7777-888888888888"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Monitoring Reader"

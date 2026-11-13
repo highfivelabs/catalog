@@ -340,27 +340,27 @@ gcp,gke-cluster-standard,node_pool_auto_config,"object({cgroup_mode, kubelet_rea
 gcp,gke-cluster-standard,project_id,string,yes,,
 gcp,gke-cluster-standard,release_channel,string,yes,,
 gcp,gke-cluster-standard,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",yes,,
-gcp,gke-cluster-autopilot,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",no,,no-chart
-gcp,gke-cluster-autopilot,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",no,,no-chart
-gcp,gke-cluster-autopilot,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,,no-chart
-gcp,gke-cluster-autopilot,deletion_protection,bool,no,,no-chart
-gcp,gke-cluster-autopilot,description,string,no,,no-chart
-gcp,gke-cluster-autopilot,enable_addons,"object({agent_sandbox, cloudrun, config_connector, istio, kalm})",no,,no-chart
-gcp,gke-cluster-autopilot,enable_features,"object({allow_net_admin, anonymous_authentication, beta_apis, binary_authorization, cilium_clusterwide_network_policy, cost_management, +20})",no,,no-chart
-gcp,gke-cluster-autopilot,fleet_project,string,no,,no-chart
-gcp,gke-cluster-autopilot,issue_client_certificate,bool,no,,no-chart
-gcp,gke-cluster-autopilot,labels,map(string),no,,no-chart
-gcp,gke-cluster-autopilot,location,string,no,,no-chart
-gcp,gke-cluster-autopilot,logging_config,"object({enable_api_server_logs, enable_controller_manager_logs, enable_scheduler_logs})",no,,no-chart
-gcp,gke-cluster-autopilot,maintenance_config,"object({daily_window_start_time, maintenance_exclusions, recurring_window})",no,,no-chart
-gcp,gke-cluster-autopilot,min_master_version,string,no,,no-chart
-gcp,gke-cluster-autopilot,monitoring_config,"object({advanced_datapath_observability, enable_api_server_metrics, enable_cadvisor_metrics, enable_controller_manager_metrics, enable_daemonset_metrics, enable_deployment_metrics, +6})",no,,no-chart
-gcp,gke-cluster-autopilot,name,string,no,,no-chart
-gcp,gke-cluster-autopilot,node_config,"object({boot_disk_kms_key, kubelet_readonly_port_enabled, resource_manager_tags, service_account, tags, workload_metadata_config_mode})",no,,no-chart
-gcp,gke-cluster-autopilot,node_locations,list(string),no,,no-chart
-gcp,gke-cluster-autopilot,project_id,string,no,,no-chart
-gcp,gke-cluster-autopilot,release_channel,string,no,,no-chart
-gcp,gke-cluster-autopilot,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",no,,no-chart
+gcp,gke-cluster-autopilot,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",partial,accepted; dns_access.enable_k8s_certs and ip_access.private_endpoint_authorized_ranges_enforcement are refused when true: ContainerCluster has no enableK8sCertsViaDns or privateEndpointEnforcementEnabled,gap
+gcp,gke-cluster-autopilot,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",partial,accepted; a channel's deletion_policy PREVENT is refused (no Config Connector equivalent; ABANDON is carried),gap
+gcp,gke-cluster-autopilot,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,gke-cluster-autopilot,deletion_protection,bool,partial,"accepted and has no effect: it is Terraform's own guard against destroy, and Config Connector has none; deletion_policy: ABANDON keeps the cluster, and a Bundt policy can block deleting it",by-design
+gcp,gke-cluster-autopilot,description,string,yes,,
+gcp,gke-cluster-autopilot,enable_addons,"object({agent_sandbox, cloudrun, config_connector, istio, kalm})",partial,accepted; agent_sandbox is refused when true: ContainerCluster's addonsConfig has no agentSandboxConfig,gap
+gcp,gke-cluster-autopilot,enable_features,"object({allow_net_admin, anonymous_authentication, beta_apis, binary_authorization, cilium_clusterwide_network_policy, cost_management, +20})",partial,"accepted; refused when set (or true): anonymous_authentication, dns.additive_vpc_scope_dns_domain, managed_opentelemetry, rbac_binding_config, secret_manager_config, secret_sync_config, which ContainerCluster has no field for",gap
+gcp,gke-cluster-autopilot,fleet_project,string,no,ContainerCluster has no fleet; GKEHubMembership registers a cluster with a fleet,gap
+gcp,gke-cluster-autopilot,issue_client_certificate,bool,yes,,
+gcp,gke-cluster-autopilot,labels,map(string),yes,,
+gcp,gke-cluster-autopilot,location,string,yes,,
+gcp,gke-cluster-autopilot,logging_config,"object({enable_api_server_logs, enable_controller_manager_logs, enable_scheduler_logs})",yes,,
+gcp,gke-cluster-autopilot,maintenance_config,"object({daily_window_start_time, maintenance_exclusions, recurring_window})",yes,,
+gcp,gke-cluster-autopilot,min_master_version,string,yes,,
+gcp,gke-cluster-autopilot,monitoring_config,"object({advanced_datapath_observability, enable_api_server_metrics, enable_cadvisor_metrics, enable_controller_manager_metrics, enable_daemonset_metrics, enable_deployment_metrics, +6})",partial,"accepted; advanced_datapath_observability.enable_relay true is refused: ContainerCluster has only the deprecated relayMode, not enableRelay",gap
+gcp,gke-cluster-autopilot,name,string,yes,,
+gcp,gke-cluster-autopilot,node_config,"object({boot_disk_kms_key, kubelet_readonly_port_enabled, resource_manager_tags, service_account, tags, workload_metadata_config_mode})",partial,accepted; kubelet_readonly_port_enabled is refused: nodePoolAutoConfig has no nodeKubeletConfig,gap
+gcp,gke-cluster-autopilot,node_locations,list(string),yes,,
+gcp,gke-cluster-autopilot,project_id,string,yes,,
+gcp,gke-cluster-autopilot,release_channel,string,yes,,
+gcp,gke-cluster-autopilot,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",yes,,
 gcp,gke-nodepool,cluster_id,string,yes,,
 gcp,gke-nodepool,cluster_name,string,yes,,
 gcp,gke-nodepool,gke_version,string,yes,,
@@ -541,11 +541,11 @@ gcp,dns-response-policy,networks,map(string),no,,no-chart
 gcp,dns-response-policy,policy_create,bool,no,,no-chart
 gcp,dns-response-policy,project_id,string,no,,no-chart
 gcp,dns-response-policy,rules,"map(object({behavior, dns_name, local_data}))",no,,no-chart
-gcp,certificate-manager,certificates,"map(object({description, labels, location, managed, scope, self_managed}))",no,,no-chart
-gcp,certificate-manager,dns_authorizations,"map(object({description, domain, labels, location, type}))",no,,no-chart
-gcp,certificate-manager,issuance_configs,"map(object({ca_pool, description, key_algorithm, labels, lifetime, location, +1}))",no,,no-chart
-gcp,certificate-manager,map,"object({description, entries, labels, name})",no,,no-chart
-gcp,certificate-manager,project_id,string,no,,no-chart
+gcp,certificate-manager,certificates,"map(object({description, labels, location, managed, scope, self_managed}))",partial,"self_managed is refused: its private key given here would be in the rendered manifest; CertificateManagerCertificate takes it from a Kubernetes Secret (pemPrivateKey.valueFrom), which the chart does not take yet (the open question of cloudsql-instance's root_password)",not-ported
+gcp,certificate-manager,dns_authorizations,"map(object({description, domain, labels, location, type}))",yes,,
+gcp,certificate-manager,issuance_configs,"map(object({ca_pool, description, key_algorithm, labels, lifetime, location, +1}))",yes,,
+gcp,certificate-manager,map,"object({description, entries, labels, name})",yes,,
+gcp,certificate-manager,project_id,string,yes,,
 gcp,net-lb-app-ext,backend_buckets_config,"map(object({bucket_name, cdn_policy, compression_mode, custom_response_headers, description, edge_security_policy, +3}))",no,,no-chart
 gcp,net-lb-app-ext,backend_service_configs,"map(object({affinity_cookie_ttl_sec, backends, cdn_policy, circuit_breakers, compression_mode, connection_draining_timeout_sec, +20}))",no,,no-chart
 gcp,net-lb-app-ext,context,"object({addresses, locations, networks, project_ids, security_policies, subnets})",no,,no-chart
@@ -795,22 +795,22 @@ gcp,managed-kafka,project_id,string,no,,no-chart
 gcp,managed-kafka,rebalance_mode,string,no,,no-chart
 gcp,managed-kafka,subnets,list(string),no,,no-chart
 gcp,managed-kafka,topics,"map(object({configs, partition_count, replication_factor}))",no,,no-chart
-gcp,net-cloud-armor,adaptive_protection_config,object({layer_7_ddos_defense}),no,,no-chart
-gcp,net-cloud-armor,advanced_options_config,"object({json_custom_content_types, json_parsing, log_level, request_body_inspection_size, user_ip_request_headers})",no,,no-chart
-gcp,net-cloud-armor,attachments,"map(object({excluded_folders, excluded_projects, id}))",no,,no-chart
-gcp,net-cloud-armor,context,"object({cidr_ranges, cidr_ranges_sets, folder_ids, locations, project_ids, project_numbers})",no,,no-chart
-gcp,net-cloud-armor,ddos_protection,string,no,,no-chart
-gcp,net-cloud-armor,default_rule_config,"object({action, description, preview})",no,,no-chart
-gcp,net-cloud-armor,description,string,no,,no-chart
-gcp,net-cloud-armor,factories_config,object({rules_file_path}),no,,no-chart
-gcp,net-cloud-armor,labels,map(string),no,,no-chart
-gcp,net-cloud-armor,name,string,no,,no-chart
-gcp,net-cloud-armor,parent_id,"object({folder_id, organization_id, project_id})",no,,no-chart
-gcp,net-cloud-armor,recaptcha_options_config,object({redirect_site_key}),no,,no-chart
-gcp,net-cloud-armor,region,string,no,,no-chart
-gcp,net-cloud-armor,rules,"map(object({action, description, header_action, match, network_match, preconfigured_waf_config, +4}))",no,,no-chart
-gcp,net-cloud-armor,type,string,no,,no-chart
-gcp,net-cloud-armor,user_defined_fields,"map(object({base, mask, offset, size}))",no,,no-chart
+gcp,net-cloud-armor,adaptive_protection_config,object({layer_7_ddos_defense}),partial,layer_7_ddos_defense.threshold_configs is refused: ComputeSecurityPolicy's layer7DdosDefenseConfig has only enable and ruleVisibility,gap
+gcp,net-cloud-armor,advanced_options_config,"object({json_custom_content_types, json_parsing, log_level, request_body_inspection_size, user_ip_request_headers})",partial,request_body_inspection_size is refused: ComputeSecurityPolicy's advancedOptionsConfig has no such field,gap
+gcp,net-cloud-armor,attachments,"map(object({excluded_folders, excluded_projects, id}))",no,"attachments are of hierarchical policies, which are refused (see parent_id)",gap
+gcp,net-cloud-armor,context,"object({cidr_ranges, cidr_ranges_sets, folder_ids, locations, project_ids, project_numbers})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-cloud-armor,ddos_protection,string,no,ComputeSecurityPolicy has no ddosProtectionConfig,gap
+gcp,net-cloud-armor,default_rule_config,"object({action, description, preview})",yes,,
+gcp,net-cloud-armor,description,string,yes,,
+gcp,net-cloud-armor,factories_config,object({rules_file_path}),partial,a chart cannot read the caller's files: accepted and ignored; the rules file's contents go under factories_data.rules,by-design
+gcp,net-cloud-armor,labels,map(string),yes,,
+gcp,net-cloud-armor,name,string,yes,,
+gcp,net-cloud-armor,parent_id,"object({folder_id, organization_id, project_id})",partial,"organization_id and folder_id (a hierarchical policy) are refused: config-connector-extensions' ComputeOrganizationSecurityPolicyRule requires a layer-4 match and has no expression match, header action, WAF configuration or redirect, so Cloud Armor rules cannot be expressed; a project policy is ported",gap
+gcp,net-cloud-armor,recaptcha_options_config,object({redirect_site_key}),yes,,
+gcp,net-cloud-armor,region,string,yes,,
+gcp,net-cloud-armor,rules,"map(object({action, description, header_action, match, network_match, preconfigured_waf_config, +4}))",partial,network_match (CLOUD_ARMOR_NETWORK policies) and match.recaptcha_options are refused: ComputeSecurityPolicy's rules have no networkMatch and no exprOptions,gap
+gcp,net-cloud-armor,type,string,yes,,
+gcp,net-cloud-armor,user_defined_fields,"map(object({base, mask, offset, size}))",no,ComputeSecurityPolicy has no userDefinedFields,gap
 gcp,net-swp,certificates,list(string),no,,no-chart
 gcp,net-swp,description,string,no,,no-chart
 gcp,net-swp,factories_config,"object({policy_rules, url_lists})",no,,no-chart
@@ -876,20 +876,20 @@ gcp,net-lb-proxy-int,project_id,string,no,,no-chart
 gcp,net-lb-proxy-int,region,string,no,,no-chart
 gcp,net-lb-proxy-int,service_attachment,"object({automatic_connection, consumer_accept_lists, consumer_reject_lists, description, domain_name, enable_proxy_protocol, +3})",no,,no-chart
 gcp,net-lb-proxy-int,vpc_config,"object({network, subnetwork})",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,addresses,map(string),no,,no-chart
-gcp,net-lb-proxy-int-cross-region,backend_service_config,"object({affinity_cookie_ttl_sec, backends, connection_draining_timeout_sec, description, health_checks, log_config, +5})",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,context,"object({addresses, locations, networks, project_ids, subnets})",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,description,string,no,,no-chart
-gcp,net-lb-proxy-int-cross-region,group_configs,"map(object({description, instances, name, named_ports, project_id, zone}))",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,health_check,string,no,,no-chart
-gcp,net-lb-proxy-int-cross-region,health_check_config,"object({check_interval_sec, description, enable_logging, grpc, healthy_threshold, http, +8})",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,labels,map(string),no,,no-chart
-gcp,net-lb-proxy-int-cross-region,name,string,no,,no-chart
-gcp,net-lb-proxy-int-cross-region,neg_configs,"map(object({gce, hybrid, project_id, psc}))",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,port,number,no,,no-chart
-gcp,net-lb-proxy-int-cross-region,project_id,string,no,,no-chart
-gcp,net-lb-proxy-int-cross-region,target_proxy_config,"object({description, name, proxy_header})",no,,no-chart
-gcp,net-lb-proxy-int-cross-region,vpc_config,"object({network, subnetworks})",no,,no-chart
+gcp,net-lb-proxy-int-cross-region,addresses,map(string),yes,,
+gcp,net-lb-proxy-int-cross-region,backend_service_config,"object({affinity_cookie_ttl_sec, backends, connection_draining_timeout_sec, description, health_checks, log_config, +5})",partial,ComputeBackendService's logConfig has no optionalMode or optionalFields,gap
+gcp,net-lb-proxy-int-cross-region,context,"object({addresses, locations, networks, project_ids, subnets})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-lb-proxy-int-cross-region,description,string,yes,,
+gcp,net-lb-proxy-int-cross-region,group_configs,"map(object({description, instances, name, named_ports, project_id, zone}))",yes,,
+gcp,net-lb-proxy-int-cross-region,health_check,string,yes,,
+gcp,net-lb-proxy-int-cross-region,health_check_config,"object({check_interval_sec, description, enable_logging, grpc, healthy_threshold, http, +8})",yes,,
+gcp,net-lb-proxy-int-cross-region,labels,map(string),yes,,
+gcp,net-lb-proxy-int-cross-region,name,string,yes,,
+gcp,net-lb-proxy-int-cross-region,neg_configs,"map(object({gce, hybrid, project_id, psc}))",yes,,
+gcp,net-lb-proxy-int-cross-region,port,number,yes,,
+gcp,net-lb-proxy-int-cross-region,project_id,string,yes,,
+gcp,net-lb-proxy-int-cross-region,target_proxy_config,"object({description, name, proxy_header})",yes,,
+gcp,net-lb-proxy-int-cross-region,vpc_config,"object({network, subnetworks})",yes,,
 gcp,net-vpn-static,gateway_address,string,yes,,
 gcp,net-vpn-static,gateway_address_create,bool,yes,,
 gcp,net-vpn-static,name,string,yes,,
@@ -946,11 +946,11 @@ gcp,gke-hub,location,string,yes,,
 gcp,gke-hub,policycontroller_templates,"map(object({policy_controller_hub_config, version}))",partial,GKEHubFeatureMembership's policyContent has no bundles,gap
 gcp,gke-hub,project_id,string,yes,,
 gcp,gke-hub,servicemesh_templates,map(object({management})),yes,,
-gcp,binauthz,admission_whitelist_patterns,list(string),no,,no-chart
-gcp,binauthz,attestors_config,"map(object({iam, note_reference, pgp_public_keys, pkix_public_keys}))",no,,no-chart
-gcp,binauthz,cluster_admission_rules,"map(object({attestors, enforcement_mode, evaluation_mode}))",no,,no-chart
-gcp,binauthz,default_admission_rule,"object({attestors, enforcement_mode, evaluation_mode})",no,,no-chart
-gcp,binauthz,project_id,string,no,,no-chart
+gcp,binauthz,admission_whitelist_patterns,list(string),yes,,
+gcp,binauthz,attestors_config,"map(object({iam, note_reference, pgp_public_keys, pkix_public_keys}))",yes,,
+gcp,binauthz,cluster_admission_rules,"map(object({attestors, enforcement_mode, evaluation_mode}))",yes,,
+gcp,binauthz,default_admission_rule,"object({attestors, enforcement_mode, evaluation_mode})",yes,,
+gcp,binauthz,project_id,string,yes,,
 gcp,certificate-authority-service,ca_configs,"map(object({deletion_protection, gcs_bucket, ignore_active_certificates_on_deletion, is_ca, is_self_signed, key_spec, +8}))",no,,no-chart
 gcp,certificate-authority-service,ca_pool_config,"object({create_pool, use_pool})",no,,no-chart
 gcp,certificate-authority-service,context,"object({ca_ids, ca_pools, condition_vars, custom_roles, iam_principals, kms_keys, +3})",no,,no-chart
@@ -1038,10 +1038,10 @@ gcp,analytics-hub,prefix,string,no,,no-chart
 gcp,analytics-hub,primary_contact,string,no,,no-chart
 gcp,analytics-hub,project_id,string,no,,no-chart
 gcp,analytics-hub,region,string,no,,no-chart
-gcp,biglake-catalog,databases,"map(object({hive_options, tables, type}))",no,,no-chart
-gcp,biglake-catalog,location,string,no,,no-chart
-gcp,biglake-catalog,name,string,no,,no-chart
-gcp,biglake-catalog,project_id,string,no,,no-chart
+gcp,biglake-catalog,databases,"map(object({hive_options, tables, type}))",yes,,
+gcp,biglake-catalog,location,string,yes,,
+gcp,biglake-catalog,name,string,yes,,
+gcp,biglake-catalog,project_id,string,yes,,
 gcp,dataform-repository,iam,map(list(string)),no,,no-chart
 gcp,dataform-repository,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
 gcp,dataform-repository,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
@@ -1080,27 +1080,27 @@ gcp,dataplex,prefix,string,no,,no-chart
 gcp,dataplex,project_id,string,no,,no-chart
 gcp,dataplex,region,string,no,,no-chart
 gcp,dataplex,zones,"map(object({assets, discovery, iam, type}))",no,,no-chart
-gcp,dataplex-datascan,data,"object({entity, resource})",no,,no-chart
-gcp,dataplex-datascan,data_profile_spec,"object({row_filter, sampling_percent})",no,,no-chart
-gcp,dataplex-datascan,data_quality_spec,"object({post_scan_actions, row_filter, rules, sampling_percent})",no,,no-chart
-gcp,dataplex-datascan,description,string,no,,no-chart
-gcp,dataplex-datascan,execution_schedule,string,no,,no-chart
-gcp,dataplex-datascan,factories_config,object({data_quality_spec}),no,,no-chart
-gcp,dataplex-datascan,iam,map(list(string)),no,,no-chart
-gcp,dataplex-datascan,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,dataplex-datascan,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,dataplex-datascan,iam_by_principals,map(list(string)),no,,no-chart
-gcp,dataplex-datascan,incremental_field,string,no,,no-chart
-gcp,dataplex-datascan,labels,map(string),no,,no-chart
-gcp,dataplex-datascan,name,string,no,,no-chart
-gcp,dataplex-datascan,prefix,string,no,,no-chart
-gcp,dataplex-datascan,project_id,string,no,,no-chart
-gcp,dataplex-datascan,region,string,no,,no-chart
-gcp,dataplex-aspect-types,aspect_types,"map(object({description, display_name, iam, iam_bindings, iam_bindings_additive, labels, +1}))",no,,no-chart
-gcp,dataplex-aspect-types,context,"object({condition_vars, custom_roles, iam_principals, locations, project_ids})",no,,no-chart
-gcp,dataplex-aspect-types,factories_config,object({aspect_types}),no,,no-chart
-gcp,dataplex-aspect-types,location,string,no,,no-chart
-gcp,dataplex-aspect-types,project_id,string,no,,no-chart
+gcp,dataplex-datascan,data,"object({entity, resource})",yes,,
+gcp,dataplex-datascan,data_profile_spec,"object({row_filter, sampling_percent})",yes,,
+gcp,dataplex-datascan,data_quality_spec,"object({post_scan_actions, row_filter, rules, sampling_percent})",yes,,
+gcp,dataplex-datascan,description,string,yes,,
+gcp,dataplex-datascan,execution_schedule,string,yes,,
+gcp,dataplex-datascan,factories_config,object({data_quality_spec}),partial,a chart cannot read the caller's files: accepted and ignored; the data quality spec file's contents go under factories_data.data_quality_spec,by-design
+gcp,dataplex-datascan,iam,map(list(string)),yes,,
+gcp,dataplex-datascan,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,dataplex-datascan,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,dataplex-datascan,iam_by_principals,map(list(string)),yes,,
+gcp,dataplex-datascan,incremental_field,string,yes,,
+gcp,dataplex-datascan,labels,map(string),yes,,
+gcp,dataplex-datascan,name,string,yes,,
+gcp,dataplex-datascan,prefix,string,yes,,
+gcp,dataplex-datascan,project_id,string,yes,,
+gcp,dataplex-datascan,region,string,yes,,
+gcp,dataplex-aspect-types,aspect_types,"map(object({description, display_name, iam, iam_bindings, iam_bindings_additive, labels, +1}))",yes,,
+gcp,dataplex-aspect-types,context,"object({condition_vars, custom_roles, iam_principals, locations, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,dataplex-aspect-types,factories_config,object({aspect_types}),partial,a chart cannot read the caller's files: accepted and ignored; each aspect type file's contents go under factories_data.aspect_types.<file name>,by-design
+gcp,dataplex-aspect-types,location,string,yes,,
+gcp,dataplex-aspect-types,project_id,string,yes,,
 gcp,data-catalog-policy-tag,activated_policy_types,list(string),yes,,
 gcp,data-catalog-policy-tag,context,"object({condition_vars, custom_roles, iam_principals, locations, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
 gcp,data-catalog-policy-tag,description,string,yes,,
@@ -2601,45 +2601,45 @@ aws,alb,timeouts,"object({create, delete, update})",no,,no-chart
 aws,alb,vpc_id,string,no,,no-chart
 aws,alb,web_acl_arn,string,no,,no-chart
 aws,alb,xff_header_processing_mode,string,no,,no-chart
-aws,dynamodb-table,attributes,list(map(string)),no,,no-chart
-aws,dynamodb-table,autoscaling_defaults,map(string),no,,no-chart
-aws,dynamodb-table,autoscaling_enabled,bool,no,,no-chart
-aws,dynamodb-table,autoscaling_indexes,map(map(string)),no,,no-chart
-aws,dynamodb-table,autoscaling_read,map(string),no,,no-chart
-aws,dynamodb-table,autoscaling_write,map(string),no,,no-chart
-aws,dynamodb-table,billing_mode,string,no,,no-chart
-aws,dynamodb-table,create_table,bool,no,,no-chart
-aws,dynamodb-table,deletion_protection_enabled,bool,no,,no-chart
-aws,dynamodb-table,global_secondary_indexes,any,no,,no-chart
-aws,dynamodb-table,global_table_witness,object({region_name}),no,,no-chart
-aws,dynamodb-table,hash_key,string,no,,no-chart
-aws,dynamodb-table,ignore_changes_global_secondary_index,bool,no,,no-chart
-aws,dynamodb-table,import_table,any,no,,no-chart
-aws,dynamodb-table,local_secondary_indexes,any,no,,no-chart
-aws,dynamodb-table,name,string,no,,no-chart
-aws,dynamodb-table,on_demand_throughput,any,no,,no-chart
-aws,dynamodb-table,point_in_time_recovery_enabled,bool,no,,no-chart
-aws,dynamodb-table,point_in_time_recovery_period_in_days,number,no,,no-chart
-aws,dynamodb-table,range_key,string,no,,no-chart
-aws,dynamodb-table,read_capacity,number,no,,no-chart
-aws,dynamodb-table,region,string,no,,no-chart
-aws,dynamodb-table,replica_regions,any,no,,no-chart
-aws,dynamodb-table,resource_policy,string,no,,no-chart
-aws,dynamodb-table,restore_date_time,string,no,,no-chart
-aws,dynamodb-table,restore_source_name,string,no,,no-chart
-aws,dynamodb-table,restore_source_table_arn,string,no,,no-chart
-aws,dynamodb-table,restore_to_latest_time,bool,no,,no-chart
-aws,dynamodb-table,server_side_encryption_enabled,bool,no,,no-chart
-aws,dynamodb-table,server_side_encryption_kms_key_arn,string,no,,no-chart
-aws,dynamodb-table,stream_enabled,bool,no,,no-chart
-aws,dynamodb-table,stream_view_type,string,no,,no-chart
-aws,dynamodb-table,table_class,string,no,,no-chart
-aws,dynamodb-table,tags,map(string),no,,no-chart
-aws,dynamodb-table,timeouts,map(string),no,,no-chart
-aws,dynamodb-table,ttl_attribute_name,string,no,,no-chart
-aws,dynamodb-table,ttl_enabled,bool,no,,no-chart
-aws,dynamodb-table,warm_throughput,any,no,,no-chart
-aws,dynamodb-table,write_capacity,number,no,,no-chart
+aws,dynamodb-table,attributes,list(map(string)),yes,,
+aws,dynamodb-table,autoscaling_defaults,map(string),yes,,
+aws,dynamodb-table,autoscaling_enabled,bool,no,the module's Application Auto Scaling targets and policies (applicationautoscaling-controller's ScalableTarget and ScalingPolicy) are not ported yet,not-ported
+aws,dynamodb-table,autoscaling_indexes,map(map(string)),no,the module's Application Auto Scaling targets and policies (applicationautoscaling-controller's ScalableTarget and ScalingPolicy) are not ported yet,not-ported
+aws,dynamodb-table,autoscaling_read,map(string),no,the module's Application Auto Scaling targets and policies (applicationautoscaling-controller's ScalableTarget and ScalingPolicy) are not ported yet,not-ported
+aws,dynamodb-table,autoscaling_write,map(string),no,the module's Application Auto Scaling targets and policies (applicationautoscaling-controller's ScalableTarget and ScalingPolicy) are not ported yet,not-ported
+aws,dynamodb-table,billing_mode,string,yes,,
+aws,dynamodb-table,create_table,bool,yes,,
+aws,dynamodb-table,deletion_protection_enabled,bool,yes,,
+aws,dynamodb-table,global_secondary_indexes,any,partial,"accepted, except warm_throughput (ACK's Table has no warm throughput field)",gap
+aws,dynamodb-table,global_table_witness,object({region_name}),no,ACK's Table (dynamodb-controller v1.14.2) has no witness region field (multi-Region strong consistency),gap
+aws,dynamodb-table,hash_key,string,yes,,
+aws,dynamodb-table,ignore_changes_global_secondary_index,bool,no,ACK has no way to leave a table's global secondary indexes alone: the controller reconciles them to the spec,gap
+aws,dynamodb-table,import_table,any,no,ACK's Table has no import from S3 (ImportTable) field,gap
+aws,dynamodb-table,local_secondary_indexes,any,yes,,
+aws,dynamodb-table,name,string,yes,,
+aws,dynamodb-table,on_demand_throughput,any,yes,,
+aws,dynamodb-table,point_in_time_recovery_enabled,bool,yes,,
+aws,dynamodb-table,point_in_time_recovery_period_in_days,number,yes,,
+aws,dynamodb-table,range_key,string,yes,,
+aws,dynamodb-table,read_capacity,number,yes,,
+aws,dynamodb-table,region,string,yes,,
+aws,dynamodb-table,replica_regions,any,partial,"accepted, except propagate_tags, point_in_time_recovery, deletion_protection_enabled and consistency_mode (ACK's Table replicas take a region, a KMS key, a table class and throughput overrides only)",gap
+aws,dynamodb-table,resource_policy,string,yes,,
+aws,dynamodb-table,restore_date_time,string,no,ACK's Table has no restore from a point in time or a backup,gap
+aws,dynamodb-table,restore_source_name,string,no,ACK's Table has no restore from a point in time or a backup,gap
+aws,dynamodb-table,restore_source_table_arn,string,no,ACK's Table has no restore from a point in time or a backup,gap
+aws,dynamodb-table,restore_to_latest_time,bool,no,ACK's Table has no restore from a point in time or a backup,gap
+aws,dynamodb-table,server_side_encryption_enabled,bool,yes,,
+aws,dynamodb-table,server_side_encryption_kms_key_arn,string,yes,,
+aws,dynamodb-table,stream_enabled,bool,yes,,
+aws,dynamodb-table,stream_view_type,string,yes,,
+aws,dynamodb-table,table_class,string,yes,,
+aws,dynamodb-table,tags,map(string),yes,,
+aws,dynamodb-table,timeouts,map(string),yes,,
+aws,dynamodb-table,ttl_attribute_name,string,yes,,
+aws,dynamodb-table,ttl_enabled,bool,yes,,
+aws,dynamodb-table,warm_throughput,any,no,ACK's Table (dynamodb-controller v1.14.2) has no warm throughput field,gap
+aws,dynamodb-table,write_capacity,number,yes,,
 aws,eventbridge,api_destinations,map(any),no,,no-chart
 aws,eventbridge,append_connection_postfix,bool,no,,no-chart
 aws,eventbridge,append_destination_postfix,bool,no,,no-chart
@@ -3001,35 +3001,35 @@ aws,ecr,repository_read_access_arns,list(string),no,,no-chart
 aws,ecr,repository_read_write_access_arns,list(string),no,,no-chart
 aws,ecr,repository_type,string,no,,no-chart
 aws,ecr,tags,map(string),no,,no-chart
-aws,sns,application_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",no,,no-chart
-aws,sns,archive_policy,string,no,,no-chart
-aws,sns,content_based_deduplication,bool,no,,no-chart
-aws,sns,create,bool,no,,no-chart
-aws,sns,create_subscription,bool,no,,no-chart
-aws,sns,create_topic_policy,bool,no,,no-chart
-aws,sns,data_protection_policy,string,no,,no-chart
-aws,sns,delivery_policy,string,no,,no-chart
-aws,sns,display_name,string,no,,no-chart
-aws,sns,enable_default_topic_policy,bool,no,,no-chart
-aws,sns,fifo_throughput_scope,string,no,,no-chart
-aws,sns,fifo_topic,bool,no,,no-chart
-aws,sns,firehose_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",no,,no-chart
-aws,sns,http_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",no,,no-chart
-aws,sns,kms_master_key_id,string,no,,no-chart
-aws,sns,lambda_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",no,,no-chart
-aws,sns,maximum_message_size,number,no,,no-chart
-aws,sns,name,string,no,,no-chart
-aws,sns,override_topic_policy_documents,list(string),no,,no-chart
-aws,sns,region,string,no,,no-chart
-aws,sns,signature_version,number,no,,no-chart
-aws,sns,source_topic_policy_documents,list(string),no,,no-chart
-aws,sns,sqs_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",no,,no-chart
-aws,sns,subscriptions,"map(object({confirmation_timeout_in_minutes, delivery_policy, endpoint, endpoint_auto_confirms, filter_policy, filter_policy_scope, +5}))",no,,no-chart
-aws,sns,tags,map(string),no,,no-chart
-aws,sns,topic_policy,string,no,,no-chart
-aws,sns,topic_policy_statements,"map(object({actions, condition, effect, not_actions, not_principals, not_resources, +3}))",no,,no-chart
-aws,sns,tracing_config,string,no,,no-chart
-aws,sns,use_name_prefix,bool,no,,no-chart
+aws,sns,application_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",yes,,
+aws,sns,archive_policy,string,no,ACK's Topic (sns-controller v1.13.0) has no archive policy field (a FIFO topic's message archive),gap
+aws,sns,content_based_deduplication,bool,yes,,
+aws,sns,create,bool,yes,,
+aws,sns,create_subscription,bool,yes,,
+aws,sns,create_topic_policy,bool,yes,,
+aws,sns,data_protection_policy,string,yes,,
+aws,sns,delivery_policy,string,yes,,
+aws,sns,display_name,string,yes,,
+aws,sns,enable_default_topic_policy,bool,yes,,
+aws,sns,fifo_throughput_scope,string,yes,,
+aws,sns,fifo_topic,bool,yes,,
+aws,sns,firehose_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",yes,,
+aws,sns,http_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",yes,,
+aws,sns,kms_master_key_id,string,yes,,
+aws,sns,lambda_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",yes,,
+aws,sns,maximum_message_size,number,yes,,
+aws,sns,name,string,yes,,
+aws,sns,override_topic_policy_documents,list(string),yes,,
+aws,sns,region,string,yes,,
+aws,sns,signature_version,number,yes,,
+aws,sns,source_topic_policy_documents,list(string),yes,,
+aws,sns,sqs_feedback,"object({failure_role_arn, success_role_arn, success_sample_rate})",yes,,
+aws,sns,subscriptions,"map(object({confirmation_timeout_in_minutes, delivery_policy, endpoint, endpoint_auto_confirms, filter_policy, filter_policy_scope, +5}))",partial,"accepted, except replay_policy (ACK's Subscription has no field for it) and confirmation_timeout_in_minutes and endpoint_auto_confirms (Terraform waits for an HTTP(S) endpoint to confirm; ACK does not wait)",gap
+aws,sns,tags,map(string),yes,,
+aws,sns,topic_policy,string,yes,,
+aws,sns,topic_policy_statements,"map(object({actions, condition, effect, not_actions, not_principals, not_resources, +3}))",yes,,
+aws,sns,tracing_config,string,yes,,
+aws,sns,use_name_prefix,bool,no,a topic name with Terraform's random suffix (name_prefix) would change between renders; set name (the namePrefix value keeps two Instances' topics apart),gap
 aws,elasticache,apply_immediately,bool,no,,no-chart
 aws,elasticache,at_rest_encryption_enabled,bool,no,,no-chart
 aws,elasticache,auth_token,string,no,,no-chart
@@ -3108,22 +3108,22 @@ aws,key-pair,private_key_rsa_bits,number,no,,no-chart
 aws,key-pair,public_key,string,no,,no-chart
 aws,key-pair,region,string,no,,no-chart
 aws,key-pair,tags,map(string),no,,no-chart
-aws,ssm-parameter,allowed_pattern,string,no,,no-chart
-aws,ssm-parameter,create,bool,no,,no-chart
-aws,ssm-parameter,data_type,string,no,,no-chart
-aws,ssm-parameter,description,string,no,,no-chart
-aws,ssm-parameter,ignore_value_changes,bool,no,,no-chart
-aws,ssm-parameter,key_id,string,no,,no-chart
-aws,ssm-parameter,name,string,no,,no-chart
-aws,ssm-parameter,overwrite,bool,no,,no-chart
-aws,ssm-parameter,region,string,no,,no-chart
-aws,ssm-parameter,secure_type,bool,no,,no-chart
-aws,ssm-parameter,tags,map(string),no,,no-chart
-aws,ssm-parameter,tier,string,no,,no-chart
-aws,ssm-parameter,type,string,no,,no-chart
-aws,ssm-parameter,value,string,no,,no-chart
-aws,ssm-parameter,value_wo_version,number,no,,no-chart
-aws,ssm-parameter,values,list(string),no,,no-chart
+aws,ssm-parameter,allowed_pattern,string,yes,,
+aws,ssm-parameter,create,bool,yes,,
+aws,ssm-parameter,data_type,string,yes,,
+aws,ssm-parameter,description,string,yes,,
+aws,ssm-parameter,ignore_value_changes,bool,no,ACK's Parameter has no way to leave its value alone once created: the controller sets the value in the spec on every sync,gap
+aws,ssm-parameter,key_id,string,yes,,
+aws,ssm-parameter,name,string,yes,,
+aws,ssm-parameter,overwrite,bool,no,ACK's Parameter has no overwrite field: the controller creates the parameter (failing if one of that name exists) and then owns it,gap
+aws,ssm-parameter,region,string,yes,,
+aws,ssm-parameter,secure_type,bool,yes,,
+aws,ssm-parameter,tags,map(string),yes,,
+aws,ssm-parameter,tier,string,yes,,
+aws,ssm-parameter,type,string,yes,,
+aws,ssm-parameter,value,string,yes,,
+aws,ssm-parameter,value_wo_version,number,yes,,
+aws,ssm-parameter,values,list(string),yes,,
 aws,step-functions,attach_cloudwatch_logs_policy,bool,no,,no-chart
 aws,step-functions,attach_policies,bool,no,,no-chart
 aws,step-functions,attach_policies_for_integrations,bool,no,,no-chart
@@ -4050,37 +4050,37 @@ azure,avm-res-managedidentity-userassignedidentity,name,string,yes,,
 azure,avm-res-managedidentity-userassignedidentity,outbound_role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, role_definition_id_or_name, scope, +1}))",yes,,
 azure,avm-res-managedidentity-userassignedidentity,resource_group_name,string,yes,,
 azure,avm-res-managedidentity-userassignedidentity,tags,map(string),yes,,
-azure,avm-res-operationalinsights-workspace,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,,no-chart
-azure,avm-res-operationalinsights-workspace,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,enable_telemetry,bool,no,,no-chart
-azure,avm-res-operationalinsights-workspace,location,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_allow_resource_only_permissions,bool,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_cmk_for_query_forced,bool,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_daily_quota_gb,number,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_data_exports,"map(object({destination_resource_id, enabled, event_hub_name, name, table_names}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_dedicated_cluster_resource_id,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_identity,"object({identity_ids, type})",no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_internet_ingestion_enabled,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_internet_query_enabled,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_linked_storage_accounts,"map(object({data_source_type, storage_account_ids}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_local_authentication_enabled,bool,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_reservation_capacity_in_gb_per_day,number,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_retention_in_days,number,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_sku,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_tables,"map(object({name, plan, resource_id, retention_in_days, schema, total_retention_in_days}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_tables_update,"map(object({name, plan, resource_id, retention_in_days, schema, total_retention_in_days}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,log_analytics_workspace_timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-operationalinsights-workspace,monitor_private_link_scope,"map(object({exclusions, ingestion_access_mode, lock, name, query_access_mode, resource_id}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_resource,"map(object({exclusions, name, resource_id}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_service_name,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,name,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,network_security_perimeter_association,"object({access_mode, profile_name, resource_id})",no,,no-chart
-azure,avm-res-operationalinsights-workspace,private_endpoint_extensions,"map(object({manage_dns_zone_group, monitor_private_link_scope_exclusion, monitor_private_link_scope_key}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +7}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,resource_group_name,string,no,,no-chart
-azure,avm-res-operationalinsights-workspace,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-operationalinsights-workspace,tags,map(string),no,,no-chart
+azure,avm-res-operationalinsights-workspace,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",yes,,
+azure,avm-res-operationalinsights-workspace,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-operationalinsights-workspace,enable_telemetry,bool,yes,,
+azure,avm-res-operationalinsights-workspace,location,string,yes,,
+azure,avm-res-operationalinsights-workspace,lock,"object({kind, name})",yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_allow_resource_only_permissions,bool,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_cmk_for_query_forced,bool,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_daily_quota_gb,number,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_data_exports,"map(object({destination_resource_id, enabled, event_hub_name, name, table_names}))",no,Microsoft.OperationalInsights/workspaces/dataExports has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_dedicated_cluster_resource_id,string,no,"the module links the cluster with a linked service, Microsoft.OperationalInsights/workspaces/linkedServices, which has no ASO or aso-extensions kind",gap
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_identity,"object({identity_ids, type})",yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_internet_ingestion_enabled,string,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_internet_query_enabled,string,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_linked_storage_accounts,"map(object({data_source_type, storage_account_ids}))",no,Microsoft.OperationalInsights/workspaces/linkedStorageAccounts has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_local_authentication_enabled,bool,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_reservation_capacity_in_gb_per_day,number,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_retention_in_days,number,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_sku,string,yes,,
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_tables,"map(object({name, plan, resource_id, retention_in_days, schema, total_retention_in_days}))",no,Microsoft.OperationalInsights/workspaces/tables has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_tables_update,"map(object({name, plan, resource_id, retention_in_days, schema, total_retention_in_days}))",no,Microsoft.OperationalInsights/workspaces/tables has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,log_analytics_workspace_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-operationalinsights-workspace,monitor_private_link_scope,"map(object({exclusions, ingestion_access_mode, lock, name, query_access_mode, resource_id}))",no,Microsoft.Insights/privateLinkScopes and their scopedResources have no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_resource,"map(object({exclusions, name, resource_id}))",no,Microsoft.Insights/privateLinkScopes/scopedResources has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_service_name,string,no,Microsoft.Insights/privateLinkScopes/scopedResources has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,name,string,yes,,
+azure,avm-res-operationalinsights-workspace,network_security_perimeter_association,"object({access_mode, profile_name, resource_id})",no,Microsoft.Network/networkSecurityPerimeters/resourceAssociations has no ASO or aso-extensions kind,gap
+azure,avm-res-operationalinsights-workspace,private_endpoint_extensions,"map(object({manage_dns_zone_group, monitor_private_link_scope_exclusion, monitor_private_link_scope_key}))",no,"extensions of private endpoints (their Private Link Scope exclusions and DNS zone groups), which this chart does not map yet",not-ported
+azure,avm-res-operationalinsights-workspace,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +7}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-operationalinsights-workspace,resource_group_name,string,yes,,
+azure,avm-res-operationalinsights-workspace,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-operationalinsights-workspace,tags,map(string),yes,,
 azure,avm-res-network-routetable,bgp_route_propagation_enabled,bool,yes,,
 azure,avm-res-network-routetable,enable_telemetry,bool,yes,,
 azure,avm-res-network-routetable,location,string,yes,,
@@ -4123,7 +4123,7 @@ azure,avm-res-network-privatednszone,ptr_records,"map(object({domain_names, name
 azure,avm-res-network-privatednszone,retry,"object({error_message_regex, interval_seconds, max_interval_seconds, multiplier, randomization_factor})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-network-privatednszone,role_assignment_name_use_random_uuid,bool,partial,"accepted, but false (the legacy deterministic names) is refused: ASO names each assignment with a stable UUID of its own",by-design
 azure,avm-res-network-privatednszone,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
-azure,avm-res-network-privatednszone,soa_record,"object({email, expire_time, minimum_ttl, name, refresh_time, retry_time, +1})",no,"the zone's SOA record (Microsoft.Network/privateDnsZones/SOA) exists with the zone and is only updated (azapi_update_resource); ASO has a kind for every other record type, none for SOA",gap
+azure,avm-res-network-privatednszone,soa_record,"object({email, expire_time, minimum_ttl, name, refresh_time, retry_time, +1})",yes,,
 azure,avm-res-network-privatednszone,srv_records,"map(object({name, records, ttl}))",yes,,
 azure,avm-res-network-privatednszone,tags,map(string),yes,,
 azure,avm-res-network-privatednszone,timeouts,"object({dns_zones, vnet_links})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
@@ -4150,159 +4150,159 @@ azure,avm-res-network-publicipaddress,sku,string,yes,,
 azure,avm-res-network-publicipaddress,sku_tier,string,yes,,
 azure,avm-res-network-publicipaddress,tags,map(string),yes,,
 azure,avm-res-network-publicipaddress,zones,set(number),yes,,
-azure,avm-res-network-loadbalancer,backend_address_pool_addresses,"map(object({backend_address_pool_object_name, ip_address, name, virtual_network_resource_id}))",no,,no-chart
-azure,avm-res-network-loadbalancer,backend_address_pool_configuration,string,no,,no-chart
-azure,avm-res-network-loadbalancer,backend_address_pool_network_interfaces,"map(object({backend_address_pool_object_name, ip_configuration_name, network_interface_resource_id}))",no,,no-chart
-azure,avm-res-network-loadbalancer,backend_address_pools,"map(object({name, tunnel_interfaces, virtual_network_resource_id}))",no,,no-chart
-azure,avm-res-network-loadbalancer,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-network-loadbalancer,edge_zone,string,no,,no-chart
-azure,avm-res-network-loadbalancer,enable_telemetry,bool,no,,no-chart
-azure,avm-res-network-loadbalancer,frontend_ip_configurations,"map(object({create_public_ip_address, diagnostic_settings, edge_zone, frontend_private_ip_address, frontend_private_ip_address_allocation, frontend_private_ip_address_version, +14}))",no,,no-chart
-azure,avm-res-network-loadbalancer,frontend_subnet_resource_id,string,no,,no-chart
-azure,avm-res-network-loadbalancer,lb_nat_pools,"map(object({backend_port, enable_floating_ip, enable_tcp_reset, frontend_ip_configuration_name, frontend_port_end, frontend_port_start, +3}))",no,,no-chart
-azure,avm-res-network-loadbalancer,lb_nat_rules,"map(object({backend_address_pool_object_name, backend_address_pool_resource_id, backend_port, enable_floating_ip, enable_tcp_reset, frontend_ip_configuration_name, +6}))",no,,no-chart
-azure,avm-res-network-loadbalancer,lb_outbound_rules,"map(object({backend_address_pool_object_name, backend_address_pool_resource_id, enable_tcp_reset, frontend_ip_configurations, idle_timeout_in_minutes, name, +2}))",no,,no-chart
-azure,avm-res-network-loadbalancer,lb_probes,"map(object({interval_in_seconds, name, number_of_probes_before_removal, port, probe_threshold, protocol, +1}))",no,,no-chart
-azure,avm-res-network-loadbalancer,lb_rules,"map(object({backend_address_pool_object_names, backend_address_pool_resource_ids, backend_port, disable_outbound_snat, enable_floating_ip, enable_tcp_reset, +8}))",no,,no-chart
-azure,avm-res-network-loadbalancer,location,string,no,,no-chart
-azure,avm-res-network-loadbalancer,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-network-loadbalancer,name,string,no,,no-chart
-azure,avm-res-network-loadbalancer,public_ip_address_configuration,"object({allocation_method, ddos_protection_mode, ddos_protection_plan_resource_id, domain_name_label, idle_timeout_in_minutes, ip_tags, +7})",no,,no-chart
-azure,avm-res-network-loadbalancer,resource_group_name,string,no,,no-chart
-azure,avm-res-network-loadbalancer,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-network-loadbalancer,sku,string,no,,no-chart
-azure,avm-res-network-loadbalancer,sku_tier,string,no,,no-chart
-azure,avm-res-network-loadbalancer,tags,map(string),no,,no-chart
-azure,avm-res-containerregistry-registry,admin_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,anonymous_pull_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,azuread_authentication_as_arm_policy_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,cache_rules,"map(object({credential_set_key, credential_set_resource_id, name, source_repository, target_repository}))",no,,no-chart
-azure,avm-res-containerregistry-registry,credential_sets,"map(object({auth_credentials, login_server, name}))",no,,no-chart
-azure,avm-res-containerregistry-registry,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,,no-chart
-azure,avm-res-containerregistry-registry,data_endpoint_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-containerregistry-registry,enable_telemetry,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,enable_trust_policy,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,export_policy_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,georeplications,"list(object({location, regional_endpoint_enabled, tags, zone_redundancy_enabled}))",no,,no-chart
-azure,avm-res-containerregistry-registry,location,string,no,,no-chart
-azure,avm-res-containerregistry-registry,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-containerregistry-registry,managed_identities,"object({system_assigned, user_assigned_resource_ids})",no,,no-chart
-azure,avm-res-containerregistry-registry,name,string,no,,no-chart
-azure,avm-res-containerregistry-registry,network_rule_bypass_for_tasks_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,network_rule_bypass_option,string,no,,no-chart
-azure,avm-res-containerregistry-registry,network_rule_set,"object({default_action, ip_rule})",no,,no-chart
-azure,avm-res-containerregistry-registry,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,,no-chart
-azure,avm-res-containerregistry-registry,private_endpoints_inherit_lock,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,private_endpoints_manage_dns_zone_group,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,public_network_access_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,quarantine_policy_enabled,bool,no,,no-chart
-azure,avm-res-containerregistry-registry,resource_group_name,string,no,,no-chart
-azure,avm-res-containerregistry-registry,resource_types,"object({cache_rule, credential_set})",no,,no-chart
-azure,avm-res-containerregistry-registry,retention_policy_in_days,number,no,,no-chart
-azure,avm-res-containerregistry-registry,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,,no-chart
-azure,avm-res-containerregistry-registry,role_assignment_mode,string,no,,no-chart
-azure,avm-res-containerregistry-registry,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-containerregistry-registry,scope_maps,"map(object({actions, description, name, registry_tokens}))",no,,no-chart
-azure,avm-res-containerregistry-registry,sku,string,no,,no-chart
-azure,avm-res-containerregistry-registry,tags,map(string),no,,no-chart
-azure,avm-res-containerregistry-registry,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-containerregistry-registry,zone_redundancy_enabled,bool,no,,no-chart
-azure,avm-res-network-firewallpolicy,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-network-firewallpolicy,enable_telemetry,bool,no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_auto_learn_private_ranges_enabled,bool,no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_base_policy_id,string,no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_dns,"object({proxy_enabled, servers})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_explicit_proxy,"object({enable_pac_file, enabled, http_port, https_port, pac_file, pac_file_port})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_identity,"object({identity_ids, type})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_insights,"object({default_log_analytics_workspace_id, enabled, log_analytics_workspace, retention_in_days})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_intrusion_detection,"object({mode, private_ranges, signature_overrides, traffic_bypass})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_private_ip_ranges,list(string),no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_sku,string,no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_sql_redirect_allowed,bool,no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_threat_intelligence_allowlist,"object({fqdns, ip_addresses})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_threat_intelligence_mode,string,no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-network-firewallpolicy,firewall_policy_tls_certificate,"object({key_vault_secret_id, name})",no,,no-chart
-azure,avm-res-network-firewallpolicy,location,string,no,,no-chart
-azure,avm-res-network-firewallpolicy,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-network-firewallpolicy,name,string,no,,no-chart
-azure,avm-res-network-firewallpolicy,resource_group_name,string,no,,no-chart
-azure,avm-res-network-firewallpolicy,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-network-firewallpolicy,tags,map(string),no,,no-chart
-azure,avm-res-containerservice-managedcluster,aad_profile,"object({admin_group_object_ids, client_app_id, enable_azure_rbac, managed, server_app_id, server_app_secret, +1})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,addon_profile_azure_policy,"object({config, enabled})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,addon_profile_confidential_computing,"object({config, enabled})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,addon_profile_ingress_application_gateway,"object({config, enabled})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,addon_profile_key_vault_secrets_provider,"object({config, enabled})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,addon_profile_oms_agent,"object({config, enabled})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,addon_profiles_extra,"map(object({config, enabled}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,agent_pools,"map(object({artifact_streaming_profile, availability_zones, capacity_reservation_group_id, count_of, creation_data, delete_options, +51}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,agentpool_timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,ai_toolchain_operator_profile,object({enabled}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,alert_email,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,api_server_access_profile,"object({authorized_ip_ranges, disable_run_command, enable_private_cluster, enable_private_cluster_public_fqdn, enable_vnet_integration, private_dns_zone, +1})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,auto_scaler_profile,"object({balance_similar_node_groups, daemonset_eviction_for_empty_nodes, daemonset_eviction_for_occupied_nodes, expander, ignore_daemonsets_utilization, max_empty_bulk_delete, +14})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,auto_upgrade_profile,"object({node_os_upgrade_channel, upgrade_channel})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,azure_monitor_profile,object({metrics}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,bootstrap_profile,"object({artifact_source, container_registry_id})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,cluster_timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,create_agentpools_before_destroy,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,default_agent_pool,"object({artifact_streaming_profile, availability_zones, capacity_reservation_group_id, count_of, creation_data, enable_auto_scaling, +51})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,disable_local_accounts,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,disk_encryption_set_id,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,dns_prefix,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,enable_rbac,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,enable_telemetry,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,extended_location,"object({name, type})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,fqdn_subdomain,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,hosted_system_profile,"object({enabled, node_subnet_id, system_node_subnet_id})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,http_proxy_config,"object({http_proxy, https_proxy, no_proxy, trusted_ca})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,identity_profile,map(object({resource_id})),no,,no-chart
-azure,avm-res-containerservice-managedcluster,ignore_body_changes,object({containerservice_managed_clusters}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,ingress_profile,"object({application_load_balancer, gateway_api, web_app_routing})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,kind,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,kube_proxy_config,"object({enabled, ipvs_config, mode})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,kubernetes_version,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,linux_profile,"object({admin_username, ssh})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,location,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,lock,"object({kind, name, notes})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,maintenanceconfiguration,"map(object({enable_telemetry, maintenance_window, name, not_allowed_time, time_in_week}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,managed_identities,"object({system_assigned, user_assigned_resource_ids})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,metrics_profile,object({cost_analysis}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,name,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,namespace,"map(object({adoption_policy, annotations, default_network_policy, default_resource_quota, delete_policy, enable_telemetry, +4}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,network_profile,"object({advanced_networking, dns_service_ip, ip_families, load_balancer_profile, load_balancer_sku, nat_gateway_profile, +11})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,node_provisioning_profile,"object({default_node_pools, mode})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,node_resource_group,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,node_resource_group_profile,object({restriction_level}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,oidc_issuer_profile,object({enabled}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,onboard_alerts,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,onboard_monitoring,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,parent_id,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,pod_identity_profile,"object({allow_network_plugin_kubenet, enabled, user_assigned_identities, user_assigned_identity_exceptions})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,private_endpoints_manage_dns_zone_group,bool,no,,no-chart
-azure,avm-res-containerservice-managedcluster,private_link_resources,"list(object({group_id, id, name, required_members, type}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,prometheus_workspace_id,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,public_network_access,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,resource_types,"object({containerservice_managed_clusters, containerservice_managed_clusters_agent_pools})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",no,,no-chart
-azure,avm-res-containerservice-managedcluster,security_profile,"object({azure_key_vault_kms, custom_ca_trust_certificates, defender, image_cleaner, image_integrity, workload_identity})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,service_mesh_profile,"object({istio, mode})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,service_principal_profile,"object({client_id, secret})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,sku,"object({name, tier})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,storage_profile,"object({blob_csi_driver, disk_csi_driver, file_csi_driver, snapshot_controller})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,support_plan,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,tags,map(string),no,,no-chart
-azure,avm-res-containerservice-managedcluster,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,upgrade_settings,object({override_settings}),no,,no-chart
-azure,avm-res-containerservice-managedcluster,windows_profile,"object({admin_password, admin_username, enable_csi_proxy, gmsa_profile, license_type})",no,,no-chart
-azure,avm-res-containerservice-managedcluster,windows_profile_password,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,windows_profile_password_version,string,no,,no-chart
-azure,avm-res-containerservice-managedcluster,workload_auto_scaler_profile,"object({keda, vertical_pod_autoscaler})",no,,no-chart
+azure,avm-res-network-loadbalancer,backend_address_pool_addresses,"map(object({backend_address_pool_object_name, ip_address, name, virtual_network_resource_id}))",yes,,
+azure,avm-res-network-loadbalancer,backend_address_pool_configuration,string,yes,,
+azure,avm-res-network-loadbalancer,backend_address_pool_network_interfaces,"map(object({backend_address_pool_object_name, ip_configuration_name, network_interface_resource_id}))",no,none: a NIC joins a pool through its own ipConfigurations[].loadBalancerBackendAddressPools; ASO has no association kind and sets a NIC's IP configurations only by owning the whole NetworkInterface,gap
+azure,avm-res-network-loadbalancer,backend_address_pools,"map(object({name, tunnel_interfaces, virtual_network_resource_id}))",yes,,
+azure,avm-res-network-loadbalancer,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-network-loadbalancer,edge_zone,string,yes,,
+azure,avm-res-network-loadbalancer,enable_telemetry,bool,yes,,
+azure,avm-res-network-loadbalancer,frontend_ip_configurations,"map(object({create_public_ip_address, diagnostic_settings, edge_zone, frontend_private_ip_address, frontend_private_ip_address_allocation, frontend_private_ip_address_version, +14}))",yes,,
+azure,avm-res-network-loadbalancer,frontend_subnet_resource_id,string,yes,,
+azure,avm-res-network-loadbalancer,lb_nat_pools,"map(object({backend_port, enable_floating_ip, enable_tcp_reset, frontend_ip_configuration_name, frontend_port_end, frontend_port_start, +3}))",yes,,
+azure,avm-res-network-loadbalancer,lb_nat_rules,"map(object({backend_address_pool_object_name, backend_address_pool_resource_id, backend_port, enable_floating_ip, enable_tcp_reset, frontend_ip_configuration_name, +6}))",yes,,
+azure,avm-res-network-loadbalancer,lb_outbound_rules,"map(object({backend_address_pool_object_name, backend_address_pool_resource_id, enable_tcp_reset, frontend_ip_configurations, idle_timeout_in_minutes, name, +2}))",yes,,
+azure,avm-res-network-loadbalancer,lb_probes,"map(object({interval_in_seconds, name, number_of_probes_before_removal, port, probe_threshold, protocol, +1}))",yes,,
+azure,avm-res-network-loadbalancer,lb_rules,"map(object({backend_address_pool_object_names, backend_address_pool_resource_ids, backend_port, disable_outbound_snat, enable_floating_ip, enable_tcp_reset, +8}))",yes,,
+azure,avm-res-network-loadbalancer,location,string,yes,,
+azure,avm-res-network-loadbalancer,lock,"object({kind, name})",yes,,
+azure,avm-res-network-loadbalancer,name,string,yes,,
+azure,avm-res-network-loadbalancer,public_ip_address_configuration,"object({allocation_method, ddos_protection_mode, ddos_protection_plan_resource_id, domain_name_label, idle_timeout_in_minutes, ip_tags, +7})",yes,,
+azure,avm-res-network-loadbalancer,resource_group_name,string,yes,,
+azure,avm-res-network-loadbalancer,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-network-loadbalancer,sku,string,yes,,
+azure,avm-res-network-loadbalancer,sku_tier,string,yes,,
+azure,avm-res-network-loadbalancer,tags,map(string),yes,,
+azure,avm-res-containerregistry-registry,admin_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,anonymous_pull_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,azuread_authentication_as_arm_policy_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,cache_rules,"map(object({credential_set_key, credential_set_resource_id, name, source_repository, target_repository}))",partial,"accepted, but an entry's credential_set_key is refused: it names one of credential_sets, which have no ASO kind (credential_set_resource_id is carried)",gap
+azure,avm-res-containerregistry-registry,credential_sets,"map(object({auth_credentials, login_server, name}))",no,Microsoft.ContainerRegistry/registries/credentialSets has no ASO or aso-extensions kind,gap
+azure,avm-res-containerregistry-registry,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,"ASO's Registry takes the key's URI and the identity's client ID (keyIdentifier, identity); the module looks both up from the vault and identity IDs, which a render cannot",not-ported
+azure,avm-res-containerregistry-registry,data_endpoint_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-containerregistry-registry,enable_telemetry,bool,yes,,
+azure,avm-res-containerregistry-registry,enable_trust_policy,bool,yes,,
+azure,avm-res-containerregistry-registry,export_policy_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,georeplications,"list(object({location, regional_endpoint_enabled, tags, zone_redundancy_enabled}))",yes,,
+azure,avm-res-containerregistry-registry,location,string,yes,,
+azure,avm-res-containerregistry-registry,lock,"object({kind, name})",yes,,
+azure,avm-res-containerregistry-registry,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
+azure,avm-res-containerregistry-registry,name,string,yes,,
+azure,avm-res-containerregistry-registry,network_rule_bypass_for_tasks_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,network_rule_bypass_option,string,yes,,
+azure,avm-res-containerregistry-registry,network_rule_set,"object({default_action, ip_rule})",yes,,
+azure,avm-res-containerregistry-registry,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-containerregistry-registry,private_endpoints_inherit_lock,bool,yes,,
+azure,avm-res-containerregistry-registry,private_endpoints_manage_dns_zone_group,bool,yes,,
+azure,avm-res-containerregistry-registry,public_network_access_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,quarantine_policy_enabled,bool,yes,,
+azure,avm-res-containerregistry-registry,resource_group_name,string,yes,,
+azure,avm-res-containerregistry-registry,resource_types,"object({cache_rule, credential_set})",no,ASO's kinds fix the API versions (RegistryCacheRule 2025-11-01),by-design
+azure,avm-res-containerregistry-registry,retention_policy_in_days,number,yes,,
+azure,avm-res-containerregistry-registry,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
+azure,avm-res-containerregistry-registry,role_assignment_mode,string,yes,,
+azure,avm-res-containerregistry-registry,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-containerregistry-registry,scope_maps,"map(object({actions, description, name, registry_tokens}))",no,"Microsoft.ContainerRegistry/registries/scopeMaps and tokens (and a token's passwords, secrets returned once) have no ASO or aso-extensions kind",gap
+azure,avm-res-containerregistry-registry,sku,string,yes,,
+azure,avm-res-containerregistry-registry,tags,map(string),yes,,
+azure,avm-res-containerregistry-registry,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-containerregistry-registry,zone_redundancy_enabled,bool,yes,,
+azure,avm-res-network-firewallpolicy,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-network-firewallpolicy,enable_telemetry,bool,yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_auto_learn_private_ranges_enabled,bool,yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_base_policy_id,string,yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_dns,"object({proxy_enabled, servers})",yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_explicit_proxy,"object({enable_pac_file, enabled, http_port, https_port, pac_file, pac_file_port})",yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_identity,"object({identity_ids, type})",yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_insights,"object({default_log_analytics_workspace_id, enabled, log_analytics_workspace, retention_in_days})",yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_intrusion_detection,"object({mode, private_ranges, signature_overrides, traffic_bypass})",yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_private_ip_ranges,list(string),yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_sku,string,yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_sql_redirect_allowed,bool,yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_threat_intelligence_allowlist,"object({fqdns, ip_addresses})",yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_threat_intelligence_mode,string,yes,,
+azure,avm-res-network-firewallpolicy,firewall_policy_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-network-firewallpolicy,firewall_policy_tls_certificate,"object({key_vault_secret_id, name})",yes,,
+azure,avm-res-network-firewallpolicy,location,string,yes,,
+azure,avm-res-network-firewallpolicy,lock,"object({kind, name})",yes,,
+azure,avm-res-network-firewallpolicy,name,string,yes,,
+azure,avm-res-network-firewallpolicy,resource_group_name,string,yes,,
+azure,avm-res-network-firewallpolicy,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-network-firewallpolicy,tags,map(string),yes,,
+azure,avm-res-containerservice-managedcluster,aad_profile,"object({admin_group_object_ids, client_app_id, enable_azure_rbac, managed, server_app_id, server_app_secret, +1})",partial,"accepted, but server_app_secret is refused: a secret value, and how a component supplies one (a Kubernetes Secret ASO reads) is not settled",not-ported
+azure,avm-res-containerservice-managedcluster,addon_profile_azure_policy,"object({config, enabled})",yes,,
+azure,avm-res-containerservice-managedcluster,addon_profile_confidential_computing,"object({config, enabled})",yes,,
+azure,avm-res-containerservice-managedcluster,addon_profile_ingress_application_gateway,"object({config, enabled})",yes,,
+azure,avm-res-containerservice-managedcluster,addon_profile_key_vault_secrets_provider,"object({config, enabled})",yes,,
+azure,avm-res-containerservice-managedcluster,addon_profile_oms_agent,"object({config, enabled})",yes,,
+azure,avm-res-containerservice-managedcluster,addon_profiles_extra,"map(object({config, enabled}))",yes,,
+azure,avm-res-containerservice-managedcluster,agent_pools,"map(object({artifact_streaming_profile, availability_zones, capacity_reservation_group_id, count_of, creation_data, delete_options, +51}))",partial,"accepted, but an entry's enable_os_disk_full_caching and gpu_profile.nvidia are refused (ASO's agent pool, up to API 2025-10-02-preview, has neither), as is delete_options.ignore_pod_disruption_budget (ASO deletes a pool without that option)",gap
+azure,avm-res-containerservice-managedcluster,agentpool_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-containerservice-managedcluster,ai_toolchain_operator_profile,object({enabled}),yes,,
+azure,avm-res-containerservice-managedcluster,alert_email,string,no,the module's alerting submodule is not mapped yet,not-ported
+azure,avm-res-containerservice-managedcluster,api_server_access_profile,"object({authorized_ip_ranges, disable_run_command, enable_private_cluster, enable_private_cluster_public_fqdn, enable_vnet_integration, private_dns_zone, +1})",yes,,
+azure,avm-res-containerservice-managedcluster,auto_scaler_profile,"object({balance_similar_node_groups, daemonset_eviction_for_empty_nodes, daemonset_eviction_for_occupied_nodes, expander, ignore_daemonsets_utilization, max_empty_bulk_delete, +14})",yes,,
+azure,avm-res-containerservice-managedcluster,auto_upgrade_profile,"object({node_os_upgrade_channel, upgrade_channel})",yes,,
+azure,avm-res-containerservice-managedcluster,azure_monitor_profile,object({metrics}),yes,,
+azure,avm-res-containerservice-managedcluster,bootstrap_profile,"object({artifact_source, container_registry_id})",yes,,
+azure,avm-res-containerservice-managedcluster,cluster_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-containerservice-managedcluster,create_agentpools_before_destroy,bool,no,Azure Service Operator updates an agent pool in place and never replaces it,by-design
+azure,avm-res-containerservice-managedcluster,default_agent_pool,"object({artifact_streaming_profile, availability_zones, capacity_reservation_group_id, count_of, creation_data, enable_auto_scaling, +51})",partial,"accepted, but enable_os_disk_full_caching and gpu_profile.nvidia are refused: ASO's agent pool (up to API 2025-10-02-preview) has neither",gap
+azure,avm-res-containerservice-managedcluster,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-containerservice-managedcluster,disable_local_accounts,bool,yes,,
+azure,avm-res-containerservice-managedcluster,disk_encryption_set_id,string,yes,,
+azure,avm-res-containerservice-managedcluster,dns_prefix,string,yes,,
+azure,avm-res-containerservice-managedcluster,enable_rbac,bool,yes,,
+azure,avm-res-containerservice-managedcluster,enable_telemetry,bool,yes,,
+azure,avm-res-containerservice-managedcluster,extended_location,"object({name, type})",yes,,
+azure,avm-res-containerservice-managedcluster,fqdn_subdomain,string,yes,,
+azure,avm-res-containerservice-managedcluster,hosted_system_profile,"object({enabled, node_subnet_id, system_node_subnet_id})",yes,,
+azure,avm-res-containerservice-managedcluster,http_proxy_config,"object({http_proxy, https_proxy, no_proxy, trusted_ca})",yes,,
+azure,avm-res-containerservice-managedcluster,identity_profile,map(object({resource_id})),yes,,
+azure,avm-res-containerservice-managedcluster,ignore_body_changes,object({containerservice_managed_clusters}),no,Azure Service Operator applies the whole spec; it cannot leave a field to another writer,by-design
+azure,avm-res-containerservice-managedcluster,ingress_profile,"object({application_load_balancer, gateway_api, web_app_routing})",yes,,
+azure,avm-res-containerservice-managedcluster,kind,string,yes,,
+azure,avm-res-containerservice-managedcluster,kube_proxy_config,"object({enabled, ipvs_config, mode})",yes,,
+azure,avm-res-containerservice-managedcluster,kubernetes_version,string,yes,,
+azure,avm-res-containerservice-managedcluster,linux_profile,"object({admin_username, ssh})",yes,,
+azure,avm-res-containerservice-managedcluster,location,string,yes,,
+azure,avm-res-containerservice-managedcluster,lock,"object({kind, name, notes})",yes,,
+azure,avm-res-containerservice-managedcluster,maintenanceconfiguration,"map(object({enable_telemetry, maintenance_window, name, not_allowed_time, time_in_week}))",yes,,
+azure,avm-res-containerservice-managedcluster,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
+azure,avm-res-containerservice-managedcluster,metrics_profile,object({cost_analysis}),yes,,
+azure,avm-res-containerservice-managedcluster,name,string,yes,,
+azure,avm-res-containerservice-managedcluster,namespace,"map(object({adoption_policy, annotations, default_network_policy, default_resource_quota, delete_policy, enable_telemetry, +4}))",yes,,
+azure,avm-res-containerservice-managedcluster,network_profile,"object({advanced_networking, dns_service_ip, ip_families, load_balancer_profile, load_balancer_sku, nat_gateway_profile, +11})",yes,,
+azure,avm-res-containerservice-managedcluster,node_provisioning_profile,"object({default_node_pools, mode})",yes,,
+azure,avm-res-containerservice-managedcluster,node_resource_group,string,yes,,
+azure,avm-res-containerservice-managedcluster,node_resource_group_profile,object({restriction_level}),yes,,
+azure,avm-res-containerservice-managedcluster,oidc_issuer_profile,object({enabled}),yes,,
+azure,avm-res-containerservice-managedcluster,onboard_alerts,bool,no,"the module's alerting submodule (Prometheus rule groups, action groups, metric alerts: ASO's alertsmanagement and insights kinds) is not mapped yet",not-ported
+azure,avm-res-containerservice-managedcluster,onboard_monitoring,bool,no,"the module's monitoring submodule (data collection rules, endpoints and associations: ASO's insights DataCollectionRule, DataCollectionEndpoint, DataCollectionRuleAssociation) is not mapped yet",not-ported
+azure,avm-res-containerservice-managedcluster,parent_id,string,yes,,
+azure,avm-res-containerservice-managedcluster,pod_identity_profile,"object({allow_network_plugin_kubenet, enabled, user_assigned_identities, user_assigned_identity_exceptions})",yes,,
+azure,avm-res-containerservice-managedcluster,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-containerservice-managedcluster,private_endpoints_manage_dns_zone_group,bool,partial,"accepted; it changes nothing, since private_endpoints is refused",not-ported
+azure,avm-res-containerservice-managedcluster,private_link_resources,"list(object({group_id, id, name, required_members, type}))",yes,,
+azure,avm-res-containerservice-managedcluster,prometheus_workspace_id,string,no,the module's monitoring submodule is not mapped yet,not-ported
+azure,avm-res-containerservice-managedcluster,public_network_access,string,yes,,
+azure,avm-res-containerservice-managedcluster,resource_types,"object({containerservice_managed_clusters, containerservice_managed_clusters_agent_pools})",no,"ASO's kinds fix the API versions (ManagedCluster 2026-05-01, or 2025-10-02-preview for the preview-only settings; agent pools 2025-10-02-preview)",by-design
+azure,avm-res-containerservice-managedcluster,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
+azure,avm-res-containerservice-managedcluster,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
+azure,avm-res-containerservice-managedcluster,security_profile,"object({azure_key_vault_kms, custom_ca_trust_certificates, defender, image_cleaner, image_integrity, workload_identity})",yes,,
+azure,avm-res-containerservice-managedcluster,service_mesh_profile,"object({istio, mode})",yes,,
+azure,avm-res-containerservice-managedcluster,service_principal_profile,"object({client_id, secret})",partial,"accepted, but secret is refused: a secret value, and how a component supplies one (a Kubernetes Secret ASO reads) is not settled",not-ported
+azure,avm-res-containerservice-managedcluster,sku,"object({name, tier})",yes,,
+azure,avm-res-containerservice-managedcluster,storage_profile,"object({blob_csi_driver, disk_csi_driver, file_csi_driver, snapshot_controller})",yes,,
+azure,avm-res-containerservice-managedcluster,support_plan,string,yes,,
+azure,avm-res-containerservice-managedcluster,tags,map(string),yes,,
+azure,avm-res-containerservice-managedcluster,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-containerservice-managedcluster,upgrade_settings,object({override_settings}),yes,,
+azure,avm-res-containerservice-managedcluster,windows_profile,"object({admin_password, admin_username, enable_csi_proxy, gmsa_profile, license_type})",yes,,
+azure,avm-res-containerservice-managedcluster,windows_profile_password,string,no,a Windows administrator password is a secret value; how a component supplies one (a Kubernetes Secret ASO reads) is not settled,not-ported
+azure,avm-res-containerservice-managedcluster,windows_profile_password_version,string,no,"it versions windows_profile_password, which is refused",not-ported
+azure,avm-res-containerservice-managedcluster,workload_auto_scaler_profile,"object({keda, vertical_pod_autoscaler})",yes,,
 azure,avm-res-dbforpostgresql-flexibleserver,ad_administrator,"map(object({object_id, principal_name, principal_type, tenant_id}))",no,,no-chart
 azure,avm-res-dbforpostgresql-flexibleserver,administrator_login,string,no,,no-chart
 azure,avm-res-dbforpostgresql-flexibleserver,administrator_password,string,no,,no-chart
@@ -4413,31 +4413,31 @@ azure,avm-ptn-alz-sub-vending,user_managed_identities,"map(object({federated_cre
 azure,avm-ptn-alz-sub-vending,virtual_network_enabled,bool,no,,no-chart
 azure,avm-ptn-alz-sub-vending,virtual_networks,"map(object({address_space, ddos_protection_enabled, ddos_protection_plan_id, dns_servers, flow_timeout_in_minutes, hub_network_resource_id, +22}))",no,,no-chart
 azure,avm-ptn-alz-sub-vending,wait_for_subscription_before_subscription_operations,"object({create, destroy})",no,,no-chart
-azure,avm-res-insights-component,application_type,string,no,,no-chart
-azure,avm-res-insights-component,daily_data_cap_in_gb,number,no,,no-chart
-azure,avm-res-insights-component,daily_data_cap_notifications_disabled,bool,no,,no-chart
-azure,avm-res-insights-component,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",no,,no-chart
-azure,avm-res-insights-component,disable_ip_masking,bool,no,,no-chart
-azure,avm-res-insights-component,enable_telemetry,bool,no,,no-chart
-azure,avm-res-insights-component,force_customer_storage_for_profiler,bool,no,,no-chart
-azure,avm-res-insights-component,ignore_body_changes,"object({authorization_locks, authorization_role_assignments, insights_components, insights_components_linked_storage_accounts, insights_components_pricing_plans, insights_diagnostic_settings, +1})",no,,no-chart
-azure,avm-res-insights-component,internet_ingestion_enabled,bool,no,,no-chart
-azure,avm-res-insights-component,internet_query_enabled,bool,no,,no-chart
-azure,avm-res-insights-component,linked_storage_account,map(object({resource_id})),no,,no-chart
-azure,avm-res-insights-component,local_authentication_disabled,bool,no,,no-chart
-azure,avm-res-insights-component,location,string,no,,no-chart
-azure,avm-res-insights-component,lock,"object({kind, name, notes})",no,,no-chart
-azure,avm-res-insights-component,monitor_private_link_scope,"map(object({kind, name, resource_id, subscription_location}))",no,,no-chart
-azure,avm-res-insights-component,name,string,no,,no-chart
-azure,avm-res-insights-component,parent_id,string,no,,no-chart
-azure,avm-res-insights-component,resource_types,"object({authorization_locks, authorization_role_assignments, insights_components, insights_components_linked_storage_accounts, insights_components_pricing_plans, insights_diagnostic_settings, +1})",no,,no-chart
-azure,avm-res-insights-component,retention_in_days,number,no,,no-chart
-azure,avm-res-insights-component,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,,no-chart
-azure,avm-res-insights-component,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",no,,no-chart
-azure,avm-res-insights-component,sampling_percentage,number,no,,no-chart
-azure,avm-res-insights-component,tags,map(string),no,,no-chart
-azure,avm-res-insights-component,timeouts,"object({create, delete, read, update})",no,,no-chart
-azure,avm-res-insights-component,workspace_id,string,no,,no-chart
+azure,avm-res-insights-component,application_type,string,partial,"accepted for web and other; ios, java, phone, MobileCenter, Node.JS and store are refused: ASO's Component (2020-02-02) enumerates Application_Type as web and other only",gap
+azure,avm-res-insights-component,daily_data_cap_in_gb,number,yes,,
+azure,avm-res-insights-component,daily_data_cap_notifications_disabled,bool,yes,,
+azure,avm-res-insights-component,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
+azure,avm-res-insights-component,disable_ip_masking,bool,yes,,
+azure,avm-res-insights-component,enable_telemetry,bool,yes,,
+azure,avm-res-insights-component,force_customer_storage_for_profiler,bool,yes,,
+azure,avm-res-insights-component,ignore_body_changes,"object({authorization_locks, authorization_role_assignments, insights_components, insights_components_linked_storage_accounts, insights_components_pricing_plans, insights_diagnostic_settings, +1})",no,Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes),gap
+azure,avm-res-insights-component,internet_ingestion_enabled,bool,yes,,
+azure,avm-res-insights-component,internet_query_enabled,bool,yes,,
+azure,avm-res-insights-component,linked_storage_account,map(object({resource_id})),no,Microsoft.Insights/components/linkedStorageAccounts (the profiler's storage account) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-insights-component,local_authentication_disabled,bool,yes,,
+azure,avm-res-insights-component,location,string,yes,,
+azure,avm-res-insights-component,lock,"object({kind, name, notes})",yes,,
+azure,avm-res-insights-component,monitor_private_link_scope,"map(object({kind, name, resource_id, subscription_location}))",partial,"accepted for kind Resource; kind Metrics and subscription_location are refused: aso-extensions' PrivateLinkScopesScopedResource is at API 2021-09-01, which has neither",gap
+azure,avm-res-insights-component,name,string,yes,,
+azure,avm-res-insights-component,parent_id,string,yes,,
+azure,avm-res-insights-component,resource_types,"object({authorization_locks, authorization_role_assignments, insights_components, insights_components_linked_storage_accounts, insights_components_pricing_plans, insights_diagnostic_settings, +1})",no,"ASO's kinds fix the API versions (Component 2020-02-02, PricingPlan 2017-10-01)",by-design
+azure,avm-res-insights-component,retention_in_days,number,yes,,
+azure,avm-res-insights-component,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
+azure,avm-res-insights-component,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
+azure,avm-res-insights-component,sampling_percentage,number,yes,,
+azure,avm-res-insights-component,tags,map(string),yes,,
+azure,avm-res-insights-component,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-insights-component,workspace_id,string,yes,,
 azure,avm-res-app-containerapp,auth_configs,"map(object({encryption_settings, global_validation, http_settings, identity_providers, login, name, +1}))",no,,no-chart
 azure,avm-res-app-containerapp,container_app_environment_resource_id,string,no,,no-chart
 azure,avm-res-app-containerapp,dapr,"object({app_id, app_port, app_protocol, enable_api_logging, enabled, http_max_request_size, +2})",no,,no-chart
@@ -4613,27 +4613,27 @@ azure,avm-res-authorization-roleassignment,users_by_mail,map(string),no,,no-char
 azure,avm-res-authorization-roleassignment,users_by_mail_nickname,map(string),no,,no-chart
 azure,avm-res-authorization-roleassignment,users_by_object_id,map(string),no,,no-chart
 azure,avm-res-authorization-roleassignment,users_by_user_principal_name,map(string),no,,no-chart
-azure,avm-res-network-bastionhost,copy_paste_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-network-bastionhost,enable_telemetry,bool,no,,no-chart
-azure,avm-res-network-bastionhost,file_copy_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,ip_configuration,"object({create_public_ip, name, public_ip_address_id, public_ip_address_name, public_ip_merge_with_module_tags, public_ip_tags, +1})",no,,no-chart
-azure,avm-res-network-bastionhost,ip_connect_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,kerberos_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,location,string,no,,no-chart
-azure,avm-res-network-bastionhost,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-network-bastionhost,name,string,no,,no-chart
-azure,avm-res-network-bastionhost,parent_id,string,no,,no-chart
-azure,avm-res-network-bastionhost,private_only_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-network-bastionhost,scale_units,number,no,,no-chart
-azure,avm-res-network-bastionhost,session_recording_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,shareable_link_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,sku,string,no,,no-chart
-azure,avm-res-network-bastionhost,tags,map(string),no,,no-chart
-azure,avm-res-network-bastionhost,tunneling_enabled,bool,no,,no-chart
-azure,avm-res-network-bastionhost,virtual_network_id,string,no,,no-chart
-azure,avm-res-network-bastionhost,zones,set(string),no,,no-chart
+azure,avm-res-network-bastionhost,copy_paste_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-network-bastionhost,enable_telemetry,bool,yes,,
+azure,avm-res-network-bastionhost,file_copy_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,ip_configuration,"object({create_public_ip, name, public_ip_address_id, public_ip_address_name, public_ip_merge_with_module_tags, public_ip_tags, +1})",yes,,
+azure,avm-res-network-bastionhost,ip_connect_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,kerberos_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,location,string,yes,,
+azure,avm-res-network-bastionhost,lock,"object({kind, name})",yes,,
+azure,avm-res-network-bastionhost,name,string,yes,,
+azure,avm-res-network-bastionhost,parent_id,string,yes,,
+azure,avm-res-network-bastionhost,private_only_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-network-bastionhost,scale_units,number,yes,,
+azure,avm-res-network-bastionhost,session_recording_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,shareable_link_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,sku,string,yes,,
+azure,avm-res-network-bastionhost,tags,map(string),yes,,
+azure,avm-res-network-bastionhost,tunneling_enabled,bool,yes,,
+azure,avm-res-network-bastionhost,virtual_network_id,string,yes,,
+azure,avm-res-network-bastionhost,zones,set(string),yes,,
 azure,avm-res-sql-server,administrator_login,string,no,,no-chart
 azure,avm-res-sql-server,administrator_login_password,string,no,,no-chart
 azure,avm-res-sql-server,administrator_login_password_key_vault_configuration,"object({content_type, expiration_date, key_vault_resource_id, secret_name, tags})",no,,no-chart

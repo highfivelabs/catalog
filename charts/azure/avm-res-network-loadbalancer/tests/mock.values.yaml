@@ -1,0 +1,17 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
+# public Standard load balancer whose public IP the chart makes, in the fake
+# cloud's resource group, with a pool, a probe, a rule and a NAT rule.
+name: catalog-lb
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+tags: {catalog: mock}
+frontend_ip_configurations:
+  pub: {name: fe-public, create_public_ip_address: true, public_ip_address_resource_name: catalog-lb-pip}
+backend_address_pools:
+  web: {name: be-web}
+lb_probes:
+  tcp: {name: probe-tcp, port: 80}
+lb_rules:
+  http: {name: rule-http, frontend_ip_configuration_name: fe-public, backend_address_pool_object_names: [web], frontend_port: 80, backend_port: 80, probe_object_name: tcp}
+lb_nat_rules:
+  ssh: {name: nat-ssh, frontend_ip_configuration_name: fe-public, protocol: Tcp, frontend_port: 2222, backend_port: 22}

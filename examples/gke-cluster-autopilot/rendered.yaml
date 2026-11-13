@@ -1,0 +1,75 @@
+# component gke-cluster-autopilot-dev-cluster-1
+---
+# Source: gke-cluster-autopilot/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: gke-cluster-autopilot-dev-cluster-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gke-cluster-autopilot-dev-cluster-1"
+    app.kubernetes.io/name: gke-cluster-autopilot
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "cluster-1"
+  location: "europe-west1-b"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gke"
+  enableMultiNetworking: false
+  enableL4IlbSubsetting: false
+  enableTpu: false
+  initialNodeCount: 1
+  enableAutopilot: true
+  allowNetAdmin: false
+  enableCiliumClusterwideNetworkPolicy: false
+  enableFqdnNetworkPolicy: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    cloudrunConfig:
+      disabled: true
+    kalmConfig:
+      enabled: false
+    configConnectorConfig:
+      enabled: false
+    gkeBackupAgentConfig:
+      enabled: false
+  costManagementConfig:
+    enabled: true
+  controlPlaneEndpointsConfig:
+    dnsEndpointConfig:
+      allowExternalTraffic: true
+    ipEndpointsConfig:
+      enabled: true
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+  loggingConfig:
+    enableComponents: ["SYSTEM_COMPONENTS","WORKLOADS"]
+  maintenancePolicy:
+    dailyMaintenanceWindow:
+      startTime: "03:00"
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  masterAuthorizedNetworksConfig:
+    cidrBlocks:
+      - cidrBlock: "10.0.0.0/8"
+        displayName: "internal-vms"
+  monitoringConfig:
+    enableComponents: ["SYSTEM_COMPONENTS"]
+    managedPrometheus:
+      enabled: true
+  privateClusterConfig:
+    enablePrivateNodes: true
+    masterIpv4CidrBlock: "192.168.0.0/28"
+  releaseChannel:
+    channel: "REGULAR"

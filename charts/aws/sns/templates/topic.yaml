@@ -1,0 +1,135 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the topic (aws_sns_topic.this, sns/Topic), with the module's
+standalone topic policy (aws_sns_topic_policy -> policy) and data
+protection policy (aws_sns_topic_data_protection_policy ->
+dataProtectionPolicy) inline, and the subscriptions
+(aws_sns_topic_subscription.this, sns/Subscription, each referring to the
+topic by topicRef). Every attribute is a string.
+*/ -}}
+{{- include "ack.names" (list $ (list "topic")) -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $fifo := eq (toString $v.fifo_topic) "true" }}
+{{- $sfx := ternary ".fifo" "" $fifo }}
+{{- $base := trimSuffix ".fifo" ($v.name | default "") }}
+{{- $name := "" }}
+{{- if index ($v.names | default dict) "topic" }}
+{{- $name = include "ack.resourceName" (list $ "topic" "topic" "" 256) }}
+{{- if and $fifo (not (hasSuffix ".fifo" $name)) }}
+{{- fail (printf "sns: names.topic %q must end in .fifo: a FIFO topic's name does (fifo_topic)" $name) }}
+{{- end }}
+{{- else if $base }}
+{{- $name = printf "%s%s" (include "ack.cloudName" (list $ "topic" $base (sub 256 (len $sfx)))) $sfx }}
+{{- else }}
+{{- fail "sns: name is required: the topic's name (or names.topic); Terraform's generated name would change between renders" }}
+{{- end }}
+{{- $region := $v.region | default "" }}
+{{- $policy := "" }}
+{{- if $v.create_topic_policy }}
+{{- $first := list }}
+{{- if $v.enable_default_topic_policy }}
+{{- $why := "the default topic policy (enable_default_topic_policy): its statement names the topic's ARN and the account" }}
+{{- $first = list (dict "sid" "DefaultStatementID" "effect" "Allow"
+  "actions" (list "sns:Subscribe" "sns:SetTopicAttributes" "sns:RemovePermission" "sns:Publish" "sns:ListSubscriptionsByTopic" "sns:GetTopicAttributes" "sns:DeleteTopic" "sns:AddPermission")
+  "resources" (list (include "sns.arn" (list $ $name $why)))
+  "principals" (list (dict "type" "AWS" "identifiers" (list "*")))
+  "condition" (list (dict "test" "StringEquals" "variable" "AWS:SourceAccount" "values" (list $v.account_id)))) }}
+{{- end }}
+{{- $policy = include "sns.policy" (list $ "topic" $name $v.source_topic_policy_documents $v.topic_policy_statements $v.override_topic_policy_documents $first) }}
+{{- else }}
+{{- $policy = $v.topic_policy | default "" }}
+{{- end }}
+---
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Topic
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "topic")) "id" "topic" "region" $region) | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+{{- range $p := list (list "application" $v.application_feedback) (list "firehose" $v.firehose_feedback) (list "http" $v.http_feedback) (list "lambda" $v.lambda_feedback) (list "sqs" $v.sqs_feedback) }}
+{{- $f := index $p 1 | default dict }}
+{{- with $f.failure_role_arn }}
+  {{ index $p 0 }}FailureFeedbackRoleARN: {{ . | quote }}
+{{- end }}
+{{- with $f.success_role_arn }}
+  {{ index $p 0 }}SuccessFeedbackRoleARN: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $f.success_sample_rate) }}
+  {{ index $p 0 }}SuccessFeedbackSampleRate: {{ $f.success_sample_rate | int64 | toString | quote }}
+{{- end }}
+{{- end }}
+{{- if $fifo }}
+  contentBasedDeduplication: {{ $v.content_based_deduplication | toString | quote }}
+{{- end }}
+{{- if and $v.data_protection_policy (not $fifo) }}
+  dataProtectionPolicy: {{ $v.data_protection_policy | quote }}
+{{- end }}
+{{- with $v.delivery_policy }}
+  deliveryPolicy: {{ . | quote }}
+{{- end }}
+{{- with $v.display_name }}
+  displayName: {{ . | quote }}
+{{- end }}
+{{- with $v.fifo_throughput_scope }}
+  fifoThroughputScope: {{ . | quote }}
+{{- end }}
+{{- if $fifo }}
+  fifoTopic: "true"
+{{- end }}
+{{- with $v.kms_master_key_id }}
+  kmsMasterKeyID: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.maximum_message_size) }}
+  maximumMessageSize: {{ $v.maximum_message_size | int64 | toString | quote }}
+{{- end }}
+{{- with $policy }}
+  policy: {{ . | quote }}
+{{- end }}
+{{- if and (not $fifo) (not (kindIs "invalid" $v.signature_version)) }}
+  signatureVersion: {{ $v.signature_version | int64 | toString | quote }}
+{{- end }}
+{{- with $v.tracing_config }}
+  tracingConfig: {{ . | quote }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- if $v.create_subscription }}
+{{- range $k := keys ($v.subscriptions | default dict) | sortAlpha }}
+{{- $s := index $v.subscriptions $k }}
+---
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Subscription
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "subscription" $k)) "id" (printf "subscriptions/%s" $k) "region" $region) | nindent 2 }}
+spec:
+  topicRef:
+    from:
+      name: {{ include "ack.name" (list $.Release.Name "topic") }}
+  protocol: {{ $s.protocol | quote }}
+  endpoint: {{ $s.endpoint | quote }}
+{{- with $s.delivery_policy }}
+  deliveryPolicy: {{ . | quote }}
+{{- end }}
+{{- with $s.filter_policy }}
+  filterPolicy: {{ . | quote }}
+{{- end }}
+{{- with $s.filter_policy_scope }}
+  filterPolicyScope: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $s.raw_message_delivery) }}
+  rawMessageDelivery: {{ $s.raw_message_delivery | toString | quote }}
+{{- end }}
+{{- with $s.redrive_policy }}
+  redrivePolicy: {{ . | quote }}
+{{- end }}
+{{- with $s.subscription_role_arn }}
+  subscriptionRoleARN: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
