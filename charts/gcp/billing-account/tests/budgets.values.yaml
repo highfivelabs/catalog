@@ -1,0 +1,48 @@
+# fabric's README examples "simple budget" and "notification channels",
+# merged: an email channel, a budget alerting it by key, and a budget on
+# last period with a Pub/Sub topic.
+id: 012345-6789AB-CDEF01
+budget_notification_channels:
+  billing-default:
+    project_id: tf-playground-simple
+    type: email
+    description: Budget email notification billing-default.
+    labels:
+      email_address: gcp-billing-admins@example.com
+budgets:
+  folder-net-month-current-100:
+    display_name: 100 dollars in current spend
+    amount:
+      units: 100
+    filter:
+      period:
+        calendar: MONTH
+      projects: [projects/1234567890]
+    threshold_rules:
+      - percent: 0.5
+      - percent: 0.75
+        forecasted_spend: true
+    update_rules:
+      default:
+        disable_default_iam_recipients: true
+        monitoring_notification_channels: ["$notification_channels:billing-default"]
+  last-period:
+    display_name: last period
+    amount:
+      use_last_period: true
+    filter:
+      credit_types_treatment:
+        include_specified: [DISCOUNT, PROMOTION]
+      label: {key: env, value: prod}
+      period:
+        custom:
+          start_date: {day: 1, month: 1, year: 2027}
+          end_date: {day: 31, month: 12, year: 2027}
+      services: [services/24E6-581D-38E5]
+      subaccounts: [billingAccounts/012345-6789AB-CDEF02]
+    threshold_rules:
+      - percent: 1.0
+    update_rules:
+      topic:
+        pubsub_topic: projects/my-project/topics/budget-alerts
+        monitoring_notification_channels: [projects/my-project/notificationChannels/123]

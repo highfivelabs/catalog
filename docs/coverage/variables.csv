@@ -440,17 +440,17 @@ gcp,cloud-run-v2,type,string,no,,no-chart
 gcp,cloud-run-v2,volumes,"map(object({cloud_sql_instances, empty_dir_size, gcs, nfs, secret}))",no,,no-chart
 gcp,cloud-run-v2,vpc_connector_create,"object({instances, ip_cidr_range, machine_type, name, network, subnet, +1})",no,,no-chart
 gcp,cloud-run-v2,workerpool_config,object({scaling}),no,,no-chart
-gcp,billing-account,budget_notification_channels,"map(object({description, display_name, enabled, force_delete, labels, project_id, +3}))",no,,no-chart
-gcp,billing-account,budgets,"map(object({amount, display_name, filter, ownership_scope, threshold_rules, update_rules}))",no,,no-chart
-gcp,billing-account,context,"object({custom_roles, folder_ids, folder_sets, iam_principals, notification_channels, project_ids, +3})",no,,no-chart
-gcp,billing-account,factories_config,object({budgets_data_path}),no,,no-chart
-gcp,billing-account,iam,map(list(string)),no,,no-chart
-gcp,billing-account,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,billing-account,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,billing-account,iam_by_principals,map(list(string)),no,,no-chart
-gcp,billing-account,id,string,no,,no-chart
-gcp,billing-account,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +1}))",no,,no-chart
-gcp,billing-account,projects,list(string),no,,no-chart
+gcp,billing-account,budget_notification_channels,"map(object({description, display_name, enabled, force_delete, labels, project_id, +3}))",partial,"sensitive_labels are refused (secret values: the builder's open SECV question); display_name is refused, since Config Connector takes a channel's display name from its object's name (<release>-channel-<key>)",gap
+gcp,billing-account,budgets,"map(object({amount, display_name, filter, ownership_scope, threshold_rules, update_rules}))",partial,ownership_scope and filter.resource_ancestors are refused: BillingBudgetsBudget has no ownershipScope or budgetFilter.resourceAncestors,gap
+gcp,billing-account,context,"object({custom_roles, folder_ids, folder_sets, iam_principals, notification_channels, project_ids, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,billing-account,factories_config,object({budgets_data_path}),partial,a chart cannot read the caller's files: accepted and ignored; each budget file's contents go under budgets.<file name>,by-design
+gcp,billing-account,iam,map(list(string)),yes,,
+gcp,billing-account,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,billing-account,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,billing-account,iam_by_principals,map(list(string)),yes,,
+gcp,billing-account,id,string,yes,,
+gcp,billing-account,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +1}))",partial,"config-connector-extensions' LoggingBillingAccountSink is v1alpha1: needs allow_alpha: true. The writer identity's grant on the destination is not made: no IAM kind can take a member from a LoggingBillingAccountSink, so grant the sink's status.writerIdentity on the destination elsewhere",alpha
+gcp,billing-account,projects,list(string),no,"Config Connector has no kind for a project's billing link alone (google_billing_project_info): a project's billing account is its Project's billingAccountRef, which the project chart's billing_account sets",gap
 gcp,logging-bucket,context,"object({custom_roles, folder_ids, iam_principals, kms_keys, locations, project_ids, +2})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
 gcp,logging-bucket,description,string,yes,,
 gcp,logging-bucket,kms_key_name,string,no,"LoggingLogBucket has no cmekSettings, so a bucket cannot be given a CMEK key",gap

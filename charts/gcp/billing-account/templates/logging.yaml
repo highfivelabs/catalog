@@ -1,0 +1,75 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/billing-account/logging.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_logging_billing_account_sink.sink: one LoggingBillingAccountSink
+(config-connector-extensions, logging.gcp.hfl.dev/v1alpha1, so allow_alpha)
+per entry, named by its key with the namePrefix, described
+"<key> (Terraform-managed)." unless given. Its destination by type:
+storage a bucket name (as projects/_/buckets/<name>), bigquery projects/<p>/datasets/<d>, pubsub
+projects/<p>/topics/<t>, logging projects/<p>/locations/<l>/buckets/<b>,
+and project a project ID, which fabric rewrites to logging
+projects/<p> (the extension passes the log bucket reference through as
+logging.googleapis.com/<external>).
+The grants fabric makes to each sink's writer identity on its destination
+(google_storage_bucket_iam_member, google_bigquery_dataset_iam_member,
+google_pubsub_topic_iam_member, google_project_iam_member) are not made: no
+IAM kind can take a member from a LoggingBillingAccountSink. The sink's
+status.writerIdentity is the member to grant (README.md).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- include "kcc.alpha" (list $ "logging_sinks" $v.logging_sinks "LoggingBillingAccountSink (config-connector-extensions)") }}
+{{- $sinks := $v.logging_sinks | default dict }}
+{{- range $k := keys $sinks | sortAlpha }}
+{{- $s := index $sinks $k }}
+{{- $type := required (printf "%s: logging_sinks.%s.type is required" $.Chart.Name $k) $s.type }}
+{{- $dest := required (printf "%s: logging_sinks.%s.destination is required" $.Chart.Name $k) $s.destination }}
+{{- if and $s.bq_partitioned_table (ne $type "bigquery") }}
+{{- fail (printf "%s: Can only set bq_partitioned_table when type is `bigquery`. (logging_sinks.%s)" $.Chart.Name $k) }}
+{{- end }}
+{{- $field := get (dict "storage" "storageBucketRef" "bigquery" "bigQueryDatasetRef" "pubsub" "pubSubTopicRef" "logging" "loggingLogBucketRef" "project" "loggingLogBucketRef") $type }}
+{{- if eq $type "project" }}{{ $dest = printf "projects/%s" $dest }}{{ end }}
+{{- /* config-connector-extensions resolves a bucket only in its
+projects/<p>/buckets/<b> form and sends the API the bucket's name alone;
+fabric gives the name, so the project is "_" (found by the first fake-cloud
+run). */}}
+{{- if and (eq $type "storage") (not (contains "/" $dest)) }}{{ $dest = printf "projects/_/buckets/%s" $dest }}{{ end }}
+---
+apiVersion: logging.gcp.hfl.dev/v1alpha1
+kind: LoggingBillingAccountSink
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "sink" $k)) "id" (printf "sink:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  billingAccountRef:
+    external: {{ $v.id | quote }}
+  resourceID: {{ include "kcc.cloudName" (list $ "log sink" $k 100) | quote }}
+  description: {{ $s.description | default (printf "%s (Terraform-managed)." $k) | quote }}
+  destination:
+    {{ $field }}:
+      external: {{ $dest | quote }}
+  {{- with $s.filter }}
+  filter: {{ . | quote }}
+  {{- end }}
+  disabled: {{ $s.disabled | default false }}
+  {{- if eq $type "bigquery" }}
+  bigqueryOptions:
+    usePartitionedTables: {{ $s.bq_partitioned_table | default false }}
+  {{- end }}
+  {{- with $s.exclusions }}
+  exclusions:
+    {{- range $ek := keys . | sortAlpha }}
+    {{- $e := index $s.exclusions $ek }}
+    - name: {{ $ek | quote }}
+      filter: {{ $e.filter | quote }}
+      {{- with $e.description }}
+      description: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $e.disabled) }}
+      disabled: {{ $e.disabled }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,24 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/billing-account/main.tf and
+iam.tf (v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+The billing account itself is not made or changed: fabric's module takes
+its id. google_billing_project_info.default (projects) is refused: Config
+Connector has no kind for a project's billing link alone; a project's
+billing account is its Project's billingAccountRef.
+google_billing_account_iam_binding.authoritative and .bindings: one
+IAMPartialPolicy on the BillingAccount, holding iam and iam_by_principals
+merged by role, and iam_bindings with their conditions.
+google_billing_account_iam_member.bindings: one IAMPolicyMember per entry
+of iam_bindings_additive.
+factories_config is accepted and ignored: a chart cannot read the
+caller's files.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list)) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.unsupported" (list $ "projects" $v.projects "Config Connector has no kind for a project's billing link alone (google_billing_project_info): set the project's billing account on its Project (the project chart's billing_account)") }}
+{{- $_ := include "kcc.abandon" . }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (dict "apiVersion" "billing.cnrm.cloud.google.com/v1beta1" "kind" "BillingAccount" "external" $v.id) "v" $v) }}
