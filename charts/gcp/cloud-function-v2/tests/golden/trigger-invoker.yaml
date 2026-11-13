@@ -1,0 +1,143 @@
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: cloudfunctions2.gcp.hfl.dev/v1beta1
+kind: CloudFunctions2Function
+metadata:
+  name: trigger-invoker
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "trigger-invoker"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "function"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "test-cf-http"
+  description: "Terraform managed."
+  buildConfig:
+    runtime: "python313"
+    entryPoint: "main"
+    source:
+      storageSource:
+        bucket: "my-bucket"
+        object: "bundles/function.zip"
+  eventTrigger:
+    eventType: "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsubTopic: "projects/my-project/topics/my-topic"
+    triggerRegion: "europe-west1"
+    serviceAccountEmail: "tf-cf-trigger-test-cf-http@my-project.iam.gserviceaccount.com"
+    retryPolicy: "RETRY_POLICY_DO_NOT_RETRY"
+  serviceConfig:
+    allTrafficOnLatestRevision: true
+    availableCpu: "0.166"
+    availableMemory: "256M"
+    environmentVariables:
+      "LOG_EXECUTION_ID": "true"
+    maxInstanceCount: 1
+    minInstanceCount: 0
+    serviceAccountEmail: "test-cf-http@my-project.iam.gserviceaccount.com"
+    timeoutSeconds: 180
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: trigger-invoker-invoker
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "trigger-invoker"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "invoker"
+spec:
+  resourceRef:
+    apiVersion: run.cnrm.cloud.google.com/v1beta1
+    kind: RunService
+    external: "projects/my-project/locations/europe-west1/services/test-cf-http"
+  role: roles/run.invoker
+  memberFrom:
+    serviceAccountRef:
+      name: trigger-invoker-trigger
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: trigger-invoker-sa-roles-logging-logwriter-f191c91d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "trigger-invoker"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: trigger-invoker-sa
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: trigger-invoker-sa-roles-monitoring-metricwriter-c1f22603
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "trigger-invoker"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: trigger-invoker-sa
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: trigger-invoker-trigger
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "trigger-invoker"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "trigger_service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "tf-cf-trigger-test-cf-http"
+  displayName: "Terraform trigger for Cloud Function test-cf-http."
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: trigger-invoker-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "trigger-invoker"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "test-cf-http"
+  displayName: "test-cf-http"

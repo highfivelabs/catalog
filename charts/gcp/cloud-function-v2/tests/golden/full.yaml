@@ -1,0 +1,153 @@
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: cloudfunctions2.gcp.hfl.dev/v1beta1
+kind: CloudFunctions2Function
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "function"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "pfx-full-fn"
+  description: "A function."
+  kmsKeyName: "projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k"
+  buildConfig:
+    serviceAccount: "projects/my-project/serviceAccounts/builder@my-project.iam.gserviceaccount.com"
+    workerPool: "projects/my-project/locations/europe-west1/workerPools/pool"
+    runtime: "nodejs22"
+    entryPoint: "handler"
+    environmentVariables:
+      "GOOGLE_NODE_RUN_SCRIPTS": ""
+    dockerRepository: "projects/my-project/locations/europe-west1/repositories/cf"
+    automaticUpdatePolicy: {}
+    source:
+      storageSource:
+        bucket: "pfx-code"
+        object: "fn.zip"
+  serviceConfig:
+    allTrafficOnLatestRevision: true
+    availableCpu: "1"
+    availableMemory: "512M"
+    binaryAuthorizationPolicy: "default"
+    environmentVariables:
+      "LOG_EXECUTION_ID": "true"
+      "MODE": "prod"
+    ingressSettings: "ALLOW_INTERNAL_ONLY"
+    maxInstanceCount: 5
+    maxInstanceRequestConcurrency: 10
+    minInstanceCount: 1
+    serviceAccountEmail: "fn-runner@my-project.iam.gserviceaccount.com"
+    timeoutSeconds: 60
+    vpcConnector: "projects/my-project/locations/europe-west1/connectors/fn-conn"
+    vpcConnectorEgressSettings: "PRIVATE_RANGES_ONLY"
+    secretEnvironmentVariables:
+      - key: "API_KEY"
+        projectId: "my-project"
+        secret: "api-key"
+        version: "3"
+    secretVolumes:
+      - mountPath: "/etc/creds"
+        projectId: "my-project"
+        secret: "creds"
+        versions:
+          - version: "latest"
+            path: "creds.json"
+          - version: "1"
+            path: "old.json"
+  labels:
+    env: "prod"
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sa-roles-logging-logwriter-35fbd78d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: full-sa
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: full-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "fn-runner"
+  displayName: "Function runner"
+---
+# Source: cloud-function-v2/templates/bundle.yaml
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  name: full-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "pfx-code"
+  location: "EU"
+  uniformBucketLevelAccess: true
+---
+# Source: cloud-function-v2/templates/vpcconnector.yaml
+apiVersion: vpcaccess.cnrm.cloud.google.com/v1beta1
+kind: VPCAccessConnector
+metadata:
+  name: full-connector
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "vpc_connector"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "fn-conn"
+  ipCidrRange: "10.8.0.0/28"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc"
+  machineType: "e2-micro"
+  maxInstances: 3
+  minInstances: 2
