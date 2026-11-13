@@ -58,8 +58,7 @@ Refused or accepted in part (`upstream.yaml`):
   rule resource's tags) are not carried; ACK's inline rules have no tags.
 - `enable_exclusive_rules: false`: ACK always owns the whole rule set.
 - `revoke_rules_on_delete`: no ACK field.
-- `vpc_associations`: ack-extensions' `SecurityGroupVpcAssociation` takes the
-  group's ID with no reference, so it cannot be wired in one render.
+- `vpc_associations`: `aws_vpc_security_group_vpc_association` has no kind.
 - `vpc_id`, in part: required. Unset, Terraform takes the account's default
   VPC; ACK's `SecurityGroup` needs its VPC's ID, and the chart cannot look
   the default VPC up (found by the fake-AWS run: ACK leaves such a group

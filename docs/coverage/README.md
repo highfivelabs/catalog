@@ -89,7 +89,7 @@ v1.160.0:
 | --- | --- |
 | `stable` | a `v1beta1` Config Connector kind |
 | `alpha` | only a `v1alpha1` kind |
-| `extensions` | a kind config-connector-extensions provides at the commit `UPSTREAM.md` pins ("Gap kinds commit"), for a type Config Connector has no kind for or only an alpha one; `kind` names its group and version (`v1alpha1` ones need `allow_alpha`). `task inventory` reads that commit's CRDs, the Terraform types its generated kinds port and its IAM resource table |
+| `extensions` | a gap kind that config-connector-extensions provides |
 | `none` | no kind |
 | `unclassified` | an AWS or Azure module with a type not listed in `upstream/aws-kinds.yaml` (or `azure-kinds.yaml`): its types are not mapped to kinds yet, so its `resource_types_with_stable_kind` and `resource_types_missing` are empty |
 

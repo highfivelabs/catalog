@@ -1,0 +1,194 @@
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAsset
+metadata:
+  name: full-asset-curated-marts
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "asset:curated-marts"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "us-central1"
+  lake: "test-sales"
+  zone: "curated"
+  resourceID: "marts"
+  discoverySpec:
+    enabled: true
+    schedule: "15 15 * * *"
+  resourceSpec:
+    name: "projects/myproject/datasets/marts"
+    type: "BIGQUERY_DATASET"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAsset
+metadata:
+  name: full-asset-raw-events
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "asset:raw-events"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "us-central1"
+  lake: "test-sales"
+  zone: "raw"
+  resourceID: "events"
+  discoverySpec:
+    enabled: false
+  resourceSpec:
+    name: "projects/myproject/datasets/events"
+    type: "BIGQUERY_DATASET"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAsset
+metadata:
+  name: full-asset-raw-landing
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "asset:raw-landing"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "us-central1"
+  lake: "test-sales"
+  zone: "raw"
+  resourceID: "landing"
+  discoverySpec:
+    enabled: true
+    schedule: "0 2 * * *"
+  resourceSpec:
+    name: "projects/data-project/buckets/landing-bucket"
+    type: "STORAGE_BUCKET"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexLake
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lake"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "us-central1"
+  resourceID: "test-sales"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexZone
+metadata:
+  name: full-zone-curated
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone:curated"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "us-central1"
+  lake: "test-sales"
+  resourceID: "curated"
+  type: "CURATED"
+  discoverySpec:
+    enabled: false
+  resourceSpec:
+    locationType: "MULTI_REGION"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexZone
+metadata:
+  name: full-zone-raw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone:raw"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "us-central1"
+  lake: "test-sales"
+  resourceID: "raw"
+  type: "RAW"
+  discoverySpec:
+    enabled: true
+  resourceSpec:
+    locationType: "MULTI_REGION"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-roles-dataplex-viewer-bbdeea94
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/dataplex.viewer"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexLake
+    name: full
+  role: "roles/dataplex.viewer"
+  members:
+    - "group:a@example.com"
+    - "group:b@example.com"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-zone-raw-iam-roles-dataplex-datareader-43eb4ad2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone-iam:raw-roles/dataplex.dataReader"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexZone
+    name: full-zone-raw
+  role: "roles/dataplex.dataReader"
+  members:
+    - "group:a@example.com"

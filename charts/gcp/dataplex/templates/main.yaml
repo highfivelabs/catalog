@@ -1,0 +1,112 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dataplex/main.tf (v60.0.0),
+Copyright 2023 Google LLC, Apache-2.0.
+
+google_dataplex_lake.lake: one DataplexLake (config-connector-extensions,
+dataplex.gcp.hfl.dev/v1beta1), named <prefix>-<name>.
+google_dataplex_lake_iam_binding.binding: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per role of iam on
+the lake, exact per role as fabric's.
+google_dataplex_zone.zone: one DataplexZone per key of zones.
+google_dataplex_zone_iam_binding.binding: one IAMBinding per role of a
+zone's iam.
+google_dataplex_asset.asset: one DataplexAsset per asset of each zone,
+keyed <zone>-<asset> as fabric keys them.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "lake")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := printf "projects/%s" $v.project_id }}
+{{- $base := $v.name }}
+{{- if $v.prefix }}{{ $base = printf "%s-%s" $v.prefix $v.name }}{{ end }}
+{{- $lake := include "kcc.resourceName" (list $ "lake" "lake" $base 63 "letter") }}
+{{- $types := dict "STORAGE_BUCKET" "buckets" "BIGQUERY_DATASET" "datasets" }}
+---
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexLake
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "lake" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $lake | quote }}
+{{- range $role, $members := ($v.iam | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam" $role)) "id" (printf "iam:%s" $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexLake
+    name: {{ $.Release.Name }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- range $zone, $z := $v.zones }}
+{{- $zoneObject := include "kcc.name" (list $.Release.Name "zone" $zone) }}
+---
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexZone
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $zoneObject "id" (printf "zone:%s" $zone) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  lake: {{ $lake | quote }}
+  resourceID: {{ $zone | quote }}
+  type: {{ $z.type | quote }}
+  discoverySpec:
+    enabled: {{ ternary true $z.discovery (kindIs "invalid" $z.discovery) }}
+  resourceSpec:
+    locationType: {{ $v.location_type | quote }}
+{{- range $role, $members := ($z.iam | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $zoneObject "iam" $role)) "id" (printf "zone-iam:%s-%s" $zone $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexZone
+    name: {{ $zoneObject }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- range $asset, $a := $z.assets }}
+{{- $enabled := ternary true $a.discovery_spec_enabled (kindIs "invalid" $a.discovery_spec_enabled) }}
+{{- $type := $a.resource_spec_type | default "STORAGE_BUCKET" }}
+---
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAsset
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "asset" $zone $asset)) "id" (printf "asset:%s-%s" $zone $asset) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  lake: {{ $lake | quote }}
+  zone: {{ $zone | quote }}
+  resourceID: {{ $asset | quote }}
+  discoverySpec:
+    enabled: {{ $enabled }}
+    {{- if $enabled }}
+    schedule: {{ $a.cron_schedule | default "15 15 * * *" | quote }}
+    {{- end }}
+  resourceSpec:
+    name: {{ printf "projects/%s/%s/%s" ($a.resource_project | default $v.project_id) (index $types $type) $a.resource_name | quote }}
+    type: {{ $type | quote }}
+{{- end }}
+{{- end }}
