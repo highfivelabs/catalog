@@ -1,0 +1,80 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-privatednszone main.tf and
+modules/private_dns_{a,aaaa,cname,mx,ptr,srv,txt}_record (v0.6.0),
+Copyright (c) Microsoft Corporation, MIT.
+
+module.<type>_record (azapi_resource, Microsoft.Network/privateDnsZones/<TYPE>):
+one ASO PrivateDnsZones<TYPE>Record per entry (network.azure.com/v1api20240601),
+owned by the zone, its record set as the submodule builds it: A, AAAA and
+PTR from ip_addresses / domain_names, else records (a set, sorted); MX,
+SRV and TXT from the records map's values, in key order.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $zone := include "aso.name" (list .Release.Name "zone") }}
+{{- $types := list (list "a" "A" "a_records") (list "aaaa" "AAAA" "aaaa_records") (list "cname" "CNAME" "cname_records") (list "mx" "MX" "mx_records") (list "ptr" "PTR" "ptr_records") (list "srv" "SRV" "srv_records") (list "txt" "TXT" "txt_records") }}
+{{- range $t := $types }}
+{{- $short := index $t 0 }}{{- $kind := index $t 1 }}{{- $var := index $t 2 }}
+{{- range $key, $r := (index $v $var | default dict) }}
+---
+apiVersion: network.azure.com/v1api20240601
+kind: {{ printf "PrivateDnsZones%sRecord" $kind }}
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name $short $key)) "id" (printf "%s_record:%s" $short $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | default "@" | quote }}
+  owner:
+    name: {{ $zone }}
+  ttl: {{ $r.ttl | int }}
+  {{- if or (eq $short "a") (eq $short "aaaa") }}
+  {{- $ips := ternary $r.records $r.ip_addresses (kindIs "invalid" $r.ip_addresses) }}
+  {{- if kindIs "invalid" $ips }}
+  {{- fail (printf "avm-res-network-privatednszone: Each %s record must have either a non-empty records list or a non-empty ip_addresses set." $kind) }}
+  {{- end }}
+  {{ $short }}Records:
+    {{- range (uniq $ips | sortAlpha) }}
+    - {{ ternary "ipv4Address" "ipv6Address" (eq $short "a") }}: {{ . | quote }}
+    {{- end }}
+  {{- else if eq $short "ptr" }}
+  {{- $names := ternary $r.records $r.domain_names (kindIs "invalid" $r.domain_names) }}
+  {{- if kindIs "invalid" $names }}
+  {{- fail "avm-res-network-privatednszone: Each PTR record must have either a non-empty records list or a non-empty domain_names set." }}
+  {{- end }}
+  ptrRecords:
+    {{- range (uniq $names | sortAlpha) }}
+    - ptrdname: {{ . | quote }}
+    {{- end }}
+  {{- else if eq $short "cname" }}
+  {{- $cname := $r.cname | default $r.record }}
+  {{- if not $cname }}
+  {{- fail "avm-res-network-privatednszone: Each CNAME record must have either a non-empty record or a non-empty cname value." }}
+  {{- end }}
+  cnameRecord:
+    cname: {{ $cname | quote }}
+  {{- else if eq $short "mx" }}
+  mxRecords:
+    {{- range $_, $m := $r.records }}
+    - exchange: {{ $m.exchange | quote }}
+      preference: {{ $m.preference | int }}
+    {{- end }}
+  {{- else if eq $short "srv" }}
+  srvRecords:
+    {{- range $_, $s := $r.records }}
+    - port: {{ $s.port | int }}
+      priority: {{ $s.priority | int }}
+      target: {{ $s.target | quote }}
+      weight: {{ $s.weight | int }}
+    {{- end }}
+  {{- else if eq $short "txt" }}
+  txtRecords:
+    {{- range $_, $x := $r.records }}
+    - value:
+        {{- range $x.value }}
+        - {{ . | quote }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

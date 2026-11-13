@@ -41,7 +41,7 @@ The module's variables, with the same names, types and defaults.
 | `backends` | the backend service's `backend` entries (`CONNECTION` balancing); a `group` that is a key of `group_configs` refers to the chart's group, any other is an instance group's id or self link |
 | `forwarding_rules_config` | one `ComputeForwardingRule` per key (`INTERNAL`): address (an IP, else an address reference), IP version when no address, protocol, ports or all ports, global access |
 | `group_configs` | one unmanaged `ComputeInstanceGroup` per key, with its instances and named ports |
-| `health_check`, `health_check_config` | an existing health check, or the `ComputeHealthCheck` the chart makes (global, or regional with `is_regional`), with one of its six check types; fabric's one-type check. Helm merges a values file's `health_check_config` into the default (`tcp` on the serving port) where Terraform replaces it, so a type set beside the untouched default drops the default |
+| `health_check`, `health_check_config` | an existing health check, or the `ComputeHealthCheck` the chart makes (global, or regional with `is_regional`), with one of its six check types; fabric's one-type check. Helm merges a values file's `health_check_config` into the default (`tcp` on the serving port) where Terraform replaces it, so a type set beside the untouched default drops the default, and a `tcp` check that sets its own `port` or `port_name` drops the default's `port_specification` (the API refuses a port with `USE_SERVING_PORT`) |
 | `service_attachments` | one `ComputeServiceAttachment` per key that is a forwarding rule's, named as the forwarding rule fabric derives, with `description`. Refused: `domain_name` and `reconcile_connections` (no such fields) |
 | `service_label` | the forwarding rules' `serviceLabel` |
 | `description` | the service attachments' description, as in fabric |
@@ -98,4 +98,7 @@ all Ready, the outputs evaluated, deleted, and gone from Google Cloud.
 
 ## Changes
 
+- **0.1.1** (2026-11-12): a `tcp` health check with its own `port` no
+  longer keeps the default's `port_specification: USE_SERVING_PORT`, which
+  Helm merged in and the API refuses (found by net-lb-ext's live run).
 - **0.1.0** (2026-11-12): the port.

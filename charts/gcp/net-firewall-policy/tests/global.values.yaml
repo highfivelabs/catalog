@@ -1,0 +1,35 @@
+# A global network policy attached to a VPC, with secure tags and a
+# factory's rules.
+name: test-1
+parent_id: my-project
+region: global
+description: a global policy
+attachments: {my-vpc: projects/my-project/global/networks/my-vpc}
+egress_rules:
+  smtp:
+    priority: 900
+    disabled: true
+    description: no mail
+    target_service_accounts: [app@my-project.iam.gserviceaccount.com]
+    match:
+      destination_ranges: [0.0.0.0/0, 0.0.0.0/0]
+      fqdns: [example.com]
+      region_codes: [US]
+      layer4_configs: [{protocol: tcp, ports: ["25"]}]
+ingress_rules:
+  tagged:
+    priority: 1000
+    action: deny
+    target_tags: [tagValues/2, tagValues/1]
+    match:
+      source_tags: [tagValues/3]
+      address_groups: [projects/my-project/locations/global/addressGroups/ag]
+      threat_intelligences: [iplist-known-malicious-ips]
+factories_config: {ingress_rules_file_path: rules/ingress.yaml, cidr_file_path: cidrs.yaml}
+factories_data:
+  cidrs: {rfc1918: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]}
+  ingress_rules:
+    from-factory:
+      priority: 1100
+      match: {source_ranges: [rfc1918, 1.2.3.4/32], layer4_configs: [{ports: ["22"]}]}
+deletion_policy: ABANDON

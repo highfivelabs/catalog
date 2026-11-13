@@ -1,0 +1,31 @@
+# A new hub, custom advertisement, keepalive, data transfer and route
+# policies (allow_alpha).
+allow_alpha: true
+hub: {create: true, name: prod-hub, description: the hub}
+name: spoke-ra
+project_id: my-project
+region: europe-west1
+data_transfer: true
+router_appliances:
+  - {internal_ip: 10.0.0.3, vm_self_link: projects/my-project/zones/europe-west1-b/instances/router-app-a}
+router_config:
+  asn: 65000
+  custom_advertise:
+    all_subnets: true
+    ip_ranges: {10.255.0.0/24: onprem, 10.254.0.0/24: other}
+  ip_interface0: 10.0.0.14
+  ip_interface1: 10.0.0.15
+  keepalive: 20
+  peer_asn: 65001
+  routes_priority: 200
+  route_policies:
+    import-all:
+      type: IMPORT
+      terms:
+        - priority: 1
+          match: {expression: "destination == '10.0.0.0/8'", title: rfc1918}
+          actions: [{expression: accept()}]
+vpc_config:
+  network_name: projects/my-project/global/networks/my-vpc
+  subnet_self_link: projects/my-project/regions/europe-west1/subnetworks/subnet
+deletion_policy: ABANDON

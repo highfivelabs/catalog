@@ -1,0 +1,90 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.<id>): the primary cluster is resources.cluster, its instance
+# resources.instance, the secondary's resources.secondary_cluster and
+# resources.secondary_instance, each read pool resources["read-pool:<key>"]
+# (resources["secondary-read-pool:<key>"] in the secondary). IDs are
+# Terraform's, built from the inputs and the resource IDs; names are the
+# API's (status.name). A value the instance does not report, or a
+# secondary that does not exist, is null, as in Terraform. Not outputs:
+# instance, instances, read_pools, secondary_instance and
+# secondary_read_pools (whole objects), user_passwords (the chart makes no
+# passwords), and psc_dns_name(s) and service_attachment(s), which need
+# Private Service Connect (refused) and which AlloyDBInstance does not
+# report (docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-alloydb
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    cluster_id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location
+      + '/clusters/' + resources.cluster.spec.resourceID
+    cluster_name: resources.cluster.status.name
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.location
+      + '/clusters/' + resources.cluster.spec.resourceID + '/instances/' + resources.instance.spec.resourceID
+    ids: >-
+      {'primary': 'projects/' + inputs.project_id + '/locations/' + inputs.location
+        + '/clusters/' + resources.cluster.spec.resourceID + '/instances/' + resources.instance.spec.resourceID,
+       'secondary': 'secondary_instance' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.cross_region_replication.region
+          + '/clusters/' + resources.secondary_cluster.spec.resourceID + '/instances/' + resources.secondary_instance.spec.resourceID)
+        : null}
+    ip: >-
+      has(resources.instance.status.ipAddress) ? dyn(resources.instance.status.ipAddress) : null
+    ips: >-
+      {'primary': has(resources.instance.status.ipAddress) ? dyn(resources.instance.status.ipAddress) : null,
+       'secondary': 'secondary_instance' in resources && has(resources.secondary_instance.status.ipAddress)
+        ? dyn(resources.secondary_instance.status.ipAddress) : null}
+    name: resources.instance.status.name
+    names: >-
+      {'primary': resources.instance.status.name,
+       'secondary': 'secondary_instance' in resources ? dyn(resources.secondary_instance.status.name) : null}
+    outbound_public_ips: >-
+      has(resources.instance.status.outboundPublicIpAddresses) ? dyn(resources.instance.status.outboundPublicIpAddresses) : dyn([])
+    public_ip: >-
+      has(resources.instance.status.publicIpAddress) ? dyn(resources.instance.status.publicIpAddress) : null
+    read_pool_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('read-pool:'),
+        {k.substring(10): 'projects/' + inputs.project_id + '/locations/' + inputs.location
+          + '/clusters/' + resources.cluster.spec.resourceID + '/instances/' + v.spec.resourceID})
+    read_pool_ips: >-
+      resources.transformMapEntry(k, v, k.startsWith('read-pool:'),
+        {k.substring(10): has(v.status.ipAddress) ? dyn(v.status.ipAddress) : null})
+    secondary_cluster_id: >-
+      'secondary_cluster' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.cross_region_replication.region
+          + '/clusters/' + resources.secondary_cluster.spec.resourceID)
+        : null
+    secondary_cluster_name: >-
+      'secondary_cluster' in resources ? dyn(resources.secondary_cluster.status.name) : null
+    secondary_id: >-
+      'secondary_instance' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.cross_region_replication.region
+          + '/clusters/' + resources.secondary_cluster.spec.resourceID + '/instances/' + resources.secondary_instance.spec.resourceID)
+        : null
+    secondary_ip: >-
+      'secondary_instance' in resources && has(resources.secondary_instance.status.ipAddress)
+        ? dyn(resources.secondary_instance.status.ipAddress) : null
+    secondary_outbound_public_ips: >-
+      'secondary_instance' in resources
+        ? (has(resources.secondary_instance.status.outboundPublicIpAddresses) ? dyn(resources.secondary_instance.status.outboundPublicIpAddresses) : dyn([]))
+        : null
+    secondary_public_ip: >-
+      'secondary_instance' in resources && has(resources.secondary_instance.status.publicIpAddress)
+        ? dyn(resources.secondary_instance.status.publicIpAddress) : null
+    secondary_read_pool_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('secondary-read-pool:'),
+        {k.substring(20): 'projects/' + inputs.project_id + '/locations/' + inputs.cross_region_replication.region
+          + '/clusters/' + resources.secondary_cluster.spec.resourceID + '/instances/' + v.spec.resourceID})
+    secondary_read_pool_ips: >-
+      resources.transformMapEntry(k, v, k.startsWith('secondary-read-pool:'),
+        {k.substring(20): has(v.status.ipAddress) ? dyn(v.status.ipAddress) : null})
