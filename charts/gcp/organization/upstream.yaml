@@ -24,14 +24,14 @@ synced: 2026-11-13
 # accepted, the reason says what is refused.
 refused:
   - variable: access_levels
-    kind: not-ported
-    reason: "AccessContextManagerAccessLevel is a stable kind, not ported to this chart yet"
-  - variable: access_policy
-    kind: not-ported
-    reason: "names the access policy of access_levels, which is not ported to this chart yet"
+    kind: gap
+    reason: "a condition's vpc_subnets is refused: AccessContextManagerAccessLevel has no vpcNetworkSources"
+    partial: true
+    fields: [conditions.vpc_subnets]
   - variable: asset_feeds
-    kind: not-ported
-    reason: "AssetFeed is a stable kind, not ported to this chart yet"
+    kind: gap
+    reason: "billing_project is not carried: AssetFeed has no field for it, and Config Connector bills the call to the project its controller is configured with"
+    partial: true
   - variable: asset_search
     kind: by-design
     reason: "a Cloud Asset Inventory search is a read at plan time, not a resource; Bundt does not run one"
@@ -87,5 +87,7 @@ refused:
     partial: true
     fields: [force_context_ids]
   - variable: workforce_identity_pools
-    kind: not-ported
-    reason: "IAMWorkforcePool and IAMWorkforcePoolProvider are stable kinds, not ported to this chart yet"
+    kind: gap
+    reason: "pools and their OIDC and SAML providers are ported; refused: access_restrictions (IAMWorkforcePool has none), a provider's detailed_audit_logging true, scim_usage and oauth2_client_config (IAMWorkforcePoolProvider has none), scim_tenant (no kind for IAMWorkforcePoolProviderScimTenant), and an OIDC client_secret (its value would be in the rendered manifest; path names a file on the caller's machine)"
+    partial: true
+    fields: [access_restrictions, providers.detailed_audit_logging, providers.scim_usage, providers.oauth2_client_config, providers.scim_tenant, providers.identity_provider.oidc.client_secret]

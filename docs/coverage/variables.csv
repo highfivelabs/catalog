@@ -88,9 +88,9 @@ gcp,folder,scc_mute_configs,"map(object({description, filter, type}))",no,Config
 gcp,folder,scc_sha_custom_modules,"map(object({description, enablement_state, predicate, recommendation, resource_selector, severity}))",no,"SecurityCenterManagementSecurityHealthAnalyticsCustomModule is v1alpha1; not ported yet, even with allow_alpha",alpha
 gcp,folder,service_agents_config,"object({create_agents, services})",no,Config Connector has no kind for a folder's service identities (ServiceIdentity),gap
 gcp,folder,tag_bindings,map(string),yes,,
-gcp,organization,access_levels,"map(object({combining_function, conditions, description, title}))",no,"AccessContextManagerAccessLevel is a stable kind, not ported to this chart yet",not-ported
-gcp,organization,access_policy,string,no,"names the access policy of access_levels, which is not ported to this chart yet",not-ported
-gcp,organization,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,"AssetFeed is a stable kind, not ported to this chart yet",not-ported
+gcp,organization,access_levels,"map(object({combining_function, conditions, description, title}))",partial,a condition's vpc_subnets is refused: AccessContextManagerAccessLevel has no vpcNetworkSources,gap
+gcp,organization,access_policy,string,yes,,
+gcp,organization,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",partial,"billing_project is not carried: AssetFeed has no field for it, and Config Connector bills the call to the project its controller is configured with",gap
 gcp,organization,asset_search,"map(object({asset_types, query}))",no,"a Cloud Asset Inventory search is a read at plan time, not a resource; Bundt does not run one",by-design
 gcp,organization,cloud_armor_policy,"object({excluded_folders, excluded_projects, name, policy_id})",no,"ComputeOrganizationSecurityPolicyAssociation is v1alpha1; not ported yet, even with allow_alpha",alpha
 gcp,organization,contacts,map(list(string)),yes,,
@@ -122,7 +122,7 @@ gcp,organization,service_agents_config,"object({create_agents, services})",no,Co
 gcp,organization,tag_bindings,map(string),yes,,
 gcp,organization,tags,"map(object({allowed_values_regex, description, iam, iam_bindings, iam_bindings_additive, id, +1}))",partial,"fabric's tag keys are ported; allowed_values_regex is refused (TagsTagKey has no such field), and so are IAM conditions on tag keys and values (they take none). A tags entry whose value is a string is the catalog's cloud label, applied to every object",gap
 gcp,organization,tags_config,"object({force_context_ids, ignore_iam})",partial,force_context_ids is refused: Bundt replaces fabric's $context ids with ${...} expressions,by-design
-gcp,organization,workforce_identity_pools,"map(object({access_restrictions, description, disabled, display_name, providers, session_duration}))",no,"IAMWorkforcePool and IAMWorkforcePoolProvider are stable kinds, not ported to this chart yet",not-ported
+gcp,organization,workforce_identity_pools,"map(object({access_restrictions, description, disabled, display_name, providers, session_duration}))",partial,"pools and their OIDC and SAML providers are ported; refused: access_restrictions (IAMWorkforcePool has none), a provider's detailed_audit_logging true, scim_usage and oauth2_client_config (IAMWorkforcePoolProvider has none), scim_tenant (no kind for IAMWorkforcePoolProviderScimTenant), and an OIDC client_secret (its value would be in the rendered manifest; path names a file on the caller's machine)",gap
 gcp,iam-service-account,context,"object({condition_vars, custom_roles, folder_ids, iam_principals, project_ids, service_account_ids, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
 gcp,iam-service-account,create_ignore_already_exists,bool,no,Config Connector acquires an account with the same ID anyway,by-design
 gcp,iam-service-account,deletion_policy,string,partial,"DELETE and ABANDON only: PREVENT has no Config Connector equivalent (docs/design.md, ""Deletion"")",gap

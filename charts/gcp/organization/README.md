@@ -3,8 +3,9 @@
 An existing Google Cloud organization's IAM, custom roles, organization
 policies and custom constraints, essential contacts, logging sinks,
 exclusions and data access logs, PAM entitlements, tag keys and values,
-network tags, tag bindings and hierarchical firewall policy association,
-as Config Connector objects. A partial port of Cloud Foundation Fabric's
+network tags, tag bindings, hierarchical firewall policy association,
+access levels, asset feeds and Workforce Identity Federation pools, as
+Config Connector objects. A partial port of Cloud Foundation Fabric's
 [`modules/organization`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/f706bc3b6166787df01402f73a96f1de57097477/modules/organization)
 at v60.0.0 (`f706bc3b`), Apache-2.0, Copyright Google LLC. Bundt Package
 `gcp-organization` (`package.yaml`). Checked against Config Connector
@@ -55,8 +56,10 @@ The module's variables, with the same names, types and defaults.
 | `logging_exclusions` | a `LoggingLogExclusion` per entry, described `<name> (Terraform-managed).` |
 | `logging_sinks` | a `LoggingLogSink` per entry on the organization (type `logging` by default, `include_children`, default true, filter, exclusions, `disabled`, BigQuery partitioned tables), and, with `iam` (the default), an `IAMPolicyMember` granting its writer identity write access to the destination, as fabric grants it. Refused: `intercept_children` (`LoggingLogSink` has no `interceptChildren`; fabric allows it only for a `project` sink), type `project` (a sink's destination is never a project), and `iam` on a `bigquery` sink (dataset IAM is the alpha `BigQueryDatasetAccess`: set `iam: false`) |
 | `pam_entitlements` | a `PrivilegedAccessManagerEntitlement` per entry on the organization, as the `folder` chart's |
+| `access_policy`, `access_levels` | a basic `AccessContextManagerAccessLevel` per entry in the access policy `access_policy` (its number), named by its key (with a `namePrefix`, `<namePrefix>_<key>`, hyphens as underscores), titled by its title or key, with its combining function and conditions: device policy, IP subnetworks, members (users and service accounts, fabric's check), `negate`, regions, required access levels (another level's resource name, or `$access_levels:<key>` for one of this chart's); fabric's checks of the combining function, encryption statuses and management levels. A condition's `vpc_subnets` is refused (`AccessContextManagerAccessLevel` has no `vpcNetworkSources`) |
+| `asset_feeds` | an `AssetFeed` per entry on the organization, its ID the key, to the Pub/Sub topic `projects/<project>/topics/<topic>`, with its content type (fabric's check), asset types and names and condition. `billing_project` is not carried ("Differences from the module") |
+| `workforce_identity_pools` | an `IAMWorkforcePool` per entry on the organization (location `global`, its ID the key) and an `IAMWorkforcePoolProvider` per provider: attribute condition and mapping (on fabric's `azuread` or `okta` template when named), `disabled`, and an OIDC (issuer, client ID, JWKS, web SSO config) or SAML identity provider, with fabric's checks. Refused: `access_restrictions` (`IAMWorkforcePool` has none); a provider's `detailed_audit_logging: true`, `scim_usage` and `oauth2_client_config` (`IAMWorkforcePoolProvider` has none); `scim_tenant` (no kind); an OIDC `client_secret` (its value would be in the rendered manifest, and `path` names a file on the caller's machine) |
 | `context`, `factories_config`, `asset_search` | refused, by design: Bundt replaces `$context` lookups with `${...}` expressions; a chart cannot read the caller's files (their entries go in `custom_roles`, `org_policies`, `org_policy_custom_constraints`, `pam_entitlements` and `tags`); a search is a read at plan time, not a resource |
-| `access_levels`, `access_policy`, `asset_feeds`, `workforce_identity_pools` | refused, not ported yet: Config Connector has stable kinds for them (`AccessContextManagerAccessLevel`, `AssetFeed`, `IAMWorkforcePool` and `IAMWorkforcePoolProvider`) |
 | `cloud_armor_policy`, `context_aware_access_bindings`, `iam_deny_policies`, `model_armor_floor_setting`, `scc_mute_configs`, `scc_sha_custom_modules` | refused: `ComputeOrganizationSecurityPolicyAssociation`, `AccessContextManagerGCPUserAccessBinding`, `IAMDenyPolicy`, `ModelArmorFloorSetting`, `SecurityCenterMuteConfig` and `SecurityCenterManagementSecurityHealthAnalyticsCustomModule` are `v1alpha1` kinds, not ported yet |
 | `logging_settings`, `service_agents_config` | refused, gaps: Config Connector has no kind for an organization's logging settings or its service identities (`ServiceIdentity` takes only a project) |
 | `deletion_policy` | not a fabric variable; `ABANDON` keeps the cloud resources |
@@ -68,13 +71,14 @@ The module's variables, with the same names, types and defaults.
 `custom_role_id` (`organizations/N/roles/<id>`),
 `organization_policies_ids`, `sink_writer_identities`, and `tag_keys`,
 `tag_values`, `network_tag_keys` and `network_tag_values` (each new key's
-or value's `tagKeys/N` or `tagValues/N`), keyed as fabric keys them. Not
-outputs: `access_levels`, `asset_search_results`,
+or value's `tagKeys/N` or `tagValues/N`), `workforce_identity_pool_ids`
+and `workforce_identity_provider_names` (`locations/global/workforcePools/...`),
+keyed as fabric keys them. Not outputs: `asset_search_results`,
 `context_aware_access_bindings`, `logging_identities`,
-`scc_custom_sha_modules_ids`, `scc_mute_configs`, `scim_tenants`,
-`service_agents` and the `workforce_identity_*` outputs (their variables
-are refused), and fabric's whole objects (`custom_roles`, `logging_sinks`;
-`docs/design.md`, "Outputs").
+`scc_custom_sha_modules_ids`, `scc_mute_configs`, `scim_tenants` and
+`service_agents` (their variables are refused), and fabric's whole objects
+(`access_levels`, `custom_roles`, `logging_sinks`,
+`workforce_identity_providers`; `docs/design.md`, "Outputs").
 
 ## From Terraform
 
@@ -89,13 +93,22 @@ chart renders on it.
   keys of the same call (`depends_on`); Config Connector retries a policy
   on a constraint that does not exist yet until it does, so the chart has
   no order to keep.
+- An asset feed's `billing_project` is not carried: `AssetFeed` has no
+  field for it, and Config Connector bills the Cloud Asset API call to the
+  billing project its controller is configured with (with none, a feed on
+  an organization may be refused for want of a quota project).
 
 ## Config Connector gaps
 
 Found porting this module, for config-connector-extensions:
 `LoggingLogSink` has no `interceptChildren`; `TagsTagKey` has no
-`allowedValuesRegex`; no kinds for `google_logging_organization_settings`
-or `google_organization_service_identity`
+`allowedValuesRegex`; `AccessContextManagerAccessLevel` has no
+`vpcNetworkSources`; `IAMWorkforcePool` has no `accessRestrictions`;
+`IAMWorkforcePoolProvider` has no `detailedAuditLogging`, `scimUsage` or
+OAuth 2.0 client attributes; `AssetFeed` has no billing project; no kinds
+for `google_logging_organization_settings`,
+`google_organization_service_identity` or
+`google_iam_workforce_pool_provider_scim_tenant`
 (`docs/coverage/blocked-kinds.md`).
 
 ## Config Connector bugs
@@ -122,7 +135,8 @@ with every other module the catalog tracks. To take a newer release, see
 ## Tests
 
 `task test CHART=organization`: render cases `basic`, `iam-bpc`,
-`custom-constraints`, `tags`, `logging` and `pam` (the module README's
+`custom-constraints`, `tags`, `logging`, `pam`, `workforce` and
+`access-levels` (the module README's
 examples, less what the chart refuses), `full` (every value the chart
 carries), `names` and `mock`, validated against Config Connector
 v1.160.0's CRD schemas, and the refusals in `tests/*.fail.yaml`.
@@ -146,6 +160,10 @@ organization the test identity may change (nothing can create one).
 
 ## Changes
 
+- **0.2.0** (2026-11-13): access levels (`access_policy`,
+  `access_levels`), asset feeds and Workforce Identity Federation pools
+  and providers; the `workforce_identity_pool_ids` and
+  `workforce_identity_provider_names` outputs.
 - **0.1.0** (2026-11-13): the port: the organization's IAM, custom roles,
   organization policies and custom constraints, contacts, logging, PAM
   entitlements, tag keys, network tags, tag bindings and firewall policy

@@ -1,0 +1,98 @@
+---
+# Source: organization/templates/workforce.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkforcePool
+metadata:
+  name: workforce-workforce-pool-test-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workforce"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "workforce-pool:test-pool"
+spec:
+  resourceID: "test-pool"
+  organizationRef:
+    external: "organizations/1122334455"
+  location: global
+  description: "Workforce pool for testing."
+  displayName: "Test Pool"
+---
+# Source: organization/templates/workforce.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkforcePoolProvider
+metadata:
+  name: workforce-workforce-provider-test-pool-oidc-full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workforce"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "workforce-provider:test-pool/oidc-full"
+spec:
+  resourceID: "oidc-full"
+  workforcePoolRef:
+    name: workforce-workforce-pool-test-pool
+  location: global
+  disabled: false
+  attributeMapping:
+    "google.subject": "assertion.sub"
+  oidc:
+    issuerUri: "https://sts.windows.net/abcd01234/"
+    clientId: "https://analysis.windows.net/powerbi/connector/GoogleBigQuery"
+    webSsoConfig:
+      responseType: "CODE"
+      assertionClaimsBehavior: "MERGE_USER_INFO_OVER_ID_TOKEN_CLAIMS"
+---
+# Source: organization/templates/workforce.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkforcePoolProvider
+metadata:
+  name: workforce-workforce-provider-test-pool-saml-basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workforce"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "workforce-provider:test-pool/saml-basic"
+spec:
+  resourceID: "saml-basic"
+  workforcePoolRef:
+    name: workforce-workforce-pool-test-pool
+  location: global
+  disabled: false
+  attributeMapping:
+    "attribute.first_name": "assertion.attributes.givenname[0]"
+    "attribute.last_name": "assertion.attributes.surname[0]"
+    "attribute.user_email": "assertion.attributes.mail[0]"
+    "google.display_name": "assertion.attributes.userprincipalname[0]"
+    "google.groups": "assertion.attributes.groups"
+    "google.subject": "assertion.subject"
+  saml:
+    idpMetadataXml: "<?xml version=\"1.0\" encoding=\"utf-8\"?>..."
+---
+# Source: organization/templates/workforce.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkforcePoolProvider
+metadata:
+  name: workforce-workforce-provider-test-pool-saml-full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "workforce"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "workforce-provider:test-pool/saml-full"
+spec:
+  resourceID: "saml-full"
+  workforcePoolRef:
+    name: workforce-workforce-pool-test-pool
+  location: global
+  disabled: false
+  attributeMapping:
+    "google.subject": "assertion.sub"
+  saml:
+    idpMetadataXml: "<?xml version=\"1.0\" encoding=\"utf-8\"?>..."
