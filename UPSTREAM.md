@@ -45,6 +45,7 @@ charts use are copied in `crds/ack-extensions`.
 | `iam-controller` | `v1.11.3` | `538aed660e54fc786fea8a386927ac74a12f9c30` | Role, Policy, InstanceProfile |
 | `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
 | `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
+| `sqs-controller` | `v1.9.0` | `0810c99dd5b0c45939727e0ca04e4810ced1fdfa` | Queue |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in
