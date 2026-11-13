@@ -607,7 +607,7 @@ Config Connector. What differs:
 | Refusals | a variable whose Terraform default is not empty (a suffix, a flag that defaults to `true`) is refused when it differs from that default (`ack.unchanged`); the others when set (`ack.unsupported`) |
 | References | ACK references by Kubernetes name (`vpcRef: {from: {name: ...}}`) inside a chart. A field that takes another resource's ID and has no reference (`FlowLog.resourceID`, ack-extensions' `VPNGateway.vpc`) cannot be wired in one render: the variable is refused as a gap, and the missing reference is a gap for ack-extensions |
 | Coverage | `upstream/aws-kinds.yaml` maps Terraform resource types to ACK and ack-extensions kinds; a tracked module whose every type is listed is classified in `docs/coverage` |
-| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), all against moto (ack-extensions' `config/fake-aws`, image pinned by digest; every AWS client checked to reach only moto); every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it. Live runs in the AWS sandbox account are not built yet |
+| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), against two fakes: **AWS Emulator** first (the release ack-extensions pins, its Debian package's signature checked, on the VM's loopback behind `tools/emuproxy`, which re-signs each request with the emulator's keys and trusts only its certificate), then **moto** (ack-extensions' `config/fake-aws`, image pinned by digest) for a chart that fails on the emulator; every AWS client is checked to reach only the fakes, and the summary records the fake each chart passed on; every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it or the fake's own account (the emulator answers as `000000000000`, moto as `123456789012`). Live runs in the AWS sandbox account are not built yet |
 
 | Chart | Module | Notes |
 | --- | --- | --- |
@@ -674,6 +674,22 @@ its VPC), `aws_kms_external_key` (nothing imports the key material) and
 field at s3-controller v1.15.0). Every module is now classified: with
 every type stable a module without a chart is "not started" (8), with any
 type ack-extensions-only or uncovered "blocked" (26).
+
+**AWS Emulator first** (2026-11-12, the builder's direction; as
+ack-extensions' emulator sweep, `docs/aws-emulator.md` there). On
+release 1.0.322 (offload VM `off-catalog-1112204517-19713`), six of the
+eight charts on main passed on the emulator outright: acm, iam-policy,
+iam-role, s3-bucket (no moto workaround needed: the emulator encrypts new
+buckets, as AWS does), security-group and vpc (its route tables deleted
+without help). Two passed only on moto, and both failures were the fake
+cases', not the charts': ec2-instance used moto's own AMI ID
+(`InvalidAMIID.Malformed` on the emulator; the case now launches from the
+module's default SSM parameter, `resolve:ssm:`), and kms wrote moto's
+account into the key policy (`MalformedPolicyDocumentException`: the
+emulator, as AWS, refuses a policy that locks the caller's account out;
+the case now takes the fake's account from `tests/mock.set.yaml`). With
+those two cases fixed, both pass on the emulator (`off-catalog-1112210701-7084`): all
+eight charts on main pass on AWS Emulator, moto unused.
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 
