@@ -82,4 +82,8 @@ component did not make, as the module gives. Not provided:
 `task test CHART=aws/step-functions` renders every `tests/*.values.yaml`
 against its golden file and the pinned controllers' CRDs, and checks each
 `tests/*.fail.yaml` is refused with its message. `tests/mock.values.yaml`
-is the fake-AWS case (`task test-mock-aws`, `hack/mock-apply-aws.sh`).
+is the fake-AWS case (`task test-mock-aws`, `hack/mock-apply-aws.sh`): it
+passed on AWS Emulator (1.0.322, the release ack-extensions pins at the
+catalog's `ACKX_COMMIT`), moto unused: the role, its four policies, the log
+group and the state machine synced, the outputs evaluated, everything
+deleted (offload VM `off-catalog-1113025827-6910`, 2026-11-13).
