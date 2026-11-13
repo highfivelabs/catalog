@@ -1,0 +1,173 @@
+---
+# Source: dataproc/templates/main.yaml
+apiVersion: dataproc.cnrm.cloud.google.com/v1beta1
+kind: DataprocCluster
+metadata:
+  name: gce
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gce"
+    app.kubernetes.io/name: dataproc
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-cluster"
+  location: "europe-west8"
+  projectRef:
+    external: "my-project"
+  config:
+    stagingBucketRef:
+      external: "my-staging"
+    tempBucketRef:
+      external: "my-temp"
+    gceClusterConfig:
+      zone: "europe-west8-b"
+      networkRef:
+        external: "projects/my-project/global/networks/vpc"
+      subnetworkRef:
+        external: "projects/my-project/regions/europe-west8/subnetworks/subnet"
+      serviceAccountRef:
+        external: "dataproc@my-project.iam.gserviceaccount.com"
+      serviceAccountScopes:
+        - "cloud-platform"
+      tags:
+        - "dataproc"
+      internalIPOnly: true
+      metadata:
+        "enable-oslogin": "true"
+      reservationAffinity:
+        consumeReservationType: "SPECIFIC_RESERVATION"
+        key: "compute.googleapis.com/reservation-name"
+        values:
+          - "my-reservation"
+      nodeGroupAffinity:
+        nodeGroupRef:
+          external: "projects/my-project/zones/europe-west8-b/nodeGroups/ng"
+      shieldedInstanceConfig:
+        enableSecureBoot: true
+        enableVtpm: true
+        enableIntegrityMonitoring: true
+      confidentialInstanceConfig:
+        enableConfidentialCompute: false
+    masterConfig:
+      numInstances: 1
+      machineType: "n2-standard-4"
+      minCpuPlatform: "Intel Cascade Lake"
+      imageRef:
+        external: "projects/my-project/global/images/dataproc"
+      diskConfig:
+        bootDiskType: "pd-ssd"
+        bootDiskSizeGb: 100
+        numLocalSsds: 0
+      accelerators:
+        - acceleratorType: "nvidia-tesla-t4"
+          acceleratorCount: 1
+    workerConfig:
+      numInstances: 2
+      machineType: "n2-standard-4"
+      minCpuPlatform: "Intel Cascade Lake"
+      imageRef:
+        external: "projects/my-project/global/images/dataproc"
+      diskConfig:
+        bootDiskType: "pd-standard"
+        bootDiskSizeGb: 200
+        numLocalSsds: 1
+    secondaryWorkerConfig:
+      numInstances: 2
+      preemptibility: "SPOT"
+      diskConfig:
+        bootDiskType: "pd-standard"
+        bootDiskSizeGb: 100
+        numLocalSsds: 0
+    softwareConfig:
+      imageVersion: "2.2"
+      properties:
+        "dataproc:dataproc.allow.zero.workers": "true"
+      optionalComponents:
+        - "JUPYTER"
+    securityConfig:
+      kerberosConfig:
+        realm: "EXAMPLE.COM"
+        rootPrincipalPassword: "gs://secrets/root-password.encrypted"
+        enableKerberos: true
+        kmsKeyRef:
+          external: "projects/my-project/locations/europe-west8/keyRings/ring/cryptoKeys/key"
+        tgtLifetimeHours: 10
+    autoscalingConfig:
+      policyRef:
+        external: "projects/my-project/regions/europe-west8/autoscalingPolicies/policy"
+    initializationActions:
+      - executableFile: "gs://scripts/init.sh"
+        executionTimeout: "500s"
+    encryptionConfig:
+      gcePdKmsKeyRef:
+        external: "projects/my-project/locations/europe-west8/keyRings/ring/cryptoKeys/key"
+    dataprocMetricConfig:
+      metrics:
+        - metricSource: "SPARK"
+          metricOverrides:
+            - "spark:driver:DAGScheduler:job.allJobs"
+    lifecycleConfig:
+      idleDeleteTtl: "3600s"
+    endpointConfig:
+      enableHttpPortAccess: true
+    metastoreConfig:
+      dataprocMetastoreServiceRef:
+        external: "projects/my-project/locations/europe-west8/services/metastore"
+---
+# Source: dataproc/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: gce-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gce"
+    app.kubernetes.io/name: dataproc
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: dataproc.cnrm.cloud.google.com/v1beta1
+    kind: DataprocCluster
+    name: gce
+  bindings:
+    - role: "roles/dataproc.editor"
+      members:
+        - member: "group:editors@example.com"
+    - role: "roles/dataproc.viewer"
+      members:
+        - member: "group:viewers@example.com"
+    - role: "roles/dataproc.editor"
+      members:
+        - member: "group:temp@example.com"
+      condition:
+        title: "until-2027"
+        expression: "request.time < timestamp('2027-01-01T00:00:00Z')"
+---
+# Source: dataproc/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: gce-iam-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gce"
+    app.kubernetes.io/name: dataproc
+    app.kubernetes.io/version: "0.1.0"
+    env: "prod"
+  annotations:
+    hfl.dev/id: "iam-additive-one"
+spec:
+  resourceRef:
+    apiVersion: dataproc.cnrm.cloud.google.com/v1beta1
+    kind: DataprocCluster
+    name: gce
+  role: "roles/dataproc.viewer"
+  member: "user:one@example.com"

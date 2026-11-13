@@ -1,0 +1,268 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-cloud-armor/main.tf,
+global.tf, regional.tf and factory.tf (v60.0.0), Copyright 2025 Google
+LLC, Apache-2.0.
+
+google_compute_security_policy.global (or .._region_security_policy.regional
+when region is set and not global), its rules
+(google_compute_security_policy_rule.global, .regional) and the default rule
+(.global_default, .regional_default): one ComputeSecurityPolicy, its rules
+inline in spec.rule, the default rule last at priority 2147483647.
+fabric's rule and policy checks (main.tf, locals rule_errors and
+policy_errors) stop the render with fabric's messages. Rules are the merge of
+factories_data.rules (fabric's rules file) and rules, as factory.tf merges
+them. hierarchical.tf is refused (README.md).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "policy")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $parent := $v.parent_id | default dict }}
+{{- if ne (len (compact (list ($parent.organization_id | default "") ($parent.folder_id | default "") ($parent.project_id | default "")))) 1 }}
+{{- fail "net-cloud-armor: Exactly one of organization_id, folder_id or project_id must be set." }}
+{{- end }}
+{{- $hierarchical := "config-connector-extensions' ComputeOrganizationSecurityPolicyRule requires a layer-4 match and has no expression match, header action, WAF configuration or redirect, so a hierarchical Cloud Armor policy's rules cannot be expressed" }}
+{{- include "kcc.unsupported" (list $ "parent_id.organization_id (a hierarchical policy)" $parent.organization_id $hierarchical) }}
+{{- include "kcc.unsupported" (list $ "parent_id.folder_id (a hierarchical policy)" $parent.folder_id $hierarchical) }}
+{{- include "kcc.unsupported" (list $ "attachments" $v.attachments (printf "attachments are of hierarchical policies: %s" $hierarchical)) }}
+{{- include "kcc.unsupported" (list $ "ddos_protection" $v.ddos_protection "ComputeSecurityPolicy has no ddosProtectionConfig") }}
+{{- include "kcc.unsupported" (list $ "user_defined_fields" $v.user_defined_fields "ComputeSecurityPolicy has no userDefinedFields") }}
+{{- $l7 := dict }}
+{{- with $v.adaptive_protection_config }}{{ $l7 = .layer_7_ddos_defense | default dict }}{{ end }}
+{{- include "kcc.unsupported" (list $ "adaptive_protection_config.layer_7_ddos_defense.threshold_configs" $l7.threshold_configs "ComputeSecurityPolicy's layer7DdosDefenseConfig has only enable and ruleVisibility") }}
+{{- $adv := $v.advanced_options_config | default dict }}
+{{- include "kcc.unsupported" (list $ "advanced_options_config.request_body_inspection_size" $adv.request_body_inspection_size "ComputeSecurityPolicy's advancedOptionsConfig has no such field") }}
+
+{{- /* main.tf's locals: scope and type. A hierarchical policy is refused above. */ -}}
+{{- $type := $v.type | default "CLOUD_ARMOR" }}
+{{- $isGlobal := or (kindIs "invalid" $v.region) (eq (toString $v.region) "global") }}
+{{- $isBackend := eq $type "CLOUD_ARMOR" }}
+{{- $isGlobalBackend := and $isGlobal $isBackend }}
+{{- $isNetwork := eq $type "CLOUD_ARMOR_NETWORK" }}
+{{- $isL7 := not $isNetwork }}
+{{- $isRegional := not $isGlobal }}
+
+{{- /* factory.tf and main.tf: rules = merge(factory_rules, rules). */ -}}
+{{- $rules := dict }}
+{{- range $k, $r := (($v.factories_data | default dict).rules | default dict) }}{{ $_ := set $rules $k $r }}{{ end }}
+{{- range $k, $r := ($v.rules | default dict) }}{{ $_ := set $rules $k $r }}{{ end }}
+
+{{- /* main.tf's policy_errors (those a project policy can raise). */ -}}
+{{- $perr := list }}
+{{- if kindIs "invalid" $v.default_rule_config }}{{ $perr = append $perr "'default_rule_config' is required for project policies." }}{{ end }}
+{{- if and $isGlobal $isNetwork }}{{ $perr = append $perr "CLOUD_ARMOR_NETWORK is only supported for regional policies." }}{{ end }}
+{{- if and $isRegional (eq $type "CLOUD_ARMOR_INTERNAL_SERVICE") }}{{ $perr = append $perr "CLOUD_ARMOR_INTERNAL_SERVICE is only supported for global policies." }}{{ end }}
+{{- if and $isRegional (eq $type "CLOUD_ARMOR_EDGE") }}{{ $perr = append $perr "CLOUD_ARMOR_EDGE is only supported for global policies." }}{{ end }}
+{{- if and (not $isGlobalBackend) (not (kindIs "invalid" $v.adaptive_protection_config)) }}{{ $perr = append $perr "'adaptive_protection_config' is only supported for global CLOUD_ARMOR policies." }}{{ end }}
+{{- if and (not $isGlobalBackend) (not (kindIs "invalid" $v.recaptcha_options_config)) }}{{ $perr = append $perr "'recaptcha_options_config' is only supported for global CLOUD_ARMOR policies." }}{{ end }}
+{{- if and (not $isGlobal) (gt (len ($v.labels | default dict)) 0) }}{{ $perr = append $perr "'labels' are only supported for global policies." }}{{ end }}
+{{- $prios := list }}
+{{- range $k, $r := $rules }}{{ $prios = append $prios (int64 $r.priority) }}{{ end }}
+{{- if ne (len (uniq $prios)) (len $prios) }}{{ $perr = append $perr "Rule priorities must be unique across the 'rules' variable and factory rules." }}{{ end }}
+{{- if $perr }}
+{{- fail (printf "net-cloud-armor: %s" (join " " $perr)) }}
+{{- end }}
+
+{{- /* main.tf's rule_errors: the first failing check of each rule. */ -}}
+{{- range $k, $r := $rules }}
+{{- $m := $r.match }}
+{{- $rl := $r.rate_limit_options }}
+{{- $nranges := 0 }}
+{{- if and $m $m.src_ip_ranges }}{{ $nranges = len (uniq $m.src_ip_ranges) }}{{ end }}
+{{- $e := list }}
+{{- if eq (int64 $r.priority) 2147483647 }}{{ $e = append $e "Priority 2147483647 is reserved for the default rule, use the 'default_rule_config' variable instead." }}{{ end }}
+{{- if and $m $r.network_match }}{{ $e = append $e "Rules cannot specify both 'match' and 'network_match'." }}{{ end }}
+{{- if and $m (eq (kindIs "invalid" $m.src_ip_ranges) (kindIs "invalid" $m.expression)) }}{{ $e = append $e "Rule match must specify exactly one of 'src_ip_ranges' or 'expression'." }}{{ end }}
+{{- if gt $nranges 10 }}{{ $e = append $e "Rule match 'src_ip_ranges' supports at most 10 ranges, split them across multiple rules." }}{{ end }}
+{{- if and $m $m.recaptcha_options (kindIs "invalid" $m.expression) }}{{ $e = append $e "'recaptcha_options' requires a match 'expression' evaluating reCAPTCHA tokens." }}{{ end }}
+{{- if ne (has $r.action (list "throttle" "rate_based_ban")) (not (kindIs "invalid" $rl)) }}{{ $e = append $e "Rate limit options must be set if and only if action is 'throttle' or 'rate_based_ban'." }}{{ end }}
+{{- if ne (eq $r.action "redirect") (not (kindIs "invalid" $r.redirect_options)) }}{{ $e = append $e "Redirect options must be set if and only if action is 'redirect'." }}{{ end }}
+{{- if and (ne $r.action "rate_based_ban") $rl (or (not (kindIs "invalid" $rl.ban_duration_sec)) (not (kindIs "invalid" $rl.ban_threshold))) }}{{ $e = append $e "'ban_duration_sec' and 'ban_threshold' are only supported with the 'rate_based_ban' action." }}{{ end }}
+{{- if and $rl (not (kindIs "invalid" $rl.enforce_on_key)) (gt (len ($rl.enforce_on_key_configs | default list)) 0) }}{{ $e = append $e "Rate limit options cannot specify both 'enforce_on_key' and 'enforce_on_key_configs'." }}{{ end }}
+{{- if and $rl (ne (eq (toString $rl.exceed_action) "redirect") (not (kindIs "invalid" $rl.exceed_redirect_options))) }}{{ $e = append $e "'exceed_redirect_options' must be set if and only if 'exceed_action' is 'redirect'." }}{{ end }}
+{{- if and $isNetwork $m }}{{ $e = append $e "'match' is not supported for CLOUD_ARMOR_NETWORK policies." }}{{ end }}
+{{- if and $isNetwork (not $r.network_match) }}{{ $e = append $e "'network_match' is required for CLOUD_ARMOR_NETWORK policies." }}{{ end }}
+{{- if and $isL7 $r.network_match }}{{ $e = append $e "'network_match' is only supported for CLOUD_ARMOR_NETWORK policies." }}{{ end }}
+{{- if and $isL7 (not $m) }}{{ $e = append $e "'match' is required for policies not of type CLOUD_ARMOR_NETWORK." }}{{ end }}
+{{- if and (not $isBackend) (not (regexMatch "^(allow|deny(\\(\\d+\\))?)$" $r.action)) }}{{ $e = append $e (printf "Only the 'allow' and 'deny' actions are supported for %s policies." $type) }}{{ end }}
+{{- if and $isNetwork (hasPrefix "deny(" $r.action) }}{{ $e = append $e "'deny' cannot specify a status code for CLOUD_ARMOR_NETWORK policies." }}{{ end }}
+{{- if and (not $isBackend) $r.preconfigured_waf_config }}{{ $e = append $e "'preconfigured_waf_config' is only supported for CLOUD_ARMOR policies." }}{{ end }}
+{{- if eq $r.action "goto_next" }}{{ $e = append $e "'goto_next' action is only supported in hierarchical policies." }}{{ end }}
+{{- if and (not $isGlobalBackend) (eq $r.action "redirect") }}{{ $e = append $e "'redirect' action is only supported in global CLOUD_ARMOR and hierarchical policies." }}{{ end }}
+{{- if and (not $isGlobalBackend) (gt (len ($r.header_action | default dict)) 0) }}{{ $e = append $e "'header_action' is only supported in global CLOUD_ARMOR and hierarchical policies." }}{{ end }}
+{{- if and (not $isGlobalBackend) $rl $rl.exceed_redirect_options }}{{ $e = append $e "'exceed_redirect_options' is only supported in global CLOUD_ARMOR policies." }}{{ end }}
+{{- if and (not $isGlobalBackend) $m $m.recaptcha_options }}{{ $e = append $e "'recaptcha_options' is only supported in global CLOUD_ARMOR policies." }}{{ end }}
+{{- if $e }}
+{{- fail (printf "net-cloud-armor: Rule '%s': %s" $k (first $e)) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "rules.%s.network_match" $k) $r.network_match "ComputeSecurityPolicy's rules have no networkMatch (CLOUD_ARMOR_NETWORK policies)") }}
+{{- if $m }}
+{{- include "kcc.unsupported" (list $ (printf "rules.%s.match.recaptcha_options" $k) $m.recaptcha_options "ComputeSecurityPolicy's rules have no exprOptions") }}
+{{- end }}
+{{- end }}
+{{- if $isNetwork }}
+{{- fail "net-cloud-armor: type CLOUD_ARMOR_NETWORK is not supported: its rules and default rule take a network_match, and ComputeSecurityPolicy's rules have no networkMatch (docs/gcp-inventory.md, \"Gaps\")" }}
+{{- end }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := $parent.project_id }}
+{{- $dr := $v.default_rule_config | default dict }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSecurityPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "policy" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "policy" "security policy" $v.name 63 "letter") | quote }}
+  {{- if $isRegional }}
+  region: {{ $v.region | quote }}
+  {{- end }}
+  description: {{ ternary "Terraform managed." $v.description (kindIs "invalid" $v.description) | quote }}
+  type: {{ $type | quote }}
+  {{- with $l7 }}
+  adaptiveProtectionConfig:
+    layer7DdosDefenseConfig:
+      enable: {{ ternary true .enable (kindIs "invalid" .enable) }}
+      {{- with .rule_visibility }}
+      ruleVisibility: {{ . | quote }}
+      {{- end }}
+  {{- else }}
+  {{- if not (kindIs "invalid" $v.adaptive_protection_config) }}
+  adaptiveProtectionConfig: {}
+  {{- end }}
+  {{- end }}
+  {{- with $v.advanced_options_config }}
+  advancedOptionsConfig:
+    {{- with .json_parsing }}
+    jsonParsing: {{ . | quote }}
+    {{- end }}
+    {{- with .log_level }}
+    logLevel: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .user_ip_request_headers) }}
+    userIpRequestHeaders:
+      {{- toYaml .user_ip_request_headers | nindent 6 }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .json_custom_content_types) }}
+    jsonCustomConfig:
+      contentTypes:
+        {{- toYaml .json_custom_content_types | nindent 8 }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.recaptcha_options_config }}
+  recaptchaOptionsConfig:
+    redirectSiteKeyRef:
+      external: {{ .redirect_site_key | quote }}
+  {{- end }}
+  rule:
+    {{- /* By priority, as the API returns them. */ -}}
+    {{- $order := list }}
+    {{- range $k, $r := $rules }}{{ $order = append $order (printf "%010d|%s" (int64 $r.priority) $k) }}{{ end }}
+    {{- range $sk := (sortAlpha $order) }}
+    {{- $k := (splitn "|" 2 $sk)._1 }}
+    {{- $r := index $rules $k }}
+    {{- $m := $r.match }}
+    - priority: {{ int64 $r.priority }}
+      action: {{ $r.action | quote }}
+      {{- with $r.description }}
+      description: {{ . | quote }}
+      {{- end }}
+      preview: {{ ternary false $r.preview (kindIs "invalid" $r.preview) }}
+      match:
+        {{- if not (kindIs "invalid" $m.src_ip_ranges) }}
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            {{- range $ip := (uniq $m.src_ip_ranges) }}
+            - {{ $ip | quote }}
+            {{- end }}
+        {{- end }}
+        {{- with $m.expression }}
+        expr:
+          expression: {{ . | quote }}
+        {{- end }}
+      {{- with $r.header_action }}
+      headerAction:
+        requestHeadersToAdds:
+          {{- range $name := (keys . | sortAlpha) }}
+          - headerName: {{ $name | quote }}
+            headerValue: {{ index $r.header_action $name | quote }}
+          {{- end }}
+      {{- end }}
+      {{- with $r.preconfigured_waf_config }}
+      preconfiguredWafConfig:
+        exclusion:
+          {{- range $x := .exclusions }}
+          - targetRuleSet: {{ $x.target_rule_set | quote }}
+            {{- if not (kindIs "invalid" $x.target_rule_ids) }}
+            targetRuleIds:
+              {{- toYaml $x.target_rule_ids | nindent 14 }}
+            {{- end }}
+            {{- range $pair := (list (list "requestCookie" $x.request_cookies) (list "requestHeader" $x.request_headers) (list "requestQueryParam" $x.request_query_params) (list "requestUri" $x.request_uris)) }}
+            {{- with (index $pair 1) }}
+            {{ index $pair 0 }}:
+              {{- range $f := . }}
+              - operator: {{ $f.operator | quote }}
+                {{- if not (kindIs "invalid" $f.value) }}
+                value: {{ $f.value | quote }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+      {{- end }}
+      {{- with $r.rate_limit_options }}
+      rateLimitOptions:
+        conformAction: allow
+        exceedAction: {{ .exceed_action | quote }}
+        {{- if not (kindIs "invalid" .ban_duration_sec) }}
+        banDurationSec: {{ int64 .ban_duration_sec }}
+        {{- end }}
+        {{- if and (not (kindIs "invalid" .enforce_on_key)) (eq (len (.enforce_on_key_configs | default list)) 0) }}
+        enforceOnKey: {{ .enforce_on_key | quote }}
+        {{- end }}
+        {{- with .enforce_on_key_name }}
+        enforceOnKeyName: {{ . | quote }}
+        {{- end }}
+        rateLimitThreshold:
+          count: {{ int64 .rate_limit_threshold.count }}
+          intervalSec: {{ int64 .rate_limit_threshold.interval_sec }}
+        {{- with .ban_threshold }}
+        banThreshold:
+          count: {{ int64 .count }}
+          intervalSec: {{ int64 .interval_sec }}
+        {{- end }}
+        {{- with .enforce_on_key_configs }}
+        enforceOnKeyConfigs:
+          {{- range $c := . }}
+          - enforceOnKeyType: {{ $c.type | quote }}
+            {{- with $c.name }}
+            enforceOnKeyName: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- with .exceed_redirect_options }}
+        exceedRedirectOptions:
+          type: {{ .type | quote }}
+          {{- with .target }}
+          target: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $r.redirect_options }}
+      redirectOptions:
+        type: {{ .type | quote }}
+        {{- with .target }}
+        target: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    - priority: 2147483647
+      action: {{ $dr.action | default "allow" | quote }}
+      description: {{ ternary "Default rule." $dr.description (kindIs "invalid" $dr.description) | quote }}
+      preview: {{ ternary false $dr.preview (kindIs "invalid" $dr.preview) }}
+      match:
+        versionedExpr: SRC_IPS_V1
+        config:
+          srcIpRanges:
+            - "*"

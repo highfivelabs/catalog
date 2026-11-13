@@ -1,0 +1,155 @@
+---
+# Source: certificate-manager/templates/main.yaml
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificate
+metadata:
+  name: full-certificate-dns-cert
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: certificate-manager
+    app.kubernetes.io/version: "0.1.0"
+    kind: "dns"
+  annotations:
+    hfl.dev/id: "certificate:dns-cert"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "dns-cert"
+  projectRef:
+    external: "my-project"
+  location: "global"
+  description: "DNS-authorized"
+  scope: "DEFAULT"
+  managed:
+    domains:
+      - example.com
+      - '*.example.com'
+    dnsAuthorizationsRefs:
+      - name: full-dns-authorization-example-com
+---
+# Source: certificate-manager/templates/main.yaml
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificate
+metadata:
+  name: full-certificate-private-cert
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: certificate-manager
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "certificate:private-cert"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "private-cert"
+  projectRef:
+    external: "my-project"
+  location: "global"
+  scope: "ALL_REGIONS"
+  managed:
+    domains:
+      - internal.example.com
+    issuanceConfigRef:
+      external: "projects/my-project/locations/global/certificateIssuanceConfigs/private-ca"
+---
+# Source: certificate-manager/templates/main.yaml
+apiVersion: certificatemanager.gcp.hfl.dev/v1beta1
+kind: CertificateManagerCertificateIssuanceConfig
+metadata:
+  name: full-issuance-config-private-ca
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: certificate-manager
+    app.kubernetes.io/version: "0.1.0"
+    ca: "private"
+  annotations:
+    hfl.dev/id: "issuance_config:private-ca"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "private-ca"
+  projectRef:
+    external: "my-project"
+  location: "global"
+  description: "private CA"
+  certificateAuthorityConfig:
+    certificateAuthorityServiceConfig:
+      caPool: "projects/my-project/locations/us-central1/caPools/my-pool"
+  lifetime: "1814400s"
+  rotationWindowPercentage: 34
+  keyAlgorithm: "ECDSA_P256"
+  labels:
+    ca: private
+---
+# Source: certificate-manager/templates/main.yaml
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificateMap
+metadata:
+  name: full-map
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: certificate-manager
+    app.kubernetes.io/version: "0.1.0"
+    env: "dev"
+  annotations:
+    hfl.dev/id: "map"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "my-map"
+  projectRef:
+    external: "my-project"
+  description: "My certificate map"
+---
+# Source: certificate-manager/templates/main.yaml
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificateMapEntry
+metadata:
+  name: full-entry-primary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: certificate-manager
+    app.kubernetes.io/version: "0.1.0"
+    entry: "primary"
+  annotations:
+    hfl.dev/id: "entry:primary"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "primary"
+  projectRef:
+    external: "my-project"
+  mapRef:
+    name: full-map
+  description: "the primary entry"
+  certificatesRefs:
+    - name: full-certificate-dns-cert
+    - name: full-certificate-private-cert
+  matcher: "PRIMARY"
+---
+# Source: certificate-manager/templates/main.yaml
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerDNSAuthorization
+metadata:
+  name: full-dns-authorization-example-com
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: certificate-manager
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dns_authorization:example-com"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "example-com"
+  projectRef:
+    external: "my-project"
+  domain: "example.com"
+  description: "example.com"
+  type: "PER_PROJECT_RECORD"

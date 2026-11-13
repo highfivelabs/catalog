@@ -1,0 +1,136 @@
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-law-diag-archive
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-archive"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-law-diag-self
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-self"
+spec:
+  azureName: "diag-law-platform"
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  logs:
+    - categoryGroup: "audit"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-law-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-law-role-readers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-readers"
+spec:
+  owner:
+    group: operationalinsights.azure.com
+    kind: Workspace
+    name: full-law
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Log Analytics Reader"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  name: full-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "workspace"
+spec:
+  azureName: "law-platform"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops"
+  features:
+    disableLocalAuth: true
+    enableLogAccessUsingOnlyResourcePermissions: false
+  forceCmkForQuery: true
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-law"
+  publicNetworkAccessForIngestion: Enabled
+  publicNetworkAccessForQuery: SecuredByPerimeter
+  retentionInDays: 90
+  sku:
+    name: CapacityReservation
+    capacityReservationLevel: 100
+  workspaceCapping:
+    dailyQuotaGb: 10.5
+  tags:
+    environment: prod
