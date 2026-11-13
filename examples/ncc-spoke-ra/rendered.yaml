@@ -1,0 +1,168 @@
+# component ncc-spoke-ra-dev-spoke-ra
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  bgp:
+    asn: 65000
+    advertiseMode: DEFAULT
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-intf0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "intf_0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-intf0"
+  region: "europe-west1"
+  routerRef:
+    name: ncc-spoke-ra-dev-spoke-ra-router
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/subnet"
+  privateIpAddressRef:
+    external: "10.0.0.14"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-intf1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "intf_1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-intf1"
+  region: "europe-west1"
+  routerRef:
+    name: ncc-spoke-ra-dev-spoke-ra-router
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/subnet"
+  privateIpAddressRef:
+    external: "10.0.0.15"
+  redundantInterfaceRef:
+    name: ncc-spoke-ra-dev-spoke-ra-intf0
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-peer-0-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_0:0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-router-app-peer1"
+  region: "europe-west1"
+  routerRef:
+    name: ncc-spoke-ra-dev-spoke-ra-router
+  routerInterfaceRef:
+    name: ncc-spoke-ra-dev-spoke-ra-intf0
+  advertisedRoutePriority: 100
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.3"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-b/instances/router-app"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-peer-1-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_1:0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-router-app-peer2"
+  region: "europe-west1"
+  routerRef:
+    name: ncc-spoke-ra-dev-spoke-ra-router
+  routerInterfaceRef:
+    name: ncc-spoke-ra-dev-spoke-ra-intf1
+  advertisedRoutePriority: 100
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.3"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-b/instances/router-app"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivityHub
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "hub"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ncc-hub"
+  projectRef:
+    external: "my-project"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivitySpoke
+metadata:
+  name: ncc-spoke-ra-dev-spoke-ra-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ncc-spoke-ra-dev-spoke-ra"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "spoke_ra"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  hubRef:
+    name: ncc-spoke-ra-dev-spoke-ra-hub
+  linkedRouterApplianceInstances:
+    instances:
+      - ipAddress: "10.0.0.3"
+        virtualMachineRef:
+          external: "projects/my-project/zones/europe-west1-b/instances/router-app"
+    siteToSiteDataTransfer: false

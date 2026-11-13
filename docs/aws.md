@@ -607,11 +607,11 @@ Config Connector. What differs:
 | Refusals | a variable whose Terraform default is not empty (a suffix, a flag that defaults to `true`) is refused when it differs from that default (`ack.unchanged`); the others when set (`ack.unsupported`) |
 | References | ACK references by Kubernetes name (`vpcRef: {from: {name: ...}}`) inside a chart. A field that takes another resource's ID and has no reference (`FlowLog.resourceID`, ack-extensions' `VPNGateway.vpc`) cannot be wired in one render: the variable is refused as a gap, and the missing reference is a gap for ack-extensions |
 | Coverage | `upstream/aws-kinds.yaml` maps Terraform resource types to ACK and ack-extensions kinds; a tracked module whose every type is listed is classified in `docs/coverage` |
-| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), all against moto (ack-extensions' `config/fake-aws`, image pinned by digest; every AWS client checked to reach only moto); every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it. Live runs in the AWS sandbox account are not built yet |
+| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), against two fakes: **AWS Emulator** first (the release ack-extensions pins, its Debian package's signature checked, on the VM's loopback behind `tools/emuproxy`, which re-signs each request with the emulator's keys and trusts only its certificate), then **moto** (ack-extensions' `config/fake-aws`, image pinned by digest) for a chart that fails on the emulator; every AWS client is checked to reach only the fakes, and the summary records the fake each chart passed on; every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it or the fake's own account (the emulator answers as `000000000000`, moto as `123456789012`). Live runs in the AWS sandbox account are not built yet |
 
 | Chart | Module | Notes |
 | --- | --- | --- |
-| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, Block Public Access and the default resources are refused (the chart's README) |
+| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, the default resources are refused; Block Public Access options through ack-extensions (Cloud Control, `allow_alpha`), its exclusions refused (no reference from the exclusion kind to the VPC or subnet) (the chart's README) |
 | `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations, `revoke_rules_on_delete` and non-exclusive rules are refused |
 | `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
@@ -662,6 +662,35 @@ vpc) passed: 29 objects synced in moto, every Package's outputs evaluated,
 every object deleted (offload VM `off-catalog-1112191931-32354`,
 2026-11-12, 12 minutes after a 9-minute setup).
 
+`upstream/aws-kinds.yaml` classifies every resource type of the tracked
+modules (321), taking the types it did not list from ack-extensions'
+`docs/catalog-aws-types.csv` at `74d322f` (2026-11-12): 1,378 kinds, Cloud
+Control's among them (`*.cloudcontrol.aws.hfl.dev`, class extensions).
+Where the two disagree the catalog's entry stays, for these reasons:
+`aws_default_vpc`, `aws_default_security_group`, `aws_default_network_acl`
+and `aws_default_route_table` (no kind adopts a VPC's default object by
+its VPC), `aws_kms_external_key` (nothing imports the key material) and
+`aws_s3_bucket_metadata_configuration` (ACK's `Bucket` has no metadata
+field at s3-controller v1.15.0). Every module is now classified: with
+every type stable a module without a chart is "not started" (8), with any
+type ack-extensions-only or uncovered "blocked" (26).
+
+**AWS Emulator first** (2026-11-12, the builder's direction; as
+ack-extensions' emulator sweep, `docs/aws-emulator.md` there). On
+release 1.0.322 (offload VM `off-catalog-1112204517-19713`), six of the
+eight charts on main passed on the emulator outright: acm, iam-policy,
+iam-role, s3-bucket (no moto workaround needed: the emulator encrypts new
+buckets, as AWS does), security-group and vpc (its route tables deleted
+without help). Two passed only on moto, and both failures were the fake
+cases', not the charts': ec2-instance used moto's own AMI ID
+(`InvalidAMIID.Malformed` on the emulator; the case now launches from the
+module's default SSM parameter, `resolve:ssm:`), and kms wrote moto's
+account into the key policy (`MalformedPolicyDocumentException`: the
+emulator, as AWS, refuses a policy that locks the caller's account out;
+the case now takes the fake's account from `tests/mock.set.yaml`). With
+those two cases fixed, both pass on the emulator (`off-catalog-1112210701-7084`): all
+eight charts on main pass on AWS Emulator, moto unused.
+
 Gaps the charts found, for ack-extensions (beyond section 5):
 
 | Gap | Needed by | Shape |
@@ -671,7 +700,7 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | `egressOnlyInternetGatewayRef` on a route; a subnet's IPv6 block from its VPC's (`ipv6CIDRBlock` derived from the VPC's Amazon-provided block) | vpc (IPv6) | reference fields on ACK's `RouteTable` and `Subnet` (upstream) |
 | Adopting a VPC's default security group, network ACL and main route table by their VPC | vpc (`default_security_group_*`, `default_network_acl_*`, `default_route_table_*`) | kinds that take a `vpcRef` and manage the VPC's default object |
 | Redshift `ClusterSubnetGroup` | vpc (redshift subnets) | generated, or ACK's redshift-controller released |
-| VPC Block Public Access options and exclusions | vpc | generated |
+| References on ack-extensions' `VPCBlockPublicAccessExclusion` (`vpcRef`, `subnetRef`) and `SecurityGroupVpcAssociation` (`groupRef`): the kinds exist (Cloud Control) but take IDs a chart cannot know in one render | vpc (`vpc_block_public_access_exclusions`), security-group (`vpc_associations`) | reference fields on ack-extensions' Cloud Control kinds |
 | `SecurityGroupVPCAssociation` (`AssociateSecurityGroupVpc`) | security-group (`vpc_associations`) | generated |
 | Standalone security group rules with tags (section 5, gap 6) | security-group (each rule's `name` and `tags`) | design question, as in section 5 |
 | KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |

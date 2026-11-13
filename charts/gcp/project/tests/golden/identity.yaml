@@ -1,0 +1,302 @@
+---
+# Source: project/templates/bigquery-reservation.yaml
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationAssignment
+metadata:
+  name: identity-bq-assignment-batch-pipeline-organizations-45-635674ce
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "bigquery-reservation-assignment:batch-PIPELINE-organizations/456"
+spec:
+  jobType: "PIPELINE"
+  reservationRef:
+    name: identity-bq-reservation-batch
+  assignee:
+    organizationRef:
+      external: "organizations/456"
+---
+# Source: project/templates/bigquery-reservation.yaml
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationAssignment
+metadata:
+  name: identity-bq-assignment-batch-query-projects-analytics-65764613
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "bigquery-reservation-assignment:batch-QUERY-projects/analytics-1"
+spec:
+  jobType: "QUERY"
+  reservationRef:
+    name: identity-bq-reservation-batch
+  assignee:
+    projectRef:
+      external: "analytics-1"
+---
+# Source: project/templates/bigquery-reservation.yaml
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationAssignment
+metadata:
+  name: identity-bq-assignment-batch-query-folders-123-cb47a609
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "bigquery-reservation-assignment:batch-QUERY-folders/123"
+spec:
+  jobType: "QUERY"
+  reservationRef:
+    name: identity-bq-reservation-batch
+  assignee:
+    folderRef:
+      external: "folders/123"
+---
+# Source: project/templates/bigquery-reservation.yaml
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationReservation
+metadata:
+  name: identity-bq-reservation-batch
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "bigquery-reservation:batch"
+spec:
+  resourceID: "batch"
+  projectRef:
+    name: identity
+  location: "EU"
+  slotCapacity: 100
+  ignoreIdleSlots: false
+  concurrency: 0
+  edition: "ENTERPRISE"
+  failover:
+    secondaryLocation: "europe-west4"
+  autoscale:
+    maxSlots: 200
+---
+# Source: project/templates/identity-providers.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkloadIdentityPool
+metadata:
+  name: identity-wif-pool-ci
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "workload-identity-pool:ci"
+spec:
+  resourceID: "ci"
+  projectRef:
+    name: identity
+  location: global
+  displayName: "CI"
+  description: "CI systems."
+---
+# Source: project/templates/identity-providers.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkloadIdentityPoolProvider
+metadata:
+  name: identity-wif-provider-ci-aws
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "workload-identity-provider:ci/aws"
+spec:
+  resourceID: "aws"
+  projectRef:
+    name: identity
+  location: global
+  workloadIdentityPoolRef:
+    name: identity-wif-pool-ci
+  disabled: true
+  aws:
+    accountId: "123456789012"
+---
+# Source: project/templates/identity-providers.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkloadIdentityPoolProvider
+metadata:
+  name: identity-wif-provider-ci-github
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "workload-identity-provider:ci/github"
+spec:
+  resourceID: "github"
+  projectRef:
+    name: identity
+  location: global
+  workloadIdentityPoolRef:
+    name: identity-wif-pool-ci
+  disabled: false
+  attributeCondition: "assertion.repository_owner==\"example\""
+  attributeMapping: {"attribute.actor":"assertion.actor","attribute.event_name":"assertion.event_name","attribute.fast_sub":"\"repo:\" + assertion.repository + \":ref:\" + assertion.ref","attribute.job_workflow_ref":"assertion.job_workflow_ref","attribute.pr_review_sub":"\"event:\" + assertion.event_name + \":workflow:\" + assertion.workflow","attribute.ref":"assertion.ref","attribute.repository":"assertion.repository","attribute.repository_owner":"assertion.repository_owner","attribute.sub":"assertion.sub","attribute.team":"assertion.team","attribute.workflow":"assertion.workflow","google.subject":"assertion.sub"}
+  oidc:
+    issuerUri: "https://token.actions.githubusercontent.com"
+---
+# Source: project/templates/identity-providers.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkloadIdentityPoolProvider
+metadata:
+  name: identity-wif-provider-ci-okta
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "workload-identity-provider:ci/okta"
+spec:
+  resourceID: "okta"
+  projectRef:
+    name: identity
+  location: global
+  workloadIdentityPoolRef:
+    name: identity-wif-pool-ci
+  disabled: false
+  attributeMapping: {"attribute.sub":"assertion.sub","google.subject":"assertion.sub"}
+  oidc:
+    issuerUri: "https://example.okta.com/oauth2/default"
+    allowedAudiences: ["gcp"]
+---
+# Source: project/templates/kms-autokeys.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyHandle
+metadata:
+  name: identity-key-handle-buckets
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "kms-autokey:buckets"
+spec:
+  resourceID: "buckets"
+  projectRef:
+    name: identity
+  location: "europe-west1"
+  resourceTypeSelector: "storage.googleapis.com/Bucket"
+---
+# Source: project/templates/kms-autokeys.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyHandle
+metadata:
+  name: identity-key-handle-disks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "kms-autokey:disks"
+spec:
+  resourceID: "disks"
+  projectRef:
+    name: identity
+  location: "europe-west1"
+  resourceTypeSelector: "compute.googleapis.com/Disk"
+---
+# Source: project/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: identity-pam-breakglass
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "pam-entitlement:breakglass"
+spec:
+  resourceID: "breakglass"
+  projectRef:
+    name: identity
+  location: global
+  maxRequestDuration: "3600s"
+  eligibleUsers:
+    - principals: ["group:oncall@example.com"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/owner"
+        - role: "roles/compute.admin"
+          conditionExpression: "resource.name.startsWith('projects/id-project/zones/europe-west1-b')"
+  requesterJustificationConfig:
+    unstructured: {}
+  approvalWorkflow:
+    manualApprovals:
+      requireApproverJustification: true
+      steps:
+        - approvers:
+            - principals: ["group:leads@example.com"]
+          approvalsNeeded: 1
+          approverEmailRecipients: ["leads@example.com"]
+  additionalNotificationTargets:
+    adminEmailRecipients: ["sec@example.com"]
+---
+# Source: project/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: identity-pam-viewer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "pam-entitlement:viewer"
+spec:
+  resourceID: "viewer"
+  projectRef:
+    name: identity
+  location: global
+  maxRequestDuration: "1800s"
+  eligibleUsers:
+    - principals: ["user:a@example.com"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/viewer"
+  requesterJustificationConfig:
+    notMandatory: {}
+---
+# Source: project/templates/project.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Project
+metadata:
+  name: identity
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "identity"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+  annotations:
+    hfl.dev/id: "project"
+    cnrm.cloud.google.com/auto-create-network: "false"
+spec:
+  resourceID: id-project
+  name: "id-project"
+  folderRef:
+    external: "1234567890"

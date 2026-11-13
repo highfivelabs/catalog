@@ -1,9 +1,9 @@
 cloud,module,variable,type,covered,refused_reason,gap_kind
 gcp,project,alerts,"map(object({alert_strategy, combiner, conditions, display_name, documentation, enabled, +3}))",partial,"MonitoringAlertPolicy has no notification prompts, documentation subject or links, or a PromQL condition's disableMetricValidation",gap
-gcp,project,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,"CloudAssetProjectFeed is v1alpha1; not ported yet, even with allow_alpha",alpha
 gcp,project,asset_search,"map(object({asset_types, query}))",no,"a search is a read, not a resource",by-design
 gcp,project,auto_create_network,bool,yes,,
-gcp,project,bigquery_reservations,"map(object({assignments, concurrency, edition, ignore_idle_slots, location, max_slots, +3}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,bigquery_reservations,"map(object({assignments, concurrency, edition, ignore_idle_slots, location, max_slots, +3}))",yes,,
 gcp,project,billing_account,string,yes,,
 gcp,project,cloud_armor_policy,"object({excluded_folders, excluded_projects, name, policy_id})",no,ComputeOrganizationSecurityPolicyAssociation is alpha in v1.160.0,alpha
 gcp,project,compute_metadata,map(string),no,"ComputeProjectMetadata owns all of a project's metadata, while fabric sets single items; there is no per-item kind (gap 10)",gap
@@ -14,15 +14,15 @@ gcp,project,default_network_tier,string,no,Config Connector has no project defau
 gcp,project,default_service_account,string,partial,"only keep (the default) is supported: Config Connector cannot delete, deprivilege or disable a project's default service accounts (gap 10)",gap
 gcp,project,deletion_policy,string,partial,"DELETE and ABANDON only: PREVENT is refused, use lien_reason",by-design
 gcp,project,descriptive_name,string,yes,,
-gcp,project,factories_config,"object({custom_roles, observability, org_policies, pam_entitlements, quotas, scc_mute_configs, +2})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,factories_config,"object({custom_roles, observability, org_policies, pam_entitlements, quotas, scc_mute_configs, +2})",no,"a chart cannot read the caller's files: their entries go in the variables they feed (custom_roles, org_policies, logging_metrics, alerts, notification_channels, quotas, pam_entitlements, tags)",by-design
 gcp,project,iam,map(list(string)),yes,,
 gcp,project,iam_bindings,"map(object({condition, members, role}))",yes,,
 gcp,project,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
 gcp,project,iam_by_principals,map(list(string)),yes,,
 gcp,project,iam_by_principals_additive,map(list(string)),yes,,
-gcp,project,iam_by_principals_conditional,"map(object({condition, roles}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,iam_by_principals_conditional,"map(object({condition, roles}))",yes,,
 gcp,project,iam_deny_policies,"map(object({display_name, rules}))",no,"Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, ""Not ported"")",alpha
-gcp,project,kms_autokeys,"map(object({location, resource_type_selector}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,kms_autokeys,"map(object({location, resource_type_selector}))",yes,,
 gcp,project,labels,map(string),yes,,
 gcp,project,lien_reason,string,yes,,
 gcp,project,log_scopes,"map(object({description, resource_names}))",partial,LoggingLogScope is v1alpha1: needs allow_alpha: true,alpha
@@ -32,31 +32,31 @@ gcp,project,logging_metrics,"map(object({bucket_name, bucket_options, descriptio
 gcp,project,logging_sinks,"map(object({bq_partitioned_table, description, destination, disabled, exclusions, filter, +3}))",partial,"type project is refused: LoggingLogSink's destination is a dataset, log bucket, topic or bucket, never a project; a bigquery sink needs iam: false, since the writer identity's grant on a dataset needs the alpha BigQueryDatasetAccess",gap
 gcp,project,metric_scopes,list(string),yes,,
 gcp,project,name,string,yes,,
-gcp,project,network_tags,"map(object({description, iam, iam_bindings, iam_bindings_additive, id, network, +1}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,network_tags,"map(object({description, iam, iam_bindings, iam_bindings_additive, id, network, +1}))",partial,tag keys and values take no IAM conditions,gap
 gcp,project,notification_channels,"map(object({description, display_name, enabled, labels, sensitive_labels, type, +1}))",partial,"Config Connector names a notification channel by its Kubernetes object, so display_name is refused; sensitive_labels would put a secret in the rendered manifest",gap
 gcp,project,org_policies,"map(object({inherit_from_parent, reset, rules}))",yes,,
-gcp,project,pam_entitlements,"map(object({additional_notification_targets, eligible_users, manual_approvals, max_request_duration, privileged_access, requester_justification_config}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,pam_entitlements,"map(object({additional_notification_targets, eligible_users, manual_approvals, max_request_duration, privileged_access, requester_justification_config}))",yes,,
 gcp,project,parent,string,yes,,
 gcp,project,prefix,string,yes,,
 gcp,project,project_reuse,"object({attributes, use_data_source})",yes,,
 gcp,project,quotas,"map(object({annotations, contact_email, dimensions, ignore_safety_checks, justification, preferred_value, +2}))",partial,APIQuotaPreference has no ignoreSafetyChecks,gap
 gcp,project,scc_mute_configs,"map(object({description, filter, type}))",no,"Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, ""Not ported"")",alpha
 gcp,project,scc_sha_custom_modules,"map(object({description, enablement_state, predicate, recommendation, resource_selector, severity}))",no,"Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, ""Not ported"")",alpha
-gcp,project,service_agents_config,"object({create_primary_agents, grant_default_roles, grant_service_agent_editor, skip_iam})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,service_agents_folder_bindings,"map(object({condition, folder, role, service}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,service_agents_project_bindings,"map(object({condition, project, role, service}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,service_agents_config,"object({create_primary_agents, grant_default_roles, grant_service_agent_editor, skip_iam})",no,"grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)",gap
+gcp,project,service_agents_folder_bindings,"map(object({condition, folder, role, service}))",no,"grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)",gap
+gcp,project,service_agents_project_bindings,"map(object({condition, project, role, service}))",no,"grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)",gap
 gcp,project,service_config,"object({disable_dependent_services, disable_on_destroy})",yes,,
-gcp,project,service_encryption_key_ids,map(list(string)),no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,service_encryption_key_ids,map(list(string)),no,"grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)",gap
 gcp,project,services,list(string),yes,,
 gcp,project,shared_vpc_host_config,"object({enabled, service_projects})",yes,,
 gcp,project,shared_vpc_service_config,"object({host_project, iam_bindings_additive, network_subnet_users, network_users, service_agent_iam, service_agent_subnet_iam, +1})",partial,"host_project, network_users and iam_bindings_additive are ported; service_agent_iam, service_agent_subnet_iam, service_iam_grants and network_subnet_users name the project number, known only after apply (gap 8)",gap
 gcp,project,skip_delete,bool,no,deprecated in fabric: use deletion_policy,by-design
 gcp,project,tag_bindings,map(string),yes,,
-gcp,project,tags,"map(object({allowed_values_regex, description, iam, iam_bindings, iam_bindings_additive, id, +1}))",no,"fabric's tag keys (a map value per key) have a stable Config Connector kind; the chart does not map them yet (charts/gcp/project/README.md, ""Not ported""). A tags entry whose value is a string is the catalog's cloud label, applied to every object",not-ported
-gcp,project,tags_config,"object({force_context_ids, ignore_iam})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,tags,"map(object({allowed_values_regex, description, iam, iam_bindings, iam_bindings_additive, id, +1}))",partial,"fabric's tag keys are ported; allowed_values_regex is refused (TagsTagKey has no such field), and so are IAM conditions on tag keys and values (they take none). A tags entry whose value is a string is the catalog's cloud label, applied to every object",gap
+gcp,project,tags_config,"object({force_context_ids, ignore_iam})",partial,force_context_ids is refused: Bundt replaces fabric's $context ids with ${...} expressions,by-design
 gcp,project,universe,"object({forced_jit_service_identities, prefix, unavailable_service_identities, unavailable_services})",no,universes other than Google Cloud's are not supported,gap
-gcp,project,vpc_sc,"object({is_dry_run, perimeter_name})",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
-gcp,project,workload_identity_pools,"map(object({description, disabled, display_name, providers}))",no,"Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, ""Not ported"")",not-ported
+gcp,project,vpc_sc,"object({is_dry_run, perimeter_name})",no,"AccessContextManagerServicePerimeterResource is v1alpha1; not ported yet, even with allow_alpha (and fabric names the project by its number)",alpha
+gcp,project,workload_identity_pools,"map(object({description, disabled, display_name, providers}))",partial,IAMWorkloadIdentityPoolProvider has no SAML provider and no OIDC jwks_json,gap
 gcp,folder,asset_feeds,"map(object({asset_names, asset_types, billing_project, condition, content_type, feed_output_config}))",no,,no-chart
 gcp,folder,asset_search,"map(object({asset_types, query}))",no,,no-chart
 gcp,folder,assured_workload_config,"object({compliance_regime, display_name, enable_sovereign_controls, labels, location, organization, +3})",no,,no-chart
@@ -463,19 +463,19 @@ gcp,logging-bucket,parent_type,string,no,,no-chart
 gcp,logging-bucket,retention,number,no,,no-chart
 gcp,logging-bucket,tag_bindings,map(string),no,,no-chart
 gcp,logging-bucket,views,"map(object({description, filter, iam, iam_bindings, iam_bindings_additive, location}))",no,,no-chart
-gcp,net-firewall-policy,attachments,map(string),no,,no-chart
-gcp,net-firewall-policy,context,"object({cidr_ranges, cidr_ranges_sets, folder_ids, iam_principals, locations, networks, +4})",no,,no-chart
-gcp,net-firewall-policy,description,string,no,,no-chart
-gcp,net-firewall-policy,egress_mirroring_rules,"map(object({action, description, disabled, match, priority, security_profile_group, +2}))",no,,no-chart
-gcp,net-firewall-policy,egress_rules,"map(object({action, description, disabled, enable_logging, match, priority, +5}))",no,,no-chart
-gcp,net-firewall-policy,factories_config,"object({cidr_file_path, egress_mirroring_rules_file_path, egress_rules_file_path, ingress_mirroring_rules_file_path, ingress_rules_file_path})",no,,no-chart
-gcp,net-firewall-policy,ingress_mirroring_rules,"map(object({action, description, disabled, match, priority, security_profile_group, +2}))",no,,no-chart
-gcp,net-firewall-policy,ingress_rules,"map(object({action, description, disabled, enable_logging, match, priority, +5}))",no,,no-chart
-gcp,net-firewall-policy,name,string,no,,no-chart
-gcp,net-firewall-policy,parent_id,string,no,,no-chart
-gcp,net-firewall-policy,region,string,no,,no-chart
-gcp,net-firewall-policy,security_profile_group_ids,map(string),no,,no-chart
-gcp,net-firewall-policy,tag_bindings,map(string),no,,no-chart
+gcp,net-firewall-policy,attachments,map(string),yes,,
+gcp,net-firewall-policy,context,"object({cidr_ranges, cidr_ranges_sets, folder_ids, iam_principals, locations, networks, +4})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-firewall-policy,description,string,yes,,
+gcp,net-firewall-policy,egress_mirroring_rules,"map(object({action, description, disabled, match, priority, security_profile_group, +2}))",partial,ComputeNetworkFirewallPolicyPacketMirroringRule (config-connector-extensions) is v1alpha1: needs allow_alpha: true; tls_inspect and match.source_tags are refused (the kind has no tlsInspect or srcSecureTags),alpha
+gcp,net-firewall-policy,egress_rules,"map(object({action, description, disabled, enable_logging, match, priority, +5}))",partial,"accepted; tls_inspect, security_profile_group and action apply_security_profile_group are refused (the rule kinds have no tlsInspect or securityProfileGroup), and so are target_tags and match.source_tags on a hierarchical policy (ComputeFirewallPolicyRule has no secure tags)",gap
+gcp,net-firewall-policy,factories_config,"object({cidr_file_path, egress_mirroring_rules_file_path, egress_rules_file_path, ingress_mirroring_rules_file_path, ingress_rules_file_path})",partial,"a chart cannot read the caller's files: accepted and ignored; the rule files' contents go under factories_data.ingress_rules, egress_rules, ingress_mirroring_rules and egress_mirroring_rules, the CIDR file's under factories_data.cidrs",by-design
+gcp,net-firewall-policy,ingress_mirroring_rules,"map(object({action, description, disabled, match, priority, security_profile_group, +2}))",partial,ComputeNetworkFirewallPolicyPacketMirroringRule (config-connector-extensions) is v1alpha1: needs allow_alpha: true; tls_inspect and match.source_tags are refused (the kind has no tlsInspect or srcSecureTags),alpha
+gcp,net-firewall-policy,ingress_rules,"map(object({action, description, disabled, enable_logging, match, priority, +5}))",partial,"accepted; tls_inspect, security_profile_group and action apply_security_profile_group are refused (the rule kinds have no tlsInspect or securityProfileGroup), and so are target_tags and match.source_tags on a hierarchical policy (ComputeFirewallPolicyRule has no secure tags)",gap
+gcp,net-firewall-policy,name,string,yes,,
+gcp,net-firewall-policy,parent_id,string,yes,,
+gcp,net-firewall-policy,region,string,yes,,
+gcp,net-firewall-policy,security_profile_group_ids,map(string),yes,,
+gcp,net-firewall-policy,tag_bindings,map(string),no,"a network firewall policy's tag binding names the policy by the number the cloud assigns, and TagsLocationTagBinding cannot reference a firewall policy object",gap
 gcp,vpc-sc,access_levels,"map(object({combining_function, conditions, description, title}))",partial,"AccessContextManagerAccessLevel has no vpcNetworkSources, and its members are users and service accounts only",gap
 gcp,vpc-sc,access_policy,string,yes,,
 gcp,vpc-sc,access_policy_create,"object({parent, scopes, title})",partial,AccessContextManagerAccessPolicy has no scopes field (Config Connector ignores it),gap
@@ -507,15 +507,15 @@ gcp,net-vpc-peering,peer_network,string,yes,,
 gcp,net-vpc-peering,prefix,string,yes,,
 gcp,net-vpc-peering,routes_config,"object({local, peer})",yes,,
 gcp,net-vpc-peering,stack_type,string,yes,,
-gcp,net-address,context,"object({locations, networks, project_ids, subnets})",no,,no-chart
-gcp,net-address,external_addresses,"map(object({description, ipv6, labels, name, region, subnetwork, +1}))",no,,no-chart
-gcp,net-address,global_addresses,"map(object({description, ipv6, name}))",no,,no-chart
-gcp,net-address,internal_addresses,"map(object({address, description, ipv6, labels, name, purpose, +2}))",no,,no-chart
-gcp,net-address,ipsec_interconnect_addresses,"map(object({address, description, name, network, prefix_length, region}))",no,,no-chart
-gcp,net-address,network_attachments,"map(object({automatic_connection, description, producer_accept_lists, producer_reject_lists, subnet_self_link}))",no,,no-chart
-gcp,net-address,project_id,string,no,,no-chart
-gcp,net-address,psa_addresses,"map(object({address, description, name, network, prefix_length}))",no,,no-chart
-gcp,net-address,psc_addresses,"map(object({address, description, name, network, region, service_attachment, +1}))",no,,no-chart
+gcp,net-address,context,"object({locations, networks, project_ids, subnets})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-address,external_addresses,"map(object({description, ipv6, labels, name, region, subnetwork, +1}))",yes,,
+gcp,net-address,global_addresses,"map(object({description, ipv6, name}))",yes,,
+gcp,net-address,internal_addresses,"map(object({address, description, ipv6, labels, name, purpose, +2}))",yes,,
+gcp,net-address,ipsec_interconnect_addresses,"map(object({address, description, name, network, prefix_length, region}))",yes,,
+gcp,net-address,network_attachments,"map(object({automatic_connection, description, producer_accept_lists, producer_reject_lists, subnet_self_link}))",yes,,
+gcp,net-address,project_id,string,yes,,
+gcp,net-address,psa_addresses,"map(object({address, description, name, network, prefix_length}))",yes,,
+gcp,net-address,psc_addresses,"map(object({address, description, name, network, region, service_attachment, +1}))",partial,ComputeForwardingRule's serviceDirectoryRegistrations have no region (service_directory_region),gap
 gcp,net-vpn-ha,context,"object({addresses, locations, networks, project_ids, routers, vpn_gateways})",no,,no-chart
 gcp,net-vpn-ha,name,string,no,,no-chart
 gcp,net-vpn-ha,network,string,no,,no-chart
@@ -578,17 +578,17 @@ gcp,net-lb-int,region,string,yes,,
 gcp,net-lb-int,service_attachments,"map(object({automatic_connection, consumer_accept_lists, consumer_reject_lists, description, domain_name, enable_proxy_protocol, +2}))",partial,ComputeServiceAttachment has no domainNames or reconcileConnections field,gap
 gcp,net-lb-int,service_label,string,yes,,
 gcp,net-lb-int,vpc_config,"object({network, subnetwork})",yes,,
-gcp,net-lb-ext,backend_service_config,"object({connection_draining_timeout_sec, connection_tracking, description, failover_config, locality_lb_policy, log_config, +6})",no,,no-chart
-gcp,net-lb-ext,backends,"list(object({description, failover, group}))",no,,no-chart
-gcp,net-lb-ext,context,"object({addresses, locations, project_ids, security_policies, subnets})",no,,no-chart
-gcp,net-lb-ext,forwarding_rules_config,"map(object({address, description, ipv6, name, ports, protocol, +1}))",no,,no-chart
-gcp,net-lb-ext,group_configs,"map(object({description, instances, name, named_ports, zone}))",no,,no-chart
-gcp,net-lb-ext,health_check,string,no,,no-chart
-gcp,net-lb-ext,health_check_config,"object({check_interval_sec, description, enable_logging, grpc, healthy_threshold, http, +7})",no,,no-chart
-gcp,net-lb-ext,labels,map(string),no,,no-chart
-gcp,net-lb-ext,name,string,no,,no-chart
-gcp,net-lb-ext,project_id,string,no,,no-chart
-gcp,net-lb-ext,region,string,no,,no-chart
+gcp,net-lb-ext,backend_service_config,"object({connection_draining_timeout_sec, connection_tracking, description, failover_config, locality_lb_policy, log_config, +6})",partial,ComputeBackendService's logConfig has no optionalMode or optionalFields field,gap
+gcp,net-lb-ext,backends,"list(object({description, failover, group}))",yes,,
+gcp,net-lb-ext,context,"object({addresses, locations, project_ids, security_policies, subnets})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,net-lb-ext,forwarding_rules_config,"map(object({address, description, ipv6, name, ports, protocol, +1}))",yes,,
+gcp,net-lb-ext,group_configs,"map(object({description, instances, name, named_ports, zone}))",yes,,
+gcp,net-lb-ext,health_check,string,yes,,
+gcp,net-lb-ext,health_check_config,"object({check_interval_sec, description, enable_logging, grpc, healthy_threshold, http, +7})",yes,,
+gcp,net-lb-ext,labels,map(string),yes,,
+gcp,net-lb-ext,name,string,yes,,
+gcp,net-lb-ext,project_id,string,yes,,
+gcp,net-lb-ext,region,string,yes,,
 gcp,net-lb-app-int,address,string,no,,no-chart
 gcp,net-lb-app-int,backend_service_configs,"map(object({affinity_cookie_ttl_sec, backends, circuit_breakers, connection_draining_timeout_sec, consistent_hash, description, +14}))",no,,no-chart
 gcp,net-lb-app-int,context,"object({addresses, locations, networks, project_ids, security_policies, subnets})",no,,no-chart
@@ -726,39 +726,39 @@ gcp,cloud-function-v2,service_account_config,"object({create, display_name, emai
 gcp,cloud-function-v2,trigger_config,"object({event_filters, event_type, pubsub_topic, region, retry_policy, service_account_create, +1})",no,,no-chart
 gcp,cloud-function-v2,vpc_connector,"object({egress_settings, name})",no,,no-chart
 gcp,cloud-function-v2,vpc_connector_create,"object({instances, ip_cidr_range, machine_type, name, network, subnet, +1})",no,,no-chart
-gcp,alloydb,annotations,map(string),no,,no-chart
-gcp,alloydb,automated_backup_configuration,"object({backup_window, enabled, location, retention_count, retention_period, weekly_schedule})",no,,no-chart
-gcp,alloydb,availability_type,string,no,,no-chart
-gcp,alloydb,client_connection_config,"object({require_connectors, ssl_config})",no,,no-chart
-gcp,alloydb,cluster_display_name,string,no,,no-chart
-gcp,alloydb,cluster_name,string,no,,no-chart
-gcp,alloydb,connection_pool_flags,map(string),no,,no-chart
-gcp,alloydb,continuous_backup_configuration,"object({enabled, recovery_window_days})",no,,no-chart
-gcp,alloydb,cross_region_replication,"object({enabled, promote_secondary, read_pool, region, secondary_cluster_display_name, secondary_cluster_name, +4})",no,,no-chart
-gcp,alloydb,database_version,string,no,,no-chart
-gcp,alloydb,deletion_policy,string,no,,no-chart
-gcp,alloydb,deletion_protection,bool,no,,no-chart
-gcp,alloydb,display_name,string,no,,no-chart
-gcp,alloydb,encryption_config,"object({primary_kms_key_name, secondary_kms_key_name})",no,,no-chart
-gcp,alloydb,flags,map(string),no,,no-chart
-gcp,alloydb,gce_zone,string,no,,no-chart
-gcp,alloydb,initial_user,"object({password, user})",no,,no-chart
-gcp,alloydb,instance_name,string,no,,no-chart
-gcp,alloydb,labels,map(string),no,,no-chart
-gcp,alloydb,location,string,no,,no-chart
-gcp,alloydb,machine_config,"object({cpu_count, machine_type})",no,,no-chart
-gcp,alloydb,maintenance_config,"object({day, enabled, start_time})",no,,no-chart
-gcp,alloydb,network_config,"object({psa_config, psc_config})",no,,no-chart
-gcp,alloydb,observability_config,"object({assistive_experiences_enabled, enabled, max_query_string_length, preserve_comments, query_plans_per_minute, record_application_tags, +3})",no,,no-chart
-gcp,alloydb,prefix,string,no,,no-chart
-gcp,alloydb,project_id,string,no,,no-chart
-gcp,alloydb,project_number,string,no,,no-chart
-gcp,alloydb,query_insights_config,"object({query_plans_per_minute, query_string_length, record_application_tags, record_client_address})",no,,no-chart
-gcp,alloydb,read_pool,"map(object({client_connection_config, display_name, flags, machine_config, network_config, node_count, +2}))",no,,no-chart
-gcp,alloydb,skip_await_major_version_upgrade,bool,no,,no-chart
-gcp,alloydb,subscription_type,string,no,,no-chart
-gcp,alloydb,tag_bindings,map(string),no,,no-chart
-gcp,alloydb,users,"map(object({password, roles, type}))",no,,no-chart
+gcp,alloydb,annotations,map(string),partial,the annotations go on the instances only: AlloyDBCluster has no annotations field,gap
+gcp,alloydb,automated_backup_configuration,"object({backup_window, enabled, location, retention_count, retention_period, weekly_schedule})",yes,,
+gcp,alloydb,availability_type,string,yes,,
+gcp,alloydb,client_connection_config,"object({require_connectors, ssl_config})",no,"AlloyDBInstance has no clientConnectionConfig (require_connectors, ssl_mode)",gap
+gcp,alloydb,cluster_display_name,string,yes,,
+gcp,alloydb,cluster_name,string,yes,,
+gcp,alloydb,connection_pool_flags,map(string),yes,,
+gcp,alloydb,continuous_backup_configuration,"object({enabled, recovery_window_days})",yes,,
+gcp,alloydb,cross_region_replication,"object({enabled, promote_secondary, read_pool, region, secondary_cluster_display_name, secondary_cluster_name, +4})",partial,read_pool's client_connection_config is refused: AlloyDBInstance has no clientConnectionConfig,gap
+gcp,alloydb,database_version,string,yes,,
+gcp,alloydb,deletion_policy,string,yes,,
+gcp,alloydb,deletion_protection,bool,yes,,
+gcp,alloydb,display_name,string,yes,,
+gcp,alloydb,encryption_config,"object({primary_kms_key_name, secondary_kms_key_name})",yes,,
+gcp,alloydb,flags,map(string),yes,,
+gcp,alloydb,gce_zone,string,yes,,
+gcp,alloydb,initial_user,"object({password, user})",no,"a password given here would be in the rendered manifest; AlloyDBCluster takes the initial user's password from a Kubernetes Secret (initialUser.password.valueFrom), which the chart does not take yet (an open question, as cloudsql-instance's root_password)",not-ported
+gcp,alloydb,instance_name,string,yes,,
+gcp,alloydb,labels,map(string),yes,,
+gcp,alloydb,location,string,yes,,
+gcp,alloydb,machine_config,"object({cpu_count, machine_type})",yes,,
+gcp,alloydb,maintenance_config,"object({day, enabled, start_time})",yes,,
+gcp,alloydb,network_config,"object({psa_config, psc_config})",partial,psc_config is refused: AlloyDBCluster has no pscConfig and AlloyDBInstance no pscInstanceConfig,gap
+gcp,alloydb,observability_config,"object({assistive_experiences_enabled, enabled, max_query_string_length, preserve_comments, query_plans_per_minute, record_application_tags, +3})",yes,,
+gcp,alloydb,prefix,string,yes,,
+gcp,alloydb,project_id,string,yes,,
+gcp,alloydb,project_number,string,yes,,
+gcp,alloydb,query_insights_config,"object({query_plans_per_minute, query_string_length, record_application_tags, record_client_address})",yes,,
+gcp,alloydb,read_pool,"map(object({client_connection_config, display_name, flags, machine_config, network_config, node_count, +2}))",partial,client_connection_config is refused: AlloyDBInstance has no clientConnectionConfig,gap
+gcp,alloydb,skip_await_major_version_upgrade,bool,yes,,
+gcp,alloydb,subscription_type,string,partial,"TRIAL is refused: AlloyDBCluster has no subscriptionType field (clusters are STANDARD, the default)",gap
+gcp,alloydb,tag_bindings,map(string),yes,,
+gcp,alloydb,users,"map(object({password, roles, type}))",partial,only ALLOYDB_IAM_USER and ALLOYDB_IAM_GROUP users are accepted: an ALLOYDB_BUILT_IN user's password would be in the rendered manifest or made by Terraform's random_password (the same open question as initial_user),not-ported
 gcp,spanner-instance,databases,"map(object({database_dialect, ddl, default_time_zone, deletion_protection, enable_drop_protection, iam, +4}))",no,,no-chart
 gcp,spanner-instance,iam,map(list(string)),no,,no-chart
 gcp,spanner-instance,iam_bindings,"map(object({members, role}))",no,,no-chart
@@ -890,15 +890,15 @@ gcp,net-lb-proxy-int-cross-region,port,number,no,,no-chart
 gcp,net-lb-proxy-int-cross-region,project_id,string,no,,no-chart
 gcp,net-lb-proxy-int-cross-region,target_proxy_config,"object({description, name, proxy_header})",no,,no-chart
 gcp,net-lb-proxy-int-cross-region,vpc_config,"object({network, subnetworks})",no,,no-chart
-gcp,net-vpn-static,gateway_address,string,no,,no-chart
-gcp,net-vpn-static,gateway_address_create,bool,no,,no-chart
-gcp,net-vpn-static,name,string,no,,no-chart
-gcp,net-vpn-static,network,string,no,,no-chart
-gcp,net-vpn-static,project_id,string,no,,no-chart
-gcp,net-vpn-static,region,string,no,,no-chart
-gcp,net-vpn-static,remote_ranges,list(string),no,,no-chart
-gcp,net-vpn-static,route_priority,number,no,,no-chart
-gcp,net-vpn-static,tunnels,"map(object({cipher_suite, ike_version, peer_ip, shared_secret, traffic_selectors}))",no,,no-chart
+gcp,net-vpn-static,gateway_address,string,yes,,
+gcp,net-vpn-static,gateway_address_create,bool,yes,,
+gcp,net-vpn-static,name,string,yes,,
+gcp,net-vpn-static,network,string,yes,,
+gcp,net-vpn-static,project_id,string,yes,,
+gcp,net-vpn-static,region,string,yes,,
+gcp,net-vpn-static,remote_ranges,list(string),yes,,
+gcp,net-vpn-static,route_priority,number,yes,,
+gcp,net-vpn-static,tunnels,"map(object({cipher_suite, ike_version, peer_ip, shared_secret, traffic_selectors}))",no,"a tunnel needs a shared secret: one given here would be in the rendered manifest, and Terraform's random_id has no Config Connector equivalent; ComputeVPNTunnel takes it from a Kubernetes Secret (sharedSecret.valueFrom), which the chart does not take yet (cloudsql-instance's root_password question); ComputeVPNTunnel also has no cipherSuite field (gap)",not-ported
 gcp,net-vpn-dynamic,gateway_address,string,no,,no-chart
 gcp,net-vpn-dynamic,gateway_address_create,bool,no,,no-chart
 gcp,net-vpn-dynamic,name,string,no,,no-chart
@@ -930,14 +930,14 @@ gcp,net-ipsec-over-interconnect,project_id,string,no,,no-chart
 gcp,net-ipsec-over-interconnect,region,string,no,,no-chart
 gcp,net-ipsec-over-interconnect,router_config,"object({asn, create, custom_advertise, keepalive, name, route_policies})",no,,no-chart
 gcp,net-ipsec-over-interconnect,tunnels,"map(object({bgp_peer, bgp_session_range, ike_version, peer_external_gateway_interface, peer_gateway_id, router, +2}))",no,,no-chart
-gcp,ncc-spoke-ra,data_transfer,bool,no,,no-chart
-gcp,ncc-spoke-ra,hub,"object({create, description, id, name})",no,,no-chart
-gcp,ncc-spoke-ra,name,string,no,,no-chart
-gcp,ncc-spoke-ra,project_id,string,no,,no-chart
-gcp,ncc-spoke-ra,region,string,no,,no-chart
-gcp,ncc-spoke-ra,router_appliances,"list(object({export_policies, import_policies, internal_ip, vm_self_link}))",no,,no-chart
-gcp,ncc-spoke-ra,router_config,"object({asn, custom_advertise, ip_interface0, ip_interface1, keepalive, peer_asn, +2})",no,,no-chart
-gcp,ncc-spoke-ra,vpc_config,"object({network_name, subnet_self_link})",no,,no-chart
+gcp,ncc-spoke-ra,data_transfer,bool,yes,,
+gcp,ncc-spoke-ra,hub,"object({create, description, id, name})",yes,,
+gcp,ncc-spoke-ra,name,string,yes,,
+gcp,ncc-spoke-ra,project_id,string,yes,,
+gcp,ncc-spoke-ra,region,string,yes,,
+gcp,ncc-spoke-ra,router_appliances,"list(object({export_policies, import_policies, internal_ip, vm_self_link}))",partial,accepted; an appliance's import_policies and export_policies are refused: ComputeRouterPeer has no importPolicies or exportPolicies,gap
+gcp,ncc-spoke-ra,router_config,"object({asn, custom_advertise, ip_interface0, ip_interface1, keepalive, peer_asn, +2})",partial,accepted; route_policies need config-connector-extensions' v1alpha1 ComputeRouterRoutePolicy: set allow_alpha: true,alpha
+gcp,ncc-spoke-ra,vpc_config,"object({network_name, subnet_self_link})",yes,,
 gcp,gke-hub,clusters,"map(object({configmanagement, id, policycontroller, servicemesh, workload_identity}))",yes,,
 gcp,gke-hub,configmanagement_templates,"map(object({config_sync, hierarchy_controller, policy_controller, version}))",yes,,
 gcp,gke-hub,features,"object({appdevexperience, configmanagement, identityservice, multiclusteringress, multiclusterservicediscovery, policycontroller, +1})",yes,,
@@ -1005,13 +1005,13 @@ gcp,secure-source-manager-instance,location,string,no,,no-chart
 gcp,secure-source-manager-instance,private_configs,"object({ca_pool_id, is_private})",no,,no-chart
 gcp,secure-source-manager-instance,project_id,string,no,,no-chart
 gcp,secure-source-manager-instance,repositories,"map(object({branch_rules, description, iam, iam_bindings, iam_bindings_additive, initial_config}))",no,,no-chart
-gcp,source-repository,iam,map(list(string)),no,,no-chart
-gcp,source-repository,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,source-repository,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,source-repository,iam_by_principals,map(list(string)),no,,no-chart
-gcp,source-repository,name,string,no,,no-chart
-gcp,source-repository,project_id,string,no,,no-chart
-gcp,source-repository,triggers,"map(object({filename, included_files, service_account, substitutions, template}))",no,,no-chart
+gcp,source-repository,iam,map(list(string)),yes,,
+gcp,source-repository,iam_bindings,"map(object({condition, members, role}))",partial,Config Connector's IAM on a SourceRepoRepository does not support conditions,gap
+gcp,source-repository,iam_bindings_additive,"map(object({condition, member, role}))",partial,Config Connector's IAM on a SourceRepoRepository does not support conditions,gap
+gcp,source-repository,iam_by_principals,map(list(string)),yes,,
+gcp,source-repository,name,string,yes,,
+gcp,source-repository,project_id,string,yes,,
+gcp,source-repository,triggers,"map(object({filename, included_files, service_account, substitutions, template}))",partial,"CloudBuildTrigger's triggerTemplate has no projectId, so a trigger builds a repository of its own project only",gap
 gcp,bigquery-connection,connection_config,"object({aws, azure, cloud_resource, cloud_spanner, cloud_sql, spark})",no,,no-chart
 gcp,bigquery-connection,connection_id,string,no,,no-chart
 gcp,bigquery-connection,context,object({iam_principals}),no,,no-chart
@@ -1050,29 +1050,29 @@ gcp,dataform-repository,project_id,string,no,,no-chart
 gcp,dataform-repository,region,string,no,,no-chart
 gcp,dataform-repository,remote_repository_settings,"object({branch, secret_name, secret_version, token, url})",no,,no-chart
 gcp,dataform-repository,service_account,string,no,,no-chart
-gcp,dataproc,dataproc_config,"object({cluster_config, graceful_decommission_timeout, virtual_cluster_config})",no,,no-chart
-gcp,dataproc,iam,map(list(string)),no,,no-chart
-gcp,dataproc,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,dataproc,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,dataproc,iam_by_principals,map(list(string)),no,,no-chart
-gcp,dataproc,labels,map(string),no,,no-chart
-gcp,dataproc,name,string,no,,no-chart
-gcp,dataproc,project_id,string,no,,no-chart
-gcp,dataproc,region,string,no,,no-chart
-gcp,datafusion,description,string,no,,no-chart
-gcp,datafusion,enable_stackdriver_logging,bool,no,,no-chart
-gcp,datafusion,enable_stackdriver_monitoring,bool,no,,no-chart
-gcp,datafusion,firewall_create,bool,no,,no-chart
-gcp,datafusion,ip_allocation,string,no,,no-chart
-gcp,datafusion,ip_allocation_create,bool,no,,no-chart
-gcp,datafusion,labels,map(string),no,,no-chart
-gcp,datafusion,name,string,no,,no-chart
-gcp,datafusion,network,string,no,,no-chart
-gcp,datafusion,network_peering,bool,no,,no-chart
-gcp,datafusion,private_instance,bool,no,,no-chart
-gcp,datafusion,project_id,string,no,,no-chart
-gcp,datafusion,region,string,no,,no-chart
-gcp,datafusion,type,string,no,,no-chart
+gcp,dataproc,dataproc_config,"object({cluster_config, graceful_decommission_timeout, virtual_cluster_config})",partial,"DataprocCluster has no graceful decommission timeout (it is a parameter of the update call, not of the cluster)",gap
+gcp,dataproc,iam,map(list(string)),yes,,
+gcp,dataproc,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,dataproc,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,dataproc,iam_by_principals,map(list(string)),yes,,
+gcp,dataproc,labels,map(string),yes,,
+gcp,dataproc,name,string,yes,,
+gcp,dataproc,project_id,string,yes,,
+gcp,dataproc,region,string,yes,,
+gcp,datafusion,description,string,yes,,
+gcp,datafusion,enable_stackdriver_logging,bool,yes,,
+gcp,datafusion,enable_stackdriver_monitoring,bool,yes,,
+gcp,datafusion,firewall_create,bool,yes,,
+gcp,datafusion,ip_allocation,string,yes,,
+gcp,datafusion,ip_allocation_create,bool,partial,"true (the default) is refused: DataFusionInstance's networkConfig.ipAllocation takes the range as a string, and the range Google allocates is known only after apply (gap 8); false, with the range in ip_allocation, is accepted",gap
+gcp,datafusion,labels,map(string),yes,,
+gcp,datafusion,name,string,yes,,
+gcp,datafusion,network,string,yes,,
+gcp,datafusion,network_peering,bool,partial,"true (the default) is refused: the peer network is in the instance's tenant project, known only after apply, and ComputeNetworkPeering takes it as a string (gap 8); false is accepted, and the net-vpc-peering chart can make the peering afterwards",gap
+gcp,datafusion,private_instance,bool,yes,,
+gcp,datafusion,project_id,string,yes,,
+gcp,datafusion,region,string,yes,,
+gcp,datafusion,type,string,yes,,
 gcp,dataplex,iam,map(list(string)),no,,no-chart
 gcp,dataplex,location_type,string,no,,no-chart
 gcp,dataplex,name,string,no,,no-chart
@@ -1101,18 +1101,18 @@ gcp,dataplex-aspect-types,context,"object({condition_vars, custom_roles, iam_pri
 gcp,dataplex-aspect-types,factories_config,object({aspect_types}),no,,no-chart
 gcp,dataplex-aspect-types,location,string,no,,no-chart
 gcp,dataplex-aspect-types,project_id,string,no,,no-chart
-gcp,data-catalog-policy-tag,activated_policy_types,list(string),no,,no-chart
-gcp,data-catalog-policy-tag,context,"object({condition_vars, custom_roles, iam_principals, locations, project_ids})",no,,no-chart
-gcp,data-catalog-policy-tag,description,string,no,,no-chart
-gcp,data-catalog-policy-tag,factories_config,object({taxonomy}),no,,no-chart
-gcp,data-catalog-policy-tag,iam,map(list(string)),no,,no-chart
-gcp,data-catalog-policy-tag,iam_bindings,"map(object({condition, members, role}))",no,,no-chart
-gcp,data-catalog-policy-tag,iam_bindings_additive,"map(object({condition, member, role}))",no,,no-chart
-gcp,data-catalog-policy-tag,iam_by_principals,map(list(string)),no,,no-chart
-gcp,data-catalog-policy-tag,location,string,no,,no-chart
-gcp,data-catalog-policy-tag,name,string,no,,no-chart
-gcp,data-catalog-policy-tag,project_id,string,no,,no-chart
-gcp,data-catalog-policy-tag,tags,"map(object({description, iam, iam_bindings, iam_bindings_additive}))",no,,no-chart
+gcp,data-catalog-policy-tag,activated_policy_types,list(string),yes,,
+gcp,data-catalog-policy-tag,context,"object({condition_vars, custom_roles, iam_principals, locations, project_ids})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,data-catalog-policy-tag,description,string,yes,,
+gcp,data-catalog-policy-tag,factories_config,object({taxonomy}),partial,a chart cannot read the caller's files: accepted and ignored; the taxonomy file's contents go under factories_data.taxonomy,by-design
+gcp,data-catalog-policy-tag,iam,map(list(string)),yes,,
+gcp,data-catalog-policy-tag,iam_bindings,"map(object({condition, members, role}))",yes,,
+gcp,data-catalog-policy-tag,iam_bindings_additive,"map(object({condition, member, role}))",yes,,
+gcp,data-catalog-policy-tag,iam_by_principals,map(list(string)),yes,,
+gcp,data-catalog-policy-tag,location,string,yes,,
+gcp,data-catalog-policy-tag,name,string,yes,,
+gcp,data-catalog-policy-tag,project_id,string,yes,,
+gcp,data-catalog-policy-tag,tags,"map(object({description, iam, iam_bindings, iam_bindings_additive}))",yes,,
 gcp,data-catalog-tag,factories_config,object({tags}),no,,no-chart
 gcp,data-catalog-tag,tags,"map(object({column, fields, location, parent, project_id, template}))",no,,no-chart
 gcp,data-catalog-tag-template,factories_config,"object({context, tag_templates})",no,,no-chart
@@ -1778,8 +1778,8 @@ aws,vpc,secondary_cidr_blocks,list(string),yes,,
 aws,vpc,single_nat_gateway,bool,yes,,
 aws,vpc,tags,map(string),yes,,
 aws,vpc,use_ipam_pool,bool,no,"VPC.cidrBlocks is required in ACK's VPC, so a VPC cannot take its whole block from an IPAM pool by netmask length; ipv4_ipam_pool_id with cidr is supported",gap
-aws,vpc,vpc_block_public_access_exclusions,map(any),no,"VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)",gap
-aws,vpc,vpc_block_public_access_options,map(string),no,"VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)",gap
+aws,vpc,vpc_block_public_access_exclusions,map(any),no,"aws_vpc_block_public_access_exclusion takes this chart's VPC's or subnets' IDs, and ack-extensions' VPCBlockPublicAccessExclusion (Cloud Control) has no reference to either (vpcRef, subnetRef)",gap
+aws,vpc,vpc_block_public_access_options,map(string),partial,"VPCBlockPublicAccessOptions is an ack-extensions kind (Cloud Control, outside ACK's releases): needs allow_alpha: true",alpha
 aws,vpc,vpc_flow_log_iam_policy_name,string,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
 aws,vpc,vpc_flow_log_iam_policy_use_name_prefix,bool,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
 aws,vpc,vpc_flow_log_iam_role_name,string,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
@@ -2093,7 +2093,7 @@ aws,security-group,revoke_rules_on_delete,bool,no,ACK's SecurityGroup has no fie
 aws,security-group,tags,map(string),yes,,
 aws,security-group,timeouts,"object({create, delete})",no,"Terraform's create and delete timeouts: ACK retries until the group is synced, and Bundt waits for it",by-design
 aws,security-group,use_name_prefix,bool,partial,"accepted: true (the default) names the group name as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' groups apart",gap
-aws,security-group,vpc_associations,map(object({vpc_id})),no,aws_vpc_security_group_vpc_association has no ACK or ack-extensions kind,gap
+aws,security-group,vpc_associations,map(object({vpc_id})),no,"ack-extensions' SecurityGroupVpcAssociation (Cloud Control) takes the group's ID, with no reference to this chart's group (groupRef), so it cannot be wired in one render",gap
 aws,security-group,vpc_id,string,partial,"accepted when set; unset (Terraform's default, the account's default VPC) is refused: ACK's SecurityGroup needs its VPC's ID (vpcID or vpcRef) and the chart cannot look the default VPC up",gap
 aws,rds,allocated_storage,number,no,,no-chart
 aws,rds,allow_major_version_upgrade,bool,no,,no-chart
@@ -4041,15 +4041,15 @@ azure,avm-res-resources-resourcegroup,retry,"object({error_message_regex, interv
 azure,avm-res-resources-resourcegroup,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
 azure,avm-res-resources-resourcegroup,tags,map(string),yes,,
 azure,avm-res-resources-resourcegroup,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
-azure,avm-res-managedidentity-userassignedidentity,enable_telemetry,bool,no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,federated_identity_credentials,"map(object({audience, issuer, name, subject}))",no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,isolation_scope,string,no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,location,string,no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,name,string,no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,outbound_role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, role_definition_id_or_name, scope, +1}))",no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,resource_group_name,string,no,,no-chart
-azure,avm-res-managedidentity-userassignedidentity,tags,map(string),no,,no-chart
+azure,avm-res-managedidentity-userassignedidentity,enable_telemetry,bool,yes,,
+azure,avm-res-managedidentity-userassignedidentity,federated_identity_credentials,"map(object({audience, issuer, name, subject}))",yes,,
+azure,avm-res-managedidentity-userassignedidentity,isolation_scope,string,no,"ASO's UserAssignedIdentity is at ARM API version 2023-01-31, which has no isolationScope (a later API version's property)",gap
+azure,avm-res-managedidentity-userassignedidentity,location,string,yes,,
+azure,avm-res-managedidentity-userassignedidentity,lock,"object({kind, name})",yes,,
+azure,avm-res-managedidentity-userassignedidentity,name,string,yes,,
+azure,avm-res-managedidentity-userassignedidentity,outbound_role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, role_definition_id_or_name, scope, +1}))",yes,,
+azure,avm-res-managedidentity-userassignedidentity,resource_group_name,string,yes,,
+azure,avm-res-managedidentity-userassignedidentity,tags,map(string),yes,,
 azure,avm-res-operationalinsights-workspace,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,,no-chart
 azure,avm-res-operationalinsights-workspace,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
 azure,avm-res-operationalinsights-workspace,enable_telemetry,bool,no,,no-chart
