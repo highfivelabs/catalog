@@ -1,0 +1,100 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/organization
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/organization
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/organization
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: access_levels
+    kind: gap
+    reason: "a condition's vpc_subnets is refused: AccessContextManagerAccessLevel has no vpcNetworkSources"
+    partial: true
+    fields: [conditions.vpc_subnets]
+  - variable: asset_feeds
+    kind: gap
+    reason: "billing_project is not carried: AssetFeed has no field for it, and Config Connector bills the call to the project its controller is configured with"
+    partial: true
+  - variable: asset_search
+    kind: by-design
+    reason: "a Cloud Asset Inventory search is a read at plan time, not a resource; Bundt does not run one"
+  - variable: cloud_armor_policy
+    kind: alpha
+    reason: "ComputeOrganizationSecurityPolicyAssociation is v1alpha1: needs allow_alpha: true; excluded_folders and excluded_projects are refused (the kind has no such fields)"
+    partial: true
+    fields: [excluded_folders, excluded_projects]
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: context_aware_access_bindings
+    kind: alpha
+    reason: "AccessContextManagerGCPUserAccessBinding is v1alpha1: needs allow_alpha: true; scoped_access_settings is refused (the kind has no such field)"
+    partial: true
+    fields: [scoped_access_settings]
+  - variable: factories_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: their entries go in the variables they feed (custom_roles, org_policies, org_policy_custom_constraints, pam_entitlements, tags)"
+  - variable: iam_deny_policies
+    kind: alpha
+    reason: "IAMDenyPolicy is v1alpha1: needs allow_alpha: true"
+    partial: true
+  - variable: logging_settings
+    kind: gap
+    reason: "Config Connector has no kind for an organization's logging settings (LoggingSettings)"
+  - variable: logging_sinks
+    kind: gap
+    reason: "intercept_children is refused (LoggingLogSink has no interceptChildren); a sink of type project is refused (LoggingLogSink's destination is never a project); a bigquery sink needs iam: false (dataset IAM is alpha)"
+    partial: true
+    fields: [intercept_children]
+    values: [project]
+  - variable: model_armor_floor_setting
+    kind: alpha
+    reason: "ModelArmorFloorSetting is v1alpha1: needs allow_alpha: true; integrated_services is refused on an organization, as fabric refuses it"
+    partial: true
+  - variable: network_tags
+    kind: gap
+    reason: "tag keys and values take no IAM conditions"
+    partial: true
+    fields: [iam_bindings.condition, iam_bindings_additive.condition]
+  - variable: scc_mute_configs
+    kind: gap
+    reason: "Config Connector's SecurityCenterMuteConfig is a v1 API mute config (organizations/N/muteConfigs); fabric's is a Security Command Center v2 one at location global, which has no kind"
+  - variable: scc_sha_custom_modules
+    kind: alpha
+    reason: "SecurityCenterManagementSecurityHealthAnalyticsCustomModule is v1alpha1: needs allow_alpha: true"
+    partial: true
+  - variable: service_agents_config
+    kind: gap
+    reason: "Config Connector has no kind for an organization's service identities (ServiceIdentity takes only a project)"
+  - variable: tags
+    kind: gap
+    reason: "fabric's tag keys are ported; allowed_values_regex is refused (TagsTagKey has no such field), and so are IAM conditions on tag keys and values (they take none). A tags entry whose value is a string is the catalog's cloud label, applied to every object"
+    partial: true
+    fields: [allowed_values_regex, iam_bindings.condition, iam_bindings_additive.condition]
+  - variable: tags_config
+    kind: by-design
+    reason: "force_context_ids is refused: Bundt replaces fabric's $context ids with ${...} expressions"
+    partial: true
+    fields: [force_context_ids]
+  - variable: workforce_identity_pools
+    kind: gap
+    reason: "pools and their OIDC and SAML providers are ported; refused: access_restrictions (IAMWorkforcePool has none), a provider's detailed_audit_logging true, scim_usage and oauth2_client_config (IAMWorkforcePoolProvider has none), scim_tenant (no kind for IAMWorkforcePoolProviderScimTenant), and an OIDC client_secret (its value would be in the rendered manifest; path names a file on the caller's machine)"
+    partial: true
+    fields: [access_restrictions, providers.detailed_audit_logging, providers.scim_usage, providers.oauth2_client_config, providers.scim_tenant, providers.identity_provider.oidc.client_secret]
