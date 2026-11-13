@@ -8,12 +8,13 @@
 # avm-res-network-natgateway, avm-res-network-publicipaddress,
 # avm-res-network-privatednszone,
 # avm-res-managedidentity-userassignedidentity,
-# avm-res-operationalinsights-workspace, avm-res-containerregistry-registry)
+# avm-res-operationalinsights-workspace, avm-res-containerregistry-registry,
+# avm-res-network-firewallpolicy)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr)
+# uai law acr fwp)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -55,7 +56,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -167,7 +168,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     privatednszones.network.azure.com privatednszonesarecords.network.azure.com privatednszonestxtrecords.network.azure.com \
     privatednszonesvirtualnetworklinks.network.azure.com userassignedidentities.managedidentity.azure.com \
     federatedidentitycredentials.managedidentity.azure.com workspaces.operationalinsights.azure.com \
-    registries.containerregistry.azure.com registrycacherules.containerregistry.azure.com; do
+    registries.containerregistry.azure.com registrycacherules.containerregistry.azure.com \
+    firewallpolicies.network.azure.com firewallpoliciesrulecollectiongroups.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -299,6 +301,33 @@ tags: {catalog-run: ${RUN}}
 cache_rules:
   mcr: {name: mcr-busybox, source_repository: mcr.microsoft.com/azurelinux/busybox, target_repository: cache/busybox}
 EOF
+# A Basic policy (the cheapest tier) with one rule collection group: a
+# network rule collection and an application rule collection.
+cat >"${WORK}/fwp.yaml" <<EOF
+name: ${RUN}-fwp
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+firewall_policy_sku: Basic
+firewall_policy_threat_intelligence_mode: Alert
+tags: {catalog-run: ${RUN}}
+rule_collection_groups:
+  core:
+    name: rcg-core
+    priority: 200
+    network_rule_collection:
+      - name: dns
+        priority: 400
+        action: Allow
+        rule:
+          - {name: dns, protocols: [UDP, TCP], source_addresses: [10.250.0.0/24], destination_addresses: [168.63.129.16], destination_ports: ["53"]}
+    application_rule_collection:
+      - name: web
+        priority: 500
+        action: Allow
+        rule:
+          - {name: microsoft, source_addresses: [10.250.0.0/24], destination_fqdns: ["*.microsoft.com"], protocols: [{type: Https, port: 443}]}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -314,7 +343,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
     pip:avm-res-network-publicipaddress dns:avm-res-network-privatednszone \
     uai:avm-res-managedidentity-userassignedidentity law:avm-res-operationalinsights-workspace \
-    acr:avm-res-containerregistry-registry; do
+    acr:avm-res-containerregistry-registry fwp:avm-res-network-firewallpolicy; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
