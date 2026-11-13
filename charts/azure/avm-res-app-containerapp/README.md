@@ -134,6 +134,11 @@ it, evaluates the outputs, deletes both and checks Azure no longer has
 them. `task test-mock-azure` applies `tests/mock.values.yaml` to
 aso-extensions' fake cloud.
 
+Results (2026-11-13): live run `cat111307137a10` (offload
+`off-catalog-1113070946-25437`), both objects Ready, outputs evaluated,
+deleted and gone from Azure; fake cloud run `off-catalog-1113030900-10353`,
+both objects Ready and deleted, outputs evaluated.
+
 ## Changes
 
 - **0.1.0** (2026-11-13): the port.
