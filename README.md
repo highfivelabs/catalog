@@ -128,18 +128,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 13 ported, 93 partial, 64 blocked, 7 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 13 ported, 94 partial, 63 blocked, 7 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 798 of 1478 (54.0%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 812 of 1478 (54.9%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 929 of 1170 (79.4%) |
-| **All** | **177** | | **2260 of 4996 (45.2%)** |
+| **All** | **177** | | **2274 of 4996 (45.5%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-8 ported, 48 partial, 39 blocked, 3 not started.
+8 ported, 49 partial, 38 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -175,6 +175,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`spanner-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/spanner-instance) ([chart](charts/gcp/spanner-instance)) | ![spanner-instance](docs/coverage/bars/gcp-spanner-instance.svg) 7 of 7 | 3 of 6 | 6 of 7 | partial |
 | [`bigtable-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigtable-instance) ([chart](charts/gcp/bigtable-instance)) | ![bigtable-instance](docs/coverage/bars/gcp-bigtable-instance.svg) 11 of 11 | 2 of 4 | 4 of 4 | partial |
 | [`net-cloud-armor`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloud-armor) ([chart](charts/gcp/net-cloud-armor)) | ![net-cloud-armor](docs/coverage/bars/gcp-net-cloud-armor.svg) 12 of 16 | 3 of 3 | 4 of 7 | partial |
+| [`net-swp`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-swp) ([chart](charts/gcp/net-swp)) | ![net-swp](docs/coverage/bars/gcp-net-swp.svg) 14 of 14 | 4 of 4 | 1 of 6 | partial |
 | [`net-lb-app-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-int-cross-region) ([chart](charts/gcp/net-lb-app-int-cross-region)) | ![net-lb-app-int-cross-region](docs/coverage/bars/gcp-net-lb-app-int-cross-region.svg) 16 of 18 | 11 of 12 | 10 of 11 | partial |
 | [`net-lb-proxy-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int-cross-region) ([chart](charts/gcp/net-lb-proxy-int-cross-region)) | ![net-lb-proxy-int-cross-region](docs/coverage/bars/gcp-net-lb-proxy-int-cross-region.svg) 13 of 14 | 10 of 15 | 7 of 8 | partial |
 | [`net-vpn-static`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-static) ([chart](charts/gcp/net-vpn-static)) | ![net-vpn-static](docs/coverage/bars/gcp-net-vpn-static.svg) 8 of 9 | 4 of 9 | 5 of 5 | partial |
@@ -202,7 +203,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 39, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 38, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
