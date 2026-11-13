@@ -1,0 +1,24 @@
+# Every variable: networks and GKE clusters, a description, rules with
+# TTLs, several record types and an explicit behavior, labels and tags,
+# ABANDON.
+project_id: my-project
+name: dns-policy
+description: Restricted Google APIs.
+networks:
+  landing: projects/my-project/global/networks/landing
+  prod: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/prod
+clusters:
+  gke-a: projects/my-project/locations/europe-west1/clusters/gke-a
+labels: {env: prod, hfl.dev/team: net}
+tags: {cost-center: net}
+deletion_policy: ABANDON
+rules:
+  bypass:
+    dns_name: storage.googleapis.com.
+    behavior: bypassResponsePolicy
+  multi:
+    dns_name: api.example.com.
+    local_data:
+      A: {ttl: 60, rrdatas: [10.0.0.1]}
+      AAAA: {rrdatas: ["fd00::1"]}
+      TXT: {ttl: 300, rrdatas: ['"v=spf1 -all"']}
