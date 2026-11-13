@@ -472,7 +472,16 @@ application stack. It is low priority for a team catalog.
 
 | ARM types | ASO |
 | --- | --- |
-| `Insights/components@2020-02-02`, `privateLinkScopes/scopedResources` | `insights/Component` (2020-02-02). **GAP**: AMPLS scoped resource |
+| `Insights/components@2020-02-02`, `components/pricingPlans`, `privateLinkScopes/scopedResources`, `components/linkedStorageAccounts` | `insights/Component` (2020-02-02), `insights/PricingPlan` (2017-10-01); the scoped resource through aso-extensions' `PrivateLinkScopesScopedResource` (2021-09-01). **GAP**: the profiler's linked storage account |
+
+Charted as `charts/azure/avm-res-insights-component` (2026-11-12): 20 of
+25 variables and 5 of 6 outputs (the deprecated `resource` is not one).
+Refused: `linked_storage_account` (no kind), `ignore_body_changes`,
+`resource_types`, `retry` and `timeouts` (section 8); accepted in part:
+`application_type` (ASO's `Component` enumerates `web` and `other` only)
+and `monitor_private_link_scope` (kind `Resource` only: the
+aso-extensions kind's 2021-09-01 API has no `kind` or
+`subscriptionLocation`).
 
 ### 21. avm-res-app-containerapp (v0.9.0; azapi)
 
@@ -760,6 +769,19 @@ and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
 Azure answering 404, nothing left.
+
+The Application Insights component (`avm-res-insights-component`, case
+`appi`: workspace-based, a 1 GB daily cap, with a workspace the case makes
+beside it) passed in run `cat111302020b65`: 3 objects Ready, outputs
+evaluated (the app ID and connection string among them), deleted, Azure
+answering 404. Its first run found that Azure cannot delete a component's
+pricing plan (it goes with the component; ASO answers
+`DeletionNotSupportedInAzure`), so the chart's `PricingPlan` is always
+detached on delete, as the module's `azapi_update_resource` leaves it. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO
+against aso-extensions' fakearm at `b9beb5b` with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113013709-32534`: 2 objects Ready
+and deleted, outputs evaluated).
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
