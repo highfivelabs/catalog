@@ -1,0 +1,90 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-cognitiveservices-account
+modules/deployment and modules/rai_policy (v0.11.1), Copyright (c)
+Microsoft Corporation, MIT.
+
+module.deployment (Microsoft.CognitiveServices/accounts/deployments): one
+ASO Deployment per cognitive_deployments entry, owned by the account.
+deployment_serialization_enabled (the azapi provider's lock on the
+account) has no counterpart: ASO retries a deployment Azure refuses while
+another of the account's is in progress. module.rai_policy
+(accounts/raiPolicies): one aso-extensions AccountsRaiPolicy per
+rai_policies entry, owned by the account (ASO has no RAI policy kind).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "cog.object" . }}
+{{- range $k, $d := ($v.cognitive_deployments | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "cognitive_deployments.%s.dynamic_throttling_enabled" $k) $d.dynamic_throttling_enabled "ASO's Deployment (2025-06-01) has no dynamicThrottlingEnabled field; the chart sends Azure's default, false, as the module does") }}
+{{- include "aso.unsupported" (list $ (printf "cognitive_deployments.%s.retry" $k) (include "cog.anySet" $d.retry) "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ (printf "cognitive_deployments.%s.timeouts" $k) (include "cog.anySet" $d.timeouts) "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- $sc := $d.scale }}
+---
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Deployment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "deploy" $k)) "id" (printf "deployment:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    name: {{ $obj }}
+  properties:
+    model:
+      format: {{ $d.model.format | quote }}
+      name: {{ $d.model.name | quote }}
+      {{- with $d.model.version }}
+      version: {{ . | quote }}
+      {{- end }}
+    {{- with $d.rai_policy_name }}
+    raiPolicyName: {{ . | quote }}
+    {{- end }}
+    versionUpgradeOption: {{ $d.version_upgrade_option | default "OnceNewDefaultVersionAvailable" | quote }}
+  sku:
+    name: {{ $sc.type | quote }}
+    capacity: {{ ternary 1 $sc.capacity (kindIs "invalid" $sc.capacity) | int }}
+    {{- with $sc.family }}
+    family: {{ . | quote }}
+    {{- end }}
+    {{- with $sc.size }}
+    size: {{ . | quote }}
+    {{- end }}
+    {{- with $sc.tier }}
+    tier: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- range $k, $p := ($v.rai_policies | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "rai_policies.%s.retry" $k) (include "cog.anySet" $p.retry) "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ (printf "rai_policies.%s.timeouts" $k) (include "cog.anySet" $p.timeouts) "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+---
+apiVersion: cognitiveservices.azure.hfl.dev/v20250601
+kind: AccountsRaiPolicy
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "rai" $k)) "id" (printf "rai_policy:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.name | quote }}
+  owner:
+    name: {{ $obj }}
+  properties:
+    basePolicyName: {{ $p.base_policy_name | quote }}
+    {{- if not (kindIs "invalid" $p.content_filters) }}
+    contentFilters:
+      {{- range $p.content_filters }}
+      - blocking: {{ .blocking }}
+        enabled: {{ .enabled }}
+        name: {{ .name | quote }}
+        severityThreshold: {{ .severity_threshold | quote }}
+        source: {{ .source | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $p.custom_block_lists) }}
+    customBlocklists:
+      {{- range $p.custom_block_lists }}
+      - blocking: {{ .blocking }}
+        blocklistName: {{ .block_list_name | quote }}
+        source: {{ .source | quote }}
+      {{- end }}
+    {{- end }}
+    mode: {{ $p.mode | quote }}
+{{- end }}

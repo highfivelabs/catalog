@@ -1,0 +1,36 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>): name,
+# resource_id and endpoint are the account's, system_assigned_mi_principal_id
+# its system-assigned identity's (null without one, as the module's).
+# rai_policy_id is the module's map of RAI policy IDs. The module's maps of
+# whole objects are maps of the one field consumers take, their IDs:
+# resource_cognitive_deployment (each deployment's) and private_endpoints
+# (each endpoint's). Not outputs: resource (the whole account),
+# primary_access_key, secondary_access_key and resource_sensitive (secret
+# values, which do not belong in outputs).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-cognitiveservices-account
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.account.spec.azureName
+    resource_id: resources.account.status.id
+    endpoint: >-
+      'properties' in resources.account.status && 'endpoint' in resources.account.status.properties
+      ? resources.account.status.properties.endpoint : null
+    system_assigned_mi_principal_id: >-
+      'system_assigned' in inputs.managed_identities && inputs.managed_identities.system_assigned == true
+      ? resources.account.status.identity.principalId : null
+    rai_policy_id: >-
+      resources.transformMapEntry(k, v, k.startsWith('rai_policy:'), {k.substring(11): v.status.id})
+    resource_cognitive_deployment: >-
+      resources.transformMapEntry(k, v, k.startsWith('deployment:'), {k.substring(11): v.status.id})
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): v.status.id})

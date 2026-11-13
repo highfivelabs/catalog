@@ -1,0 +1,49 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-cognitiveservices-account
+repo: https://github.com/Azure/terraform-azurerm-avm-res-cognitiveservices-account
+path: .
+version: v0.11.1
+commit: 02ac1c992bbadd4286d36171cfd43792a513c375
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-cognitiveservices-account/tree/v0.11.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-cognitiveservices-account/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field), not-ported (one exists, the chart does not map it yet) or
+# by-design (Bundt replaces it). partial: the variable is accepted, the
+# reason says what is refused.
+refused:
+  - variable: custom_question_answering_search_service_key
+    kind: not-ported
+    reason: "a secret value: ASO reads the key from a Kubernetes Secret (apiProperties.qnaAzureSearchEndpointKey), and how a component supplies a Secret is not settled"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: customer_managed_key
+    kind: gap
+    reason: "accepted, but user_assigned_identity is refused (the module reads its client ID from Azure; ASO's Account takes encryption.keyVaultProperties.identityClientId only as a literal) and key_version is required (the module reads the key's current version from Key Vault)"
+    partial: true
+    fields: [user_assigned_identity]
+  - variable: cognitive_deployments
+    kind: gap
+    reason: "accepted, but dynamic_throttling_enabled true is refused (ASO's Deployment has no dynamicThrottlingEnabled), and so are retry and timeouts (by design)"
+    partial: true
+    fields: [dynamic_throttling_enabled, retry, timeouts]
+  - variable: rai_policies
+    kind: by-design
+    reason: "accepted, but a policy's retry and timeouts are refused (by design, as the module's own)"
+    partial: true
+    fields: [retry, timeouts]

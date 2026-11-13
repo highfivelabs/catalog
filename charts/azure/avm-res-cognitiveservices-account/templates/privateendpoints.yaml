@@ -1,0 +1,101 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-cognitiveservices-account
+main.privateendpoint.tf (v0.11.1) and the avm-utl-interfaces 0.6.0
+private endpoint locals it calls, Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.private_endpoints (or .private_endpoints_unmanaged): one
+ASO PrivateEndpoint per private_endpoints entry to the account's
+"account" subresource, with the interfaces module's default names
+(pep-account-<uuidv5 of the account's ID>, nic-..., pcon-...).
+azapi_resource.private_dns_zone_groups: an ASO
+PrivateEndpointsPrivateDnsZoneGroup when private_endpoints_manage_dns_zone_group
+is true and the entry has zones. azapi_resource.private_endpoint_locks and
+.private_endpoint_role_assignments: an aso-extensions ManagementLock and
+ASO RoleAssignments on each endpoint. data.azapi_resource.existing_private_endpoints
+(which keeps an endpoint's network interface name during the module's
+migration from azurerm) is not needed: set network_interface_name.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "cog.object" . }}
+{{- $rg := splitList "/" (toString $v.parent_id) }}
+{{- $computed := printf "pep-account-%s" (include "cog.uuidv5" (include "cog.accountId" .)) }}
+{{- range $k, $pe := ($v.private_endpoints | default dict) }}
+{{- $name := $pe.name | default $computed }}
+{{- $nic := $pe.network_interface_name | default (ternary (printf "nic-account--%s" $pe.name) (printf "nic-%s" $computed) (not (empty $pe.name))) }}
+{{- $psc := $pe.private_service_connection_name | default (ternary (printf "pcon-account-%s" $pe.name) (printf "pcon-%s" $computed) (not (empty $pe.name))) }}
+{{- $parent := $v.parent_id }}
+{{- if and $pe.resource_group_name (ne $pe.resource_group_name (index $rg 4)) }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" (index $rg 2) $pe.resource_group_name }}
+{{- end }}
+{{- $peObj := include "aso.name" (list $obj "pe" $k) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $peObj "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $name | quote }}
+  location: {{ $pe.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $parent) | nindent 4 }}
+  {{- with $pe.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $_, $id := . }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  customNetworkInterfaceName: {{ $nic | quote }}
+  {{- with $pe.ip_configurations }}
+  ipConfigurations:
+    {{- range $_, $c := . }}
+    - name: {{ $c.name | quote }}
+      groupId: account
+      memberName: default
+      privateIPAddress: {{ $c.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $psc | quote }}
+      groupIds:
+        - account
+      privateLinkServiceReference:
+        group: cognitiveservices.azure.com
+        kind: Account
+        name: {{ $obj }}
+  subnet:
+    reference:
+      armId: {{ $pe.subnet_resource_id | quote }}
+  {{- with $pe.tags }}
+  tags:
+    {{- range $tk, $tv := . }}
+    {{ $tk | quote }}: {{ toString $tv | quote }}
+    {{- end }}
+  {{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $peObj }}
+{{- $group := $pe.private_dns_zone_group_name | default "default" }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $pe.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $peObj "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $group | quote }}
+  owner:
+    name: {{ $peObj }}
+  privateDnsZoneConfigs:
+    {{- range (uniq $pe.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ $group | quote }}
+      privateDnsZoneReference:
+        armId: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- with $pe.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $peObj "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (dict "kind" .kind "name" .name)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $peObj "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" $pe.role_assignments) }}
+{{- end }}

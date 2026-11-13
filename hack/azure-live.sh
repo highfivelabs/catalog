@@ -5,10 +5,11 @@
 # Apply the Azure charts (avm-res-network-virtualnetwork,
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
-# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
+# avm-res-network-natgateway, avm-res-network-publicipaddress,
+# avm-res-cognitiveservices-account) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip cog)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -30,7 +31,9 @@
 # with this run's ID (cat<month day hour minute><4 hex>) and every resource
 # that takes tags carries catalog-run=<run ID>; the test deletes what it
 # makes, checks Azure answers 404, and at the end deletes anything of this
-# run still there and lists what of any catalog run is left. A key vault
+# run still there and lists what of any catalog run is left. A deleted
+# Cognitive Services account stays soft-deleted for 48 hours; the test
+# purges it (and says when Azure refuses). A key vault
 # stays soft-deleted for 7 days after its delete (purging needs a
 # subscription-scope right the identity does not have); its name is the
 # run's, so nothing collides. Writes offload-artifacts/azure-live/.
@@ -45,7 +48,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip cog}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -135,7 +138,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*' \
+  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;cognitiveservices.azure.com/*' \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -149,7 +152,8 @@ kubectl -n azureserviceoperator-system rollout status deployment azureserviceope
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
-    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    accounts.cognitiveservices.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -227,6 +231,21 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# The smallest Cognitive Services account: a Language (TextAnalytics)
+# account on the free tier (AZURE_LIVE_COG_SKU=S for the paid one when the
+# subscription's one free account of the kind is taken), local keys off,
+# no deployments.
+cat >"${WORK}/cog.yaml" <<EOF
+name: ${RUN}-cog
+location: ${LOCATION}
+parent_id: ${RG}
+kind: TextAnalytics
+sku_name: ${AZURE_LIVE_COG_SKU:-F0}
+custom_subdomain_name: ${RUN}-cog
+local_auth_enabled: false
+managed_identities: {system_assigned: true}
+tags: {catalog-run: ${RUN}}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -240,7 +259,7 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress; do
+    pip:avm-res-network-publicipaddress cog:avm-res-cognitiveservices-account; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -294,6 +313,12 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   unset ready armid
 done
 
+# A deleted Cognitive Services account is soft-deleted, holding its name
+# and subdomain for 48 hours: purge it.
+if [[ " ${CASES} " == *" cog "* ]]; then
+  echo "   purge soft-deleted account ${RUN}-cog: $(api -o /dev/null -w '%{http_code}' -X DELETE \
+    "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/locations/${LOCATION}/resourceGroups/${AZURE_LIVE_RESOURCE_GROUP}/deletedAccounts/${RUN}-cog?api-version=2025-06-01")" | tee -a "${OUT}/purge.log"
+fi
 kubectl -n azureserviceoperator-system logs deployment/azureserviceoperator-controller-manager --tail=-1 >"${OUT}/aso.log" 2>&1 || true
 {
   echo

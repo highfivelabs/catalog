@@ -1,0 +1,331 @@
+---
+# Source: avm-res-cognitiveservices-account/templates/deployments.yaml
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Deployment
+metadata:
+  name: full-account-deploy-embed
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "deployment:embed"
+spec:
+  azureName: "embed"
+  owner:
+    name: full-account
+  properties:
+    model:
+      format: "OpenAI"
+      name: "text-embedding-3-small"
+    versionUpgradeOption: "OnceNewDefaultVersionAvailable"
+  sku:
+    name: "Standard"
+    capacity: 1
+---
+# Source: avm-res-cognitiveservices-account/templates/deployments.yaml
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Deployment
+metadata:
+  name: full-account-deploy-gpt
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "deployment:gpt"
+spec:
+  azureName: "gpt-4o-mini"
+  owner:
+    name: full-account
+  properties:
+    model:
+      format: "OpenAI"
+      name: "gpt-4o-mini"
+      version: "2024-07-18"
+    raiPolicyName: "strict"
+    versionUpgradeOption: "NoAutoUpgrade"
+  sku:
+    name: "GlobalStandard"
+    capacity: 10
+---
+# Source: avm-res-cognitiveservices-account/templates/main.yaml
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Account
+metadata:
+  name: full-account
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "cog-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "OpenAI"
+  sku:
+    name: "S0"
+  identity:
+    type: "SystemAssigned, UserAssigned"
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cog"
+  properties:
+    allowProjectManagement: false
+    allowedFqdnList:
+      - example.com
+      - contoso.com
+    customSubDomainName: "cog-full-example"
+    dynamicThrottlingEnabled: false
+    disableLocalAuth: true
+    encryption:
+      keySource: Microsoft.KeyVault
+      keyVaultProperties:
+        keyName: cog-key
+        keyVaultUri: https://kv-example.vault.azure.net/
+        keyVersion: 0123456789abcdef0123456789abcdef
+    networkAcls:
+      bypass: "AzureServices"
+      defaultAction: "Deny"
+      ipRules:
+        - value: "198.51.100.7"
+        - value: "203.0.113.0/24"
+      virtualNetworkRules:
+        - ignoreMissingVnetServiceEndpoint: true
+          reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-app"
+    publicNetworkAccess: Disabled
+    restrictOutboundNetworkAccess: true
+    userOwnedStorage:
+      -
+        identityClientId: "44444444-4444-4444-4444-444444444444"
+        resourceReference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stcog"
+  tags:
+    env: dev
+---
+# Source: avm-res-cognitiveservices-account/templates/deployments.yaml
+apiVersion: cognitiveservices.azure.hfl.dev/v20250601
+kind: AccountsRaiPolicy
+metadata:
+  name: full-account-rai-strict
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "rai_policy:strict"
+spec:
+  azureName: "strict"
+  owner:
+    name: full-account
+  properties:
+    basePolicyName: "Microsoft.DefaultV2"
+    contentFilters:
+      - blocking: true
+        enabled: true
+        name: "Hate"
+        severityThreshold: "Low"
+        source: "Prompt"
+      - blocking: true
+        enabled: true
+        name: "Hate"
+        severityThreshold: "Low"
+        source: "Completion"
+    customBlocklists:
+      - blocking: true
+        blocklistName: "words"
+        source: "Prompt"
+    mode: "Blocking"
+---
+# Source: avm-res-cognitiveservices-account/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-account-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-cog-full"
+  owner:
+    group: cognitiveservices.azure.com
+    kind: Account
+    name: full-account
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-cognitiveservices-account/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-account-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "no-delete"
+  owner:
+    group: cognitiveservices.azure.com
+    kind: Account
+    name: full-account
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-cognitiveservices-account/templates/privateendpoints.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-account-pe-pe-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-account-pe-pe
+  level: CanNotDelete
+---
+# Source: avm-res-cognitiveservices-account/templates/privateendpoints.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-account-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+spec:
+  azureName: "pe-cog-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationSecurityGroups/asg-app"
+  customNetworkInterfaceName: "nic-account--pe-cog-full"
+  ipConfigurations:
+    - name: "ipconfig-a"
+      groupId: account
+      memberName: default
+      privateIPAddress: "10.0.2.10"
+  privateLinkServiceConnections:
+    - name: "pcon-account-pe-cog-full"
+      groupIds:
+        - account
+      privateLinkServiceReference:
+        group: cognitiveservices.azure.com
+        kind: Account
+        name: full-account
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+  tags:
+    "role": "pe"
+---
+# Source: avm-res-cognitiveservices-account/templates/privateendpoints.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-account-pe-pe-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-account-pe-pe
+  privateDnsZoneConfigs:
+    - name: "default"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com"
+---
+# Source: avm-res-cognitiveservices-account/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-account-role-user
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "role-assignment-user"
+spec:
+  owner:
+    group: cognitiveservices.azure.com
+    kind: Account
+    name: full-account
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Cognitive Services OpenAI User"
+---
+# Source: avm-res-cognitiveservices-account/templates/privateendpoints.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-account-pe-pe-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "ai"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/role-assignment-reader"
+spec:
+  azureName: "66666666-6666-6666-6666-666666666666"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-account-pe-pe
+  principalId: "55555555-5555-5555-5555-555555555555"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
