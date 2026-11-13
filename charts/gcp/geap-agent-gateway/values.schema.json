@@ -10,7 +10,7 @@
   ],
   "properties": {
     "names": {
-      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"): gateway, connectivityTemplate. A name set here takes no prefix.",
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"): gateway, connectivityTemplate, iap, modelArmor (each authorization extension and its policy). A name set here takes no prefix.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -20,6 +20,16 @@
           "maxLength": 63
         },
         "connectivityTemplate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "iap": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "modelArmor": {
           "type": "string",
           "minLength": 1,
           "maxLength": 63
@@ -97,21 +107,96 @@
       ]
     },
     "iap_config": {
-      "description": "Identity-Aware Proxy request authorization. Refused unless null: the authorization policy binding it to the gateway has no kind that targets an agent gateway.",
+      "description": "Identity-Aware Proxy request authorization (fabric's default, {}): a NetworkServicesAuthzExtension for iap.googleapis.com and a REQUEST_AUTHZ NetworkSecurityAuthzPolicy binding it to the gateway; null for none.",
       "type": [
         "object",
         "null"
-      ]
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fail_open": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "iam_enforcement_mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policy_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     },
     "is_google_managed": {
       "type": "boolean"
     },
     "model_armor_config": {
-      "description": "Model Armor content authorization. Refused when set: NetworkServicesAuthzExtension has no service field.",
+      "description": "Model Armor content authorization: a NetworkServicesAuthzExtension for Model Armor and a CONTENT_AUTHZ NetworkSecurityAuthzPolicy binding it to the gateway, restricted to authz_hosts when set.",
       "type": [
         "object",
         "null"
-      ]
+      ],
+      "additionalProperties": false,
+      "required": [
+        "request_template_id",
+        "response_template_id"
+      ],
+      "properties": {
+        "request_template_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "response_template_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authz_hosts": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "fail_open": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     },
     "name": {
       "type": "string",

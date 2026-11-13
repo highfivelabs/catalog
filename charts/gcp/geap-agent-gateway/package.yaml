@@ -7,17 +7,17 @@
 # (projects/<p>/locations/<l>/agentGateways/<id>); null until reported.
 # connectivity_template_id is the template the gateway references, by
 # project number, as fabric's: the one the chart makes, or
-# networking_config.connectivity_template_reuse; null with neither. Not
-# outputs: agent_gateway (fabric's whole object), and authz_extension_ids
-# and authz_policy_ids, whose resources the chart refuses (README.md,
-# "Values"). access_policy_ids and policy_binding_ids are built from the
-# objects' resourceIDs, keyed as fabric's.
+# networking_config.connectivity_template_reuse; null with neither. Not an
+# output: agent_gateway (fabric's whole object). access_policy_ids,
+# policy_binding_ids, authz_extension_ids and authz_policy_ids are built
+# from the objects' resourceIDs, keyed as fabric's (the authz ones iap and
+# model_armor, null when not made).
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: gcp-geap-agent-gateway
 spec:
-  version: 0.2.0
+  version: 0.3.0
   engine: helm
   providers: [kcc]
   outputs:
@@ -35,3 +35,17 @@ spec:
       resources.transformMapEntry(k, v, k.startsWith('policy_binding:'),
         {k.substring(15): 'projects/' + inputs.project_id
           + '/locations/global/policyBindings/' + v.spec.resourceID})
+    authz_extension_ids: >-
+      {'iap': 'iap_extension' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.region
+          + '/authzExtensions/' + resources.iap_extension.spec.resourceID) : null,
+       'model_armor': 'model_armor_extension' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.region
+          + '/authzExtensions/' + resources.model_armor_extension.spec.resourceID) : null}
+    authz_policy_ids: >-
+      {'iap': 'iap_policy' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.region
+          + '/authzPolicies/' + resources.iap_policy.spec.resourceID) : null,
+       'model_armor': 'model_armor_policy' in resources
+        ? dyn('projects/' + inputs.project_id + '/locations/' + inputs.region
+          + '/authzPolicies/' + resources.model_armor_policy.spec.resourceID) : null}
