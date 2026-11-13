@@ -1,0 +1,31 @@
+# Applied to the fake cloud by hack/mock-apply.sh. The organization ID is
+# fake (mockgcp answers for any). Authoritative and additive IAM, a custom
+# role, a custom constraint and an organization policy, a tag key with a
+# value, a logging exclusion and data access logs. The org policy is on the
+# organization, an external reference, so it does not hit the folder chart's
+# delete-order bug (README.md, "Config Connector bugs").
+organization_id: organizations/123450000000
+iam:
+  roles/viewer: ["group:viewers@example.com"]
+iam_bindings_additive:
+  browser: {role: roles/browser, member: "user:one@example.com"}
+custom_roles:
+  catalogMockRole:
+    permissions: [compute.instances.list]
+org_policy_custom_constraints:
+  custom.catalogMockConstraint:
+    resource_types: [container.googleapis.com/NodePool]
+    method_types: [CREATE]
+    condition: resource.management.autoUpgrade == true
+    action_type: ALLOW
+org_policies:
+  compute.disableGuestAttributesAccess:
+    rules: [{enforce: true}]
+tags:
+  catalog-mock-env:
+    values:
+      dev: {}
+logging_exclusions:
+  no-gce: resource.type=gce_instance
+contacts:
+  "security@example.com": [SECURITY]

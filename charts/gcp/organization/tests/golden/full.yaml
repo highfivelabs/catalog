@@ -1,0 +1,862 @@
+---
+# Source: organization/templates/organization.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: full-firewall-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "firewall_policy"
+spec:
+  resourceID: "default"
+  attachmentTargetRef:
+    external: "organizations/123456789012"
+  firewallPolicyRef:
+    external: "locations/global/firewallPolicies/12345"
+---
+# Source: organization/templates/organization.yaml
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  name: full-contact-admins-example-org-93e1eede
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "contact:admins@example.org"
+spec:
+  organizationRef:
+    external: "organizations/123456789012"
+  email: "admins@example.org"
+  languageTag: en
+  notificationCategorySubscriptions: ["ALL"]
+---
+# Source: organization/templates/organization.yaml
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  name: full-contact-security-example-org-67954944
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "contact:security@example.org"
+spec:
+  organizationRef:
+    external: "organizations/123456789012"
+  email: "security@example.org"
+  languageTag: en
+  notificationCategorySubscriptions: ["SECURITY","TECHNICAL"]
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: full-audit-allservices-1bb88750
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "data-access:allServices"
+spec:
+  resourceRef:
+    kind: Organization
+    external: "123456789012"
+  service: "allServices"
+  auditLogConfigs:
+    - logType: "ADMIN_READ"
+      exemptedMembers: ["group:organization-admins@example.org"]
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: full-audit-storage-googleapis-com-5c79d877
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "data-access:storage.googleapis.com"
+spec:
+  resourceRef:
+    kind: Organization
+    external: "123456789012"
+  service: "storage.googleapis.com"
+  auditLogConfigs:
+    - logType: "DATA_READ"
+    - logType: "DATA_WRITE"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam-binding-admins"
+spec:
+  resourceRef:
+    external: "123456789012"
+    kind: Organization
+  role: "roles/resourcemanager.organizationAdmin"
+  members:
+    - "group:admins@example.org"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp('2027-01-01T00:00:00Z')"
+    description: "until 2027"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-iam-bpc-roles-storage-admin-test-1c06e571
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam-binding-iam-bpc:roles/storage.admin-test"
+spec:
+  resourceRef:
+    external: "123456789012"
+    kind: Organization
+  role: "roles/storage.admin"
+  members:
+    - "user:three@example.org"
+  condition:
+    title: "test"
+    expression: "resource.matchTag('123/env', 'test')"
+---
+# Source: organization/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: full-role-barerole-53690b83
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "custom-role:bareRole"
+    cnrm.cloud.google.com/organization-id: "123456789012"
+spec:
+  resourceID: "bareRole"
+  title: "Custom role bareRole"
+  description: "Terraform-managed."
+  permissions:
+    - "storage.buckets.list"
+---
+# Source: organization/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: full-role-myrole-be5ae57e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "custom-role:myRole"
+    cnrm.cloud.google.com/organization-id: "123456789012"
+spec:
+  resourceID: "myRole"
+  title: "My role"
+  description: "Lists instances."
+  stage: "BETA"
+  permissions:
+    - "compute.instances.list"
+    - "compute.instances.get"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    external: "123456789012"
+    kind: Organization
+  bindings:
+    - role: "roles/iam.securityReviewer"
+      members:
+        - member: "group:auditors@example.org"
+    - role: "roles/viewer"
+      members:
+        - member: "group:viewers@example.org"
+---
+# Source: organization/templates/tags.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-tag-environment-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-key:environment:iam"
+spec:
+  resourceRef:
+    apiVersion: tags.cnrm.cloud.google.com/v1beta1
+    kind: TagsTagKey
+    name: full-tag-environment
+  bindings:
+    - role: "roles/resourcemanager.tagAdmin"
+      members:
+        - member: "group:admins@example.org"
+---
+# Source: organization/templates/tags.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-tag-existing-known-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-value:existing/known:iam"
+spec:
+  resourceRef:
+    apiVersion: tags.cnrm.cloud.google.com/v1beta1
+    external: tagValues/222
+    kind: TagsTagValue
+  bindings:
+    - role: "roles/resourcemanager.tagUser"
+      members:
+        - member: "group:users@example.org"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-browser
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam-additive-browser"
+spec:
+  resourceRef:
+    external: "123456789012"
+    kind: Organization
+  role: "roles/browser"
+  member: "user:one@example.org"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-conditional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam-additive-conditional"
+spec:
+  resourceRef:
+    external: "123456789012"
+    kind: Organization
+  role: "roles/storage.admin"
+  member: "user:four@example.org"
+  condition:
+    title: "dev"
+    expression: "resource.matchTag('123/env', 'dev')"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-iam-bpa-user-two-example-org-roles-browser-ce81c12d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam-additive-iam-bpa:user:two@example.org-roles/browser"
+spec:
+  resourceRef:
+    external: "123456789012"
+    kind: Organization
+  role: "roles/browser"
+  member: "user:two@example.org"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sink-writer-info
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:info"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: full-sink-info
+  role: roles/pubsub.publisher
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    external: "projects/my-project/topics/info"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sink-writer-notice
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:notice"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: full-sink-notice
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  condition:
+    title: "notice bucket writer"
+    description: "Grants bucketWriter to the writer identity used by log sink notice on organizations/123456789012"
+    expression: "resource.name.endsWith('locations/global/buckets/notice')"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sink-writer-warnings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:warnings"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: full-sink-warnings
+  role: roles/storage.objectCreator
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    external: "my-bucket"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: full-exclusion-no-gce-instances
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce-instances"
+spec:
+  resourceID: "no-gce-instances"
+  organizationRef:
+    external: "organizations/123456789012"
+  description: "no-gce-instances (Terraform-managed)."
+  filter: "resource.type=gce_instance"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-debug
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink:debug"
+spec:
+  resourceID: "debug"
+  organizationRef:
+    external: "123456789012"
+  description: "Debug logs."
+  destination:
+    bigQueryDatasetRef:
+      external: "projects/my-project/datasets/debug"
+  includeChildren: true
+  disabled: false
+  bigqueryOptions:
+    usePartitionedTables: true
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-info
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink:info"
+spec:
+  resourceID: "info"
+  organizationRef:
+    external: "123456789012"
+  description: "info (Terraform-managed)."
+  destination:
+    pubSubTopicRef:
+      external: "projects/my-project/topics/info"
+  filter: "severity=INFO"
+  includeChildren: false
+  disabled: true
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-notice
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink:notice"
+spec:
+  resourceID: "notice"
+  organizationRef:
+    external: "123456789012"
+  description: "notice (Terraform-managed)."
+  destination:
+    loggingLogBucketRef:
+      external: "projects/my-project/locations/global/buckets/notice"
+  includeChildren: true
+  disabled: false
+  exclusions:
+    - name: "no-compute"
+      filter: "resource.type=gce_instance"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-warnings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-sink:warnings"
+spec:
+  resourceID: "warnings"
+  organizationRef:
+    external: "123456789012"
+  description: "warnings (Terraform-managed)."
+  destination:
+    storageBucketRef:
+      external: "my-bucket"
+  filter: "severity=WARNING"
+  includeChildren: true
+  disabled: false
+---
+# Source: organization/templates/organization.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyCustomConstraint
+metadata:
+  name: full-constraint-custom-denypublicbuckets-b754bbeb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "custom-constraint:custom.denyPublicBuckets"
+spec:
+  resourceID: "custom.denyPublicBuckets"
+  organizationRef:
+    external: "organizations/123456789012"
+  actionType: "DENY"
+  condition: "resource.iamConfiguration.publicAccessPrevention != 'enforced'"
+  methodTypes: ["CREATE","UPDATE"]
+  resourceTypes: ["storage.googleapis.com/Bucket"]
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-compute-disableguestattributesaccess-db3913ec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "org_policy:compute.disableGuestAttributesAccess"
+spec:
+  resourceID: compute.disableGuestAttributesAccess
+  organizationRef:
+    external: "organizations/123456789012"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-compute-managed-restrictprotocolforwar-7a7a3117
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "org_policy:compute.managed.restrictProtocolForwardingCreationForTypes"
+spec:
+  resourceID: compute.managed.restrictProtocolForwardingCreationForTypes
+  organizationRef:
+    external: "organizations/123456789012"
+  spec:
+    rules:
+    - enforce: true
+      parameters:
+        allowedSchemes:
+        - INTERNAL
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-compute-requireoslogin-1ed5795f
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "org_policy:compute.requireOsLogin"
+spec:
+  resourceID: compute.requireOsLogin
+  organizationRef:
+    external: "organizations/123456789012"
+  spec:
+    reset: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-compute-restrictcloudnatusage-a3deb7a0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "org_policy:compute.restrictCloudNATUsage"
+spec:
+  resourceID: compute.restrictCloudNATUsage
+  organizationRef:
+    external: "organizations/123456789012"
+  spec:
+    rules:
+    - allowAll: true
+  dryRunSpec:
+    rules:
+    - denyAll: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-custom-denypublicbuckets-5d7f0d23
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "org_policy:custom.denyPublicBuckets"
+spec:
+  resourceID: custom.denyPublicBuckets
+  organizationRef:
+    external: "organizations/123456789012"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-iam-allowedpolicymemberdomains-e70775ed
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "org_policy:iam.allowedPolicyMemberDomains"
+spec:
+  resourceID: iam.allowedPolicyMemberDomains
+  organizationRef:
+    external: "organizations/123456789012"
+  spec:
+    inheritFromParent: false
+    rules:
+    - values:
+        allowedValues:
+        - C0xxxxxxx
+    - allowAll: true
+      condition:
+        expression: resource.matchTag('1234567890/environment', 'dev')
+        title: test
+---
+# Source: organization/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: full-pam-net-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "pam-entitlement:net-admins"
+spec:
+  resourceID: "net-admins"
+  organizationRef:
+    external: "organizations/123456789012"
+  location: global
+  maxRequestDuration: "3600s"
+  eligibleUsers:
+    - principals: ["group:net-admins@example.org"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/compute.networkAdmin"
+        - role: "roles/compute.admin"
+          conditionExpression: "resource.name.startsWith('projects/p')"
+  requesterJustificationConfig:
+    notMandatory: {}
+  approvalWorkflow:
+    manualApprovals:
+      requireApproverJustification: true
+      steps:
+        - approvers:
+            - principals: ["group:approvers@example.org"]
+          approvalsNeeded: 1
+          approverEmailRecipients: ["approvers@example.org"]
+  additionalNotificationTargets:
+    adminEmailRecipients: ["admins@example.org"]
+    requesterEmailRecipients: ["requesters@example.org"]
+---
+# Source: organization/templates/organization.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: full-tag-env-prod
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-binding:env-prod"
+spec:
+  parentRef:
+    external: "//cloudresourcemanager.googleapis.com/organizations/123456789012"
+  tagValueRef:
+    external: "tagValues/1234567890"
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  name: full-tag-environment
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-key:environment"
+spec:
+  parent: "organizations/123456789012"
+  shortName: "environment"
+  description: "Environment."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  name: full-network-tag-net-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "network-tag-key:net-all"
+spec:
+  parent: "organizations/123456789012"
+  shortName: "net-all"
+  description: "Managed by the Terraform organization module."
+  purpose: GCE_FIREWALL
+  purposeData:
+    organization: auto
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: full-tag-environment-dev
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-value:environment/dev"
+spec:
+  parentRef:
+    name: full-tag-environment
+  shortName: "dev"
+  description: "Managed by the Terraform organization module."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: full-tag-environment-prod
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-value:environment/prod"
+spec:
+  parentRef:
+    name: full-tag-environment
+  shortName: "prod"
+  description: "Production."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: full-tag-existing-extra
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tag-value:existing/extra"
+spec:
+  parentRef:
+    external: "tagKeys/111"
+  shortName: "extra"
+  description: "Managed by the Terraform organization module."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: full-network-tag-net-all-true
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "network-tag-value:net-all/true"
+spec:
+  parentRef:
+    name: full-network-tag-net-all
+  shortName: "true"
+  description: "Managed by the Terraform organization module."

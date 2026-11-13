@@ -1,0 +1,95 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/organization/tags.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_tags_tag_key.default and google_tags_tag_value.default: for each
+entry of tags whose value is a map (fabric's tag keys; a string value is
+the catalog's cloud label) and of network_tags, one TagsTagKey on the
+organization (network tags with purpose GCE_FIREWALL) unless it has an id, and
+one TagsTagValue per value unless it has an id. Their IAM
+(google_tags_tag_{key,value}_iam_{binding,member}) as the module-level
+IAM variables, on the key or value, unless tags_config.ignore_iam.
+Refused: allowed_values_regex (TagsTagKey has no such field), IAM
+conditions (tag keys and values take none), tags_config.force_context_ids
+(Bundt replaces $context ids).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- $cfg := $v.tags_config | default dict }}
+{{- include "kcc.unsupported" (list $ "tags_config.force_context_ids" $cfg.force_context_ids "Bundt replaces fabric's $context ids with ${...} expressions in the component's inputs") }}
+{{- $ignoreIAM := $cfg.ignore_iam | default false }}
+{{- $org := include "organization.id" $ }}
+{{- $all := list }}
+{{- range $k, $t := ($v.tags | default dict) }}{{ if kindIs "map" $t }}{{ $all = append $all (list $k $t false) }}{{ end }}{{ end }}
+{{- range $k, $t := ($v.network_tags | default dict) }}{{ $all = append $all (list $k $t true) }}{{ end }}
+{{- range $entry := $all }}
+{{- $k := index $entry 0 }}{{- $t := index $entry 1 | default dict }}{{- $network := index $entry 2 }}
+{{- $kind := ternary "network-tag" "tag" $network }}
+{{- $values := $t.values | default dict }}
+{{- if and $t.allowed_values_regex $values }}
+{{- fail (printf "organization: tags.%s: If allowed_values_regex is set, values must not be set." $k) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "tags.%s.allowed_values_regex" $k) $t.allowed_values_regex "TagsTagKey has no allowedValuesRegex") }}
+{{- if $network }}
+{{- if not (or (eq (toString $t.network) "ALL") (regexMatch "^[a-z][a-z0-9-]{4,28}[a-z0-9]/[a-z](?:[-a-z0-9]*[a-z0-9])?$" (toString $t.network))) }}
+{{- fail (printf "organization: network_tags.%s: The network attribute must be 'ALL' or a valid VPC network URI (project_id/vpc_name)." $k) }}
+{{- end }}
+{{- end }}
+{{- $keyName := include "kcc.name" (list $.Release.Name $kind $k) }}
+{{- $keyRef := dict "apiVersion" "tags.cnrm.cloud.google.com/v1beta1" "kind" "TagsTagKey" }}
+{{- if $t.id }}
+{{- $_ := set $keyRef "external" $t.id }}
+{{- else }}
+{{- $_ := set $keyRef "name" $keyName }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $keyName "id" (printf "%s-key:%s" $kind $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  parent: {{ $org | quote }}
+  shortName: {{ include "kcc.cloudName" (list $ "tag key" $k 63) | quote }}
+  description: {{ (kindIs "invalid" $t.description | ternary "Managed by the Terraform organization module." $t.description) | quote }}
+  {{- if $network }}
+  purpose: GCE_FIREWALL
+  purposeData:
+    {{- if eq (toString $t.network) "ALL" }}
+    organization: auto
+    {{- else }}
+    network: {{ $t.network | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- if not $ignoreIAM }}
+{{- include "organization.tagIAM" (dict "root" $ "what" (printf "%ss.%s" $kind $k) "base" $keyName "idPrefix" (printf "%s-key:%s:" $kind $k) "ref" $keyRef "v" $t) }}
+{{- end }}
+{{- range $vk := keys $values | sortAlpha }}
+{{- $vv := index $values $vk | default dict }}
+{{- $valueName := include "kcc.name" (list $.Release.Name $kind $k $vk) }}
+{{- $valueRef := dict "apiVersion" "tags.cnrm.cloud.google.com/v1beta1" "kind" "TagsTagValue" }}
+{{- if $vv.id }}
+{{- $_ := set $valueRef "external" $vv.id }}
+{{- else }}
+{{- $_ := set $valueRef "name" $valueName }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $valueName "id" (printf "%s-value:%s/%s" $kind $k $vk) "abandon" $abandon) | nindent 2 }}
+spec:
+  parentRef:
+    {{- if $t.id }}
+    external: {{ $t.id | quote }}
+    {{- else }}
+    name: {{ $keyName }}
+    {{- end }}
+  shortName: {{ $vk | quote }}
+  description: {{ (kindIs "invalid" $vv.description | ternary "Managed by the Terraform organization module." $vv.description) | quote }}
+{{- end }}
+{{- if not $ignoreIAM }}
+{{- include "organization.tagIAM" (dict "root" $ "what" (printf "%ss.%s.values.%s" $kind $k $vk) "base" $valueName "idPrefix" (printf "%s-value:%s/%s:" $kind $k $vk) "ref" $valueRef "v" $vv) }}
+{{- end }}
+{{- end }}
+{{- end }}

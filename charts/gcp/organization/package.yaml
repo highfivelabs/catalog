@@ -1,0 +1,45 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs that are not whole objects, for what
+# the chart ports: id and organization_id (organization_id as given),
+# custom_constraint_ids, custom_role_id, organization_policies_ids and
+# sink_writer_identities, keyed as fabric keys them, and tag_keys,
+# tag_values, network_tag_keys and network_tag_values as the project
+# chart's (each key's or value's tagKeys/N or tagValues/N name). Not
+# outputs: access_levels, asset_search_results, context_aware_access_bindings,
+# logging_identities, scc_custom_sha_modules_ids, scc_mute_configs,
+# scim_tenants, service_agents and the workforce_identity_* outputs (their
+# variables are refused), and fabric's whole objects (custom_roles,
+# logging_sinks; docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-organization
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: inputs.organization_id
+    organization_id: inputs.organization_id
+    custom_constraint_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'OrgPolicyCustomConstraint',
+        {v.spec.resourceID: inputs.organization_id + '/customConstraints/' + v.spec.resourceID})
+    custom_role_id: >-
+      resources.transformMapEntry(k, v, v.kind == 'IAMCustomRole',
+        {v.spec.resourceID: inputs.organization_id + '/roles/' + v.spec.resourceID})
+    organization_policies_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'OrgPolicyPolicy',
+        {v.spec.resourceID: inputs.organization_id + '/policies/' + v.spec.resourceID})
+    sink_writer_identities: >-
+      resources.transformMapEntry(k, v, v.kind == 'LoggingLogSink', {k.substring(13): v.status.writerIdentity})
+    tag_keys: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagKey' && k.startsWith('tag-key:'), {k.substring(8): v.status.name})
+    tag_values: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagValue' && k.startsWith('tag-value:'), {k.substring(10): v.status.name})
+    network_tag_keys: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagKey' && k.startsWith('network-tag-key:'), {k.substring(16): v.status.name})
+    network_tag_values: >-
+      resources.transformMapEntry(k, v, v.kind == 'TagsTagValue' && k.startsWith('network-tag-value:'), {k.substring(18): v.status.name})

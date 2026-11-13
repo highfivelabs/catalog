@@ -1,0 +1,257 @@
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: basic-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    external: "1122334455"
+    kind: Organization
+  bindings:
+    - role: "roles/owner"
+      members:
+        - member: "group:organization-admins@example.org"
+    - role: "roles/resourcemanager.projectCreator"
+      members:
+        - member: "group:organization-admins@example.org"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: basic-iam-am1-storage-admin
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-am1-storage-admin"
+spec:
+  resourceRef:
+    external: "1122334455"
+    kind: Organization
+  role: "roles/storage.admin"
+  member: "group:organization-admins@example.org"
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-compute-disableguestattributesaccess-ff4f3048
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.disableGuestAttributesAccess"
+spec:
+  resourceID: compute.disableGuestAttributesAccess
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-compute-skipdefaultnetworkcreation-8f5eaa5e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.skipDefaultNetworkCreation"
+spec:
+  resourceID: compute.skipDefaultNetworkCreation
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-compute-trustedimageprojects-89eff836
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.trustedImageProjects"
+spec:
+  resourceID: compute.trustedImageProjects
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - values:
+        allowedValues:
+        - projects/my-project
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-compute-vmexternalipaccess-25aee108
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.vmExternalIpAccess"
+spec:
+  resourceID: compute.vmExternalIpAccess
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - denyAll: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-iam-allowedpolicymemberdomains-d5b32ece
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:iam.allowedPolicyMemberDomains"
+spec:
+  resourceID: iam.allowedPolicyMemberDomains
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - allowAll: true
+      condition:
+        description: Allow external identities when resource has the `allowexternal` tag
+          set to true.
+        expression: resource.matchTag('1234567890/allowexternal', 'true')
+        title: Allow external identities
+    - condition:
+        description: For any resource without allowexternal=true, only allow identities
+          from restricted domains.
+        expression: '!resource.matchTag(''1234567890/allowexternal'', ''true'')'
+      values:
+        allowedValues:
+        - C0xxxxxxx
+        - C0yyyyyyy
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-iam-disableserviceaccountkeycreation-e279ff65
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:iam.disableServiceAccountKeyCreation"
+spec:
+  resourceID: iam.disableServiceAccountKeyCreation
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: basic-org-policy-iam-disableserviceaccountkeyupload-089a829f
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:iam.disableServiceAccountKeyUpload"
+spec:
+  resourceID: iam.disableServiceAccountKeyUpload
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - condition:
+        description: test condition
+        expression: resource.matchTagId('tagKeys/1234', 'tagValues/1234')
+        location: somewhere
+        title: condition
+      enforce: true
+    - enforce: false
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  name: basic-tag-allowexternal
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "tag-key:allowexternal"
+spec:
+  parent: "organizations/1122334455"
+  shortName: "allowexternal"
+  description: "Allow external identities."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: basic-tag-allowexternal-false
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "tag-value:allowexternal/false"
+spec:
+  parentRef:
+    name: basic-tag-allowexternal
+  shortName: "false"
+  description: "Managed by the Terraform organization module."
+---
+# Source: organization/templates/tags.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: basic-tag-allowexternal-true
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "tag-value:allowexternal/true"
+spec:
+  parentRef:
+    name: basic-tag-allowexternal
+  shortName: "true"
+  description: "Managed by the Terraform organization module."
