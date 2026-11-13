@@ -1,0 +1,242 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-documentdb-databaseaccount
+main.sql.tf, local.sql.tf and variables.sql.tf (v0.12.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azurerm_cosmosdb_sql_database: ASO SqlDatabase, owned by the account.
+azurerm_cosmosdb_sql_container: SqlDatabaseContainer, owned by its
+database. azurerm_cosmosdb_sql_stored_procedure, _trigger and _function:
+SqlDatabaseContainerStoredProcedure, SqlDatabaseContainerTrigger and
+SqlDatabaseContainerUserDefinedFunction, owned by their container (all
+documentdb.azure.com/v1api20240815). azurerm_cosmosdb_sql_dedicated_gateway:
+aso-extensions' DatabaseAccountsService (documentdb.azure.hfl.dev/v20240815)
+named SqlDedicatedGateway, as azurerm names it, made only when there are
+SQL databases, as the module makes it.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "cosmos") }}
+{{- $serverless := false }}
+{{- range ($v.capabilities | default list) }}{{ if eq .name "EnableServerless" }}{{ $serverless = true }}{{ end }}{{ end }}
+{{- $dbNames := list }}
+{{- range $dk, $db := ($v.sql_databases | default dict) }}
+{{- if has $db.name $dbNames }}{{ fail (printf "%s: The 'name' in the sql database value must be unique." $chart) }}{{ end }}
+{{- $dbNames = append $dbNames $db.name }}
+{{- $dbAuto := ($db.autoscale_settings | default dict).max_throughput }}
+{{- if and $dbAuto (not (kindIs "invalid" $db.throughput)) }}
+{{- fail (printf "%s: The 'throughput' and 'autoscale_settings.max_throughput' cannot be specified at the same time at database level." $chart) }}
+{{- end }}
+{{- if and $serverless (or (not (kindIs "invalid" $db.throughput)) $dbAuto) }}
+{{- fail (printf "%s: Serverless containers must not specify 'throughput' or 'autoscale_settings.max_throughput' at the database level." $chart) }}
+{{- end }}
+{{- $dbObj := include "aso.name" (list $obj "sqldb" $dk) }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabase
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $dbObj "id" (printf "sql_database:%s" $dk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $db.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- if or $dbAuto (not (kindIs "invalid" $db.throughput)) }}
+  options:
+    {{- if $dbAuto }}
+    autoscaleSettings:
+      maxThroughput: {{ int $dbAuto }}
+    {{- else }}
+    throughput: {{ int $db.throughput }}
+    {{- end }}
+  {{- end }}
+  resource:
+    id: {{ $db.name | quote }}
+{{- $cNames := list }}
+{{- range $ck, $c := ($db.containers | default dict) }}
+{{- if has $c.name $cNames }}{{ fail (printf "%s: The 'name' in the sql container value must be unique withing a sql database." $chart) }}{{ end }}
+{{- $cNames = append $cNames $c.name }}
+{{- $cAuto := ($c.autoscale_settings | default dict).max_throughput }}
+{{- if and $cAuto (not (kindIs "invalid" $c.throughput)) }}
+{{- fail (printf "%s: The 'throughput' and 'autoscale_settings.max_throughput' cannot be specified at the same time at container level." $chart) }}
+{{- end }}
+{{- if and $serverless (or (not (kindIs "invalid" $c.throughput)) $cAuto) }}
+{{- fail (printf "%s: Serverless containers must not specify 'throughput' or 'autoscale_settings.max_throughput' at the container level." $chart) }}
+{{- end }}
+{{- with $c.conflict_resolution_policy }}
+{{- if and (eq .mode "LastWriterWins") (not (trim (toString (.conflict_resolution_path | default "")))) }}
+{{- fail (printf "%s: The 'conflict_resolution_path' must be specified when the conflict resolution mode is 'LastWriterWins'." $chart) }}
+{{- end }}
+{{- if and (eq .mode "Custom") (not (trim (toString (.conflict_resolution_procedure | default "")))) }}
+{{- fail (printf "%s: The 'conflict_resolution_procedure' must be specified when the conflict resolution mode is 'Custom'." $chart) }}
+{{- end }}
+{{- end }}
+{{- $ip := $c.indexing_policy | default dict }}
+{{- $inc := list }}{{- range ($ip.included_paths | default list) }}{{ $inc = append $inc .path }}{{ end }}
+{{- $exc := list }}{{- range ($ip.excluded_paths | default list) }}{{ $exc = append $exc .path }}{{ end }}
+{{- if and (or $inc $exc) (not (or (has "/*" $inc) (has "/*" $exc))) }}
+{{- fail (printf "%s: Either 'included_paths' or 'excluded_paths' must contain the path '/*' if they are specified" $chart) }}
+{{- end }}
+{{- $cObj := include "aso.name" (list $obj "sqlc" $dk $ck) }}
+{{- $cId := printf "%s/%s" $dk $ck }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainer
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $cObj "id" (printf "sql_container:%s" $cId) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  owner:
+    name: {{ $dbObj }}
+  {{- if or $cAuto (not (kindIs "invalid" $c.throughput)) }}
+  options:
+    {{- if $cAuto }}
+    autoscaleSettings:
+      maxThroughput: {{ int $cAuto }}
+    {{- else }}
+    throughput: {{ int $c.throughput }}
+    {{- end }}
+  {{- end }}
+  resource:
+    id: {{ $c.name | quote }}
+    {{- if not (kindIs "invalid" $c.analytical_storage_ttl) }}
+    analyticalStorageTtl: {{ int64 $c.analytical_storage_ttl }}
+    {{- end }}
+    {{- with $c.conflict_resolution_policy }}
+    conflictResolutionPolicy:
+      mode: {{ .mode }}
+      {{- if eq .mode "LastWriterWins" }}
+      conflictResolutionPath: {{ .conflict_resolution_path | quote }}
+      {{- else }}
+      conflictResolutionProcedure: {{ printf "dbs/{%s}/colls/{%s}/sprocs/{%s}" $dk $c.name .conflict_resolution_procedure | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $c.default_ttl) }}
+    defaultTtl: {{ int64 $c.default_ttl }}
+    {{- end }}
+    {{- with $c.indexing_policy }}
+    indexingPolicy:
+      indexingMode: {{ lower .indexing_mode }}
+      {{- with .composite_indexes }}
+      compositeIndexes:
+        {{- range $ci := . }}
+        -
+          {{- range $ci.indexes }}
+          - path: {{ .path | quote }}
+            order: {{ lower .order }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $exc }}
+      excludedPaths:
+        {{- range (uniq . | sortAlpha) }}
+        - path: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $inc }}
+      includedPaths:
+        {{- range (uniq . | sortAlpha) }}
+        - path: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with .spatial_indexes }}
+      spatialIndexes:
+        {{- $sp := list }}
+        {{- range . }}{{ $sp = append $sp .path }}{{ end }}
+        {{- range (uniq $sp | sortAlpha) }}
+        - path: {{ . | quote }}
+          types: [Point, LineString, Polygon, MultiPolygon]
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    partitionKey:
+      kind: Hash
+      paths:
+        {{- range $c.partition_key_paths }}
+        - {{ . | quote }}
+        {{- end }}
+      version: {{ int (ternary 2 $c.partition_key_version (kindIs "invalid" $c.partition_key_version)) }}
+    {{- with $c.unique_keys }}
+    uniqueKeyPolicy:
+      uniqueKeys:
+        {{- range . }}
+        - paths:
+            {{- range (uniq .paths | sortAlpha) }}
+            - {{ . | quote }}
+            {{- end }}
+        {{- end }}
+    {{- end }}
+{{- $fNames := list }}
+{{- range $fk, $f := ($c.functions | default dict) }}
+{{- if has $f.name $fNames }}{{ fail (printf "%s: The 'name' in the sql function value must be unique within a container." $chart) }}{{ end }}
+{{- $fNames = append $fNames $f.name }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerUserDefinedFunction
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "sqlf" $dk $ck $fk)) "id" (printf "sql_function:%s/%s" $cId $fk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $f.name | quote }}
+  owner:
+    name: {{ $cObj }}
+  resource:
+    id: {{ $f.name | quote }}
+    body: {{ $f.body | quote }}
+{{- end }}
+{{- $sNames := list }}
+{{- range $sk, $s := ($c.stored_procedures | default dict) }}
+{{- if has $s.name $sNames }}{{ fail (printf "%s: The 'name' in the sql stored procedure value must be unique within a container." $chart) }}{{ end }}
+{{- $sNames = append $sNames $s.name }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerStoredProcedure
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "sqlsp" $dk $ck $sk)) "id" (printf "sql_stored_procedure:%s/%s" $cId $sk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $s.name | quote }}
+  owner:
+    name: {{ $cObj }}
+  resource:
+    id: {{ $s.name | quote }}
+    body: {{ $s.body | quote }}
+{{- end }}
+{{- $tNames := list }}
+{{- range $tk, $t := ($c.triggers | default dict) }}
+{{- if has $t.name $tNames }}{{ fail (printf "%s: The 'name' in the sql triggers value must be unique within a container." $chart) }}{{ end }}
+{{- $tNames = append $tNames $t.name }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerTrigger
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "sqlt" $dk $ck $tk)) "id" (printf "sql_trigger:%s/%s" $cId $tk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $t.name | quote }}
+  owner:
+    name: {{ $cObj }}
+  resource:
+    id: {{ $t.name | quote }}
+    body: {{ $t.body | quote }}
+    triggerOperation: {{ $t.operation }}
+    triggerType: {{ $t.type }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if and $v.sql_dedicated_gateway (gt (len ($v.sql_databases | default dict)) 0) }}
+{{- with $v.sql_dedicated_gateway }}
+---
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsService
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "gateway")) "id" "sql_dedicated_gateway" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: SqlDedicatedGateway
+  owner:
+    name: {{ $obj }}
+  properties:
+    sqlDedicatedGateway:
+      serviceType: SqlDedicatedGateway
+      instanceCount: {{ int (ternary 1 .instance_count (kindIs "invalid" .instance_count)) }}
+      instanceSize: {{ .instance_size }}
+{{- end }}
+{{- end }}

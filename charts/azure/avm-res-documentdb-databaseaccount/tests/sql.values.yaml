@@ -1,0 +1,45 @@
+# The module's sql_databases example (variables.sql.tf), with a dedicated
+# gateway: a database with a container, its function, stored procedure,
+# trigger, conflict resolution policy and indexing policy; a database with
+# autoscale throughput and an empty one.
+name: cosmos-sql
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+sql_dedicated_gateway: {instance_size: Cosmos.D4s, instance_count: 1}
+sql_databases:
+  database1:
+    name: database1
+    throughput: 400
+    containers:
+      container1:
+        partition_key_paths: [/id]
+        name: container1
+        throughput: 400
+        default_ttl: 1000
+        analytical_storage_ttl: 1000
+        unique_keys:
+          - paths: [/field1, /field2]
+        functions:
+          function1: {name: functionName, body: "function function1() { }"}
+        stored_procedures:
+          stored1: {name: storedName, body: "function stored1() { }"}
+        triggers:
+          trigger1: {name: triggerName, body: "function trigger1() { }", type: Pre, operation: All}
+        conflict_resolution_policy: {mode: LastWriterWins, conflict_resolution_path: /customProperty}
+        indexing_policy:
+          indexing_mode: consistent
+          included_paths: [{path: /*}]
+          excluded_paths: [{path: /excluded/*}]
+          composite_indexes:
+            - indexes: [{path: /field1, order: Ascending}, {path: /field2, order: Descending}]
+          spatial_indexes: [{path: /location/*}]
+      custom:
+        name: custom
+        partition_key_paths: [/tenant]
+        autoscale_settings: {max_throughput: 4000}
+        conflict_resolution_policy: {mode: Custom, conflict_resolution_procedure: resolver}
+  autoscale:
+    name: autoscale
+    autoscale_settings: {max_throughput: 4000}
+  empty:
+    name: empty

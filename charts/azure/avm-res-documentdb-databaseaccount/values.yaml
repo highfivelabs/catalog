@@ -1,0 +1,147 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-documentdb-databaseaccount (v0.12.0): same names, types and
+# defaults, so a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations;
+# README.md maps each one to Azure Service Operator.
+#
+# Descriptions condensed from
+# terraform-azurerm-avm-res-documentdb-databaseaccount (variables*.tf,
+# v0.12.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The account's name in full, {databaseAccount}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front. Databases,
+# containers and the rest are named inside the account by their entries.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the account's name
+# and of a private endpoint's default name (never one set in full).
+# Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's azurerm provider knows its subscription; ASO's owner is an
+# Azure resource ID. Not needed when resource_group_name is a resource
+# group's ID (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# (Required) The supported Azure location where the account exists.
+location: ""
+# (Required) The account's name: 3 to 44 lower-case letters, digits and
+# hyphens, not starting or ending with a hyphen.
+name: ""
+# (Required) The resource group of the account: its name (with
+# subscription_id) or its ID.
+resource_group_name: ""
+
+# Account (variables.account.optionals.tf).
+#
+# Write operations on metadata resources (databases, containers,
+# throughput) with account keys.
+access_key_metadata_writes_enabled: false
+# {schema_type: WellDefined | FullFidelity}: the analytical storage
+# configuration.
+analytical_storage_config: null
+# Analytical storage (turning it off again recreates the account).
+analytical_storage_enabled: false
+automatic_failover_enabled: true
+# The backup policy: type Continuous (tier Continuous7Days or
+# Continuous30Days) or Periodic (interval_in_minutes 60 to 1440,
+# retention_in_hours 8 to 720, storage_redundancy Geo, Zone or Local).
+backup: {}
+burst_capacity_enabled: false
+# [{name: EnableServerless}, ...]: the capabilities to enable.
+capabilities: []
+# {total_throughput_limit}: the account's RU/s limit; -1 is none.
+capacity: {}
+# {consistency_level (default BoundedStaleness), max_interval_in_seconds
+# (5), max_staleness_prefix (100)}; the last two are sent for
+# BoundedStaleness only.
+consistency_policy: {}
+# {allowed_headers, allowed_methods, allowed_origins, exposed_headers,
+# max_age_in_seconds}: one CORS rule.
+cors_rule: null
+# The free tier (one account per subscription; recreates the account).
+free_tier_enabled: false
+# [{location, failover_priority, zone_redundant (true)}]; null is the
+# account's location, priority 0, zone redundant.
+geo_locations: null
+# Entra ID only (no keys). Ignored, as by the module, when there are
+# MongoDB or Gremlin databases.
+local_authentication_disabled: true
+# Multi-region writes; sent only with a Periodic backup, as the module.
+multiple_write_locations_enabled: false
+partition_merge_enabled: false
+
+# Network (variables.account.network.tf).
+#
+# IPv4 addresses or CIDR ranges allowed to reach the account.
+ip_range_filter: []
+minimal_tls_version: Tls12
+network_acl_bypass_for_azure_services: false
+# Resource IDs (Synapse workspaces ...) that bypass the network ACLs.
+network_acl_bypass_resource_ids: []
+public_network_access_enabled: false
+# [{subnet_id}]: subnets allowed to reach the account (they need the
+# Microsoft.AzureCosmosDB service endpoint).
+virtual_network_rules: []
+
+# Customer managed key (variables.customermanagedkey.tf):
+# {key_name, key_vault_resource_id, key_version (unsupported; ignored, as
+# by the module), user_assigned_identity: {resource_id}}.
+customer_managed_key: null
+# {system_assigned, user_assigned_resource_ids}.
+managed_identities: {}
+
+# SQL API (variables.sql.tf). sql_databases: {<key>: {name, throughput,
+# autoscale_settings: {max_throughput}, containers: {<key>: {name,
+# partition_key_paths, partition_key_version (2), throughput, default_ttl,
+# analytical_storage_ttl, unique_keys, autoscale_settings, functions,
+# stored_procedures, triggers, conflict_resolution_policy,
+# indexing_policy}}}}.
+sql_databases: {}
+# {instance_size: Cosmos.D4s | Cosmos.D8s | Cosmos.D16s, instance_count
+# (1 to 5)}: made only when there are SQL databases, as by the module.
+sql_dedicated_gateway: null
+
+# MongoDB API (variables.mongo.tf). Any database makes the account a
+# MongoDB account. mongo_databases: {<key>: {name, throughput,
+# autoscale_settings, collections: {<key>: {name, default_ttl_seconds,
+# shard_key, throughput, autoscale_settings, index: {keys, unique}}}}}.
+mongo_databases: {}
+mongo_server_version: "3.6"
+
+# Gremlin API (variables.gremlin.tf). gremlin_databases: {<key>: {name,
+# throughput, autoscale_settings, graphs: {<key>: {name,
+# partition_key_path, partition_key_version, throughput, default_ttl,
+# analytical_storage_ttl, autoscale_settings, index_policy,
+# conflict_resolution_policy, unique_key}}}}. The account needs the
+# EnableGremlin capability.
+gremlin_databases: {}
+
+# Private endpoints (variables.privateendpoints.tf).
+private_endpoints: {}
+private_endpoints_manage_dns_zone_group: true
+
+# The AVM interfaces.
+#
+# {kind: CanNotDelete | ReadOnly, name}; private endpoints inherit it
+# unless they set their own.
+lock: null
+role_assignments: {}
+# Each entry needs metric_categories (SLI, Requests, or []): the module's
+# default, AllMetrics, fails its own validation.
+diagnostic_settings: {}
+tags: null
+# Accepted; the chart sends no telemetry.
+enable_telemetry: true

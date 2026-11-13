@@ -1,0 +1,157 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>), shaped as the
+# module's azurerm values: the account's settings from ASO's
+# DatabaseAccount status (locations as azurerm normalizes them, eastus2
+# for "East US 2"; the CORS lists split at commas, as azurerm splits
+# them), and maps of the children's IDs. sql_databases lists each
+# container's functions by container (the module's filter compares a
+# function's container ID with the database's, so its functions maps are
+# always empty). resource_locks keys an endpoint's lock by
+# <endpoint key>/<lock name>: an endpoint inherits the account's lock, and
+# under one name the two would collide (the module's output fails then).
+# resource_private_endpoints_application_security_group_association is
+# azurerm's association IDs (<endpoint ID>|<group ID>): the associations
+# are fields of the endpoint in ASO, not resources.
+#
+# Not outputs: cosmosdb_keys, cosmosdb_sql_connection_strings and
+# cosmosdb_mongodb_connection_strings (the account's keys and the
+# connection strings that carry them: secret values, which do not belong in
+# outputs), and resource (the whole azurerm account, those keys and
+# connection strings among its attributes).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-documentdb-databaseaccount
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.account.spec.azureName
+    resource_id: resources.account.status.id
+    resource_group_name: resources.account.status.id.split('/')[4]
+    location: resources.account.status.location.lowerAscii().replace(' ', '')
+    kind: resources.account.status.kind
+    offer_type: resources.account.status.databaseAccountOfferType
+    endpoint: resources.account.status.documentEndpoint
+    read_endpoints: >-
+      has(resources.account.status.readLocations)
+      ? resources.account.status.readLocations.map(l, l.documentEndpoint) : []
+    write_endpoints: >-
+      has(resources.account.status.writeLocations)
+      ? resources.account.status.writeLocations.map(l, l.documentEndpoint) : []
+    access_key_metadata_writes_enabled: >-
+      !(has(resources.account.status.disableKeyBasedMetadataWriteAccess) && resources.account.status.disableKeyBasedMetadataWriteAccess)
+    analytical_storage: >-
+      has(resources.account.status.analyticalStorageConfiguration) && has(resources.account.status.analyticalStorageConfiguration.schemaType)
+      ? dyn({'schema_type': resources.account.status.analyticalStorageConfiguration.schemaType}) : null
+    analytical_storage_enabled: >-
+      has(resources.account.status.enableAnalyticalStorage) && resources.account.status.enableAnalyticalStorage
+    automatic_failover_enabled: >-
+      has(resources.account.status.enableAutomaticFailover) && resources.account.status.enableAutomaticFailover
+    backup: >-
+      has(resources.account.status.backupPolicy) && has(resources.account.status.backupPolicy.periodic)
+      ? {'type': 'Periodic',
+         'interval_in_minutes': resources.account.status.backupPolicy.periodic.periodicModeProperties.backupIntervalInMinutes,
+         'retention_in_hours': resources.account.status.backupPolicy.periodic.periodicModeProperties.backupRetentionIntervalInHours,
+         'storage_redundancy': resources.account.status.backupPolicy.periodic.periodicModeProperties.backupStorageRedundancy,
+         'tier': null}
+      : {'type': 'Continuous', 'interval_in_minutes': null, 'retention_in_hours': null, 'storage_redundancy': null,
+         'tier': has(resources.account.status.backupPolicy) && has(resources.account.status.backupPolicy.continuous)
+           && has(resources.account.status.backupPolicy.continuous.continuousModeProperties)
+           ? resources.account.status.backupPolicy.continuous.continuousModeProperties.tier : null}
+    capabilities: >-
+      has(resources.account.status.capabilities)
+      ? resources.account.status.capabilities.map(c, {'name': c.name}) : []
+    capacity: >-
+      {'total_throughput_limit': has(resources.account.status.capacity) && has(resources.account.status.capacity.totalThroughputLimit)
+        ? resources.account.status.capacity.totalThroughputLimit : null}
+    consistency_policy: >-
+      {'consistency_level': resources.account.status.consistencyPolicy.defaultConsistencyLevel,
+       'max_interval_in_seconds': has(resources.account.status.consistencyPolicy.maxIntervalInSeconds)
+         ? resources.account.status.consistencyPolicy.maxIntervalInSeconds : null,
+       'max_staleness_prefix': has(resources.account.status.consistencyPolicy.maxStalenessPrefix)
+         ? resources.account.status.consistencyPolicy.maxStalenessPrefix : null}
+    cors_rule: >-
+      has(resources.account.status.cors) && size(resources.account.status.cors) > 0
+      ? dyn({'allowed_headers': resources.account.status.cors[0].allowedHeaders.split(','),
+         'allowed_methods': resources.account.status.cors[0].allowedMethods.split(','),
+         'allowed_origins': resources.account.status.cors[0].allowedOrigins.split(','),
+         'exposed_headers': resources.account.status.cors[0].exposedHeaders.split(','),
+         'max_age_in_seconds': has(resources.account.status.cors[0].maxAgeInSeconds) ? resources.account.status.cors[0].maxAgeInSeconds : null})
+      : null
+    default_identity_type: >-
+      has(resources.account.status.defaultIdentity) ? resources.account.status.defaultIdentity : null
+    free_tier_enabled: >-
+      has(resources.account.status.enableFreeTier) && resources.account.status.enableFreeTier
+    geo_location: >-
+      has(resources.account.status.locations)
+      ? resources.account.status.locations.map(l, {'id': l.id, 'location': l.locationName.lowerAscii().replace(' ', ''),
+          'failover_priority': l.failoverPriority, 'zone_redundant': has(l.isZoneRedundant) && l.isZoneRedundant}) : []
+    identity: >-
+      has(resources.account.status.identity) && has(resources.account.status.identity.type) && resources.account.status.identity.type != 'None'
+      ? dyn({'type': resources.account.status.identity.type.replace(', ', ',').replace(',', ', '),
+         'identity_ids': has(resources.account.status.identity.userAssignedIdentities)
+           ? resources.account.status.identity.userAssignedIdentities.map(id, id) : [],
+         'principal_id': has(resources.account.status.identity.principalId) ? resources.account.status.identity.principalId : null,
+         'tenant_id': has(resources.account.status.identity.tenantId) ? resources.account.status.identity.tenantId : null})
+      : null
+    ip_range_filter: >-
+      has(resources.account.status.ipRules) ? resources.account.status.ipRules.map(r, r.ipAddressOrRange) : []
+    is_virtual_network_filter_enabled: >-
+      has(resources.account.status.isVirtualNetworkFilterEnabled) && resources.account.status.isVirtualNetworkFilterEnabled
+    key_vault_key_id: >-
+      has(resources.account.status.keyVaultKeyUri) ? resources.account.status.keyVaultKeyUri : null
+    local_authentication_disabled: >-
+      has(resources.account.status.disableLocalAuth) && resources.account.status.disableLocalAuth
+    minimal_tls_version: >-
+      has(resources.account.status.minimalTlsVersion) ? resources.account.status.minimalTlsVersion : null
+    mongo_server_version: >-
+      has(resources.account.status.apiProperties) && has(resources.account.status.apiProperties.serverVersion)
+      ? resources.account.status.apiProperties.serverVersion : null
+    multiple_write_locations_enabled: >-
+      has(resources.account.status.enableMultipleWriteLocations) && resources.account.status.enableMultipleWriteLocations
+    network_acl_bypass_for_azure_services: >-
+      has(resources.account.status.networkAclBypass) && resources.account.status.networkAclBypass == 'AzureServices'
+    network_acl_bypass_ids: >-
+      has(resources.account.status.networkAclBypassResourceIds) ? resources.account.status.networkAclBypassResourceIds : []
+    partition_merge_enabled: >-
+      has(resources.account.status.enablePartitionMerge) && resources.account.status.enablePartitionMerge
+    public_network_access_enabled: >-
+      has(resources.account.status.publicNetworkAccess) && resources.account.status.publicNetworkAccess == 'Enabled'
+    tags: >-
+      has(resources.account.status.tags) ? resources.account.status.tags : null
+    virtual_network_rule: >-
+      has(resources.account.status.virtualNetworkRules)
+      ? resources.account.status.virtualNetworkRules.map(r, {'id': r.id,
+          'ignore_missing_vnet_service_endpoint': has(r.ignoreMissingVNetServiceEndpoint) && r.ignoreMissingVNetServiceEndpoint}) : []
+    sql_databases: >-
+      resources.transformMapEntry(k, v, k.startsWith('sql_database:'), {v.spec.azureName: {
+        'id': v.status.id,
+        'containers': resources.transformMapEntry(ck, cv, ck.startsWith('sql_container:' + k.substring(13) + '/'), {cv.spec.azureName: {
+          'id': cv.status.id,
+          'functions': resources.transformMapEntry(fk, fv, fk.startsWith('sql_function:' + ck.substring(14) + '/'), {fv.spec.azureName: fv.status.id}),
+          'stored_procedures': resources.transformMapEntry(sk, sv, sk.startsWith('sql_stored_procedure:' + ck.substring(14) + '/'), {sv.spec.azureName: sv.status.id}),
+          'triggers': resources.transformMapEntry(tk, tv, tk.startsWith('sql_trigger:' + ck.substring(14) + '/'), {tv.spec.azureName: tv.status.id})}})}})
+    sql_dedicated_gateway: >-
+      'sql_dedicated_gateway' in resources ? [resources.sql_dedicated_gateway.status.id] : []
+    mongo_databases: >-
+      resources.transformMapEntry(k, v, k.startsWith('mongo_database:'), {v.spec.azureName: {
+        'id': v.status.id,
+        'collections': resources.transformMapEntry(ck, cv, ck.startsWith('mongo_collection:' + k.substring(15) + '/'), {cv.spec.azureName: cv.status.id})}})
+    resource_private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {v.spec.azureName: v.status.id})
+    resource_private_endpoints_application_security_group_association: >-
+      resources.filter(k, k.startsWith('private_endpoint:') && !k.contains('/') && has(resources[k].spec.applicationSecurityGroups))
+        .map(k, resources[k].spec.applicationSecurityGroups.map(g, resources[k].status.id + '|' + g.reference.armId)).flatten()
+    resource_locks: >-
+      resources.transformMapEntry(k, v, k == 'lock' || (k.startsWith('private_endpoint:') && k.endsWith('/lock')),
+        {(k == 'lock' ? '' : k.substring(17, size(k) - 5) + '/') + v.spec.azureName: v.status.id})
+    resource_role_assignments: >-
+      resources.transformMapEntry(k, v, k.startsWith('role-assignment-') || (k.startsWith('private_endpoint:') && k.contains('/role-assignment-')),
+        {v.status.name: v.status.id})
+    resource_diagnostic_settings: >-
+      resources.transformMapEntry(k, v, k.startsWith('diagnostic-setting-'), {v.spec.azureName: v.status.id})

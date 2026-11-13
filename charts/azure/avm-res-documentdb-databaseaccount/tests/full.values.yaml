@@ -1,0 +1,87 @@
+# Most of the account's inputs: a Periodic backup with multi-region writes
+# in two regions, session consistency, a CORS rule, a customer managed key
+# with its identity, network rules and ACL bypass, analytical storage,
+# private endpoints (one with its DNS zone group, IP configurations, an
+# application security group, its own lock and a role assignment), the
+# account's lock, role assignments and diagnostic settings.
+name: cosmos-full
+location: eastus2
+resource_group_name: rg-example
+subscription_id: 00000000-0000-0000-0000-000000000000
+tags: {env: test}
+access_key_metadata_writes_enabled: true
+analytical_storage_enabled: true
+analytical_storage_config: {schema_type: FullFidelity}
+automatic_failover_enabled: false
+backup: {type: Periodic, interval_in_minutes: 120, retention_in_hours: 48, storage_redundancy: Local}
+burst_capacity_enabled: true
+capabilities: [{name: DisableRateLimitingResponses}, {name: EnableNoSQLVectorSearch}]
+capacity: {total_throughput_limit: 10000}
+consistency_policy: {consistency_level: Session}
+cors_rule:
+  allowed_headers: [x-ms-meta-data, Custom-Header]
+  allowed_methods: [POST, GET]
+  allowed_origins: [https://contoso.example]
+  exposed_headers: [x-ms-meta-data]
+  max_age_in_seconds: 100
+geo_locations:
+  - {location: westus3, failover_priority: 1, zone_redundant: false}
+  - {location: eastus2, failover_priority: 0}
+local_authentication_disabled: false
+multiple_write_locations_enabled: true
+ip_range_filter: [203.0.113.0/24, 198.51.100.7]
+minimal_tls_version: Tls12
+network_acl_bypass_for_azure_services: true
+network_acl_bypass_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Synapse/workspaces/syn]
+public_network_access_enabled: true
+virtual_network_rules:
+  - subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/app
+customer_managed_key:
+  key_name: cosmos-key
+  key_vault_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.KeyVault/vaults/kv-example
+  user_assigned_identity: {resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cosmos}
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cosmos]
+private_endpoints:
+  sql:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    subresource_name: Sql
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com]
+    network_interface_name: nic-pe-cosmos
+    ip_configurations:
+      a: {name: sql, private_ip_address: 10.0.1.10}
+    application_security_group_associations:
+      asg: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationSecurityGroups/asg-db
+    lock: {kind: ReadOnly}
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 11111111-2222-3333-4444-555555555555}
+  other:
+    name: pe-other
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-other/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    subresource_name: Sql
+    resource_group_name: rg-other
+    location: westus3
+    private_service_connection_name: psc-other
+    tags: {pe: other}
+lock: {kind: CanNotDelete}
+role_assignments:
+  operator:
+    role_definition_id_or_name: Cosmos DB Operator
+    principal_id: 11111111-2222-3333-4444-555555555555
+    skip_service_principal_aad_check: true
+    description: operators
+  byid:
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/fbdf93bf-df7d-467e-a4d2-9458aa1360c8
+    principal_id: 11111111-2222-3333-4444-555555555555
+    principal_type: User
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law
+    metric_categories: [Requests]
+  storage:
+    name: to-storage
+    storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stlogs
+    log_categories: [DataPlaneRequests, ControlPlaneRequests]
+    log_analytics_destination_type: AzureDiagnostics
+    metric_categories: []
