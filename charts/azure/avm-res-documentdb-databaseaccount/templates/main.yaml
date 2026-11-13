@@ -1,0 +1,327 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-documentdb-databaseaccount main.tf,
+locals.tf, main.privateendpoint.tf, main.lock.tf, main.roleassignments.tf,
+main.diagnostic.tf and their locals (v0.12.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_cosmosdb_account.this: one ASO DatabaseAccount
+(documentdb.azure.com/v1api20240815), owned by the resource group
+resource_group_name names, its body as azurerm builds it from the
+module's arguments. The SQL, MongoDB and Gremlin children are in sql.yaml,
+mongo.yaml and gremlin.yaml. azurerm_private_endpoint (either of the
+module's two) as PrivateEndpoint (network.azure.com/v20250301), with a
+PrivateEndpointsPrivateDnsZoneGroup when it manages the zone group, and
+the application security group associations as the endpoint's
+applicationSecurityGroups. azurerm_management_lock: aso-extensions
+ManagementLocks (the account's, and each endpoint's: its own lock, else
+the account's). azurerm_role_assignment: ASO RoleAssignments.
+azurerm_monitor_diagnostic_setting: ASO DiagnosticSettings.
+time_sleep.wait_180_seconds_for_destroy and the telemetry are not ported
+(ASO retries a delete Azure refuses for a while).
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.names" (list $ (list "databaseAccount")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- if not $v.location }}{{ fail (printf "%s: location is required" $chart) }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- if not $rg }}{{ fail (printf "%s: resource_group_name is required" $chart) }}{{ end }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail (printf "%s: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" $chart) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "cosmos") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $accountName := include "aso.resourceName" (list $ "databaseAccount" "Cosmos DB account" $v.name 44 "^[a-z0-9][a-z0-9-]{1,42}[a-z0-9]$") }}
+{{- $owner := dict "group" "documentdb.azure.com" "kind" "DatabaseAccount" "name" $obj }}
+{{- /* The module's defaults for its object variables (optional(..., default)). */ -}}
+{{- $b := $v.backup | default dict }}
+{{- $bType := $b.type | default "Continuous" }}
+{{- $bTier := $b.tier | default "Continuous30Days" }}
+{{- $bRed := $b.storage_redundancy | default "Geo" }}
+{{- $bInt := ternary 240 $b.interval_in_minutes (kindIs "invalid" $b.interval_in_minutes) }}
+{{- $bRet := ternary 8 $b.retention_in_hours (kindIs "invalid" $b.retention_in_hours) }}
+{{- if and (eq $bType "Continuous") (not (has $bTier (list "Continuous7Days" "Continuous30Days"))) }}
+{{- fail (printf "%s: The 'tier' value must be 'Continuous7Days' or 'Continuous30Days' when type is 'Continuous'." $chart) }}
+{{- end }}
+{{- if eq $bType "Periodic" }}
+{{- if not (has $bRed (list "Geo" "Zone" "Local")) }}{{ fail (printf "%s: The 'storage_redundancy' value must be 'Geo', 'Zone' or 'Local' when type is 'Periodic'." $chart) }}{{ end }}
+{{- if or (lt (float64 $bInt) 60.0) (gt (float64 $bInt) 1440.0) }}{{ fail (printf "%s: The 'interval_in_minutes' value must be between 60 and 1440 when type is 'Periodic'." $chart) }}{{ end }}
+{{- if or (lt (float64 $bRet) 8.0) (gt (float64 $bRet) 720.0) }}{{ fail (printf "%s: The 'retention_in_hours' value must be between 8 and 720 when type is 'Periodic'." $chart) }}{{ end }}
+{{- end }}
+{{- $cp := $v.consistency_policy | default dict }}
+{{- $cLevel := $cp.consistency_level | default "BoundedStaleness" }}
+{{- $cInt := ternary 5 $cp.max_interval_in_seconds (kindIs "invalid" $cp.max_interval_in_seconds) }}
+{{- $cPre := ternary 100 $cp.max_staleness_prefix (kindIs "invalid" $cp.max_staleness_prefix) }}
+{{- if eq $cLevel "BoundedStaleness" }}
+{{- if or (lt (float64 $cInt) 5.0) (gt (float64 $cInt) 86400.0) }}{{ fail (printf "%s: The 'max_interval_in_seconds' value must be between 5 and 86400 when 'BoundedStaleness' consistency level is set." $chart) }}{{ end }}
+{{- if or (lt (float64 $cPre) 10.0) (gt (float64 $cPre) 2147483647.0) }}{{ fail (printf "%s: The 'max_staleness_prefix' value must be between 10 and 2147483647 when 'BoundedStaleness' consistency level is set." $chart) }}{{ end }}
+{{- end }}
+{{- $capLimit := -1 }}
+{{- with $v.capacity }}{{ if not (kindIs "invalid" .total_throughput_limit) }}{{ $capLimit = .total_throughput_limit }}{{ end }}{{ end }}
+{{- $caps := list }}
+{{- range ($v.capabilities | default list) }}{{ $caps = append $caps .name }}{{ end }}
+{{- $caps = uniq $caps | sortAlpha }}
+{{- $geo := $v.geo_locations }}
+{{- if kindIs "invalid" $geo }}
+{{- $geo = list (dict "location" $v.location "failover_priority" 0 "zone_redundant" true) }}
+{{- end }}
+{{- $mongo := gt (len ($v.mongo_databases | default dict)) 0 }}
+{{- $gremlin := gt (len ($v.gremlin_databases | default dict)) 0 }}
+{{- $sql := gt (len ($v.sql_databases | default dict)) 0 }}
+{{- /* The module's preconditions. */ -}}
+{{- if and (eq $bType "Continuous") $v.multiple_write_locations_enabled }}
+{{- fail (printf "%s: Continuous backup mode and multiple write locations cannot be enabled together." $chart) }}
+{{- end }}
+{{- if and $v.analytical_storage_enabled $v.partition_merge_enabled }}
+{{- fail (printf "%s: Analytical storage and partition merge cannot be enabled together." $chart) }}
+{{- end }}
+{{- if and (has "EnableServerless" $caps) (gt (len $geo) 1) }}
+{{- fail (printf "%s: Serverless mode can only be enabled in a single region." $chart) }}
+{{- end }}
+{{- if and $sql $mongo }}
+{{- fail (printf "%s: You can only create either SQL or MongoDB databases, not both." $chart) }}
+{{- end }}
+{{- $cmk := $v.customer_managed_key }}
+---
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "account" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $accountName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with $v.analytical_storage_config }}
+  analyticalStorageConfiguration:
+    schemaType: {{ .schema_type }}
+  {{- end }}
+  {{- if $mongo }}
+  apiProperties:
+    serverVersion: {{ $v.mongo_server_version | default "3.6" | quote }}
+  {{- end }}
+  backupPolicy:
+    {{- if eq $bType "Periodic" }}
+    periodic:
+      type: Periodic
+      periodicModeProperties:
+        backupIntervalInMinutes: {{ int $bInt }}
+        backupRetentionIntervalInHours: {{ int $bRet }}
+        backupStorageRedundancy: {{ $bRed }}
+    {{- else }}
+    continuous:
+      type: Continuous
+      continuousModeProperties:
+        tier: {{ $bTier }}
+    {{- end }}
+  {{- with $caps }}
+  capabilities:
+    {{- range . }}
+    - name: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  capacity:
+    totalThroughputLimit: {{ int $capLimit }}
+  consistencyPolicy:
+    defaultConsistencyLevel: {{ $cLevel }}
+    {{- if eq $cLevel "BoundedStaleness" }}
+    maxIntervalInSeconds: {{ int $cInt }}
+    maxStalenessPrefix: {{ int64 $cPre }}
+    {{- end }}
+  {{- with $v.cors_rule }}
+  cors:
+    - allowedHeaders: {{ join "," (uniq .allowed_headers | sortAlpha) | quote }}
+      allowedMethods: {{ join "," (uniq .allowed_methods | sortAlpha) | quote }}
+      allowedOrigins: {{ join "," (uniq .allowed_origins | sortAlpha) | quote }}
+      exposedHeaders: {{ join "," (uniq .exposed_headers | sortAlpha) | quote }}
+      {{- if not (kindIs "invalid" .max_age_in_seconds) }}
+      maxAgeInSeconds: {{ int64 .max_age_in_seconds }}
+      {{- end }}
+  {{- end }}
+  databaseAccountOfferType: Standard
+  {{- with $cmk }}
+  defaultIdentity: {{ printf "UserAssignedIdentity=%s" .user_assigned_identity.resource_id | quote }}
+  {{- else }}
+  defaultIdentity: FirstPartyIdentity
+  {{- end }}
+  disableKeyBasedMetadataWriteAccess: {{ not (eq $v.access_key_metadata_writes_enabled true) }}
+  disableLocalAuth: {{ and (not (or $mongo $gremlin)) (ne $v.local_authentication_disabled false) }}
+  enableAnalyticalStorage: {{ eq $v.analytical_storage_enabled true }}
+  enableAutomaticFailover: {{ ne $v.automatic_failover_enabled false }}
+  enableBurstCapacity: {{ eq $v.burst_capacity_enabled true }}
+  enableFreeTier: {{ eq $v.free_tier_enabled true }}
+  enableMultipleWriteLocations: {{ and (eq $bType "Periodic") (eq $v.multiple_write_locations_enabled true) }}
+  enablePartitionMerge: {{ eq $v.partition_merge_enabled true }}
+  {{- $mi := $v.managed_identities | default dict }}
+  {{- $uai := $mi.user_assigned_resource_ids | default list }}
+  {{- if or $mi.system_assigned $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned,UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" (eq $mi.system_assigned true) }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.ip_range_filter }}
+  ipRules:
+    {{- range $r := (uniq . | sortAlpha) }}
+    - ipAddressOrRange: {{ trim $r | quote }}
+    {{- end }}
+  {{- end }}
+  isVirtualNetworkFilterEnabled: {{ gt (len ($v.virtual_network_rules | default list)) 0 }}
+  {{- with $cmk }}
+  keyVaultKeyUri: {{ printf "https://%s.vault.azure.net/keys/%s" (index (splitList "/" .key_vault_resource_id) 8) .key_name | quote }}
+  {{- end }}
+  kind: {{ ternary "MongoDB" "GlobalDocumentDB" $mongo }}
+  locations:
+    {{- /* Ordered by failover priority (a set in the module). */}}
+    {{- $byPrio := dict }}
+    {{- range $g := $geo }}{{ $_ := set $byPrio (printf "%010d-%s" (int $g.failover_priority) $g.location) $g }}{{ end }}
+    {{- range $key := (keys $byPrio | sortAlpha) }}
+    {{- $g := get $byPrio $key }}
+    - locationName: {{ $g.location | quote }}
+      failoverPriority: {{ int $g.failover_priority }}
+      isZoneRedundant: {{ ne $g.zone_redundant false }}
+    {{- end }}
+  minimalTlsVersion: {{ $v.minimal_tls_version | default "Tls12" }}
+  networkAclBypass: {{ ternary "AzureServices" "None" (eq $v.network_acl_bypass_for_azure_services true) }}
+  {{- with $v.network_acl_bypass_resource_ids }}
+  networkAclBypassResourceReferences:
+    {{- range $id := (uniq . | sortAlpha) }}
+    - armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  publicNetworkAccess: {{ ternary "Enabled" "Disabled" (eq $v.public_network_access_enabled true) }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.virtual_network_rules }}
+  virtualNetworkRules:
+    {{- $ids := list }}
+    {{- range . }}{{ $ids = append $ids .subnet_id }}{{ end }}
+    {{- range $id := (uniq $ids | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+      ignoreMissingVNetServiceEndpoint: false
+    {{- end }}
+  {{- end }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peRg := toString ($p.resource_group_name | default $rg) }}
+{{- $peParent := $parent }}
+{{- if hasPrefix "/" $peRg }}
+{{- $peParent = $peRg }}
+{{- else if $p.resource_group_name }}
+{{- if not $v.subscription_id }}{{ fail (printf "%s: private_endpoints.%s.resource_group_name is a name: set subscription_id too" $chart $k) }}{{ end }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $peRg }}
+{{- end }}
+{{- $peTags := $p.tags }}
+{{- if kindIs "invalid" $peTags }}{{ $peTags = $v.tags | default dict }}{{ end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pep-%s" $v.name)) 80 false) | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $k) | quote }}
+      groupIds: [{{ $p.subresource_name | quote }}]
+      privateLinkServiceReference:
+        group: documentdb.azure.com
+        kind: DatabaseAccount
+        name: {{ $obj }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: {{ $p.subresource_name | quote }}
+      memberName: {{ $p.subresource_name | quote }}
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $id := (values . | uniq | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $peTags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe }}
+{{- /* An endpoint's lock is its own, else the account's (local.pe_locks);
+kind None is no lock. */ -}}
+{{- $peLock := $p.lock | default $v.lock }}
+{{- if and $peLock (ne (toString $peLock.kind) "None") }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString $peLock.kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (dict "kind" $peLock.kind "name" $peLock.name "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (include "cosmos.roleAssignments" $p.role_assignments | fromJson)) }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (include "cosmos.roleAssignments" $v.role_assignments | fromJson)) }}
+{{- /* The module's diagnostic settings: a setting's default name is
+diag-<key>; log categories when given, else the log groups; its metric
+categories must be SLI or Requests (the module's own default, AllMetrics,
+fails that validation). */ -}}
+{{- $diags := dict }}
+{{- range $k, $d := ($v.diagnostic_settings | default dict) }}
+{{- $d2 := deepCopy $d }}
+{{- $_ := set $d2 "name" ($d.name | default (printf "diag-%s" $k)) }}
+{{- if $d.log_categories }}{{ $_ := set $d2 "log_groups" list }}{{ end }}
+{{- $metrics := ternary (list "AllMetrics") $d.metric_categories (kindIs "invalid" $d.metric_categories) }}
+{{- range $metrics }}
+{{- if not (has . (list "SLI" "Requests")) }}
+{{- fail (printf "%s: The metric_categories parameter if specified can only be 'SLI' and 'Requests'." $chart) }}
+{{- end }}
+{{- end }}
+{{- if and $d.event_hub_authorization_rule_resource_id (not $d.event_hub_name) (not (or $d.workspace_resource_id $d.storage_account_resource_id $d.marketplace_partner_resource_id)) }}
+{{- fail (printf "%s: At least one of 'workspace_resource_id', 'storage_account_resource_id', 'marketplace_partner_resource_id', or 'event_hub_authorization_rule_resource_id' and 'event_hub_name' together, must be set." $chart) }}
+{{- end }}
+{{- $_ := set $diags $k $d2 }}
+{{- end }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $diags "defaultName" "") }}

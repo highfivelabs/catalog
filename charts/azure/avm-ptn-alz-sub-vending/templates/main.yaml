@@ -1,0 +1,234 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azure-avm-ptn-alz-sub-vending main.tf, locals.tf,
+main.resource-group.tf, main.role-assignment.tf, main.budget.tf,
+main.resource-providers.tf, variables*.tf and modules/subscription,
+modules/resource-group, modules/role-assignment and modules/budget
+(v0.3.4), Copyright (c) Microsoft Corporation, MIT.
+
+module.subscription:
+- azapi_resource.subscription (Microsoft.Subscription/aliases): an ASO
+  Alias (subscription.azure.com/v1api20211001), the module's body, with the
+  management group and tags in additionalProperties;
+- azapi_resource_action.subscription_association (a PUT of
+  Microsoft.Management/managementGroups/subscriptions): an aso-extensions
+  ManagementGroupsSubscription (management.azure.hfl.dev/v20230401) for an
+  existing subscription; a vended one is placed by its alias's
+  managementGroupId, which the module also sends;
+- azapi_update_resource.subscription_tags (Microsoft.Resources/tags): an
+  aso-extensions TagSet (resources.azure.hfl.dev/v20250401) on an existing
+  subscription, kept in Azure when deleted, as the module's update leaves
+  them; a vended one is tagged by its alias's tags;
+- azapi_resource_action.subscription_rename (POST
+  Microsoft.Subscription/rename) and .subscription_cancel (POST
+  Microsoft.Subscription/cancel, at destroy): actions, not resources; a
+  rename is refused, the cancel not ported (deleting the Alias removes the
+  alias, not the subscription);
+- time_sleep, terraform_data and the association's data sources: not
+  needed (ASO retries until what an object needs exists).
+module.resourcegroup: an ASO ResourceGroup each, and its lock an
+aso-extensions ManagementLock. module.roleassignment: an ASO
+RoleAssignment each. module.budget: an aso-extensions Budget
+(consumption.azure.hfl.dev/v20260601; the module sends 2021-10-01) each.
+module.resourceproviders: provider and feature registrations are actions
+(POST .../providers/<namespace>/register), refused. The telemetry is not
+ported.
+
+A resource group is ASO's ResourceGroup, which goes into the subscription
+of ASO's credential, so subscription_id must be that subscription.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := .Chart.Name }}
+{{- range $k, $_ := ($v.names | default dict) }}
+{{- fail (printf "%s: names.%s is not a name this chart gives: every name is an input (resource_groups, virtual_networks ...), which namePrefix prefixes" $n $k) }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "subscription_register_resource_providers_enabled" $v.subscription_register_resource_providers_enabled "registering a resource provider or a preview feature is an action on the subscription (POST /subscriptions/<id>/providers/<namespace>/register), not a resource; no ASO or aso-extensions kind does it") }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $base := include "aso.name" (list .Release.Name) }}
+{{- $alias := eq $v.subscription_alias_enabled true }}
+{{- $assoc := eq $v.subscription_management_group_association_enabled true }}
+{{- if and $alias $v.subscription_id }}
+{{- fail (printf "%s: set subscription_id or subscription_alias_enabled, not both: the module uses the subscription the alias creates, and a render cannot know its ID" $n) }}
+{{- end }}
+{{- with $v.subscription_id }}
+{{- if not (regexMatch "^[a-f\\d]{8}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{4}-[a-f\\d]{12}$" (toString .)) }}
+{{- fail (printf "%s: subscription_id %q is not a subscription ID: a GUID in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx, all letters lower-case" $n (toString .)) }}
+{{- end }}
+{{- end }}
+{{- if $assoc }}
+{{- if not $v.subscription_management_group_id }}
+{{- fail (printf "%s: subscription_management_group_association_enabled needs subscription_management_group_id" $n) }}
+{{- end }}
+{{- if contains "/" $v.subscription_management_group_id }}
+{{- fail (printf "%s: subscription_management_group_id %q must be the management group's ID, not its resource ID" $n $v.subscription_management_group_id) }}
+{{- end }}
+{{- if not (or $alias $v.subscription_id) }}
+{{- fail (printf "%s: subscription_management_group_association_enabled needs subscription_id or subscription_alias_enabled" $n) }}
+{{- end }}
+{{- end }}
+{{- $mgId := printf "/providers/Microsoft.Management/managementGroups/%s" ($v.subscription_management_group_id | default "") }}
+
+{{- /* azapi_resource.subscription. */ -}}
+{{- if $alias }}
+{{- range $f := list "subscription_alias_name" "subscription_display_name" "subscription_billing_scope" "subscription_workload" }}
+{{- if not (index $v $f) }}
+{{- fail (printf "%s: subscription_alias_enabled needs %s" $n $f) }}
+{{- end }}
+{{- end }}
+{{- if not (regexMatch "^[a-zA-Z0-9_-]{1,63}$" $v.subscription_alias_name) }}
+{{- fail (printf "%s: subscription_alias_name %q: The string must be comprised of a-z, A-Z, 0-9, - and _. The maximum length is 63 characters." $n $v.subscription_alias_name) }}
+{{- end }}
+{{- if not (regexMatch "^[a-zA-Z0-9_ -]{1,63}$" $v.subscription_display_name) }}
+{{- fail (printf "%s: subscription_display_name %q: The string must be comprised of a-z, A-Z, 0-9, -, _ and space. The maximum length is 63 characters." $n $v.subscription_display_name) }}
+{{- end }}
+{{- if not (hasPrefix "/providers/Microsoft.Billing/billingAccounts/" $v.subscription_billing_scope) }}
+{{- fail (printf "%s: subscription_billing_scope %q: A valid billing scope starts with /providers/Microsoft.Billing/billingAccounts/ and is case sensitive." $n $v.subscription_billing_scope) }}
+{{- end }}
+{{- if not (has $v.subscription_workload (list "Production" "DevTest")) }}
+{{- fail (printf "%s: subscription_workload %q: The workload type can be either Production or DevTest and is case sensitive." $n $v.subscription_workload) }}
+{{- end }}
+---
+apiVersion: subscription.azure.com/v1api20211001
+kind: Alias
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "alias")) "id" "subscription_alias" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "subscription alias" $v.subscription_alias_name 63 false) | quote }}
+  properties:
+    {{- if or $assoc $v.subscription_tags }}
+    additionalProperties:
+      {{- if $assoc }}
+      managementGroupId: {{ $mgId | quote }}
+      {{- end }}
+      {{- with (include "aso.tags" (list $ $v.subscription_tags) | fromJson) }}
+      tags:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    billingScope: {{ $v.subscription_billing_scope | quote }}
+    displayName: {{ $v.subscription_display_name | quote }}
+    workload: {{ $v.subscription_workload }}
+{{- end }}
+
+{{- /* azapi_resource_action.subscription_association, for an existing
+subscription. */ -}}
+{{- if and $assoc (not $alias) }}
+---
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "mg-subscription")) "id" "management_group_subscription_association" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $v.subscription_id | quote }}
+  owner:
+    armId: {{ $mgId | quote }}
+{{- end }}
+
+{{- /* azapi_update_resource.subscription_tags and the rename, for an
+existing subscription. */ -}}
+{{- if and (eq $v.subscription_update_existing true) (not $alias) }}
+{{- if not $v.subscription_id }}
+{{- fail (printf "%s: subscription_update_existing needs subscription_id" $n) }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "subscription_update_existing with subscription_display_name" $v.subscription_display_name "the module renames the subscription with an action (POST /subscriptions/<id>/providers/Microsoft.Subscription/rename), not a resource; no ASO or aso-extensions kind does it") }}
+---
+apiVersion: resources.azure.hfl.dev/v20250401
+kind: TagSet
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "subscription-tags")) "id" "subscription_tags" "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    armId: {{ printf "/subscriptions/%s" $v.subscription_id | quote }}
+  properties:
+    tags:
+      {{- with (include "aso.tags" (list $ $v.subscription_tags) | fromJson) }}
+      {{- toYaml . | nindent 6 }}
+      {{- else }} {}
+      {{- end }}
+{{- end }}
+
+{{- /* module.resourcegroup. */ -}}
+{{- $rgs := include "subv.rgs" . | fromJson }}
+{{- range $k, $rg := ($v.resource_groups | default dict) }}
+{{- with (index $rgs $k) }}
+{{- $o := . }}
+---
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $o.obj "id" (printf "resource_group:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $o.name | quote }}
+  location: {{ $rg.location | default $v.location | quote }}
+  {{- with (include "aso.tags" (list $ $rg.tags) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if eq $rg.lock_enabled true }}
+{{- include "aso.lock" (dict "root" $ "base" $o.obj "idPrefix" (printf "resource_group:%s/" $k) "owner" (dict "group" "resources.azure.com" "kind" "ResourceGroup" "name" $o.obj) "v" (dict "kind" "CanNotDelete" "name" ($rg.lock_name | default (printf "lock-%s" $o.name)))) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* module.roleassignment. */ -}}
+{{- if eq $v.role_assignment_enabled true }}
+{{- range $k, $r := ($v.role_assignments | default dict) }}
+{{- $what := printf "role_assignments.%s" $k }}
+{{- $scope := include "subv.scope" (list $ $what $r.resource_group_scope_key $r.relative_scope) | fromJson }}
+{{- $role := include "subv.roleDefinition" (list $ $what $r.definition) }}
+{{- include "subv.roleAssignment" (dict "root" $ "name" (include "aso.name" (list $base "role" $k)) "id" (printf "role_assignment:%s" $k) "scope" $scope "r" $r "role" $role "principal" $r.principal_id) }}
+{{- end }}
+{{- end }}
+
+{{- /* module.budget. */ -}}
+{{- if eq $v.budget_enabled true }}
+{{- range $k, $b := ($v.budgets | default dict) }}
+{{- $what := printf "budgets.%s" $k }}
+{{- $scope := include "subv.scope" (list $ $what $b.resource_group_key $b.relative_scope) | fromJson }}
+---
+apiVersion: consumption.azure.hfl.dev/v20260601
+kind: Budget
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "budget" $k)) "id" (printf "budget:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "budget" $b.name 63 false) | quote }}
+  owner:
+    {{- toYaml $scope.owner | nindent 4 }}
+  amount: {{ $b.amount }}
+  category: Cost
+  {{- with $b.notifications }}
+  notifications:
+    {{- range $nk, $no := . }}
+    {{ $nk | quote }}:
+      enabled: {{ $no.enabled }}
+      operator: {{ $no.operator }}
+      threshold: {{ $no.threshold }}
+      thresholdType: {{ $no.threshold_type | default "Actual" }}
+      {{- with $no.contact_emails }}
+      contactEmails:
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      contactEmails: []
+      {{- end }}
+      {{- with $no.contact_roles }}
+      contactRoles:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $no.contact_groups }}
+      contactGroupsReferences:
+        {{- range . }}
+        - armId: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      locale: {{ $no.locale | default "en-us" }}
+    {{- end }}
+  {{- end }}
+  timeGrain: {{ $b.time_grain }}
+  timePeriod:
+    startDate: {{ $b.time_period_start | quote }}
+    {{- with $b.time_period_end }}
+    endDate: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}

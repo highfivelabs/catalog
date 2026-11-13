@@ -1,0 +1,43 @@
+---
+# Source: endpoints/templates/main.yaml
+apiVersion: servicemanagement.gcp.hfl.dev/v1alpha1
+kind: EndpointsService
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: endpoints
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  resourceID: "cat-mock-echo.endpoints.mock-project.cloud.goog"
+  openapiConfig: "swagger: \"2.0\"\ninfo:\n  title: cat-mock-echo\n  version: \"1.0.0\"\nhost: cat-mock-echo.endpoints.mock-project.cloud.goog\npaths:\n  /echo:\n    get:\n      operationId: echo\n      responses:\n        \"200\":\n          description: OK\n"
+---
+# Source: endpoints/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: mock-iam-roles-servicemanagement-serviceconsumer-9b52feac
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: endpoints
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam:roles/servicemanagement.serviceConsumer"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    apiVersion: servicemanagement.gcp.hfl.dev/v1alpha1
+    kind: EndpointsService
+    name: mock
+  role: "roles/servicemanagement.serviceConsumer"
+  members:
+    - "group:consumers@example.com"

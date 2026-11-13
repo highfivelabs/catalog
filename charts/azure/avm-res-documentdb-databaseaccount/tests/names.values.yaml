@@ -1,0 +1,27 @@
+# Whole names from a naming convention: names.databaseAccount is used as
+# given (a namePrefix would not go on it; it would go on the private
+# endpoints' names, so this case sets none). labels
+# stay in Kubernetes; tags reach Azure and the endpoint takes them. The
+# endpoint's zone group is left to Azure Policy
+# (private_endpoints_manage_dns_zone_group: false) and it inherits the
+# account's lock.
+name: orders
+location: eastus2
+resource_group_name: rg-shop-dev
+subscription_id: 00000000-0000-0000-0000-000000000000
+names: {databaseAccount: cosmos-shop-dev-eus2}
+labels: {hfl.dev/team: shop}
+tags: {team: shop}
+deletion_policy: ABANDON
+lock: {kind: ReadOnly, name: keep}
+private_endpoints_manage_dns_zone_group: false
+private_endpoints:
+  pe:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    subresource_name: Sql
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com]
+  nolock:
+    subresource_name: Sql
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    name: pep-nolock
+    lock: {kind: None}

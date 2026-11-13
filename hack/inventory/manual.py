@@ -5,7 +5,10 @@
 # None also where Config Connector's kind cannot make what the module makes:
 # google_network_services_gateway is net-swp's SECURE_WEB_GATEWAY, and
 # NetworkServicesGateway (v1beta1 at 1.160.0) has no network, subnetwork,
-# gatewaySecurityPolicy, certificateUrls, labels or routingMode, and requires scope.
+# gatewaySecurityPolicy, certificateUrls, labels or routingMode, and requires scope;
+# the inventory then finds config-connector-extensions' NetworkServicesGateway
+# by name, as it does EndpointsService and ChronicleRuleDeployment. "HFL:" names
+# an extensions kind it cannot find by name (IAMPolicyBinding).
 M = {
  "google_access_context_manager_gcp_user_access_binding": "AccessContextManagerGCPUserAccessBinding",
  "google_access_context_manager_service_perimeter_dry_run_resource": "via:AccessContextManagerServicePerimeter (spec.spec.resources)",
@@ -71,7 +74,7 @@ M = {
  "google_gke_backup_backup_channel": "GKEBackupBackupChannel", "google_gke_backup_backup_plan": "GKEBackupBackupPlan",
  "google_gke_backup_restore_channel": "GKEBackupRestoreChannel", "google_gke_backup_restore_plan": "GKEBackupRestorePlan",
  "google_gke_hub_feature": "GKEHubFeature", "google_gke_hub_feature_membership": "GKEHubFeatureMembership", "google_gke_hub_membership": "GKEHubMembership",
- "google_iam_deny_policy": "IAMDenyPolicy", "google_iam_project_access_policy": "IAMAccessPolicy", "google_iam_projects_policy_binding": None,
+ "google_iam_deny_policy": "IAMDenyPolicy", "google_iam_project_access_policy": "IAMAccessPolicy", "google_iam_projects_policy_binding": "HFL:IAMPolicyBinding (iam.gcp.hfl.dev)",
  "google_iam_workforce_pool": "IAMWorkforcePool", "google_iam_workforce_pool_provider": "IAMWorkforcePoolProvider",
  "google_iam_workforce_pool_provider_scim_tenant": None,
  "google_iam_workload_identity_pool": "IAMWorkloadIdentityPool", "google_iam_workload_identity_pool_provider": "IAMWorkloadIdentityPoolProvider",

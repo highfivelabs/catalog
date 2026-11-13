@@ -1,0 +1,61 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, read from the live objects (resources.<id>) and the inputs. The
+# subscription is the alias's (status.properties.subscriptionId, which
+# Azure gives once it has created the subscription) or subscription_id;
+# the management group association's ID is the one the module's PUT
+# addresses. Each map of IDs is keyed as the module keys it.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-ptn-alz-sub-vending
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    budget_resource_id: >-
+      resources.transformMapEntry(k, v, k.startsWith('budget:'), {k.substring(7): v.status.id})
+    management_group_subscription_association_id: >-
+      !inputs.subscription_management_group_association_enabled ? null
+      : ('subscription_alias' in resources
+        ? ('properties' in resources.subscription_alias.status && 'subscriptionId' in resources.subscription_alias.status.properties
+          ? dyn('/providers/Microsoft.Management/managementGroups/' + inputs.subscription_management_group_id + '/subscriptions/' + resources.subscription_alias.status.properties.subscriptionId)
+          : null)
+        : '/providers/Microsoft.Management/managementGroups/' + inputs.subscription_management_group_id + '/subscriptions/' + inputs.subscription_id)
+    network_security_group_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('network_security_group:') && !k.contains('/'), {k.substring(23): v.status.id})
+    resource_group_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('resource_group:') && !k.contains('/'), {k.substring(15): v.status.id})
+    resource_id: >-
+      'subscription_alias' in resources
+      ? ('properties' in resources.subscription_alias.status && 'subscriptionId' in resources.subscription_alias.status.properties
+        ? dyn('/subscriptions/' + resources.subscription_alias.status.properties.subscriptionId) : null)
+      : (inputs.subscription_id == null ? null : dyn('/subscriptions/' + inputs.subscription_id))
+    route_table_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('route_table:') && !k.contains('/'), {k.substring(12): v.status.id})
+    subscription_id: >-
+      'subscription_alias' in resources
+      ? ('properties' in resources.subscription_alias.status && 'subscriptionId' in resources.subscription_alias.status.properties
+        ? resources.subscription_alias.status.properties.subscriptionId : null)
+      : inputs.subscription_id
+    subscription_resource_id: >-
+      'subscription_alias' in resources
+      ? ('properties' in resources.subscription_alias.status && 'subscriptionId' in resources.subscription_alias.status.properties
+        ? dyn('/subscriptions/' + resources.subscription_alias.status.properties.subscriptionId) : null)
+      : (inputs.subscription_id == null ? null : dyn('/subscriptions/' + inputs.subscription_id))
+    umi_client_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('user_managed_identity:') && !k.contains('/'), {k.substring(22): v.status.clientId})
+    umi_principal_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('user_managed_identity:') && !k.contains('/'), {k.substring(22): v.status.principalId})
+    umi_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('user_managed_identity:') && !k.contains('/'), {k.substring(22): v.status.id})
+    umi_tenant_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('user_managed_identity:') && !k.contains('/'), {k.substring(22): v.status.tenantId})
+    virtual_network_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('virtual_network:') && !k.contains('/'), {k.substring(16): v.status.id})
+    virtual_network_subnet_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('virtual_network:') && !k.contains('/'),
+        {k.substring(16): resources.transformMapEntry(s, sv, s.startsWith(k + '/subnet:'), {s.substring(size(k) + 8): sv.status.id})})

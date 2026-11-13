@@ -204,7 +204,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --set useWorkloadIdentityAuth=true \
   --set azureResourceManagerEndpoint=https://fakearm.fake-cloud.svc \
   --set azureResourceManagerAudience=https://fakearm.fake-cloud.svc \
-  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;alertsmanagement.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;app.azure.com/*;cache.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'resources.azure.com/*;network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;alertsmanagement.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;containerservice.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;app.azure.com/*;cache.azure.com/*;subscription.azure.com/*')" \
   --timeout 10m >/dev/null
 # The fake cloud's CA, trusted through SSL_CERT_FILE.
 kubectl -n "${ASO_NS}" patch deployment azureserviceoperator-controller-manager --type strategic -p '{

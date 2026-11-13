@@ -811,20 +811,20 @@ gcp,net-cloud-armor,region,string,yes,,
 gcp,net-cloud-armor,rules,"map(object({action, description, header_action, match, network_match, preconfigured_waf_config, +4}))",partial,network_match (CLOUD_ARMOR_NETWORK policies) and match.recaptcha_options are refused: ComputeSecurityPolicy's rules have no networkMatch and no exprOptions,gap
 gcp,net-cloud-armor,type,string,yes,,
 gcp,net-cloud-armor,user_defined_fields,"map(object({base, mask, offset, size}))",no,ComputeSecurityPolicy has no userDefinedFields,gap
-gcp,net-swp,certificates,list(string),no,,no-chart
-gcp,net-swp,description,string,no,,no-chart
-gcp,net-swp,factories_config,"object({policy_rules, url_lists})",no,,no-chart
-gcp,net-swp,gateway_config,"object({addresses, delete_router_on_destroy, labels, next_hop_routing_mode, ports, scope})",no,,no-chart
-gcp,net-swp,name,string,no,,no-chart
-gcp,net-swp,network,string,no,,no-chart
-gcp,net-swp,policy_rules,"map(object({allow, application_matcher, description, enabled, matcher_args, priority, +2}))",no,,no-chart
-gcp,net-swp,policy_rules_contexts,"object({secure_tags, service_accounts, url_lists})",no,,no-chart
-gcp,net-swp,project_id,string,no,,no-chart
-gcp,net-swp,region,string,no,,no-chart
-gcp,net-swp,service_attachment,"object({automatic_connection, consumer_accept_lists, consumer_reject_lists, description, domain_name, enable_proxy_protocol, +2})",no,,no-chart
-gcp,net-swp,subnetwork,string,no,,no-chart
-gcp,net-swp,tls_inspection_config,"object({create_config, id})",no,,no-chart
-gcp,net-swp,url_lists,"map(object({description, values}))",no,,no-chart
+gcp,net-swp,certificates,list(string),yes,,
+gcp,net-swp,description,string,yes,,
+gcp,net-swp,factories_config,"object({policy_rules, url_lists})",partial,a chart cannot read the caller's files: accepted and ignored; the files' contents go under factories_data.policy_rules and factories_data.url_lists,by-design
+gcp,net-swp,gateway_config,"object({addresses, delete_router_on_destroy, labels, next_hop_routing_mode, ports, scope})",partial,"accepted; delete_router_on_destroy is not carried: NetworkServicesGateway does not delete the Cloud Router the API makes for a Secure Web Proxy (swg-autogen-router-<n>), whatever the value",gap
+gcp,net-swp,name,string,yes,,
+gcp,net-swp,network,string,yes,,
+gcp,net-swp,policy_rules,"map(object({allow, application_matcher, description, enabled, matcher_args, priority, +2}))",yes,,
+gcp,net-swp,policy_rules_contexts,"object({secure_tags, service_accounts, url_lists})",yes,,
+gcp,net-swp,project_id,string,yes,,
+gcp,net-swp,region,string,yes,,
+gcp,net-swp,service_attachment,"object({automatic_connection, consumer_accept_lists, consumer_reject_lists, description, domain_name, enable_proxy_protocol, +2})",partial,ComputeServiceAttachment has no domainNames or reconcileConnections field,gap
+gcp,net-swp,subnetwork,string,yes,,
+gcp,net-swp,tls_inspection_config,"object({create_config, id})",yes,,
+gcp,net-swp,url_lists,"map(object({description, values}))",yes,,
 gcp,net-lb-app-ext-regional,address,string,no,,no-chart
 gcp,net-lb-app-ext-regional,backend_service_configs,"map(object({affinity_cookie_ttl_sec, backends, cdn_policy, circuit_breakers, connection_draining_timeout_sec, consistent_hash, +15}))",no,,no-chart
 gcp,net-lb-app-ext-regional,context,"object({addresses, locations, networks, project_ids, security_policies, subnets})",no,,no-chart
@@ -1135,11 +1135,11 @@ gcp,apigee,environments,"map(object({api_proxy_type, deployment_type, descriptio
 gcp,apigee,instances,"map(object({access_logging, activate_nat, consumer_accept_list, description, disk_encryption_key, display_name, +5}))",no,,no-chart
 gcp,apigee,organization,"object({analytics_region, api_consumer_data_encryption_key, api_consumer_data_location, authorized_network, billing_type, control_plane_encryption_key, +7})",no,,no-chart
 gcp,apigee,project_id,string,no,,no-chart
-gcp,endpoints,grpc_config,"object({protoc_output_path, yaml_path})",no,,no-chart
-gcp,endpoints,iam,map(list(string)),no,,no-chart
-gcp,endpoints,openapi_config,object({yaml_path}),no,,no-chart
-gcp,endpoints,project_id,string,no,,no-chart
-gcp,endpoints,service_name,string,no,,no-chart
+gcp,endpoints,grpc_config,"object({protoc_output_path, yaml_path})",partial,a chart cannot read the caller's files: yaml_path and protoc_output_path are accepted and ignored; the files' contents go under files_data.grpc_config and files_data.protoc_output_base64,by-design
+gcp,endpoints,iam,map(list(string)),yes,,
+gcp,endpoints,openapi_config,object({yaml_path}),partial,a chart cannot read the caller's files: yaml_path is accepted and ignored; the document's contents go under files_data.openapi_config,by-design
+gcp,endpoints,project_id,string,partial,"accepted; null (fabric's default, the Terraform provider's project) is refused: a chart has no provider project",by-design
+gcp,endpoints,service_name,string,yes,,
 gcp,cloud-function-v1,bucket_config,"object({force_destroy, lifecycle_delete_age_days, location})",no,,no-chart
 gcp,cloud-function-v1,bucket_name,string,no,,no-chart
 gcp,cloud-function-v1,build_environment_variables,map(string),no,,no-chart
@@ -3868,11 +3868,11 @@ azure,avm-res-storage-storageaccount,account_tier,string,yes,,
 azure,avm-res-storage-storageaccount,allow_nested_items_to_be_public,bool,yes,,
 azure,avm-res-storage-storageaccount,allowed_copy_scope,string,yes,,
 azure,avm-res-storage-storageaccount,azure_files_authentication,"object({active_directory, default_share_level_permission, directory_type})",yes,,
-azure,avm-res-storage-storageaccount,blob_properties,"object({automatic_snapshot_policy_enabled, change_feed, container_delete_retention_policy, cors_rules, default_service_version, delete_retention_policy, +3})",no,ASO has StorageAccountsBlobService; this chart does not map the blob service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,blob_properties,"object({automatic_snapshot_policy_enabled, change_feed, container_delete_retention_policy, cors_rules, default_service_version, delete_retention_policy, +3})",yes,,
 azure,avm-res-storage-storageaccount,containers,"map(object({default_encryption_scope, deny_encryption_scope_override, enable_nfs_v3_all_squash, enable_nfs_v3_root_squash, immutable_storage_with_versioning, metadata, +4}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
 azure,avm-res-storage-storageaccount,cross_tenant_replication_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,custom_domain,"object({name, use_subdomain})",yes,,
-azure,avm-res-storage-storageaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,ASO's StorageAccount has encryption.keyvaultproperties; this chart does not map the customer-managed key yet,not-ported
+azure,avm-res-storage-storageaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,"the module creates the account with Microsoft-managed keys and patches the key in afterwards (Azure rejects one PUT that both gives the account its identity and names that identity for encryption), the vault's URI read from Azure; ASO applies a StorageAccount in one PUT, and the chart cannot read the URI",gap
 azure,avm-res-storage-storageaccount,default_to_oauth_authentication,bool,yes,,
 azure,avm-res-storage-storageaccount,diagnostic_settings_blob,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-storage-storageaccount,diagnostic_settings_file,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
@@ -3881,7 +3881,7 @@ azure,avm-res-storage-storageaccount,diagnostic_settings_storage_account,"map(ob
 azure,avm-res-storage-storageaccount,diagnostic_settings_table,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-storage-storageaccount,edge_zone,string,yes,,
 azure,avm-res-storage-storageaccount,enable_telemetry,bool,yes,,
-azure,avm-res-storage-storageaccount,file_service_properties,"object({cors_rules, share_retention_policy, smb})",no,ASO has StorageAccountsFileService; this chart does not map the file service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,file_service_properties,"object({cors_rules, share_retention_policy, smb})",yes,,
 azure,avm-res-storage-storageaccount,https_traffic_only_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,immutability_policy,"object({allow_protected_append_writes, period_since_creation_in_days, state})",yes,,
 azure,avm-res-storage-storageaccount,infrastructure_encryption_enabled,bool,yes,,
@@ -3897,12 +3897,12 @@ azure,avm-res-storage-storageaccount,name,string,yes,,
 azure,avm-res-storage-storageaccount,network_rules,"object({bypass, default_action, ip_rules, private_link_access, timeouts, virtual_network_subnet_ids})",partial,"accepted, but its timeouts are refused: ASO has no per-request timeouts",by-design
 azure,avm-res-storage-storageaccount,nfsv3_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,parent_id,string,yes,,
-azure,avm-res-storage-storageaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-storage-storageaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
 azure,avm-res-storage-storageaccount,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-storage-storageaccount,provisioned_billing_model_version,string,yes,,
 azure,avm-res-storage-storageaccount,public_network_access_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,queue_encryption_key_type,string,yes,,
-azure,avm-res-storage-storageaccount,queue_properties,object({cors_rules}),no,ASO has StorageAccountsQueueService; this chart does not map the queue service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,queue_properties,object({cors_rules}),yes,,
 azure,avm-res-storage-storageaccount,queues,"map(object({metadata, name, role_assignments, timeouts}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
 azure,avm-res-storage-storageaccount,resource_types,"object({blob_container, blob_service, customer_managed_key_vault, file_service, local_user, lock, +10})",no,ASO's kinds fix the API versions (StorageAccount 2025-06-01),by-design
 azure,avm-res-storage-storageaccount,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
@@ -3914,11 +3914,11 @@ azure,avm-res-storage-storageaccount,sftp_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,shared_access_key_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,shares,"map(object({access_tier, enabled_protocol, metadata, name, provisioned_bandwidth_mibps, provisioned_iops, +5}))",partial,"accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)",gap
 azure,avm-res-storage-storageaccount,static_website,"map(object({error_404_document, index_document}))",no,"a static website is set on the blob service's data plane (Set Blob Service Properties), which ASO does not call",gap
-azure,avm-res-storage-storageaccount,storage_data_lake_gen2_filesystems,"map(object({default_encryption_scope, name, properties, timeouts}))",no,a Data Lake Gen2 filesystem is a blob container with its ACLs; this chart does not map them yet,not-ported
-azure,avm-res-storage-storageaccount,storage_management_policy_rule,"map(object({actions, enabled, filters, name}))",no,ASO has StorageAccountsManagementPolicy; this chart does not map the lifecycle rules yet,not-ported
+azure,avm-res-storage-storageaccount,storage_data_lake_gen2_filesystems,"map(object({default_encryption_scope, name, properties, timeouts}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
+azure,avm-res-storage-storageaccount,storage_management_policy_rule,"map(object({actions, enabled, filters, name}))",yes,,
 azure,avm-res-storage-storageaccount,storage_management_policy_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-storage-storageaccount,table_encryption_key_type,string,yes,,
-azure,avm-res-storage-storageaccount,table_properties,object({cors_rules}),no,ASO has StorageAccountsTableService; this chart does not map the table service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,table_properties,object({cors_rules}),yes,,
 azure,avm-res-storage-storageaccount,table_service_cors_propagation_wait,string,yes,,
 azure,avm-res-storage-storageaccount,tables,"map(object({name, role_assignments, signed_identifiers, timeouts}))",partial,"accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)",gap
 azure,avm-res-storage-storageaccount,tags,map(string),yes,,
@@ -3938,7 +3938,7 @@ azure,avm-res-keyvault-vault,lock,"object({kind, name})",yes,,
 azure,avm-res-keyvault-vault,name,string,yes,,
 azure,avm-res-keyvault-vault,network_acls,"object({bypass, default_action, ip_rules, virtual_network_subnet_ids})",yes,,
 azure,avm-res-keyvault-vault,parent_id,string,yes,,
-azure,avm-res-keyvault-vault,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-keyvault-vault,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
 azure,avm-res-keyvault-vault,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-keyvault-vault,public_network_access_enabled,bool,yes,,
 azure,avm-res-keyvault-vault,purge_protection_enabled,bool,yes,,
@@ -4076,8 +4076,8 @@ azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_resource
 azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_service_name,string,yes,,
 azure,avm-res-operationalinsights-workspace,name,string,yes,,
 azure,avm-res-operationalinsights-workspace,network_security_perimeter_association,"object({access_mode, profile_name, resource_id})",yes,,
-azure,avm-res-operationalinsights-workspace,private_endpoint_extensions,"map(object({manage_dns_zone_group, monitor_private_link_scope_exclusion, monitor_private_link_scope_key}))",no,"extensions of private endpoints (their Private Link Scope exclusions and DNS zone groups), which this chart does not map yet",not-ported
-azure,avm-res-operationalinsights-workspace,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +7}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-operationalinsights-workspace,private_endpoint_extensions,"map(object({manage_dns_zone_group, monitor_private_link_scope_exclusion, monitor_private_link_scope_key}))",partial,"accepted, but monitor_private_link_scope_exclusion is refused when it would change the scope's access modes for the endpoint: the module names the exclusion by the scope's private endpoint connection, which Azure names and a render cannot read",not-ported
+azure,avm-res-operationalinsights-workspace,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +7}))",yes,,
 azure,avm-res-operationalinsights-workspace,resource_group_name,string,yes,,
 azure,avm-res-operationalinsights-workspace,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
 azure,avm-res-operationalinsights-workspace,tags,map(string),yes,,
@@ -4192,7 +4192,7 @@ azure,avm-res-containerregistry-registry,name,string,yes,,
 azure,avm-res-containerregistry-registry,network_rule_bypass_for_tasks_enabled,bool,yes,,
 azure,avm-res-containerregistry-registry,network_rule_bypass_option,string,yes,,
 azure,avm-res-containerregistry-registry,network_rule_set,"object({default_action, ip_rule})",yes,,
-azure,avm-res-containerregistry-registry,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-containerregistry-registry,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
 azure,avm-res-containerregistry-registry,private_endpoints_inherit_lock,bool,yes,,
 azure,avm-res-containerregistry-registry,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-containerregistry-registry,public_network_access_enabled,bool,yes,,
@@ -4240,7 +4240,7 @@ azure,avm-res-containerservice-managedcluster,addon_profiles_extra,"map(object({
 azure,avm-res-containerservice-managedcluster,agent_pools,"map(object({artifact_streaming_profile, availability_zones, capacity_reservation_group_id, count_of, creation_data, delete_options, +51}))",partial,"accepted, but an entry's enable_os_disk_full_caching and gpu_profile.nvidia are refused (ASO's agent pool, up to API 2025-10-02-preview, has neither), as is delete_options.ignore_pod_disruption_budget (ASO deletes a pool without that option)",gap
 azure,avm-res-containerservice-managedcluster,agentpool_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-containerservice-managedcluster,ai_toolchain_operator_profile,object({enabled}),yes,,
-azure,avm-res-containerservice-managedcluster,alert_email,string,no,the module's alerting submodule is not mapped yet,not-ported
+azure,avm-res-containerservice-managedcluster,alert_email,string,yes,,
 azure,avm-res-containerservice-managedcluster,api_server_access_profile,"object({authorized_ip_ranges, disable_run_command, enable_private_cluster, enable_private_cluster_public_fqdn, enable_vnet_integration, private_dns_zone, +1})",yes,,
 azure,avm-res-containerservice-managedcluster,auto_scaler_profile,"object({balance_similar_node_groups, daemonset_eviction_for_empty_nodes, daemonset_eviction_for_occupied_nodes, expander, ignore_daemonsets_utilization, max_empty_bulk_delete, +14})",yes,,
 azure,avm-res-containerservice-managedcluster,auto_upgrade_profile,"object({node_os_upgrade_channel, upgrade_channel})",yes,,
@@ -4278,14 +4278,14 @@ azure,avm-res-containerservice-managedcluster,node_provisioning_profile,"object(
 azure,avm-res-containerservice-managedcluster,node_resource_group,string,yes,,
 azure,avm-res-containerservice-managedcluster,node_resource_group_profile,object({restriction_level}),yes,,
 azure,avm-res-containerservice-managedcluster,oidc_issuer_profile,object({enabled}),yes,,
-azure,avm-res-containerservice-managedcluster,onboard_alerts,bool,no,"the module's alerting submodule (Prometheus rule groups, action groups, metric alerts: ASO's alertsmanagement and insights kinds) is not mapped yet",not-ported
-azure,avm-res-containerservice-managedcluster,onboard_monitoring,bool,no,"the module's monitoring submodule (data collection rules, endpoints and associations: ASO's insights DataCollectionRule, DataCollectionEndpoint, DataCollectionRuleAssociation) is not mapped yet",not-ported
+azure,avm-res-containerservice-managedcluster,onboard_alerts,bool,yes,,
+azure,avm-res-containerservice-managedcluster,onboard_monitoring,bool,yes,,
 azure,avm-res-containerservice-managedcluster,parent_id,string,yes,,
 azure,avm-res-containerservice-managedcluster,pod_identity_profile,"object({allow_network_plugin_kubenet, enabled, user_assigned_identities, user_assigned_identity_exceptions})",yes,,
-azure,avm-res-containerservice-managedcluster,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
-azure,avm-res-containerservice-managedcluster,private_endpoints_manage_dns_zone_group,bool,partial,"accepted; it changes nothing, since private_endpoints is refused",not-ported
+azure,avm-res-containerservice-managedcluster,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
+azure,avm-res-containerservice-managedcluster,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-containerservice-managedcluster,private_link_resources,"list(object({group_id, id, name, required_members, type}))",yes,,
-azure,avm-res-containerservice-managedcluster,prometheus_workspace_id,string,no,the module's monitoring submodule is not mapped yet,not-ported
+azure,avm-res-containerservice-managedcluster,prometheus_workspace_id,string,yes,,
 azure,avm-res-containerservice-managedcluster,public_network_access,string,yes,,
 azure,avm-res-containerservice-managedcluster,resource_types,"object({containerservice_managed_clusters, containerservice_managed_clusters_agent_pools})",no,"ASO's kinds fix the API versions (ManagedCluster 2026-05-01, or 2025-10-02-preview for the preview-only settings; agent pools 2025-10-02-preview)",by-design
 azure,avm-res-containerservice-managedcluster,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
@@ -4384,35 +4384,35 @@ azure,avm-res-cognitiveservices-account,sku_name,string,yes,,
 azure,avm-res-cognitiveservices-account,storage,"list(object({identity_client_id, storage_account_id}))",yes,,
 azure,avm-res-cognitiveservices-account,tags,map(string),yes,,
 azure,avm-res-cognitiveservices-account,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
-azure,avm-ptn-alz-sub-vending,budget_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,budgets,"map(object({amount, name, notifications, relative_scope, resource_group_key, time_grain, +2}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,enable_telemetry,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,location,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,network_security_group_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,network_security_groups,"map(object({location, name, resource_group_key, resource_group_name_existing, resource_types, security_rules, +1}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,resource_group_creation_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,resource_groups,"map(object({location, lock_enabled, lock_name, name, tags}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,role_assignment_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,role_assignments,"map(object({condition, condition_version, definition, definition_lookup_enabled, principal_id, principal_type, +3}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,route_table_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,route_tables,"map(object({bgp_route_propagation_enabled, location, name, resource_group_key, resource_group_name_existing, resource_types, +2}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_alias_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_alias_name,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_billing_scope,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_display_name,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_id,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_management_group_association_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_management_group_id,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_register_resource_providers_and_features,map(set(string)),no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_register_resource_providers_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_tags,map(string),no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_update_existing,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,subscription_workload,string,no,,no-chart
-azure,avm-ptn-alz-sub-vending,umi_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,user_managed_identities,"map(object({federated_credentials_advanced, federated_credentials_github, federated_credentials_terraform_cloud, location, name, resource_group_key, +3}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,virtual_network_enabled,bool,no,,no-chart
-azure,avm-ptn-alz-sub-vending,virtual_networks,"map(object({address_space, ddos_protection_enabled, ddos_protection_plan_id, dns_servers, flow_timeout_in_minutes, hub_network_resource_id, +22}))",no,,no-chart
-azure,avm-ptn-alz-sub-vending,wait_for_subscription_before_subscription_operations,"object({create, destroy})",no,,no-chart
+azure,avm-ptn-alz-sub-vending,budget_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,budgets,"map(object({amount, name, notifications, relative_scope, resource_group_key, time_grain, +2}))",yes,,
+azure,avm-ptn-alz-sub-vending,enable_telemetry,bool,yes,,
+azure,avm-ptn-alz-sub-vending,location,string,yes,,
+azure,avm-ptn-alz-sub-vending,network_security_group_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,network_security_groups,"map(object({location, name, resource_group_key, resource_group_name_existing, resource_types, security_rules, +1}))",partial,"accepted, but an entry's resource_types is refused: ASO's kinds fix the API versions (NetworkSecurityGroup and NetworkSecurityGroupsSecurityRule 2025-03-01)",by-design
+azure,avm-ptn-alz-sub-vending,resource_group_creation_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,resource_groups,"map(object({location, lock_enabled, lock_name, name, tags}))",yes,,
+azure,avm-ptn-alz-sub-vending,role_assignment_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,role_assignments,"map(object({condition, condition_version, definition, definition_lookup_enabled, principal_id, principal_type, +3}))",yes,,
+azure,avm-ptn-alz-sub-vending,route_table_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,route_tables,"map(object({bgp_route_propagation_enabled, location, name, resource_group_key, resource_group_name_existing, resource_types, +2}))",partial,"accepted, but an entry's resource_types is refused: ASO's kinds fix the API versions (RouteTable and RouteTablesRoute 2025-03-01)",by-design
+azure,avm-ptn-alz-sub-vending,subscription_alias_enabled,bool,partial,"the alias is an ASO Alias, placed and tagged by its body; refused with it: any resource in the new subscription (resource groups, networks, identities, role assignments, budgets), whose subscription ID Azure gives only after the render (apply a second instance with this one's subscription_id output), and the module's cancel of the subscription when it is destroyed (POST Microsoft.Subscription/cancel, an action: deleting the Alias leaves the subscription)",gap
+azure,avm-ptn-alz-sub-vending,subscription_alias_name,string,yes,,
+azure,avm-ptn-alz-sub-vending,subscription_billing_scope,string,yes,,
+azure,avm-ptn-alz-sub-vending,subscription_display_name,string,yes,,
+azure,avm-ptn-alz-sub-vending,subscription_id,string,yes,,
+azure,avm-ptn-alz-sub-vending,subscription_management_group_association_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,subscription_management_group_id,string,yes,,
+azure,avm-ptn-alz-sub-vending,subscription_register_resource_providers_and_features,map(set(string)),partial,"accepted (the module's default list), but read only with subscription_register_resource_providers_enabled, which is refused: a registration is an action, not a resource",gap
+azure,avm-ptn-alz-sub-vending,subscription_register_resource_providers_enabled,bool,no,"registering a resource provider or a preview feature is an action on the subscription (POST /subscriptions/<id>/providers/<namespace>/register and Microsoft.Features/providers/<namespace>/features/<name>/register), not a resource; no ASO or aso-extensions kind does it",gap
+azure,avm-ptn-alz-sub-vending,subscription_tags,map(string),yes,,
+azure,avm-ptn-alz-sub-vending,subscription_update_existing,bool,partial,"the tags are an aso-extensions TagSet on the subscription; the rename to subscription_display_name is refused: it is an action (POST /subscriptions/<id>/providers/Microsoft.Subscription/rename), not a resource",gap
+azure,avm-ptn-alz-sub-vending,subscription_workload,string,yes,,
+azure,avm-ptn-alz-sub-vending,umi_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,user_managed_identities,"map(object({federated_credentials_advanced, federated_credentials_github, federated_credentials_terraform_cloud, location, name, resource_group_key, +3}))",yes,,
+azure,avm-ptn-alz-sub-vending,virtual_network_enabled,bool,yes,,
+azure,avm-ptn-alz-sub-vending,virtual_networks,"map(object({address_space, ddos_protection_enabled, ddos_protection_plan_id, dns_servers, flow_timeout_in_minutes, hub_network_resource_id, +22}))",yes,,
+azure,avm-ptn-alz-sub-vending,wait_for_subscription_before_subscription_operations,"object({create, destroy})",yes,,
 azure,avm-res-insights-component,application_type,string,partial,"accepted for web and other; ios, java, phone, MobileCenter, Node.JS and store are refused: ASO's Component (2020-02-02) enumerates Application_Type as web and other only",gap
 azure,avm-res-insights-component,daily_data_cap_in_gb,number,yes,,
 azure,avm-res-insights-component,daily_data_cap_notifications_disabled,bool,yes,,
@@ -4488,7 +4488,7 @@ azure,avm-res-web-site,custom_domains,"map(object({certificate_key, hostname, ss
 azure,avm-res-web-site,daily_memory_time_quota,number,yes,,
 azure,avm-res-web-site,dapr_config,"object({app_id, app_port, enable_api_logging, enabled, http_max_request_size, http_read_buffer_size, +1})",yes,,
 azure,avm-res-web-site,delete_empty_service_plan,bool,partial,"accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter",gap
-azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), private_endpoints (not mapped yet), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
+azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
 azure,avm-res-web-site,deployment_slots_inherit_lock,bool,yes,,
 azure,avm-res-web-site,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-web-site,dns_configuration,"object({dns_alt_server, dns_max_cache_timeout, dns_retry_attempt_count, dns_retry_attempt_timeout, dns_servers})",yes,,
@@ -4712,70 +4712,70 @@ azure,avm-res-web-serverfarm,timeouts,"object({create, delete, read, update})",n
 azure,avm-res-web-serverfarm,virtual_network_subnet_id,string,yes,,
 azure,avm-res-web-serverfarm,worker_count,number,yes,,
 azure,avm-res-web-serverfarm,zone_balancing_enabled,bool,yes,,
-azure,avm-ptn-alz,architecture_name,string,no,,no-chart
-azure,avm-ptn-alz,delays,"object({after_management_group, after_policy_definitions, after_policy_set_definitions})",no,,no-chart
-azure,avm-ptn-alz,enable_telemetry,bool,no,,no-chart
-azure,avm-ptn-alz,location,string,no,,no-chart
-azure,avm-ptn-alz,management_group_hierarchy_settings,"object({default_management_group_name, require_authorization_for_group_creation, update_existing})",no,,no-chart
-azure,avm-ptn-alz,management_group_role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, management_group_name, principal_id, +3}))",no,,no-chart
-azure,avm-ptn-alz,management_groups_dependencies,any,no,,no-chart
-azure,avm-ptn-alz,override_policy_definition_parameter_assign_permissions_set,"set(object({definition_name, parameter_name}))",no,,no-chart
-azure,avm-ptn-alz,override_policy_definition_parameter_assign_permissions_unset,"set(object({definition_name, parameter_name}))",no,,no-chart
-azure,avm-ptn-alz,parent_id_overrides,"object({policy_assignments, policy_definitions, policy_set_definitions, role_definitions})",no,,no-chart
-azure,avm-ptn-alz,parent_resource_id,string,no,,no-chart
-azure,avm-ptn-alz,policy_assignment_non_compliance_message_settings,"object({default_message, merge_mode})",no,,no-chart
-azure,avm-ptn-alz,policy_assignments_dependencies,any,no,,no-chart
-azure,avm-ptn-alz,policy_assignments_to_modify,map(object({policy_assignments})),no,,no-chart
-azure,avm-ptn-alz,policy_default_values,map(string),no,,no-chart
-azure,avm-ptn-alz,policy_role_assignments_dependencies,any,no,,no-chart
-azure,avm-ptn-alz,resource_types,"object({management_group, management_group_settings, management_group_subscription, policy_assignment, policy_definition, policy_set_definition, +3})",no,,no-chart
-azure,avm-ptn-alz,retries,"object({hierarchy_settings, management_groups, policy_assignments, policy_definitions, policy_role_assignments, policy_set_definitions, +3})",no,,no-chart
-azure,avm-ptn-alz,role_assignment_definition_lookup_enabled,bool,no,,no-chart
-azure,avm-ptn-alz,role_assignment_name_use_random_uuid,bool,no,,no-chart
-azure,avm-ptn-alz,schema_validation_enabled,"object({hierarchy_settings, management_groups, policy_assignments, policy_definitions, policy_set_definitions, role_assignments, +1})",no,,no-chart
-azure,avm-ptn-alz,subscription_placement,"map(object({management_group_name, subscription_id}))",no,,no-chart
-azure,avm-ptn-alz,subscription_placement_destroy_behavior,string,no,,no-chart
-azure,avm-ptn-alz,subscription_placement_destroy_custom_target_management_group_id,string,no,,no-chart
-azure,avm-ptn-alz,telemetry_additional_content,map(string),no,,no-chart
-azure,avm-ptn-alz,timeouts,"object({management_group, policy_assignment, policy_definition, policy_role_assignment, policy_set_definition, role_assignment, +1})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,access_key_metadata_writes_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,analytical_storage_config,object({schema_type}),no,,no-chart
-azure,avm-res-documentdb-databaseaccount,analytical_storage_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,automatic_failover_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,backup,"object({interval_in_minutes, retention_in_hours, storage_redundancy, tier, type})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,burst_capacity_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,capabilities,set(object({name})),no,,no-chart
-azure,avm-res-documentdb-databaseaccount,capacity,object({total_throughput_limit}),no,,no-chart
-azure,avm-res-documentdb-databaseaccount,consistency_policy,"object({consistency_level, max_interval_in_seconds, max_staleness_prefix})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,cors_rule,"object({allowed_headers, allowed_methods, allowed_origins, exposed_headers, max_age_in_seconds})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,enable_telemetry,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,free_tier_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,geo_locations,"set(object({failover_priority, location, zone_redundant}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,gremlin_databases,"map(object({autoscale_settings, graphs, name, throughput}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,ip_range_filter,set(string),no,,no-chart
-azure,avm-res-documentdb-databaseaccount,local_authentication_disabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,location,string,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,lock,"object({kind, name})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,managed_identities,"object({system_assigned, user_assigned_resource_ids})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,minimal_tls_version,string,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,mongo_databases,"map(object({autoscale_settings, collections, name, throughput}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,mongo_server_version,string,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,multiple_write_locations_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,name,string,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,network_acl_bypass_for_azure_services,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,network_acl_bypass_resource_ids,set(string),no,,no-chart
-azure,avm-res-documentdb-databaseaccount,partition_merge_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,private_endpoints_manage_dns_zone_group,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,public_network_access_enabled,bool,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,resource_group_name,string,no,,no-chart
-azure,avm-res-documentdb-databaseaccount,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,sql_databases,"map(object({autoscale_settings, containers, name, throughput}))",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,sql_dedicated_gateway,"object({instance_count, instance_size})",no,,no-chart
-azure,avm-res-documentdb-databaseaccount,tags,map(string),no,,no-chart
-azure,avm-res-documentdb-databaseaccount,virtual_network_rules,set(object({subnet_id})),no,,no-chart
+azure,avm-ptn-alz,architecture_name,string,partial,"accepted as the name of the given architecture (checked against architecture.name); the module resolves it from the alz provider's library when Terraform plans (data alz_architecture), which a render cannot: the resolved architecture is given as the architecture value",gap
+azure,avm-ptn-alz,delays,"object({after_management_group, after_policy_definitions, after_policy_set_definitions})",yes,,
+azure,avm-ptn-alz,enable_telemetry,bool,yes,,
+azure,avm-ptn-alz,location,string,yes,,
+azure,avm-ptn-alz,management_group_hierarchy_settings,"object({default_management_group_name, require_authorization_for_group_creation, update_existing})",yes,,
+azure,avm-ptn-alz,management_group_role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, management_group_name, principal_id, +3}))",yes,,
+azure,avm-ptn-alz,management_groups_dependencies,any,yes,,
+azure,avm-ptn-alz,override_policy_definition_parameter_assign_permissions_set,"set(object({definition_name, parameter_name}))",no,"an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved",gap
+azure,avm-ptn-alz,override_policy_definition_parameter_assign_permissions_unset,"set(object({definition_name, parameter_name}))",no,"an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved",gap
+azure,avm-ptn-alz,parent_id_overrides,"object({policy_assignments, policy_definitions, policy_set_definitions, role_definitions})",yes,,
+azure,avm-ptn-alz,parent_resource_id,string,yes,,
+azure,avm-ptn-alz,policy_assignment_non_compliance_message_settings,"object({default_message, merge_mode})",no,"an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved",gap
+azure,avm-ptn-alz,policy_assignments_dependencies,any,yes,,
+azure,avm-ptn-alz,policy_assignments_to_modify,map(object({policy_assignments})),partial,"creation_enabled and role_assignments_enabled are applied, as the module applies them; every other field is an argument of the alz provider's architecture resolution (data alz_architecture), refused: the given architecture is already resolved",gap
+azure,avm-ptn-alz,policy_default_values,map(string),no,"an argument of the alz provider's architecture resolution (data alz_architecture), which a render cannot run; the given architecture is already resolved",gap
+azure,avm-ptn-alz,policy_role_assignments_dependencies,any,yes,,
+azure,avm-ptn-alz,resource_types,"object({management_group, management_group_settings, management_group_subscription, policy_assignment, policy_definition, policy_set_definition, +3})",no,"ASO's and aso-extensions' kinds fix the API versions (ManagementGroup and its settings and subscriptions 2023-04-01, PolicyDefinition, PolicySetDefinition and PolicyAssignment 2026-07-01, RoleDefinition and RoleAssignment 2022-04-01)",by-design
+azure,avm-ptn-alz,retries,"object({hierarchy_settings, management_groups, policy_assignments, policy_definitions, policy_role_assignments, policy_set_definitions, +3})",no,"Azure Service Operator retries every failed request itself, with backoff",by-design
+azure,avm-ptn-alz,role_assignment_definition_lookup_enabled,bool,yes,,
+azure,avm-ptn-alz,role_assignment_name_use_random_uuid,bool,yes,,
+azure,avm-ptn-alz,schema_validation_enabled,"object({hierarchy_settings, management_groups, policy_assignments, policy_definitions, policy_set_definitions, role_assignments, +1})",partial,true is accepted with no effect; false is refused: ASO's and aso-extensions' CRD schemas always validate an object,by-design
+azure,avm-ptn-alz,subscription_placement,"map(object({management_group_name, subscription_id}))",yes,,
+azure,avm-ptn-alz,subscription_placement_destroy_behavior,string,partial,"default is mapped (deleting the placement moves the subscription to the tenant's default management group), as is intermediate_root when the architecture has no existing intermediate root (the module then falls back to default); parent, custom and intermediate_root with one are refused: the module moves the subscription with a PUT when it is destroyed, an action ASO cannot take at delete",gap
+azure,avm-ptn-alz,subscription_placement_destroy_custom_target_management_group_id,string,no,"the target of the custom destroy behavior, a PUT at destroy that ASO cannot make; deleting ASO's placement moves a subscription to the tenant's default management group",gap
+azure,avm-ptn-alz,telemetry_additional_content,map(string),yes,,
+azure,avm-ptn-alz,timeouts,"object({management_group, policy_assignment, policy_definition, policy_role_assignment, policy_set_definition, role_assignment, +1})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
+azure,avm-res-documentdb-databaseaccount,access_key_metadata_writes_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,analytical_storage_config,object({schema_type}),yes,,
+azure,avm-res-documentdb-databaseaccount,analytical_storage_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,automatic_failover_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,backup,"object({interval_in_minutes, retention_in_hours, storage_redundancy, tier, type})",yes,,
+azure,avm-res-documentdb-databaseaccount,burst_capacity_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,capabilities,set(object({name})),yes,,
+azure,avm-res-documentdb-databaseaccount,capacity,object({total_throughput_limit}),yes,,
+azure,avm-res-documentdb-databaseaccount,consistency_policy,"object({consistency_level, max_interval_in_seconds, max_staleness_prefix})",yes,,
+azure,avm-res-documentdb-databaseaccount,cors_rule,"object({allowed_headers, allowed_methods, allowed_origins, exposed_headers, max_age_in_seconds})",yes,,
+azure,avm-res-documentdb-databaseaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",yes,,
+azure,avm-res-documentdb-databaseaccount,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
+azure,avm-res-documentdb-databaseaccount,enable_telemetry,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,free_tier_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,geo_locations,"set(object({failover_priority, location, zone_redundant}))",yes,,
+azure,avm-res-documentdb-databaseaccount,gremlin_databases,"map(object({autoscale_settings, graphs, name, throughput}))",yes,,
+azure,avm-res-documentdb-databaseaccount,ip_range_filter,set(string),yes,,
+azure,avm-res-documentdb-databaseaccount,local_authentication_disabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,location,string,yes,,
+azure,avm-res-documentdb-databaseaccount,lock,"object({kind, name})",yes,,
+azure,avm-res-documentdb-databaseaccount,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
+azure,avm-res-documentdb-databaseaccount,minimal_tls_version,string,yes,,
+azure,avm-res-documentdb-databaseaccount,mongo_databases,"map(object({autoscale_settings, collections, name, throughput}))",yes,,
+azure,avm-res-documentdb-databaseaccount,mongo_server_version,string,yes,,
+azure,avm-res-documentdb-databaseaccount,multiple_write_locations_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,name,string,yes,,
+azure,avm-res-documentdb-databaseaccount,network_acl_bypass_for_azure_services,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,network_acl_bypass_resource_ids,set(string),yes,,
+azure,avm-res-documentdb-databaseaccount,partition_merge_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
+azure,avm-res-documentdb-databaseaccount,private_endpoints_manage_dns_zone_group,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,public_network_access_enabled,bool,yes,,
+azure,avm-res-documentdb-databaseaccount,resource_group_name,string,yes,,
+azure,avm-res-documentdb-databaseaccount,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
+azure,avm-res-documentdb-databaseaccount,sql_databases,"map(object({autoscale_settings, containers, name, throughput}))",yes,,
+azure,avm-res-documentdb-databaseaccount,sql_dedicated_gateway,"object({instance_count, instance_size})",yes,,
+azure,avm-res-documentdb-databaseaccount,tags,map(string),yes,,
+azure,avm-res-documentdb-databaseaccount,virtual_network_rules,set(object({subnet_id})),yes,,
 azure,avm-res-network-dnsresolver,enable_telemetry,bool,yes,,
 azure,avm-res-network-dnsresolver,inbound_endpoints,"map(object({merge_with_module_tags, name, private_ip_address, private_ip_allocation_method, subnet_name, tags}))",yes,,
 azure,avm-res-network-dnsresolver,location,string,yes,,
