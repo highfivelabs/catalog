@@ -1,0 +1,44 @@
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: Server
+metadata:
+  name: express-va-sql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "express-va"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "sql"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/s/resourceGroups/rg"
+  administrators:
+    administratorType: ActiveDirectory
+    azureADOnlyAuthentication: true
+    login: "dba"
+    sid: "33333333-4444-5555-6666-777777777777"
+  minimalTlsVersion: "1.2"
+  publicNetworkAccess: Disabled
+  version: "12.0"
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.hfl.dev/v20250101
+kind: ServersSqlVulnerabilityAssessment
+metadata:
+  name: express-va-sql-va
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "express-va"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "express_vulnerability_assessment"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: express-va-sql
+  state: Enabled
