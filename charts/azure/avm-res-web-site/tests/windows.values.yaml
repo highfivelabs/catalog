@@ -1,0 +1,97 @@
+# A Windows .NET web app with most site variables: a virtual application,
+# IP restrictions (main and SCM), CORS, auto heal, metadata, identities,
+# VNet integration, a Key Vault certificate and a custom domain bound with
+# its thumbprint, a private endpoint with a DNS zone group, lock, role
+# assignments and diagnostic settings.
+name: app-win
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full
+service_plan_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Web/serverFarms/asp-win
+os_type: Windows
+kind: webapp
+ftp_publish_basic_authentication_enabled: true
+public_network_access_enabled: true
+https_only: true
+client_affinity_enabled: true
+client_certificate_enabled: true
+client_certificate_mode: Optional
+client_certificate_exclusion_paths: /health
+end_to_end_encryption_enabled: true
+ip_mode: IPv4
+key_vault_reference_identity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai
+virtual_network_subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-apps
+vnet_route_all_traffic: true
+vnet_image_pull_enabled: true
+virtual_network_backup_restore_enabled: true
+dns_configuration: {dns_servers: [168.63.129.16], dns_max_cache_timeout: 30}
+enable_telemetry: false
+deletion_policy: ABANDON
+labels: {team: web}
+tags: {env: test}
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai]
+app_settings:
+  WEBSITE_RUN_FROM_PACKAGE: "1"
+  FEATURE_FLAG: "on"
+site_config:
+  always_on: true
+  http2_enabled: true
+  minimum_tls_version: "1.2"
+  health_check_path: /healthz
+  default_documents: [index.html]
+  worker_count: 2
+  application_stack:
+    dotnet: {dotnet_version: v8.0}
+  virtual_application:
+    - virtual_path: /
+      physical_path: site\wwwroot
+      preload_enabled: true
+      virtual_directory: [{virtual_path: /static, physical_path: site\static}]
+  cors: {allowed_origins: [https://example.com], support_credentials: true}
+  ip_restriction:
+    - {name: office, ip_address: 203.0.113.0/24, priority: 100}
+    - name: frontdoor
+      service_tag: AzureFrontDoor.Backend
+      priority: 200
+      headers: {x_azure_fdid: [00000000-0000-0000-0000-000000000001]}
+    - {name: subnet, virtual_network_subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-apps, action: Allow}
+  ip_restriction_default_action: Deny
+  scm_ip_restriction: [{name: office, ip_address: 203.0.113.0/24}]
+  auto_heal_enabled: true
+  auto_heal_rules:
+    actions: {action_type: Recycle, min_process_execution_time: "00:01:00"}
+    triggers:
+      requests: {count: 100, time_interval: "00:01:00"}
+      status_codes: [{count: 10, time_interval: "00:05:00", status: 500}]
+  metadata: [{name: OWNER, value: web}]
+certificates:
+  wildcard:
+    key_vault_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.KeyVault/vaults/kv
+    key_vault_secret_name: wildcard-example-com
+    host_names: ["*.example.com"]
+    tags: {cert: wildcard}
+custom_domains:
+  www:
+    hostname: www.example.com
+    ssl_state: SniEnabled
+    thumbprint: 0123456789ABCDEF0123456789ABCDEF01234567
+private_endpoints:
+  pe:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net]
+    lock: {kind: CanNotDelete}
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 33333333-3333-3333-3333-333333333333}
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader:
+    role_definition_id_or_name: Reader
+    principal_id: 11111111-1111-1111-1111-111111111111
+    principal_type: ServicePrincipal
+diagnostic_settings:
+  law:
+    name: diag-law
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.OperationalInsights/workspaces/law
+    logs: [{category_group: allLogs}]
+    metrics: [{category: AllMetrics}]

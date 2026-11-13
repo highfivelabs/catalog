@@ -1,0 +1,365 @@
+---
+# Source: avm-res-web-site/templates/domains.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: Certificate
+metadata:
+  name: windows-cert-wildcard
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "certificate:wildcard"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "wildcard"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full"
+  serverFarmReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Web/serverfarms/asp-win"
+  keyVaultReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.KeyVault/vaults/kv"
+  keyVaultSecretName: "wildcard-example-com"
+  hostNames:
+    - '*.example.com'
+  tags:
+    cert: wildcard
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: windows-site-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "diag-law"
+  owner:
+    group: web.azure.com
+    kind: Site
+    name: windows-site
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: allLogs
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  metrics:
+    - category: AllMetrics
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: windows-site-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: web.azure.com
+    kind: Site
+    name: windows-site
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/privateendpoints.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: windows-site-pe-pe-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: windows-site-pe-pe
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/privateendpoints.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: windows-site-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "pep-sites-d7c63dfa-1e99-570c-85c8-0d46c94abdf0"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full"
+  customNetworkInterfaceName: "nic-pep-sites-d7c63dfa-1e99-570c-85c8-0d46c94abdf0"
+  privateLinkServiceConnections:
+    - name: "pcon-pep-sites-d7c63dfa-1e99-570c-85c8-0d46c94abdf0"
+      groupIds:
+        - "sites"
+      privateLinkServiceReference:
+        group: web.azure.com
+        kind: Site
+        name: windows-site
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+---
+# Source: avm-res-web-site/templates/privateendpoints.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: windows-site-pe-pe-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/dns_zone_group"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "default"
+  owner:
+    name: windows-site-pe-pe
+  privateDnsZoneConfigs:
+    - name: "default"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: windows-site-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    group: web.azure.com
+    kind: Site
+    name: windows-site
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-web-site/templates/privateendpoints.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: windows-site-pe-pe-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/role-assignment-reader"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: windows-site-pe-pe
+  principalId: "33333333-3333-3333-3333-333333333333"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: web.azure.com/v20250501
+kind: Site
+metadata:
+  name: windows-site
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "site"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "app-win"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full"
+  kind: "app"
+  clientAffinityEnabled: true
+  clientCertEnabled: true
+  clientCertExclusionPaths: /health
+  clientCertMode: Optional
+  dnsConfiguration:
+    dnsMaxCacheTimeout: 30
+    dnsServers:
+    - 168.63.129.16
+  enabled: true
+  endToEndEncryptionEnabled: true
+  httpsOnly: true
+  identity:
+    type: SystemAssigned, UserAssigned
+    userAssignedIdentities:
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai
+  ipMode: IPv4
+  keyVaultReferenceIdentity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai
+  outboundVnetRouting:
+    allTraffic: true
+    applicationTraffic: false
+    backupRestoreTraffic: true
+    contentShareTraffic: false
+    imagePullTraffic: true
+  publicNetworkAccess: Enabled
+  reserved: false
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Web/serverfarms/asp-win
+  siteConfig:
+    alwaysOn: true
+    appSettings:
+    - name: FEATURE_FLAG
+      value: "on"
+    - name: WEBSITE_RUN_FROM_PACKAGE
+      value: "1"
+    autoHealEnabled: true
+    autoHealRules:
+      actions:
+        actionType: Recycle
+        minProcessExecutionTime: "00:01:00"
+      triggers:
+        requests:
+          count: 100
+          timeInterval: "00:01:00"
+        statusCodes:
+        - count: 10
+          status: 500
+          timeInterval: "00:05:00"
+    cors:
+      allowedOrigins:
+      - https://example.com
+      supportCredentials: true
+    defaultDocuments:
+    - index.html
+    ftpsState: FtpsOnly
+    healthCheckPath: /healthz
+    http20Enabled: true
+    ipSecurityRestrictions:
+    - action: Allow
+      ipAddress: 203.0.113.0/24
+      name: office
+      priority: 100
+      tag: Default
+    - action: Allow
+      headers:
+        x-azure-fdid:
+        - 00000000-0000-0000-0000-000000000001
+      ipAddress: AzureFrontDoor.Backend
+      name: frontdoor
+      priority: 200
+      tag: ServiceTag
+    - action: Allow
+      name: subnet
+      priority: 65000
+      vnetSubnetResourceReference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-apps
+    ipSecurityRestrictionsDefaultAction: Deny
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    metadata:
+    - name: OWNER
+      value: web
+    - name: CURRENT_STACK
+      value: dotnet
+    minTlsVersion: "1.2"
+    netFrameworkVersion: v8.0
+    numberOfWorkers: 2
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictions:
+    - action: Allow
+      ipAddress: 203.0.113.0/24
+      name: office
+      priority: 65000
+      tag: Default
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    use32BitWorkerProcess: false
+    virtualApplications:
+    - physicalPath: site\wwwroot
+      preloadEnabled: true
+      virtualDirectories:
+      - physicalPath: site\static
+        virtualPath: /static
+      virtualPath: /
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+  virtualNetworkSubnetReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-apps
+  tags:
+    env: test
+---
+# Source: avm-res-web-site/templates/domains.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesHostNameBinding
+metadata:
+  name: windows-site-host-www
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "hostname_binding:www"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "www.example.com"
+  owner:
+    name: windows-site
+  sslState: "SniEnabled"
+  thumbprint: "0123456789ABCDEF0123456789ABCDEF01234567"

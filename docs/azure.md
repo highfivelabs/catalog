@@ -539,14 +539,33 @@ Vault references are taken).
 | Submodule | ARM types | ASO |
 | --- | --- | --- |
 | root | `Web/sites@2025-03-01` | `web/Site` (2025-05-01). App settings and connection strings can go inline in `siteConfig` |
-| `slot` | `sites/slots` | **GAP** |
-| `hostname_binding` | `sites/hostNameBindings` | **GAP** |
-| `certificate` | `Web/certificates` | **GAP** |
-| `config_*` (appsettings, connectionstrings, authsettings, authsettingsV2, logs, backup, metadata) | `sites/config` | **GAP** as separate objects; partly inline |
+| `slot` | `sites/slots` | aso-extensions `SitesSlot` (2026-07-15) |
+| `hostname_binding` | `sites/hostNameBindings` (and a slot's) | aso-extensions `SitesHostNameBinding`, `SitesSlotsHostNameBinding` |
+| `certificate` | `Web/certificates` | aso-extensions `Certificate` |
+| `config_*` (appsettings, connectionstrings, authsettings, authsettingsV2, logs, backup, metadata, azurestorageaccounts, slotConfigNames) | `sites/config` | **GAP** as separate objects; appsettings, metadata, connection strings and storage mounts inline in `siteConfig` |
 | `publishing_credential_policy` | `sites/basicPublishingCredentialsPolicies` | **GAP** |
 
-Custom domains and deployment slots are core to App Service, so this is a
-real gap.
+Ported as `charts/azure/avm-res-web-site` (2026-11-13): 76 of 99
+variables (8 in part), 13 of 14 outputs. The `Site` carries the app
+settings and metadata inline; slots, custom domains and Key Vault
+certificates are aso-extensions kinds. Still gaps: the `sites/config`
+sections the module writes separately (`auth_settings`,
+`auth_settings_v2`, `backup`, `logs`, `sticky_settings`), the publishing
+credential policies (so the chart refuses
+`ftp_publish_basic_authentication_enabled: false`, the module's default,
+and needs it set to `true`) and the slot swap (`app_service_active_slot`,
+an action). Connection strings, storage mounts, the Application Insights
+key and connection string and PFX uploads are refused as secret values
+(the builder's decision); Logic Apps (`kind: logicapp`) too, since the
+module writes the storage account key into an app setting. Not applied
+live: the sandbox's App Service quota is 0 (the serverfarm chart below);
+its case `web` is opt-in. Its `tests/mock.values.yaml` passed against the
+fake cloud (run `off-catalog-1113080724-28823`: the site, slot, hostname
+binding, certificate and two locks Ready and deleted, outputs evaluated);
+the fake does not compute a site's `defaultHostName` or
+`customDomainVerificationId`, so `resource_uri` and
+`custom_domain_verification_id` were null there (a gap for aso-extensions'
+`pkg/fakecloud/arm/computed.go`).
 
 ### 23. avm-res-network-privateendpoint (v0.3.1; azapi)
 
