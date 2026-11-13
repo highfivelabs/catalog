@@ -1,0 +1,234 @@
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: logging-audit-allservices-b9287bee
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data-access:allServices"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Organization
+    external: "1122334455"
+  service: "allServices"
+  auditLogConfigs:
+    - logType: "ADMIN_READ"
+      exemptedMembers: ["group:organization-admins@example.org"]
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: logging-audit-storage-googleapis-com-207959fa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data-access:storage.googleapis.com"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Organization
+    external: "1122334455"
+  service: "storage.googleapis.com"
+  auditLogConfigs:
+    - logType: "DATA_READ"
+    - logType: "DATA_WRITE"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: logging-sink-writer-debug
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:debug"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: logging-sink-debug
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  condition:
+    title: "debug bucket writer"
+    description: "Grants bucketWriter to the writer identity used by log sink debug on organizations/1122334455"
+    expression: "resource.name.endsWith('locations/global/buckets/my-bucket')"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: logging-sink-writer-notice
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:notice"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: logging-sink-notice
+  role: roles/pubsub.publisher
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    external: "projects/my-project/topics/pubsub_sink"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: logging-sink-writer-warnings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:warnings"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: logging-sink-warnings
+  role: roles/storage.objectCreator
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    external: "test-prod-log-audit-0"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: logging-exclusion-no-gce-instances
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce-instances"
+spec:
+  resourceID: "no-gce-instances"
+  organizationRef:
+    external: "organizations/1122334455"
+  description: "no-gce-instances (Terraform-managed)."
+  filter: "resource.type=gce_instance"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-debug
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink:debug"
+spec:
+  resourceID: "debug"
+  organizationRef:
+    external: "1122334455"
+  description: "debug (Terraform-managed)."
+  destination:
+    loggingLogBucketRef:
+      external: "projects/my-project/locations/global/buckets/my-bucket"
+  filter: "severity=DEBUG"
+  includeChildren: true
+  disabled: false
+  exclusions:
+    - name: "no-compute"
+      filter: "logName:compute"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-info
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink:info"
+spec:
+  resourceID: "info"
+  organizationRef:
+    external: "1122334455"
+  description: "info (Terraform-managed)."
+  destination:
+    bigQueryDatasetRef:
+      external: "projects/my-project/datasets/bq_sink"
+  filter: "severity=INFO"
+  includeChildren: true
+  disabled: false
+  bigqueryOptions:
+    usePartitionedTables: true
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-notice
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink:notice"
+spec:
+  resourceID: "notice"
+  organizationRef:
+    external: "1122334455"
+  description: "notice (Terraform-managed)."
+  destination:
+    pubSubTopicRef:
+      external: "projects/my-project/topics/pubsub_sink"
+  filter: "severity=NOTICE"
+  includeChildren: true
+  disabled: false
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: logging-sink-warnings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "logging"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink:warnings"
+spec:
+  resourceID: "warnings"
+  organizationRef:
+    external: "1122334455"
+  description: "warnings (Terraform-managed)."
+  destination:
+    storageBucketRef:
+      external: "test-prod-log-audit-0"
+  filter: "severity=WARNING"
+  includeChildren: true
+  disabled: false
