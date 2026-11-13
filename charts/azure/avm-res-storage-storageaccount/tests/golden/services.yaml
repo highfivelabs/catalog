@@ -1,0 +1,404 @@
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: services-storage-pe-blob-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:blob/lock"
+spec:
+  azureName: "lock-pe-stservices001"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: services-storage-pe-blob
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: services-storage-pe-dfs-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:dfs/lock"
+spec:
+  azureName: "pe-readonly"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: services-storage-pe-dfs
+  level: ReadOnly
+  notes: "no changes"
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: services-storage-pe-blob
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:blob"
+spec:
+  azureName: "pe-stservices001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-pe-stservices001"
+      groupIds: ["blob"]
+      privateLinkServiceReference:
+        group: storage.azure.com
+        kind: StorageAccount
+        name: services-storage
+  ipConfigurations: []
+  applicationSecurityGroups: []
+  tags:
+    tier: private
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: services-storage-pe-dfs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:dfs"
+spec:
+  azureName: "pe-stservices-dfs"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+  customNetworkInterfaceName: "nic-pe-stservices-dfs"
+  privateLinkServiceConnections:
+    - name: "psc-dfs"
+      groupIds: ["dfs"]
+      privateLinkServiceReference:
+        group: storage.azure.com
+        kind: StorageAccount
+        name: services-storage
+  ipConfigurations:
+    - name: "ipconfig-dfs"
+      groupId: "dfs"
+      memberName: "dfs"
+      privateIPAddress: "10.0.2.10"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app"
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: services-storage-pe-blob-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:blob/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: services-storage-pe-blob
+  privateDnsZoneConfigs:
+    - name: "config-0"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    - name: "config-1"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net.contoso"
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: services-storage-pe-blob-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:blob/role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: services-storage-pe-blob
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-storage-storageaccount/templates/main.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccount
+metadata:
+  name: services-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "storage_account"
+spec:
+  azureName: "stservices001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data"
+  kind: StorageV2
+  sku:
+    name: Standard_ZRS
+  accessTier: Hot
+  allowBlobPublicAccess: false
+  allowCrossTenantReplication: false
+  allowSharedKeyAccess: false
+  encryption:
+    keySource: Microsoft.Storage
+  isHnsEnabled: true
+  isLocalUserEnabled: false
+  isNfsV3Enabled: false
+  isSftpEnabled: false
+  minimumTlsVersion: TLS1_2
+  networkAcls:
+    bypass: "AzureServices"
+    defaultAction: Deny
+    ipRules: []
+    virtualNetworkRules: []
+  publicNetworkAccess: Disabled
+  supportsHttpsTrafficOnly: true
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobService
+metadata:
+  name: services-storage-blob
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "blob_service"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: services-storage
+  changeFeed:
+    enabled: true
+    retentionInDays: 30
+  containerDeleteRetentionPolicy:
+    allowPermanentDelete: false
+    days: 7
+    enabled: true
+  cors:
+    corsRules:
+      - allowedHeaders: ["*"]
+        allowedMethods: ["GET","HEAD"]
+        allowedOrigins: ["https://app.example.com"]
+        exposedHeaders: ["x-ms-meta-*"]
+        maxAgeInSeconds: 3600
+  defaultServiceVersion: "2020-06-12"
+  deleteRetentionPolicy:
+    days: 14
+    enabled: true
+  isVersioningEnabled: true
+  lastAccessTimeTrackingPolicy:
+    enable: true
+    blobType: ["blockBlob"]
+    name: AccessTimeTracking
+    trackingGranularityInDays: 1
+  restorePolicy:
+    enabled: true
+    days: 7
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobServicesContainer
+metadata:
+  name: services-dlfs-curated
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "data_lake_gen2_filesystem:curated"
+spec:
+  azureName: "curated"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stservices001/blobServices/default"
+  defaultEncryptionScope: "scope-curated"
+  metadata:
+    owner: data
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobServicesContainer
+metadata:
+  name: services-dlfs-raw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "data_lake_gen2_filesystem:raw"
+spec:
+  azureName: "raw"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/stservices001/blobServices/default"
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsFileService
+metadata:
+  name: services-storage-file
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "file_service"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: services-storage
+  protocolSettings:
+    smb:
+      authenticationMethods: "Kerberos"
+      channelEncryption: "AES-128-GCM;AES-256-GCM"
+      kerberosTicketEncryption: "AES-256"
+      multichannel:
+        enabled: false
+      versions: "SMB3.0;SMB3.1.1"
+  shareDeleteRetentionPolicy:
+    days: 14
+    enabled: true
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsManagementPolicy
+metadata:
+  name: services-storage-lifecycle
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "management_policy"
+spec:
+  owner:
+    name: services-storage
+  policy:
+    rules:
+      - name: "hot-from-cool"
+        enabled: false
+        type: Lifecycle
+        definition:
+          actions:
+            baseBlob:
+              enableAutoTierToHotFromCool: true
+              tierToCool:
+                daysAfterLastAccessTimeGreaterThan: 14
+          filters:
+            blobTypes: ["blockBlob"]
+      - name: "expire-logs"
+        enabled: true
+        type: Lifecycle
+        definition:
+          actions:
+            baseBlob:
+              tierToCool:
+                daysAfterModificationGreaterThan: 30
+              tierToArchive:
+                daysAfterModificationGreaterThan: 90
+                daysAfterLastTierChangeGreaterThan: 7
+              delete:
+                daysAfterModificationGreaterThan: 365
+            snapshot:
+              delete:
+                daysAfterCreationGreaterThan: 30
+            version:
+              tierToCool:
+                daysAfterCreationGreaterThan: 10
+              delete:
+                daysAfterCreationGreaterThan: 90
+          filters:
+            blobTypes: ["blockBlob"]
+            prefixMatch: ["audit/","logs/"]
+            blobIndexMatch:
+              - name: "tier"
+                op: "=="
+                value: "logs"
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsQueueService
+metadata:
+  name: services-storage-queue
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "queue_service"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: services-storage
+  cors:
+    corsRules:
+      - allowedHeaders: ["*"]
+        allowedMethods: ["GET"]
+        allowedOrigins: ["*"]
+        exposedHeaders: ["*"]
+        maxAgeInSeconds: 60
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsTableService
+metadata:
+  name: services-storage-table
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "services"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "table_service"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: services-storage
+  cors:
+    corsRules: []

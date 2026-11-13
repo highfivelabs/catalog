@@ -3868,11 +3868,11 @@ azure,avm-res-storage-storageaccount,account_tier,string,yes,,
 azure,avm-res-storage-storageaccount,allow_nested_items_to_be_public,bool,yes,,
 azure,avm-res-storage-storageaccount,allowed_copy_scope,string,yes,,
 azure,avm-res-storage-storageaccount,azure_files_authentication,"object({active_directory, default_share_level_permission, directory_type})",yes,,
-azure,avm-res-storage-storageaccount,blob_properties,"object({automatic_snapshot_policy_enabled, change_feed, container_delete_retention_policy, cors_rules, default_service_version, delete_retention_policy, +3})",no,ASO has StorageAccountsBlobService; this chart does not map the blob service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,blob_properties,"object({automatic_snapshot_policy_enabled, change_feed, container_delete_retention_policy, cors_rules, default_service_version, delete_retention_policy, +3})",yes,,
 azure,avm-res-storage-storageaccount,containers,"map(object({default_encryption_scope, deny_encryption_scope_override, enable_nfs_v3_all_squash, enable_nfs_v3_root_squash, immutable_storage_with_versioning, metadata, +4}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
 azure,avm-res-storage-storageaccount,cross_tenant_replication_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,custom_domain,"object({name, use_subdomain})",yes,,
-azure,avm-res-storage-storageaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,ASO's StorageAccount has encryption.keyvaultproperties; this chart does not map the customer-managed key yet,not-ported
+azure,avm-res-storage-storageaccount,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",no,"the module creates the account with Microsoft-managed keys and patches the key in afterwards (Azure rejects one PUT that both gives the account its identity and names that identity for encryption), the vault's URI read from Azure; ASO applies a StorageAccount in one PUT, and the chart cannot read the URI",gap
 azure,avm-res-storage-storageaccount,default_to_oauth_authentication,bool,yes,,
 azure,avm-res-storage-storageaccount,diagnostic_settings_blob,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-storage-storageaccount,diagnostic_settings_file,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
@@ -3881,7 +3881,7 @@ azure,avm-res-storage-storageaccount,diagnostic_settings_storage_account,"map(ob
 azure,avm-res-storage-storageaccount,diagnostic_settings_table,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-storage-storageaccount,edge_zone,string,yes,,
 azure,avm-res-storage-storageaccount,enable_telemetry,bool,yes,,
-azure,avm-res-storage-storageaccount,file_service_properties,"object({cors_rules, share_retention_policy, smb})",no,ASO has StorageAccountsFileService; this chart does not map the file service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,file_service_properties,"object({cors_rules, share_retention_policy, smb})",yes,,
 azure,avm-res-storage-storageaccount,https_traffic_only_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,immutability_policy,"object({allow_protected_append_writes, period_since_creation_in_days, state})",yes,,
 azure,avm-res-storage-storageaccount,infrastructure_encryption_enabled,bool,yes,,
@@ -3897,12 +3897,12 @@ azure,avm-res-storage-storageaccount,name,string,yes,,
 azure,avm-res-storage-storageaccount,network_rules,"object({bypass, default_action, ip_rules, private_link_access, timeouts, virtual_network_subnet_ids})",partial,"accepted, but its timeouts are refused: ASO has no per-request timeouts",by-design
 azure,avm-res-storage-storageaccount,nfsv3_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,parent_id,string,yes,,
-azure,avm-res-storage-storageaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-storage-storageaccount,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
 azure,avm-res-storage-storageaccount,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-storage-storageaccount,provisioned_billing_model_version,string,yes,,
 azure,avm-res-storage-storageaccount,public_network_access_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,queue_encryption_key_type,string,yes,,
-azure,avm-res-storage-storageaccount,queue_properties,object({cors_rules}),no,ASO has StorageAccountsQueueService; this chart does not map the queue service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,queue_properties,object({cors_rules}),yes,,
 azure,avm-res-storage-storageaccount,queues,"map(object({metadata, name, role_assignments, timeouts}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
 azure,avm-res-storage-storageaccount,resource_types,"object({blob_container, blob_service, customer_managed_key_vault, file_service, local_user, lock, +10})",no,ASO's kinds fix the API versions (StorageAccount 2025-06-01),by-design
 azure,avm-res-storage-storageaccount,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
@@ -3914,11 +3914,11 @@ azure,avm-res-storage-storageaccount,sftp_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,shared_access_key_enabled,bool,yes,,
 azure,avm-res-storage-storageaccount,shares,"map(object({access_tier, enabled_protocol, metadata, name, provisioned_bandwidth_mibps, provisioned_iops, +5}))",partial,"accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)",gap
 azure,avm-res-storage-storageaccount,static_website,"map(object({error_404_document, index_document}))",no,"a static website is set on the blob service's data plane (Set Blob Service Properties), which ASO does not call",gap
-azure,avm-res-storage-storageaccount,storage_data_lake_gen2_filesystems,"map(object({default_encryption_scope, name, properties, timeouts}))",no,a Data Lake Gen2 filesystem is a blob container with its ACLs; this chart does not map them yet,not-ported
-azure,avm-res-storage-storageaccount,storage_management_policy_rule,"map(object({actions, enabled, filters, name}))",no,ASO has StorageAccountsManagementPolicy; this chart does not map the lifecycle rules yet,not-ported
+azure,avm-res-storage-storageaccount,storage_data_lake_gen2_filesystems,"map(object({default_encryption_scope, name, properties, timeouts}))",partial,"accepted, but an entry's timeouts are refused: ASO has no per-request timeouts",by-design
+azure,avm-res-storage-storageaccount,storage_management_policy_rule,"map(object({actions, enabled, filters, name}))",yes,,
 azure,avm-res-storage-storageaccount,storage_management_policy_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-storage-storageaccount,table_encryption_key_type,string,yes,,
-azure,avm-res-storage-storageaccount,table_properties,object({cors_rules}),no,ASO has StorageAccountsTableService; this chart does not map the table service's properties yet,not-ported
+azure,avm-res-storage-storageaccount,table_properties,object({cors_rules}),yes,,
 azure,avm-res-storage-storageaccount,table_service_cors_propagation_wait,string,yes,,
 azure,avm-res-storage-storageaccount,tables,"map(object({name, role_assignments, signed_identifiers, timeouts}))",partial,"accepted, but an entry's signed_identifiers are refused (gap: ASO renders a signed identifier's id as an ARM reference) and its timeouts (by design)",gap
 azure,avm-res-storage-storageaccount,tags,map(string),yes,,
@@ -3938,7 +3938,7 @@ azure,avm-res-keyvault-vault,lock,"object({kind, name})",yes,,
 azure,avm-res-keyvault-vault,name,string,yes,,
 azure,avm-res-keyvault-vault,network_acls,"object({bypass, default_action, ip_rules, virtual_network_subnet_ids})",yes,,
 azure,avm-res-keyvault-vault,parent_id,string,yes,,
-azure,avm-res-keyvault-vault,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-keyvault-vault,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
 azure,avm-res-keyvault-vault,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-keyvault-vault,public_network_access_enabled,bool,yes,,
 azure,avm-res-keyvault-vault,purge_protection_enabled,bool,yes,,
@@ -4076,8 +4076,8 @@ azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_resource
 azure,avm-res-operationalinsights-workspace,monitor_private_link_scoped_service_name,string,yes,,
 azure,avm-res-operationalinsights-workspace,name,string,yes,,
 azure,avm-res-operationalinsights-workspace,network_security_perimeter_association,"object({access_mode, profile_name, resource_id})",yes,,
-azure,avm-res-operationalinsights-workspace,private_endpoint_extensions,"map(object({manage_dns_zone_group, monitor_private_link_scope_exclusion, monitor_private_link_scope_key}))",no,"extensions of private endpoints (their Private Link Scope exclusions and DNS zone groups), which this chart does not map yet",not-ported
-azure,avm-res-operationalinsights-workspace,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +7}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-operationalinsights-workspace,private_endpoint_extensions,"map(object({manage_dns_zone_group, monitor_private_link_scope_exclusion, monitor_private_link_scope_key}))",partial,"accepted, but monitor_private_link_scope_exclusion is refused when it would change the scope's access modes for the endpoint: the module names the exclusion by the scope's private endpoint connection, which Azure names and a render cannot read",not-ported
+azure,avm-res-operationalinsights-workspace,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +7}))",yes,,
 azure,avm-res-operationalinsights-workspace,resource_group_name,string,yes,,
 azure,avm-res-operationalinsights-workspace,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
 azure,avm-res-operationalinsights-workspace,tags,map(string),yes,,
@@ -4192,7 +4192,7 @@ azure,avm-res-containerregistry-registry,name,string,yes,,
 azure,avm-res-containerregistry-registry,network_rule_bypass_for_tasks_enabled,bool,yes,,
 azure,avm-res-containerregistry-registry,network_rule_bypass_option,string,yes,,
 azure,avm-res-containerregistry-registry,network_rule_set,"object({default_action, ip_rule})",yes,,
-azure,avm-res-containerregistry-registry,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
+azure,avm-res-containerregistry-registry,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
 azure,avm-res-containerregistry-registry,private_endpoints_inherit_lock,bool,yes,,
 azure,avm-res-containerregistry-registry,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-containerregistry-registry,public_network_access_enabled,bool,yes,,
@@ -4240,7 +4240,7 @@ azure,avm-res-containerservice-managedcluster,addon_profiles_extra,"map(object({
 azure,avm-res-containerservice-managedcluster,agent_pools,"map(object({artifact_streaming_profile, availability_zones, capacity_reservation_group_id, count_of, creation_data, delete_options, +51}))",partial,"accepted, but an entry's enable_os_disk_full_caching and gpu_profile.nvidia are refused (ASO's agent pool, up to API 2025-10-02-preview, has neither), as is delete_options.ignore_pod_disruption_budget (ASO deletes a pool without that option)",gap
 azure,avm-res-containerservice-managedcluster,agentpool_timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-containerservice-managedcluster,ai_toolchain_operator_profile,object({enabled}),yes,,
-azure,avm-res-containerservice-managedcluster,alert_email,string,no,the module's alerting submodule is not mapped yet,not-ported
+azure,avm-res-containerservice-managedcluster,alert_email,string,yes,,
 azure,avm-res-containerservice-managedcluster,api_server_access_profile,"object({authorized_ip_ranges, disable_run_command, enable_private_cluster, enable_private_cluster_public_fqdn, enable_vnet_integration, private_dns_zone, +1})",yes,,
 azure,avm-res-containerservice-managedcluster,auto_scaler_profile,"object({balance_similar_node_groups, daemonset_eviction_for_empty_nodes, daemonset_eviction_for_occupied_nodes, expander, ignore_daemonsets_utilization, max_empty_bulk_delete, +14})",yes,,
 azure,avm-res-containerservice-managedcluster,auto_upgrade_profile,"object({node_os_upgrade_channel, upgrade_channel})",yes,,
@@ -4278,14 +4278,14 @@ azure,avm-res-containerservice-managedcluster,node_provisioning_profile,"object(
 azure,avm-res-containerservice-managedcluster,node_resource_group,string,yes,,
 azure,avm-res-containerservice-managedcluster,node_resource_group_profile,object({restriction_level}),yes,,
 azure,avm-res-containerservice-managedcluster,oidc_issuer_profile,object({enabled}),yes,,
-azure,avm-res-containerservice-managedcluster,onboard_alerts,bool,no,"the module's alerting submodule (Prometheus rule groups, action groups, metric alerts: ASO's alertsmanagement and insights kinds) is not mapped yet",not-ported
-azure,avm-res-containerservice-managedcluster,onboard_monitoring,bool,no,"the module's monitoring submodule (data collection rules, endpoints and associations: ASO's insights DataCollectionRule, DataCollectionEndpoint, DataCollectionRuleAssociation) is not mapped yet",not-ported
+azure,avm-res-containerservice-managedcluster,onboard_alerts,bool,yes,,
+azure,avm-res-containerservice-managedcluster,onboard_monitoring,bool,yes,,
 azure,avm-res-containerservice-managedcluster,parent_id,string,yes,,
 azure,avm-res-containerservice-managedcluster,pod_identity_profile,"object({allow_network_plugin_kubenet, enabled, user_assigned_identities, user_assigned_identity_exceptions})",yes,,
-azure,avm-res-containerservice-managedcluster,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",no,ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet,not-ported
-azure,avm-res-containerservice-managedcluster,private_endpoints_manage_dns_zone_group,bool,partial,"accepted; it changes nothing, since private_endpoints is refused",not-ported
+azure,avm-res-containerservice-managedcluster,private_endpoints,"map(object({application_security_group_associations, ip_configurations, location, lock, name, network_interface_name, +8}))",yes,,
+azure,avm-res-containerservice-managedcluster,private_endpoints_manage_dns_zone_group,bool,yes,,
 azure,avm-res-containerservice-managedcluster,private_link_resources,"list(object({group_id, id, name, required_members, type}))",yes,,
-azure,avm-res-containerservice-managedcluster,prometheus_workspace_id,string,no,the module's monitoring submodule is not mapped yet,not-ported
+azure,avm-res-containerservice-managedcluster,prometheus_workspace_id,string,yes,,
 azure,avm-res-containerservice-managedcluster,public_network_access,string,yes,,
 azure,avm-res-containerservice-managedcluster,resource_types,"object({containerservice_managed_clusters, containerservice_managed_clusters_agent_pools})",no,"ASO's kinds fix the API versions (ManagedCluster 2026-05-01, or 2025-10-02-preview for the preview-only settings; agent pools 2025-10-02-preview)",by-design
 azure,avm-res-containerservice-managedcluster,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
@@ -4488,7 +4488,7 @@ azure,avm-res-web-site,custom_domains,"map(object({certificate_key, hostname, ss
 azure,avm-res-web-site,daily_memory_time_quota,number,yes,,
 azure,avm-res-web-site,dapr_config,"object({app_id, app_port, enable_api_logging, enabled, http_max_request_size, http_read_buffer_size, +1})",yes,,
 azure,avm-res-web-site,delete_empty_service_plan,bool,partial,"accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter",gap
-azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), private_endpoints (not mapped yet), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
+azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
 azure,avm-res-web-site,deployment_slots_inherit_lock,bool,yes,,
 azure,avm-res-web-site,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-web-site,dns_configuration,"object({dns_alt_server, dns_max_cache_timeout, dns_retry_attempt_count, dns_retry_attempt_timeout, dns_servers})",yes,,

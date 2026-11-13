@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "lock"
 spec:
@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "slot:canary/lock"
 spec:
@@ -43,12 +43,52 @@ spec:
 apiVersion: authorization.azure.hfl.dev/v1
 kind: ManagementLock
 metadata:
+  name: slots-site-slot-canary-pe-hub-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:canary/private_endpoint:hub/lock"
+spec:
+  azureName: "canary-ro"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: slots-site-slot-canary-pe-hub
+  level: ReadOnly
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: slots-site-slot-canary-pe-spoke-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:canary/private_endpoint:spoke/lock"
+spec:
+  azureName: "pe-lock"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: slots-site-slot-canary-pe-spoke
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
   name: slots-site-slot-staging-lock
   labels:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "slot:staging/lock"
 spec:
@@ -60,6 +100,92 @@ spec:
   level: CanNotDelete
 ---
 # Source: avm-res-web-site/templates/slots.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: slots-site-slot-canary-pe-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:canary/private_endpoint:hub"
+spec:
+  azureName: "pep-sites-canary-1-8e57ea5f-6f5c-5f0c-8dac-d07ecffa8c98"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  customNetworkInterfaceName: "nic-pep-sites-canary-1-8e57ea5f-6f5c-5f0c-8dac-d07ecffa8c98"
+  ipConfigurations:
+    - name: "ipconfig-canary"
+      groupId: "sites-canary-1"
+      memberName: "sites-canary-1"
+      privateIPAddress: "10.0.3.10"
+  privateLinkServiceConnections:
+    - name: "pcon-pep-sites-canary-1-8e57ea5f-6f5c-5f0c-8dac-d07ecffa8c98"
+      groupIds:
+        - "sites-canary-1"
+      privateLinkServiceReference:
+        group: web.azure.com
+        kind: Site
+        name: slots-site
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: slots-site-slot-canary-pe-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:canary/private_endpoint:spoke"
+spec:
+  azureName: "pep-canary-spoke"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke"
+  customNetworkInterfaceName: "nic-sites-canary-1--pep-canary-spoke"
+  privateLinkServiceConnections:
+    - name: "pcon-sites-canary-1-pep-canary-spoke"
+      groupIds:
+        - "sites-canary-1"
+      privateLinkServiceReference:
+        group: web.azure.com
+        kind: Site
+        name: slots-site
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: slots-site-slot-canary-pe-hub-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:canary/private_endpoint:hub/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: slots-site-slot-canary-pe-hub
+  privateDnsZoneConfigs:
+    - name: "default"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
+---
+# Source: avm-res-web-site/templates/slots.yaml
 apiVersion: authorization.azure.com/v20220401
 kind: RoleAssignment
 metadata:
@@ -68,7 +194,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "slot:canary/role-assignment-reader"
 spec:
@@ -80,6 +206,27 @@ spec:
   roleDefinitionReference:
     wellKnownName: "Reader"
 ---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: slots-site-slot-canary-pe-spoke-role-net
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "slots"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:canary/private_endpoint:spoke/role-assignment-net"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: slots-site-slot-canary-pe-spoke
+  principalId: "55555555-5555-5555-5555-555555555555"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"
+---
 # Source: avm-res-web-site/templates/main.yaml
 apiVersion: web.azure.com/v20250501
 kind: Site
@@ -89,7 +236,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "site"
 spec:
@@ -145,7 +292,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "slot:canary"
 spec:
@@ -195,7 +342,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "slot:staging"
 spec:
@@ -255,7 +402,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "slots"
     app.kubernetes.io/name: avm-res-web-site
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "slot:staging/hostname_binding:staging"
 spec:

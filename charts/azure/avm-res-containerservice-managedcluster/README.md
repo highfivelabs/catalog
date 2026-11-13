@@ -1,9 +1,9 @@
 # avm-res-containerservice-managedcluster
 
 An Azure Kubernetes Service (AKS) cluster with its agent pools,
-maintenance configurations and managed namespaces, and its lock, role
-assignments and diagnostic settings, as Azure Service Operator (ASO)
-objects. A port of the Azure Verified Module
+maintenance configurations, managed namespaces, private endpoints and the
+module's monitoring and alerting, and its lock, role assignments and
+diagnostic settings, as Azure Service Operator (ASO) objects. A port of the Azure Verified Module
 [`avm-res-containerservice-managedcluster`](https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster/tree/1925e0490783695919ab21e4c73ebf1f53d95e2d)
 at v0.9.0 (`1925e049`), MIT, Copyright (c) Microsoft Corporation
 (`LICENSE.avm`). Bundt Package `azure-avm-res-containerservice-managedcluster`
@@ -39,7 +39,10 @@ identity and its default agent pool `systempool` (three nodes), and the
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment`, `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting`, `diagnostic-setting-<key>`: the module's logs (its groups, the others of `allLogs` and `audit` sent disabled; or its categories), named `diag-<name>` by default |
 | `azapi_resource_action` (`listClusterUserCredential`, `listClusterAdminCredential`) | never | not ported: the kubeconfig is a secret (ASO can write it to a Kubernetes Secret through `operatorSpec.secrets`, which this chart does not set) |
-| `module.monitoring`, `module.alerting`, private endpoints | never | refused (below) |
+| `azapi_resource.private_endpoints` | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`), `private_endpoint:<key>`: `pe-<name>` unless named, owned by `parent_id` or the entry's `resource_group_name` (in the cluster's subscription), to the cluster's `management` subresource by reference |
+| `azapi_resource.private_dns_zone_groups` | an entry with `private_dns_zone_resource_ids`, when `private_endpoints_manage_dns_zone_group` | `PrivateEndpointsPrivateDnsZoneGroup`, `private_endpoint:<key>/dns_zone_group`, a zone configuration per zone, named for it |
+| `module.monitoring` | `onboard_monitoring` | the managed Prometheus `DataCollectionEndpoint` and `DataCollectionRule` (`insights.azure.com/v1api20240311`, both `MSProm-<location>-<cluster>`, cut to 44 characters with a hash as the module cuts it; `monitoring:dce_msprom`, `monitoring:dcr_msprom`), their `DataCollectionRuleAssociation`s with the cluster (`dcr-<cluster>`, `configurationAccessEndpoint`), the three recording rule groups (`PrometheusRuleGroup`, `alertsmanagement.azure.com/v20230301`, `<group> - <cluster>`, the module's 48 rules verbatim in `templates/_promrules.tpl`), and the Container Insights `DataCollectionRule` (`MSCI-<location>-<cluster>`) and its association (`msci-<cluster>`) |
+| `module.alerting` | `onboard_alerts` | `ActionGroup` (`insights.azure.com/v1api20230101`) `RecommendedAlertRules-AG-1` (with the namePrefix), emailing `alert_email`; the CPU and memory `MetricAlert`s (`insights.azure.com/v1api20180301`) on the cluster |
 | telemetry | never | not ported |
 
 **API versions.** The module's cluster is at 2026-03-01, and at
@@ -94,16 +97,27 @@ add-on, and its `network_profile` only when `outbound_type` is not
 secret is not settled); `enable_os_disk_full_caching` and
 `gpu_profile.nvidia` on a pool, and an agent pool's
 `delete_options.ignore_pod_disruption_budget` (gaps: ASO has none of
-them); `private_endpoints`, `onboard_monitoring`,
-`prometheus_workspace_id`, `onboard_alerts`, `alert_email` (ASO has the
-kinds; not mapped yet); `timeouts`, `cluster_timeouts`,
+them); `timeouts`, `cluster_timeouts`,
 `agentpool_timeouts`, `retry`, `ignore_body_changes`, `resource_types`,
 `create_agentpools_before_destroy` (by design: ASO does these its own
-way). `private_endpoints_manage_dns_zone_group` is accepted and, with
-`private_endpoints` refused, changes nothing.
+way).
+
+`private_endpoints`: per entry `subnet.reference.armId`,
+`customNetworkInterfaceName`, one `privateLinkServiceConnections` entry
+(`pse-<name>` unless named, `groupIds: [management]`), `ipConfigurations`
+(group and member `management`), `applicationSecurityGroups`, `location`,
+`tags`. An entry's `lock` and `role_assignments` are accepted and ignored,
+as the module ignores them. `onboard_monitoring` needs the OMS add-on's
+workspace (the module's validation) and `prometheus_workspace_id` (the
+module sends it as the Prometheus rule's destination and the rule groups'
+scope; the chart stops the render without it, where the module would send
+null). The monitoring and alerting objects take the cluster's `tags`; a
+name the module derives from `basename(cluster ID)` takes the cluster's
+Azure name, with the namePrefix.
 
 The module's validations stop the render with its messages (the name's
-pattern, the OMS and application gateway add-ons' IDs, a hosted system
+pattern, the OMS and application gateway add-ons' IDs, `onboard_monitoring`
+without the OMS workspace, `onboard_alerts` without `alert_email`, a hosted system
 profile only on Automatic, the kubelet identity's one user-assigned
 identity, the kube-proxy settings, the default pool's seccomp profile, an
 agent pool named like the default one, a diagnostic setting with both
@@ -129,10 +143,10 @@ categories and groups).
 | `ingress_profile_web_app_routing_identity`, `ingress_profile_application_load_balancer_identity` | the ingress profile's identities, `{}` without |
 | `network_profile_load_balancer_profile_effective_outbound_ips`, `network_profile_nat_gateway_profile_effective_outbound_ips` | `[]` without |
 | `agentpool_resource_ids`, `namespace_resource_ids` | `{<key>: {resource_id, name}}` |
+| `data_collection_endpoint_id`, `data_collection_endpoint_name` | the managed Prometheus data collection endpoint's `status.id` and name; null without `onboard_monitoring` |
 
 Not outputs: `kube_config`, `kube_admin_config` and `cluster_ca_certificate`
-(the kubeconfig is a secret), `data_collection_endpoint_id` and
-`data_collection_endpoint_name` (monitoring is refused).
+(the kubeconfig is a secret).
 
 ## From Terraform
 
@@ -154,7 +168,9 @@ repository, release, commit, licence and the date last synced.
 
 `task test CHART=avm-res-containerservice-managedcluster`: render cases
 `basic`, `full` (every stable setting, a second and a spot pool, a
-maintenance window, a namespace and the interfaces), `preview`,
+maintenance window, a namespace, the interfaces, a private endpoint,
+monitoring and alerting), `monitoring` (a long name's cut data collection
+names, an endpoint whose zone group is left to others), `preview`,
 `automatic`, `names` and `mock`, each validated against ASO v2.22.0's
 CRD schemas and aso-extensions' CRDs, and the refusals in
 `tests/*.fail.yaml`. Not applied live: an AKS cluster makes its node
@@ -165,6 +181,16 @@ aso-extensions' fakearm at `b9beb5ba`): the cluster, both agent pools and
 the maintenance configuration Ready and deleted, the outputs evaluated
 (run `off-catalog-1112234355-26788`, 2026-11-12).
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113105656-11634` (2026-11-13): the cluster, both pools, the maintenance configuration, the private endpoint and its DNS zone group, the data collection endpoint, rules and associations, the three Prometheus rule groups, the action group and both metric alerts
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
+- **0.2.0** (2026-11-13): `private_endpoints` (with
+  `private_endpoints_manage_dns_zone_group`), `onboard_monitoring` (with
+  `prometheus_workspace_id`) and `onboard_alerts` (with `alert_email`)
+  render the module's private endpoints, monitoring and alerting objects;
+  new outputs `data_collection_endpoint_id` and
+  `data_collection_endpoint_name`.
 - **0.1.0** (2026-11-12): the port.

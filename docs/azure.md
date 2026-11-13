@@ -334,6 +334,12 @@ Fully covered, apart from the lock.
 The module can also write account keys to a Key Vault as secrets:
 `aso-ext` `VaultSecret`.
 
+Chart `charts/azure/avm-res-storage-storageaccount`: from 0.2.0
+(2026-11-13) the services' properties (`blob_properties`,
+`file_service_properties`, `queue_properties`, `table_properties`), the
+lifecycle rules, Data Lake Gen2 filesystems and private endpoints are
+mapped too; `customer_managed_key` is a gap (section 8).
+
 ### 4. avm-res-keyvault-vault (v0.13.0; azapi with azurerm for the data plane)
 
 | Submodule | Creates | ASO |
@@ -341,6 +347,11 @@ The module can also write account keys to a Key Vault as secrets:
 | root | `KeyVault/vaults@2026-02-01`, certificate contacts, private endpoints | `keyvault/Vault` (2023-07-01). **GAP**: certificate contacts (a data-plane API) |
 | `secret` | `azurerm_key_vault_secret`, role assignments | `aso-ext` `keyvault.azure.hfl.dev/VaultSecret`. ASO declined secrets (#1894) |
 | `key` | `azurerm_key_vault_key`, role assignments | `keyvault/VaultKey`: **next**, merged in ASO but not in v2.22.0 |
+
+Chart `charts/azure/avm-res-keyvault-vault`: private endpoints mapped from
+0.2.0 (2026-11-13) as `PrivateEndpoint` and
+`PrivateEndpointsPrivateDnsZoneGroup`; secrets stay refused (a secret's
+value, the builder's decision).
 
 ### 5. avm-res-compute-virtualmachine (v0.21.0; mostly azurerm)
 
@@ -422,6 +433,13 @@ is refused (section 8).
 | `credential-set` | `registries/credentialSets@2025-11-01` | aso-extensions `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`, 2025-11-01) |
 | `scope-map` | scope map, token, token password | aso-extensions `RegistriesScopeMap`, `RegistriesToken` (2025-11-01); a token's password is a secret returned once (refused) |
 
+Chart `charts/azure/avm-res-containerregistry-registry`: private endpoints
+mapped from 0.2.0 (2026-11-13) as `PrivateEndpoint` and
+`PrivateEndpointsPrivateDnsZoneGroup`. `customer_managed_key` stays not
+ported: ASO's `Registry` takes the identity's client ID (a literal, or a
+ConfigMap ASO writes for an identity it manages), which the module reads
+from Azure and a render cannot.
+
 ### 15. avm-res-network-firewallpolicy (v0.3.4; azurerm)
 
 | Submodule | ASO (2025-03-01) |
@@ -444,7 +462,12 @@ submodule as the chart value `rule_collection_groups`.
 | `monitoring` | data collection rules, endpoints and associations | `insights/DataCollectionRule`, `DataCollectionEndpoint`, `DataCollectionRuleAssociation` (2024-03-11) |
 | `alerting` | Prometheus rule groups, action groups, metric alerts | `alertsmanagement/PrometheusRuleGroup`, `insights/ActionGroup`, `insights/MetricAlert` |
 
-Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8).
+Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8). From
+0.2.0 (2026-11-13) the chart maps private endpoints and the monitoring and
+alerting submodules too (`alertsmanagement` joins the ASO groups the
+charts validate against and the fake cloud installs); what stays refused
+is a secret value (the builder's decision), three agent pool field gaps
+and ASO's own mechanics.
 
 ### 17. avm-res-dbforpostgresql-flexibleserver (v0.2.3; azurerm)
 
@@ -587,6 +610,8 @@ the fake does not compute a site's `defaultHostName` or
 `customDomainVerificationId`, so `resource_uri` and
 `custom_domain_verification_id` were null there (a gap for aso-extensions'
 `pkg/fakecloud/arm/computed.go`).
+From 0.2.0 (2026-11-13) a deployment slot's private endpoints are mapped
+too (to the site's `sites-<slot>` subresource).
 
 ### 23. avm-res-network-privateendpoint (v0.3.1; azapi)
 
@@ -861,7 +886,7 @@ Each is a mapping still to land or landing, not a gap:
 
 | Chart | Variable | aso-extensions kind | Mapped in |
 | --- | --- | --- | --- |
-| `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | not yet (its SSH keys are public keys; a password Azure generates would stay refused) |
+| `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | mapped (its SSH keys are public keys; a password Azure generates stays refused) |
 | `avm-res-network-privatednszone` | `soa_record` | `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev`) | #97 |
 | `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | #120 |
 | `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | #120 |
@@ -899,7 +924,12 @@ perimeter association map to aso-extensions kinds
 (`operationalinsights.azure.hfl.dev`, `insights.azure.hfl.dev`,
 `network.azure.hfl.dev`; CRDs copied in `crds/aso-extensions`). An existing
 scope's `exclusions` stay refused: the module updates a scope it does not
-own, after reading its access modes.
+own, after reading its access modes. Its private endpoints (0.2.0) are ASO
+`PrivateEndpoint`s connected to the scope by ARM ID; the exclusion the
+module adds for an endpoint on a scope it makes is named by the scope's
+private endpoint connection, which Azure names, so it is refused when it
+would change the scope's access modes (`monitor_private_link_scope_exclusion`)
+and left out when it would not.
 
 The storage account's `local_user` maps to aso-extensions'
 `StorageAccountsLocalUser` (`storage.azure.hfl.dev/v20260601`, its CRD
@@ -954,7 +984,12 @@ does by default.
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
-(`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
+(`avm-res-storage-storageaccount`'s `tables` and `shares`). The storage
+account's `customer_managed_key` is a gap of another sort: the module
+creates the account with Microsoft-managed keys and patches the key in
+afterwards, since Azure rejects one PUT that both gives the account its
+identity and names that identity for encryption, and it reads the vault's
+URI from Azure; ASO applies a `StorageAccount` in one PUT. Likewise ASO's `VaultKey` release policy has no `immutable`
 flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` has no
 `dynamicThrottlingEnabled` (`avm-res-cognitiveservices-account`'s
 `cognitive_deployments`), and its `Account` takes the customer managed

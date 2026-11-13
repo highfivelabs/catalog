@@ -10,15 +10,18 @@
 # containers, queues, tables and shares map each entry's key to {id, name},
 # as the module does; local_users maps each entry's key to {id, name,
 # home_directory, sid, ssh_key_enabled, ssh_password_enabled}, as the
-# module does (sid from aso-extensions' status). Not outputs: resource (the
-# whole azapi object), and private_endpoints and
-# data_lake_gen2_filesystems, which the chart refuses.
+# module does (sid from aso-extensions' status); data_lake_gen2_filesystems
+# maps each entry's key to {id, name}; private_endpoints maps each entry's
+# key to {id, name, edge_zone, private_dns_zone_group_id, role_assignments}
+# (edge_zone and the zone group's ID null when unset; role_assignments
+# {<key>: {id, name}} from the endpoint's ASO RoleAssignments). Not output:
+# resource (the whole azapi object).
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: azure-avm-res-storage-storageaccount
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [aso]
   outputs:
@@ -37,3 +40,7 @@ spec:
       resources.transformMapEntry(k, v, k.startsWith('share:') && !k.contains('/'), {k.substring(6): {'id': v.status.id, 'name': v.spec.azureName}})
     local_users: >-
       resources.transformMapEntry(k, v, k.startsWith('local_user:'), {k.substring(11): {'id': v.status.id, 'name': v.spec.azureName, 'home_directory': 'homeDirectory' in v.spec ? v.spec.homeDirectory : null, 'sid': 'sid' in v.status ? v.status.sid : null, 'ssh_key_enabled': v.spec.hasSshKey, 'ssh_password_enabled': v.spec.hasSshPassword}})
+    data_lake_gen2_filesystems: >-
+      resources.transformMapEntry(k, v, k.startsWith('data_lake_gen2_filesystem:'), {k.substring(26): {'id': v.status.id, 'name': v.spec.azureName}})
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): {'id': v.status.id, 'name': v.spec.azureName, 'edge_zone': 'extendedLocation' in v.spec ? v.spec.extendedLocation.name : null, 'private_dns_zone_group_id': (k + '/dns_zone_group') in resources ? resources[k + '/dns_zone_group'].status.id : null, 'role_assignments': resources.transformMapEntry(rk, rv, rk.startsWith(k + '/role-assignment-'), {rk.substring(size(k) + 17): {'id': rv.status.id, 'name': rv.status.name}})}})

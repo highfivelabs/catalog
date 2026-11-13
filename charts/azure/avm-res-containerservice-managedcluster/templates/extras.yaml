@@ -1,0 +1,326 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-containerservice-managedcluster
+main.privateendpoint.tf, main.interfaces.tf, main.monitoring.tf,
+modules/monitoring and modules/alerting (v0.9.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+azapi_resource.private_endpoints: one ASO PrivateEndpoint
+(network.azure.com/v20250301) per entry, to the cluster's management
+subresource; azapi_resource.private_dns_zone_groups: a
+PrivateEndpointsPrivateDnsZoneGroup when the module manages it. An entry's
+lock and role_assignments are accepted and ignored, as the module ignores
+them (it passes none to its interfaces module).
+
+module.monitoring (onboard_monitoring): the managed Prometheus data
+collection endpoint and rule (insights.azure.com/v1api20240311
+DataCollectionEndpoint, DataCollectionRule), their associations with the
+cluster (DataCollectionRuleAssociation, owned by the cluster), the three
+recording rule groups (alertsmanagement.azure.com/v20230301
+PrometheusRuleGroup, rules in _promrules.tpl), and the Container Insights
+data collection rule and its association. module.alerting (onboard_alerts):
+the action group (insights.azure.com/v1api20230101 ActionGroup) and the CPU
+and memory metric alerts (insights.azure.com/v1api20180301 MetricAlert).
+The cluster is named by its Azure name where the module uses
+basename(cluster ID), and referenced by its object.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "aks") }}
+{{- $name := include "aso.resourceName" (list $ "managedCluster" "AKS cluster" $v.name 63 "^[a-zA-Z0-9]$|^[a-zA-Z0-9][-_a-zA-Z0-9]{0,61}[a-zA-Z0-9]$") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $cluster := dict "group" "containerservice.azure.com" "kind" "ManagedCluster" "name" $obj }}
+{{- $sub := index (splitList "/" (toString $v.parent_id)) 2 }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peParent := ternary (printf "/subscriptions/%s/resourceGroups/%s" $sub $p.resource_group_name) $v.parent_id (not (empty $p.resource_group_name)) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pe-%s" $v.name)) 80 false) | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [management]
+      privateLinkServiceReference:
+        {{- toYaml $cluster | nindent 8 }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: management
+      memberName: management
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $ak := (keys . | sortAlpha) }}
+    - reference:
+        armId: {{ index $p.application_security_group_associations $ak | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and (ne $v.private_endpoints_manage_dns_zone_group false) $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- if $v.onboard_monitoring }}
+{{- $law := "" }}
+{{- with $v.addon_profile_oms_agent }}{{ with .config }}{{ $law = .log_analytics_workspace_resource_id | default "" }}{{ end }}{{ end }}
+{{- if not $law }}{{ fail (printf "%s: When `onboard_monitoring` is true, enable oms addon and provide `log_analytics_workspace_resource_id`." $chart) }}{{ end }}
+{{- if not $v.prometheus_workspace_id }}{{ fail (printf "%s: onboard_monitoring needs prometheus_workspace_id: the module sends it as the managed Prometheus data collection rule's destination and its rule groups' scope" $chart) }}{{ end }}
+{{- $legacy := printf "MSProm-%s-%s" $v.location $name }}
+{{- $msprom := $legacy }}
+{{- if gt (len $legacy) 44 }}
+{{- $pre := printf "MSProm-%s-" $v.location }}
+{{- $hash := sha1sum $name | trunc 8 }}
+{{- $part := trimSuffix "-" (trunc (int (max 1 (sub (sub (sub 44 (len $pre)) 1) (len $hash)))) $name) }}
+{{- $msprom = printf "%s%s-%s" $pre $part $hash }}
+{{- end }}
+{{- $dce := include "aso.name" (list $obj "msprom-dce") }}
+{{- $dcr := include "aso.name" (list $obj "msprom-dcr") }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $dce "id" "monitoring:dce_msprom" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $msprom | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    armId: {{ $v.parent_id | quote }}
+  kind: Linux
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $dcr "id" "monitoring:dcr_msprom" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $msprom | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    armId: {{ $v.parent_id | quote }}
+  kind: Linux
+  dataCollectionEndpointReference:
+    group: insights.azure.com
+    kind: DataCollectionEndpoint
+    name: {{ $dce }}
+  dataSources:
+    prometheusForwarder:
+      - name: PrometheusDataSource
+        streams: [Microsoft-PrometheusMetrics]
+  destinations:
+    monitoringAccounts:
+      - name: MonitoringAccount1
+        accountResourceReference:
+          armId: {{ $v.prometheus_workspace_id | quote }}
+  dataFlows:
+    - destinations: [MonitoringAccount1]
+      streams: [Microsoft-PrometheusMetrics]
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionRuleAssociation
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "msprom-dcra")) "id" "monitoring:dcr_msprom_aks" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ printf "dcr-%s" $name | quote }}
+  owner:
+    {{- toYaml $cluster | nindent 4 }}
+  dataCollectionRuleReference:
+    group: insights.azure.com
+    kind: DataCollectionRule
+    name: {{ $dcr }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionRuleAssociation
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "msprom-dcea")) "id" "monitoring:dce_msprom_aks" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: configurationAccessEndpoint
+  owner:
+    {{- toYaml $cluster | nindent 4 }}
+  dataCollectionEndpointReference:
+    group: insights.azure.com
+    kind: DataCollectionEndpoint
+    name: {{ $dce }}
+{{- range $g := (include "aks.promRuleGroups" $ | fromJsonArray) }}
+---
+apiVersion: alertsmanagement.azure.com/v20230301
+kind: PrometheusRuleGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj (trimPrefix "prg_" $g.key))) "id" (printf "monitoring:%s" $g.key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ printf "%s - %s" $g.name $name | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    armId: {{ $v.parent_id | quote }}
+  clusterName: {{ $name | quote }}
+  enabled: true
+  interval: PT1M
+  {{- with $g.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  scopesReferences:
+    - armId: {{ $v.prometheus_workspace_id | quote }}
+    {{- if $g.cluster_scope }}
+    - {{ toJson $cluster }}
+    {{- end }}
+  rules:
+    {{- toYaml $g.rules | nindent 4 }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- $msciStreams := list "Microsoft-ContainerLog" "Microsoft-ContainerLogV2" "Microsoft-KubeEvents" "Microsoft-KubePodInventory" }}
+{{- $msci := include "aso.name" (list $obj "msci-dcr") }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $msci "id" "monitoring:dcr_msci" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ printf "MSCI-%s-%s" $v.location $name | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    armId: {{ $v.parent_id | quote }}
+  kind: Linux
+  dataSources:
+    extensions:
+      - name: ContainerInsightsExtension
+        extensionName: ContainerInsights
+        extensionSettings:
+          dataCollectionSettings:
+            interval: 1m
+            namespaceFilteringMode: "Off"
+            enableContainerLogV2: true
+        streams: {{ toJson $msciStreams }}
+  destinations:
+    logAnalytics:
+      - name: ciworkspace
+        workspaceResourceReference:
+          armId: {{ $law | quote }}
+  dataFlows:
+    - destinations: [ciworkspace]
+      streams: {{ toJson $msciStreams }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionRuleAssociation
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "msci-dcra")) "id" "monitoring:dcr_msci_aks" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ printf "msci-%s" $name | quote }}
+  owner:
+    {{- toYaml $cluster | nindent 4 }}
+  dataCollectionRuleReference:
+    group: insights.azure.com
+    kind: DataCollectionRule
+    name: {{ $msci }}
+{{- end }}
+{{- if $v.onboard_alerts }}
+{{- $ag := include "aso.name" (list $obj "alerts-ag") }}
+---
+apiVersion: insights.azure.com/v1api20230101
+kind: ActionGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $ag "id" "alerting:ag" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "action group" "RecommendedAlertRules-AG-1" 260 false) | quote }}
+  location: Global
+  owner:
+    armId: {{ $v.parent_id | quote }}
+  groupShortName: recalert1
+  enabled: true
+  emailReceivers:
+    - name: Email_-EmailAction-
+      emailAddress: {{ $v.alert_email | quote }}
+      useCommonAlertSchema: true
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $a := list (list "cpu" "CPU Usage Percentage" "node_cpu_usage_percentage" 95) (list "memory" "Memory Working Set Percentage" "node_memory_working_set_percentage" 100) }}
+---
+apiVersion: insights.azure.com/v1api20180301
+kind: MetricAlert
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "alert" (index $a 0))) "id" (printf "alerting:metricalert_%s" (index $a 0)) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ printf "%s - %s" (index $a 1) $name | quote }}
+  location: Global
+  owner:
+    armId: {{ $v.parent_id | quote }}
+  severity: 3
+  enabled: true
+  scopesReferences:
+    - {{ toJson $cluster }}
+  evaluationFrequency: PT5M
+  windowSize: PT5M
+  criteria:
+    microsoftAzureMonitorMultipleResourceMultipleMetricCriteria:
+      odata.type: Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria
+      allOf:
+        - staticThresholdCriterion:
+            criterionType: StaticThresholdCriterion
+            name: Metric1
+            metricNamespace: Microsoft.ContainerService/managedClusters
+            metricName: {{ index $a 2 }}
+            operator: GreaterThan
+            threshold: {{ index $a 3 }}
+            timeAggregation: Average
+  targetResourceType: Microsoft.ContainerService/managedClusters
+  actions:
+    - actionGroupReference:
+        group: insights.azure.com
+        kind: ActionGroup
+        name: {{ $ag }}
+      webHookProperties: {}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

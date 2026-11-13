@@ -1,5 +1,8 @@
 # For an apply against the fake cloud (docs/azure.md, "8. Charts"): an
-# account with a container and a queue in the fake cloud's resource group.
+# account with a container, a queue, an SFTP local user, the blob and queue
+# services' properties, a lifecycle rule, a Data Lake Gen2 filesystem and a
+# private endpoint to blob with a DNS zone group (the fake keeps the
+# references as sent), in the fake cloud's resource group.
 name: catalogst001
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -20,3 +23,23 @@ local_user:
     ssh_key_enabled: true
     permission_scope: [{resource_name: assets, service: blob, permissions: {read: true, list: true, write: true}}]
     ssh_authorized_key: [{description: ci, key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGRvTE5dTh9cJm1ON6P1kHGlPg5ndp0V0ZOfyQ6Y9Gzr catalog-mock"}]
+blob_properties:
+  versioning_enabled: true
+  delete_retention_policy: {enabled: true, days: 7}
+queue_properties:
+  cors_rules:
+    - {allowed_headers: ["*"], allowed_methods: [GET], allowed_origins: ["*"], exposed_headers: ["*"], max_age_in_seconds: 60}
+storage_management_policy_rule:
+  tmp:
+    name: expire-tmp
+    enabled: true
+    actions:
+      base_blob: {delete_after_days_since_modification_greater_than: 7}
+    filters: {blob_types: [blockBlob], prefix_match: [assets/tmp/]}
+storage_data_lake_gen2_filesystems:
+  raw: {name: raw}
+private_endpoints:
+  blob:
+    subresource_name: blob
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net]

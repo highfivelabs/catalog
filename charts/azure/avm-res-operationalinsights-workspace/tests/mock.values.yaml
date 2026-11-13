@@ -1,5 +1,8 @@
 # For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
-# workspace with 30 days' retention in the fake cloud's resource group.
+# workspace with 30 days' retention in the fake cloud's resource group, its
+# tables, export, linked storage, a Monitor Private Link Scope, and a
+# private endpoint to that scope with a DNS zone group (the fake keeps the
+# references as sent).
 name: catalog-law
 location: eastus2
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -21,3 +24,10 @@ log_analytics_workspace_linked_storage_accounts:
 monitor_private_link_scope:
   ampls: {name: catalog-ampls, resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg, ingestion_access_mode: Open, query_access_mode: Open}
 monitor_private_link_scoped_service_name: catalog-law
+private_endpoints:
+  ampls:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.monitor.azure.com]
+private_endpoint_extensions:
+  ampls:
+    monitor_private_link_scope_exclusion: {exclude: false}
