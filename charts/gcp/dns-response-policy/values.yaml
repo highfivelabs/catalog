@@ -1,0 +1,61 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's dns-response-policy
+# module (v60.0.0): same names, types and defaults, so a module block's
+# arguments become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.policy sets the response policy's name in full (else name). It also
+# names the existing policy the rules go into when policy_create is false.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the policy's name
+# (when not set under names) and of every rule's name. Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object; an unprefixed key also becomes a
+# Google Cloud label on the response policy.
+labels: {}
+# Cloud labels on the response policy (Google Cloud labels).
+tags: {}
+
+# Map of GKE clusters to which this policy is applied in name => id format.
+clusters: {}
+# Context-specific interpolations. Refused when set: Bundt expressions
+# (${...}) and valueFrom replace fabric's $context lookups.
+context: {}
+# Policy description.
+description: Terraform managed.
+# Path to folder containing rules data files for the optional factory.
+# Accepted and ignored: the file's contents go under factories_data (below).
+factories_config: {}
+# Policy name. Required.
+name: ""
+# Map of VPC self links to which this policy is applied in name => self
+# link format.
+networks: {}
+# Set to false to use the existing policy matching name and only manage
+# rules.
+policy_create: true
+# Project id for the zone. Required.
+project_id: ""
+# Map of policy rules in name => rule format. Local data takes precedence
+# over behavior and is in the form record type => attributes.
+rules: {}
+
+# Not a fabric variable: the rules factory's file, as data (docs/design.md,
+# "Submodules and factories"): exactly the content of the YAML file
+# factories_config.rules names, a map of rules in the rules variable's
+# format. A rule of rules wins over the file's of the same name, as
+# fabric's merge does.
+factories_data:
+  rules: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# policy and its rules when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null
