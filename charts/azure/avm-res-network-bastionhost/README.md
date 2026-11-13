@@ -103,8 +103,13 @@ repository, release, commit, licence and the date last synced.
 `full`, `developer`, `private`, `names` and `mock`, each validated against
 ASO v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD, and the
 refusals in `tests/*.fail.yaml` (the module's validations).
-`task test-live-azure` (case `bas`) and `task test-mock-azure`: results
-below.
+`task test-live-azure` (case `bas`) applies a Basic host with the public IP
+it makes, in an AzureBastionSubnet of a network the case also applies, to
+the Azure sandbox with Azure Service Operator, evaluates the outputs (the
+host's DNS name among them), deletes it and checks Azure no longer has it:
+passed on 2026-11-13 (run `cat1113013124a2`). `task test-mock-azure`
+applies `tests/mock.values.yaml` to aso-extensions' fake cloud: passed on
+2026-11-13, both objects Ready and deleted, the outputs evaluated.
 
 ## Changes
 
