@@ -80,7 +80,14 @@ with every other module the catalog tracks. To take a newer release, see
 `task test CHART=secops-rules`: render cases `basic` (the module's README
 example), `lists` (reference lists only, no alpha kind) and `mock`,
 validated against config-connector-extensions' CRDs, and the refusals in
-`tests/*.fail.yaml`. Not applied live: live runs are pending KEYLIVE.
+`tests/*.fail.yaml`.
+
+Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
+MOCK_CHARTS=secops-rules`, run at catalog `dd36694`,
+config-connector-extensions `3de8de68`): `tests/mock.values.yaml`, a
+reference list and a rule that uses it, deployed: all 3 objects Ready
+(config-connector-extensions' Chronicle fake), the outputs evaluated (none
+declared), all deleted. Not applied live: live runs are pending KEYLIVE.
 
 ## Changes
 
