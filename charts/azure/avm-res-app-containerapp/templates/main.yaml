@@ -1,0 +1,653 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-app-containerapp main.tf,
+main.auth_config.tf, main.interfaces.tf and locals.tf (v0.9.0), Copyright
+(c) Microsoft Corporation, MIT.
+
+azapi_resource.container_app (and azapi_resource_action.post_creation_update,
+which PATCHes the same template after creation): one ASO ContainerApp
+(app.azure.com/v20250101), owned by the resource group, its template as
+the module builds it (local.template_body). ASO applies the whole body on
+every change, so the module's PATCH is not needed.
+azapi_resource.auth_config: one ASO AuthConfig per auth_configs entry,
+owned by the container app.
+azapi_resource.lock: an aso-extensions ManagementLock.
+azapi_resource.role_assignments: ASO RoleAssignments.
+The telemetry and the module's data sources (the resource group, the
+existing app's revision suffix) are not ported. kind and timeouts are
+refused, and parts of identity_settings, registries and secrets
+(upstream.yaml).
+*/ -}}
+{{- define "containerapp.identityRef" -}}
+{{- if hasPrefix "/" . -}}
+armId: {{ . | quote }}
+{{- else -}}
+wellKnownName: {{ . | quote }}
+{{- end -}}
+{{- end -}}
+{{- define "containerapp.env" -}}
+{{- range . }}
+- name: {{ .name | quote }}
+  {{- with .secret_name }}
+  secretRef: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .value) }}
+  value: {{ .value | toString | quote }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+{{- define "containerapp.volumeMounts" -}}
+{{- range . }}
+- mountPath: {{ .path | quote }}
+  {{- with .sub_path }}
+  subPath: {{ . | quote }}
+  {{- end }}
+  volumeName: {{ .name | quote }}
+{{- end }}
+{{- end -}}
+{{- define "containerapp.auth" -}}
+{{- range . }}
+- {{- with .secret_name }} secretRef: {{ . | quote }}{{ end }}
+  {{- with .trigger_parameter }}
+  triggerParameter: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.names" (list $ (list "containerApp")) }}
+{{- if not $v.name }}{{ fail "avm-res-app-containerapp: name is required" }}{{ end }}
+{{- if not $v.container_app_environment_resource_id }}{{ fail "avm-res-app-containerapp: container_app_environment_resource_id is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-app-containerapp: location is required: the module reads it from the resource group when it is null, which a render cannot (ASO needs a location)" }}{{ end }}
+{{- include "aso.unsupported" (list $ "kind" $v.kind "ASO's ContainerApp is at ARM API version 2025-01-01, which has no kind (the module sends it with 2025-02-02-preview)") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- $rgName := toString $v.resource_group_name }}
+{{- if not $rgName }}{{ fail "avm-res-app-containerapp: resource_group_name is required" }}{{ end }}
+{{- $parent := "" }}
+{{- if $v.resource_group_id }}
+{{- $parent = toString $v.resource_group_id }}
+{{- if and (not (hasPrefix "/" $rgName)) (not (hasSuffix (printf "/resourceGroups/%s" $rgName) $parent)) }}
+{{- fail (printf "avm-res-app-containerapp: `var.resource_group_id` is not as expected: it names a group other than resource_group_name %q" $rgName) }}
+{{- end }}
+{{- else if hasPrefix "/" $rgName }}
+{{- $parent = $rgName }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rgName }}
+{{- else }}
+{{- fail "avm-res-app-containerapp: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or resource_group_id" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "app") }}
+{{- $appName := include "aso.resourceName" (list $ "containerApp" "container app" $v.name 32 "^[a-zA-Z0-9][a-zA-Z0-9-]{0,30}[a-zA-Z0-9]$") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $tpl := $v.template | default dict }}
+{{- if not $tpl.containers }}{{ fail "avm-res-app-containerapp: template.containers needs at least one container" }}{{ end }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := $mi.user_assigned_resource_ids | default list }}
+{{- $idType := "" }}
+{{- if and $mi.system_assigned $uai }}{{ $idType = "SystemAssigned,UserAssigned" }}{{ else if $mi.system_assigned }}{{ $idType = "SystemAssigned" }}{{ else if $uai }}{{ $idType = "UserAssigned" }}{{ end }}
+---
+apiVersion: app.azure.com/v20250101
+kind: ContainerApp
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "container_app" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $appName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "the resource group" $parent) | nindent 4 }}
+  {{- with $idType }}
+  identity:
+    type: {{ . }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  environmentReference:
+    armId: {{ $v.container_app_environment_resource_id | quote }}
+  managedEnvironmentReference:
+    armId: {{ $v.container_app_environment_resource_id | quote }}
+  {{- with $v.workload_profile_name }}
+  workloadProfileName: {{ . | quote }}
+  {{- end }}
+  configuration:
+    activeRevisionsMode: {{ $v.revision_mode | default "Single" }}
+    {{- with $v.dapr }}
+    {{- $proto := .app_protocol | default "http" }}
+    {{- if not (has $proto (list "http" "grpc")) }}{{ fail "avm-res-app-containerapp: Possible values for `dapr.app_protocol` are `http` and `grpc`." }}{{ end }}
+    {{- $level := .log_level | default "info" }}
+    {{- if not (has $level (list "debug" "info" "warn" "error")) }}{{ fail "avm-res-app-containerapp: Possible values for `dapr.log_level` are `debug`, `info`, `warn`, and `error`." }}{{ end }}
+    dapr:
+      {{- with .app_id }}
+      appId: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .app_port) }}
+      appPort: {{ .app_port | int }}
+      {{- end }}
+      appProtocol: {{ $proto }}
+      enableApiLogging: {{ eq .enable_api_logging true }}
+      enabled: {{ eq .enabled true }}
+      {{- if not (kindIs "invalid" .http_max_request_size) }}
+      httpMaxRequestSize: {{ .http_max_request_size | int }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .http_read_buffer_size) }}
+      httpReadBufferSize: {{ .http_read_buffer_size | int }}
+      {{- end }}
+      logLevel: {{ $level }}
+    {{- end }}
+    {{- with $v.identity_settings }}
+    identitySettings:
+      {{- range . }}
+      {{- $lc := .lifecycle | default "All" }}
+      {{- if eq $lc "Retain" }}{{ fail "avm-res-app-containerapp: identity_settings: lifecycle Retain is not supported: ASO's ContainerApp (2025-01-01) takes All, Init, Main and None (docs/azure.md, \"Charts\")" }}{{ end }}
+      {{- if not (has $lc (list "Init" "None" "All")) }}{{ fail "avm-res-app-containerapp: Possible values for `identity_settings.lifecycle` are `Init`, `None`, `Retain` and `All`." }}{{ end }}
+      - identityReference:
+          {{- include "containerapp.identityRef" .identity | nindent 10 }}
+        lifecycle: {{ $lc }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.ingress }}
+    {{- $in := . }}
+    {{- if and $in.custom_domain $in.custom_domains }}{{ fail "avm-res-app-containerapp: Cannot specify both `custom_domain` (deprecated) and `custom_domains` at the same time. Please use only `custom_domains` for multiple domain support." }}{{ end }}
+    {{- $domains := list }}
+    {{- with $in.custom_domain }}{{ $domains = append $domains . }}{{ end }}
+    {{- range ($in.custom_domains | default list) }}{{ $domains = append $domains . }}{{ end }}
+    {{- $seen := dict }}
+    {{- range ($in.custom_domains | default list) }}
+    {{- if hasKey $seen (toString .name) }}{{ fail "avm-res-app-containerapp: All custom domain names must be unique within the `custom_domains` list." }}{{ end }}
+    {{- $_ := set $seen (toString .name) true }}
+    {{- end }}
+    ingress:
+      {{- with $in.additional_port_mappings }}
+      additionalPortMappings:
+        {{- range . }}
+        - exposedPort: {{ .exposed_port | int }}
+          external: {{ eq .external true }}
+          targetPort: {{ .target_port | int }}
+        {{- end }}
+      {{- end }}
+      allowInsecure: {{ eq $in.allow_insecure_connections true }}
+      {{- with $in.client_certificate_mode }}
+      clientCertificateMode: {{ lower . }}
+      {{- end }}
+      {{- with $in.cors_policy }}
+      corsPolicy:
+        allowCredentials: {{ eq .allow_credentials true }}
+        {{- with .allowed_headers }}
+        allowedHeaders: {{ toJson . }}
+        {{- end }}
+        {{- with .allowed_methods }}
+        allowedMethods: {{ toJson . }}
+        {{- end }}
+        allowedOrigins: {{ toJson (.allowed_origins | default list) }}
+        {{- with .expose_headers }}
+        exposeHeaders: {{ toJson . }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .max_age) }}
+        maxAge: {{ .max_age | int }}
+        {{- end }}
+      {{- end }}
+      {{- with $domains }}
+      customDomains:
+        {{- range . }}
+        - name: {{ .name | quote }}
+          {{- with .certificate_binding_type }}
+          bindingType: {{ . }}
+          {{- end }}
+          {{- with .certificate_id }}
+          certificateReference:
+            armId: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      exposedPort: {{ ternary 0 $in.exposed_port (kindIs "invalid" $in.exposed_port) | int }}
+      external: {{ eq $in.external_enabled true }}
+      {{- with $in.ip_restrictions }}
+      ipSecurityRestrictions:
+        {{- range . }}
+        - action: {{ .action | default "Allow" }}
+          {{- with .description }}
+          description: {{ . | quote }}
+          {{- end }}
+          ipAddressRange: {{ .ip_range | quote }}
+          {{- with .name }}
+          name: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $in.sticky_sessions }}
+      stickySessions:
+        affinity: {{ .affinity | default "none" }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $in.target_port) }}
+      targetPort: {{ $in.target_port | int }}
+      {{- end }}
+      traffic:
+        {{- range ($in.traffic_weight | default list) }}
+        - latestRevision: {{ eq .latest_revision true }}
+          {{- with .label }}
+          label: {{ . | quote }}
+          {{- end }}
+          {{- with .revision_suffix }}
+          revisionName: {{ . | quote }}
+          {{- end }}
+          weight: {{ .percentage | int }}
+        {{- end }}
+      transport: {{ $in.transport | default "auto" | lower }}
+    {{- end }}
+    maxInactiveRevisions: {{ ternary 0 $v.max_inactive_revisions (kindIs "invalid" $v.max_inactive_revisions) | int }}
+    {{- with $v.registries }}
+    registries:
+      {{- range . }}
+      {{- if or .password_secret_name .username }}
+      {{- fail "avm-res-app-containerapp: registries: password_secret_name and username are not supported: a registry password is a secret value, which the chart does not take; pull with a managed identity (identity) instead (docs/azure.md, \"Charts\")" }}
+      {{- end }}
+      - {{- with .identity }} identityReference:
+          {{- include "containerapp.identityRef" . | nindent 10 }}
+        {{- end }}
+        {{- with .server }}
+        server: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.runtime }}
+    runtime:
+      {{- with .java }}
+      java:
+        enableMetrics: {{ eq .enable_metrics true }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.secrets }}
+    secrets:
+      {{- range $k, $s := . }}
+      {{- if not (kindIs "invalid" $s.value) }}
+      {{- fail (printf "avm-res-app-containerapp: secrets.%s: a secret's value is not supported: it would sit in the component's inputs; reference a Key Vault secret (key_vault_secret_id and identity) instead (docs/azure.md, \"Charts\")" $k) }}
+      {{- end }}
+      {{- if not $s.key_vault_secret_id }}{{ fail "avm-res-app-containerapp: Each secret must have either 'value' or 'key_vault_secret_id' specified, but not both." }}{{ end }}
+      {{- if not $s.identity }}{{ fail "avm-res-app-containerapp: When 'key_vault_secret_id' is specified, 'identity' must also be provided for authentication." }}{{ end }}
+      - identityReference:
+          {{- include "containerapp.identityRef" $s.identity | nindent 10 }}
+        keyVaultUrl: {{ $s.key_vault_secret_id | quote }}
+        name: {{ $s.name | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.service }}
+    service:
+      type: {{ .type | quote }}
+    {{- end }}
+  template:
+    containers:
+      {{- range $tpl.containers }}
+      {{- if and .startup_probe .startup_probes }}{{ fail "avm-res-app-containerapp: You can only use either `startup_probe` or `startup_probes` in the `containers` block, not both. The `startup_probe` block has been deprecated and would be removed in v1." }}{{ end }}
+      {{- $probes := list }}
+      {{- range $kind, $list := dict "Liveness" .liveness_probes "Readiness" .readiness_probes "Startup" (concat (.startup_probe | default list) (.startup_probes | default list)) }}
+      {{- range $list }}
+      {{- $p := dict "type" $kind "failureThreshold" (ternary 3 .failure_count_threshold (kindIs "invalid" .failure_count_threshold) | int) "initialDelaySeconds" (ternary (ternary 1 0 (eq $kind "Liveness")) .initial_delay (kindIs "invalid" .initial_delay) | int) "periodSeconds" (ternary 10 .interval_seconds (kindIs "invalid" .interval_seconds) | int) "timeoutSeconds" (ternary 1 .timeout (kindIs "invalid" .timeout) | int) }}
+      {{- if eq $kind "Readiness" }}{{ $_ := set $p "successThreshold" (ternary 3 .success_count_threshold (kindIs "invalid" .success_count_threshold) | int) }}{{ end }}
+      {{- if and (ne $kind "Readiness") (not (kindIs "invalid" .termination_grace_period_seconds)) }}{{ $_ := set $p "terminationGracePeriodSeconds" (.termination_grace_period_seconds | int) }}{{ end }}
+      {{- if has .transport (list "HTTP" "HTTPS") }}
+      {{- $get := dict "port" (.port | int) "scheme" .transport }}
+      {{- with .host }}{{ $_ := set $get "host" . }}{{ end }}
+      {{- with .path }}{{ $_ := set $get "path" . }}{{ end }}
+      {{- with .header }}
+      {{- $hs := list }}{{ range . }}{{ $hs = append $hs (dict "name" .name "value" .value) }}{{ end }}
+      {{- $_ := set $get "httpHeaders" $hs }}
+      {{- end }}
+      {{- $_ := set $p "httpGet" $get }}
+      {{- else if eq .transport "TCP" }}
+      {{- $sock := dict "port" (.port | int) }}
+      {{- with .host }}{{ $_ := set $sock "host" . }}{{ end }}
+      {{- $_ := set $p "tcpSocket" $sock }}
+      {{- else }}
+      {{- fail (printf "avm-res-app-containerapp: Possible values for `template.containers.%s_probes.transport` are `TCP`, `HTTP`, and `HTTPS`." (lower $kind)) }}
+      {{- end }}
+      {{- $probes = append $probes $p }}
+      {{- end }}
+      {{- end }}
+      - name: {{ .name | quote }}
+        image: {{ .image | quote }}
+        {{- with .args }}
+        args: {{ toJson . }}
+        {{- end }}
+        {{- with .command }}
+        command: {{ toJson . }}
+        {{- end }}
+        {{- with .env }}
+        env:
+          {{- include "containerapp.env" . | trim | nindent 10 }}
+        {{- end }}
+        {{- with $probes }}
+        probes:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        resources:
+          cpu: {{ .cpu }}
+          memory: {{ .memory | quote }}
+        {{- with .volume_mounts }}
+        volumeMounts:
+          {{- include "containerapp.volumeMounts" . | trim | nindent 10 }}
+        {{- end }}
+      {{- end }}
+    {{- with $tpl.init_containers }}
+    initContainers:
+      {{- range . }}
+      - name: {{ .name | quote }}
+        image: {{ .image | quote }}
+        {{- with .args }}
+        args: {{ toJson . }}
+        {{- end }}
+        {{- with .command }}
+        command: {{ toJson . }}
+        {{- end }}
+        {{- with .env }}
+        env:
+          {{- include "containerapp.env" . | trim | nindent 10 }}
+        {{- end }}
+        {{- if or (not (kindIs "invalid" .cpu)) .memory }}
+        resources:
+          {{- if not (kindIs "invalid" .cpu) }}
+          cpu: {{ .cpu }}
+          {{- end }}
+          {{- with .memory }}
+          memory: {{ . | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with .volume_mounts }}
+        volumeMounts:
+          {{- include "containerapp.volumeMounts" . | trim | nindent 10 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- with $tpl.revision_suffix }}
+    revisionSuffix: {{ . | quote }}
+    {{- end }}
+    scale:
+      cooldownPeriod: {{ ternary 300 $tpl.cooldown_period (kindIs "invalid" $tpl.cooldown_period) | int }}
+      maxReplicas: {{ ternary 10 $tpl.max_replicas (kindIs "invalid" $tpl.max_replicas) | int }}
+      {{- if not (kindIs "invalid" $tpl.min_replicas) }}
+      minReplicas: {{ $tpl.min_replicas | int }}
+      {{- end }}
+      pollingInterval: {{ ternary 30 $tpl.polling_interval (kindIs "invalid" $tpl.polling_interval) | int }}
+      {{- if or $tpl.azure_queue_scale_rules $tpl.custom_scale_rules $tpl.http_scale_rules $tpl.tcp_scale_rules }}
+      rules:
+        {{- range $tpl.azure_queue_scale_rules }}
+        - name: {{ .name | quote }}
+          azureQueue:
+            {{- with .account_name }}
+            accountName: {{ . | quote }}
+            {{- end }}
+            {{- with .authentication }}
+            auth:
+              {{- include "containerapp.auth" . | trim | nindent 14 }}
+            {{- end }}
+            {{- with .identity }}
+            identityReference:
+              {{- include "containerapp.identityRef" . | nindent 14 }}
+            {{- end }}
+            queueLength: {{ .queue_length | int }}
+            queueName: {{ .queue_name | quote }}
+        {{- end }}
+        {{- range $tpl.custom_scale_rules }}
+        - name: {{ .name | quote }}
+          custom:
+            {{- with .authentication }}
+            auth:
+              {{- include "containerapp.auth" . | trim | nindent 14 }}
+            {{- end }}
+            {{- with .identity }}
+            identityReference:
+              {{- include "containerapp.identityRef" . | nindent 14 }}
+            {{- end }}
+            {{- with .metadata }}
+            metadata:
+              {{- range $mk, $mv := . }}
+              {{ $mk | quote }}: {{ toString $mv | quote }}
+              {{- end }}
+            {{- end }}
+            type: {{ .custom_rule_type | quote }}
+        {{- end }}
+        {{- range $kind, $rules := dict "http" $tpl.http_scale_rules "tcp" $tpl.tcp_scale_rules }}
+        {{- range $rules }}
+        - name: {{ .name | quote }}
+          {{ $kind }}:
+            {{- with .authentication }}
+            auth:
+              {{- include "containerapp.auth" . | trim | nindent 14 }}
+            {{- end }}
+            {{- with .identity }}
+            identityReference:
+              {{- include "containerapp.identityRef" . | nindent 14 }}
+            {{- end }}
+            metadata:
+              {{- range $mk, $mv := (.metadata | default (dict "concurrentRequests" .concurrent_requests)) }}
+              {{ $mk | quote }}: {{ toString $mv | quote }}
+              {{- end }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- with $tpl.service_binds }}
+    serviceBinds:
+      {{- range . }}
+      - name: {{ .name | quote }}
+        serviceReference:
+          armId: {{ .service_id | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $tpl.termination_grace_period_seconds) }}
+    terminationGracePeriodSeconds: {{ $tpl.termination_grace_period_seconds | int }}
+    {{- end }}
+    {{- with $tpl.volumes }}
+    volumes:
+      {{- range . }}
+      {{- $st := .storage_type | default "EmptyDir" }}
+      {{- if not (has $st (list "AzureFile" "EmptyDir" "Secret")) }}{{ fail "avm-res-app-containerapp: Possible values for `template.volumes.storage_type` are `AzureFile`, `EmptyDir`, and `Secret`." }}{{ end }}
+      - name: {{ .name | quote }}
+        {{- with .mount_options }}
+        mountOptions: {{ . | quote }}
+        {{- end }}
+        {{- with .secrets }}
+        secrets:
+          {{- range . }}
+          - path: {{ .path | quote }}
+            secretRef: {{ .secret_name | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with .storage_name }}
+        storageName: {{ . | quote }}
+        {{- end }}
+        storageType: {{ $st }}
+      {{- end }}
+    {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "app.azure.com" "kind" "ContainerApp" "name" $obj }}
+{{- range $k, $a := ($v.auth_configs | default dict) }}
+{{- if not $a.name }}{{ fail (printf "avm-res-app-containerapp: auth_configs.%s needs a name" $k) }}{{ end }}
+{{- $spec := dict }}
+{{- with $a.platform }}
+{{- $p := dict }}
+{{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $p "enabled" .enabled }}{{ end }}
+{{- with .runtime_version }}{{ $_ := set $p "runtimeVersion" . }}{{ end }}
+{{- $_ := set $spec "platform" $p }}
+{{- end }}
+{{- with $a.encryption_settings }}
+{{- $e := dict }}
+{{- with .container_app_auth_encryption_secret_name }}{{ $_ := set $e "containerAppAuthEncryptionSecretName" . }}{{ end }}
+{{- with .container_app_auth_signing_secret_name }}{{ $_ := set $e "containerAppAuthSigningSecretName" . }}{{ end }}
+{{- $_ := set $spec "encryptionSettings" $e }}
+{{- end }}
+{{- with $a.global_validation }}
+{{- $g := dict }}
+{{- with .unauthenticated_client_action }}{{ $_ := set $g "unauthenticatedClientAction" . }}{{ end }}
+{{- with .exclude_paths }}{{ $_ := set $g "excludedPaths" . }}{{ end }}
+{{- with .redirect_to_provider }}{{ $_ := set $g "redirectToProvider" . }}{{ end }}
+{{- $_ := set $spec "globalValidation" $g }}
+{{- end }}
+{{- with $a.identity_providers }}
+{{- $idp := . }}
+{{- $ip := dict }}
+{{- with .azure_active_directory }}
+{{- $x := dict }}
+{{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $x "enabled" .enabled }}{{ end }}
+{{- if not (kindIs "invalid" .is_auto_provisioned) }}{{ $_ := set $x "isAutoProvisioned" .is_auto_provisioned }}{{ end }}
+{{- with .registration }}
+{{- $reg := . }}
+{{- $r := dict }}
+{{- range $from, $to := dict "open_id_issuer" "openIdIssuer" "client_id" "clientId" "client_secret_setting_name" "clientSecretSettingName" "client_secret_certificate_thumbprint" "clientSecretCertificateThumbprint" "client_secret_certificate_subject_alternative_name" "clientSecretCertificateSubjectAlternativeName" "client_secret_certificate_issuer" "clientSecretCertificateIssuer" }}
+{{- with (get $reg $from) }}{{ $_ := set $r $to . }}{{ end }}
+{{- end }}
+{{- $_ := set $x "registration" $r }}
+{{- end }}
+{{- with .login }}
+{{- $l := dict "disableWWWAuthenticate" (eq .disable_www_authenticate true) }}
+{{- with .login_parameters }}{{ $_ := set $l "loginParameters" . }}{{ end }}
+{{- $_ := set $x "login" $l }}
+{{- end }}
+{{- with .validation }}
+{{- $val := dict }}
+{{- with .jwt_claim_checks }}
+{{- $j := dict }}
+{{- with .allowed_groups }}{{ $_ := set $j "allowedGroups" . }}{{ end }}
+{{- with .allowed_client_applications }}{{ $_ := set $j "allowedClientApplications" . }}{{ end }}
+{{- $_ := set $val "jwtClaimChecks" $j }}
+{{- end }}
+{{- with .allowed_audiences }}{{ $_ := set $val "allowedAudiences" . }}{{ end }}
+{{- with .default_authorization_policy }}
+{{- $d := dict }}
+{{- with .allowed_principals }}
+{{- $pr := dict }}
+{{- with .groups }}{{ $_ := set $pr "groups" . }}{{ end }}
+{{- with .identities }}{{ $_ := set $pr "identities" . }}{{ end }}
+{{- $_ := set $d "allowedPrincipals" $pr }}
+{{- end }}
+{{- with .allowed_applications }}{{ $_ := set $d "allowedApplications" . }}{{ end }}
+{{- $_ := set $val "defaultAuthorizationPolicy" $d }}
+{{- end }}
+{{- $_ := set $x "validation" $val }}
+{{- end }}
+{{- $_ := set $ip "azureActiveDirectory" $x }}
+{{- end }}
+{{- with .facebook }}
+{{- $x := dict }}
+{{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $x "enabled" .enabled }}{{ end }}
+{{- with .registration }}
+{{- $r := dict }}
+{{- with .app_id }}{{ $_ := set $r "appId" . }}{{ end }}
+{{- with .app_secret_setting_name }}{{ $_ := set $r "appSecretSettingName" . }}{{ end }}
+{{- $_ := set $x "registration" $r }}
+{{- end }}
+{{- with .graph_api_version }}{{ $_ := set $x "graphApiVersion" . }}{{ end }}
+{{- with .login }}{{ $_ := set $x "login" (dict "scopes" .scopes) }}{{ end }}
+{{- $_ := set $ip "facebook" $x }}
+{{- end }}
+{{- range $from, $to := dict "github" "gitHub" "google" "google" "apple" "apple" }}
+{{- with (get $idp $from) }}
+{{- $x := dict }}
+{{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $x "enabled" .enabled }}{{ end }}
+{{- with .registration }}
+{{- $r := dict }}
+{{- with .client_id }}{{ $_ := set $r "clientId" . }}{{ end }}
+{{- with .client_secret_setting_name }}{{ $_ := set $r "clientSecretSettingName" . }}{{ end }}
+{{- $_ := set $x "registration" $r }}
+{{- end }}
+{{- with .login }}{{ $_ := set $x "login" (dict "scopes" .scopes) }}{{ end }}
+{{- with .validation }}{{ $_ := set $x "validation" (dict "allowedAudiences" .allowed_audiences) }}{{ end }}
+{{- $_ := set $ip $to $x }}
+{{- end }}
+{{- end }}
+{{- with .twitter }}
+{{- $x := dict }}
+{{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $x "enabled" .enabled }}{{ end }}
+{{- with .registration }}
+{{- $r := dict "consumerKey" .consumer_key }}
+{{- with .consumer_secret_setting_name }}{{ $_ := set $r "consumerSecretSettingName" . }}{{ end }}
+{{- $_ := set $x "registration" $r }}
+{{- end }}
+{{- $_ := set $ip "twitter" $x }}
+{{- end }}
+{{- with .azure_static_web_apps }}
+{{- $x := dict }}
+{{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $x "enabled" .enabled }}{{ end }}
+{{- with .registration }}{{ $_ := set $x "registration" (dict "clientId" .client_id) }}{{ end }}
+{{- $_ := set $ip "azureStaticWebApps" $x }}
+{{- end }}
+{{- with .custom_open_id_connect_providers }}
+{{- $all := dict }}
+{{- range $pk, $pv := . }}
+{{- $x := dict }}
+{{- if not (kindIs "invalid" $pv.enabled) }}{{ $_ := set $x "enabled" $pv.enabled }}{{ end }}
+{{- with $pv.registration }}
+{{- $r := dict }}
+{{- with .client_id }}{{ $_ := set $r "clientId" . }}{{ end }}
+{{- with .client_credential }}{{ $_ := set $r "clientCredential" (dict "method" .method "clientSecretSettingName" .client_secret_setting_name) }}{{ end }}
+{{- with .open_id_connect_configuration }}
+{{- $o := dict "authorizationEndpoint" .authorization_endpoint "tokenEndpoint" .token_endpoint "issuer" .issuer "certificationUri" .certification_uri }}
+{{- with .well_known_open_id_configuration }}{{ $_ := set $o "wellKnownOpenIdConfiguration" . }}{{ end }}
+{{- $_ := set $r "openIdConnectConfiguration" $o }}
+{{- end }}
+{{- $_ := set $x "registration" $r }}
+{{- end }}
+{{- with $pv.login }}{{ $_ := set $x "login" (dict "nameClaimType" .name_claim_type "scopes" .scopes) }}{{ end }}
+{{- $_ := set $all $pk $x }}
+{{- end }}
+{{- $_ := set $ip "customOpenIdConnectProviders" $all }}
+{{- end }}
+{{- $_ := set $spec "identityProviders" $ip }}
+{{- end }}
+{{- with $a.login }}
+{{- $l := dict }}
+{{- with .routes }}{{ $_ := set $l "routes" (dict "logoutEndpoint" .logout_endpoint) }}{{ end }}
+{{- with .token_store }}
+{{- $t := dict "enabled" (eq .enabled true) "tokenRefreshExtensionHours" .token_refresh_extension_hours }}
+{{- with .azure_blob_storage }}{{ $_ := set $t "azureBlobStorage" (dict "sasUrlSettingName" .sas_url_setting_name) }}{{ end }}
+{{- $_ := set $l "tokenStore" $t }}
+{{- end }}
+{{- if not (kindIs "invalid" .preserve_url_fragments_for_logins) }}{{ $_ := set $l "preserveUrlFragmentsForLogins" .preserve_url_fragments_for_logins }}{{ end }}
+{{- with .allowed_external_redirect_urls }}{{ $_ := set $l "allowedExternalRedirectUrls" . }}{{ end }}
+{{- with .cookie_expiration }}
+{{- $c := dict }}
+{{- with .convention }}{{ $_ := set $c "convention" . }}{{ end }}
+{{- with .time_to_expiration }}{{ $_ := set $c "timeToExpiration" . }}{{ end }}
+{{- $_ := set $l "cookieExpiration" $c }}
+{{- end }}
+{{- with .nonce }}{{ $_ := set $l "nonce" (dict "validateNonce" (eq .validate_nonce true) "nonceExpirationInterval" .nonce_expiration_interval) }}{{ end }}
+{{- $_ := set $spec "login" $l }}
+{{- end }}
+{{- with $a.http_settings }}
+{{- $h := dict }}
+{{- if not (kindIs "invalid" .require_https) }}{{ $_ := set $h "requireHttps" .require_https }}{{ end }}
+{{- with .routes }}{{ $_ := set $h "routes" (dict "apiPrefix" .api_prefix) }}{{ end }}
+{{- with .forward_proxy }}
+{{- $f := dict }}
+{{- with .convention }}{{ $_ := set $f "convention" . }}{{ end }}
+{{- with .custom_host_header_name }}{{ $_ := set $f "customHostHeaderName" . }}{{ end }}
+{{- with .custom_proto_header_name }}{{ $_ := set $f "customProtoHeaderName" . }}{{ end }}
+{{- $_ := set $h "forwardProxy" $f }}
+{{- end }}
+{{- $_ := set $spec "httpSettings" $h }}
+{{- end }}
+---
+apiVersion: app.azure.com/v20250101
+kind: AuthConfig
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "auth" $k)) "id" (printf "auth_config:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $a.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- with $spec }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $appName)) "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}

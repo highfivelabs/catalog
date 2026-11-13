@@ -1,0 +1,49 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-app-containerapp
+repo: https://github.com/Azure/terraform-azurerm-avm-res-app-containerapp
+path: .
+version: v0.9.0
+commit: ae03166abab035743ead9550bd32818bf75efdd9
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-app-containerapp/tree/v0.9.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-app-containerapp/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  - variable: kind
+    kind: gap
+    reason: "ASO's ContainerApp is at ARM API version 2025-01-01, which has no kind (the module sends it with 2025-02-02-preview)"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: location
+    kind: by-design
+    reason: "accepted, but null is refused: the module reads the resource group's location then, which a render cannot; ASO needs a location"
+    partial: true
+  - variable: identity_settings
+    kind: gap
+    reason: "accepted, but lifecycle Retain is refused: ASO's ContainerApp (2025-01-01) takes All, Init, Main and None"
+    partial: true
+    fields: [lifecycle]
+  - variable: registries
+    kind: not-ported
+    reason: "accepted, but password_secret_name and username are refused: a registry password is a secret value, which the chart does not take (pull with a managed identity)"
+    partial: true
+    fields: [password_secret_name, username]
+  - variable: secrets
+    kind: not-ported
+    reason: "accepted for Key Vault references (key_vault_secret_id and identity), but a secret's value is refused: it would sit in the component's inputs, and how a component supplies a Kubernetes Secret is not settled"
+    partial: true
+    fields: [value]

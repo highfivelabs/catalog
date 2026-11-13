@@ -480,6 +480,14 @@ application stack. It is low priority for a team catalog.
 | --- | --- |
 | `App/containerApps@2025-07-01` (and a preview), `containerApps/authConfigs@2025-01-01` | `app/ContainerApp`, `app/AuthConfig`. Covered, on an older API |
 
+Covered, but for `kind`. Chart `charts/azure/avm-res-app-containerapp`
+(2026-11-13): 22 of 24 variables and all 12 outputs; the app as a
+`ContainerApp` (2025-01-01), each `auth_configs` entry as an `AuthConfig`.
+Refused: `kind` (2025-01-01 has none), `timeouts` (by design), and in part
+a null `location`, an identity setting's `Retain` lifecycle (not in
+2025-01-01), registry passwords and secret values (secret values; Key
+Vault references are taken).
+
 ### 22. avm-res-web-site (v0.24.1; azapi)
 
 | Submodule | ARM types | ASO |
@@ -704,6 +712,7 @@ aso-extensions:
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
+| `avm-res-app-containerapp` | `kind`, `identity_settings[].lifecycle` `Retain` | none: fields of a later API version than ASO's `ContainerApp` (2025-01-01) |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
 
 Not a kind gap, but an ASO field gap: a table's or share's
@@ -746,7 +755,7 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP and container app charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
