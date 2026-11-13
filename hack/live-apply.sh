@@ -31,8 +31,9 @@
 # roles/compute.securityAdmin (cce-live-tests has both), net-lb-int,
 # net-lb-ext, net-vpn-static, net-address, net-lb-proxy-int-cross-region
 # and net-lb-app-int-cross-region roles/compute.networkAdmin (both have
-# it), net-cloud-armor roles/compute.securityAdmin (cce-live-tests). A
-# chart whose case
+# it; net-address's case includes a PSC network attachment,
+# config-connector-extensions' ComputeNetworkAttachment), net-cloud-armor
+# roles/compute.securityAdmin (cce-live-tests). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -41,7 +42,10 @@
 # (its manager on the host against a kind cluster holding the CRDs), but
 # against Google Cloud: hack/live/realcloud.go.txt, built in a scratch
 # copy of config-connector-extensions so it uses the same pinned Config
-# Connector. Writes offload-artifacts/live/summary.md.
+# Connector. Beside it, config-connector-extensions' own manager
+# (hack/cce-manager.sh, its cmd/manager from the same copy, acting as the
+# same service account) reconciles the charts' *.gcp.hfl.dev kinds, as
+# the fake cloud does. Writes offload-artifacts/live/summary.md.
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
@@ -83,6 +87,7 @@ REGION2=us-east1
 VPN="${RUN}-vpn"
 ADDR_G="${RUN}-ga"
 ADDR_E="${RUN}-ea"
+NA="${RUN}-na"
 ARMOR="${RUN}-armor"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
@@ -164,11 +169,15 @@ sweep_run() {
   for n in "${r}-xalb-sn1:${REGION}" "${r}-xalb-pr1:${REGION}" "${r}-xalb-sn2:${REGION2}" "${r}-xalb-pr2:${REGION2}"; do
     "${G[@]}" compute networks subnets delete "${n%%:*}" --region "${n#*:}" >/dev/null 2>&1 && echo "swept subnet ${n%%:*}" || true
   done
-  for n in "${r}-ilb-psc" "${r}-ilb-sn"; do
+  # net-address: the network attachment, then its subnet (its network
+  # goes below).
+  "${G[@]}" compute network-attachments describe "${r}-na" --region "${REGION}" >/dev/null 2>&1 \
+    && "${G[@]}" compute network-attachments delete "${r}-na" --region "${REGION}" >/dev/null 2>&1 && echo "swept network attachment ${r}-na" || true
+  for n in "${r}-ilb-psc" "${r}-ilb-sn" "${r}-na-sn"; do
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
   "${G[@]}" compute security-policies delete "${r}-armor" >/dev/null 2>&1 && echo "swept security policy ${r}-armor" || true
-  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net" "${r}-xilb-net" "${r}-xalb-net"; do
+  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net" "${r}-xilb-net" "${r}-xalb-net" "${r}-na-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
   "${G[@]}" compute addresses delete "${r}-ga" --global >/dev/null 2>&1 && echo "swept address ${r}-ga" || true
@@ -180,7 +189,7 @@ sweep_old() {
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\|xilb-net\|xalb-net\)$/\1/p'
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\|xilb-net\|xalb-net\|na-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
     "${G[@]}" compute addresses list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(ga\|ea\)$/\1/p'
     "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-armor$/\1/p'
@@ -205,12 +214,14 @@ list_left() {
   "${G[@]}" compute url-maps list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute network-endpoint-groups list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute service-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
+  "${G[@]}" compute network-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
   "${G[@]}" compute target-vpn-gateways list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute addresses list --format='value(name)' | grep -E '^(vpn-)?cat-' || true
   "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
+  [[ -n "${CCE_MANAGER_PID:-}" ]] && kill "${CCE_MANAGER_PID}" 2>/dev/null || true
   kind delete cluster --name catalog-live >/dev/null 2>&1 || true
   echo "== sweep after"; sweep_run "${RUN}"; sweep_old
   echo "== left in ${PROJECT} (nothing should follow)"; left="$(list_left)"; echo "${left}"
@@ -229,6 +240,9 @@ git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
 mkdir -p "${CCE_DIR}/cmd/realcloud"
 cp hack/live/realcloud.go.txt "${CCE_DIR}/cmd/realcloud/main.go"
 (cd "${CCE_DIR}" && GOTOOLCHAIN=auto go build -o "${ROOT}/bin/realcloud" ./cmd/realcloud)
+# shellcheck source=hack/cce-manager.sh
+source hack/cce-manager.sh
+cce_build_manager
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
 export KUBECONFIG="${OUT}/kubeconfig"
@@ -255,6 +269,12 @@ done
 if [[ "${started}" != yes ]]; then
   echo "live-apply: the manager did not start:" >&2; grep -v round_trippers "${OUT}/manager.log" | tail -15 >&2
   { echo; echo "The manager did not start; nothing was applied."; } >>"${OUT}/summary.md" 2>/dev/null || true
+  exit 1
+fi
+# config-connector-extensions' manager, for the *.gcp.hfl.dev kinds.
+cce_install_crds
+if ! cce_start_manager "${OUT}/cce-manager.log"; then
+  { echo; echo "config-connector-extensions' manager did not start; nothing was applied."; } >>"${OUT}/summary.md" 2>/dev/null || true
   exit 1
 fi
 NS=catalog-live
@@ -456,7 +476,35 @@ global_addresses:
   ${ADDR_G}: {description: catalog live test ${RUN}}
 external_addresses:
   ${ADDR_E}: {region: ${REGION}, tier: STANDARD, description: catalog live test ${RUN}}
+network_attachments:
+  ${NA}:
+    subnet_self_link: projects/${PROJECT}/regions/${REGION}/subnetworks/${NA}-sn
+    description: catalog live test ${RUN}
 VALUES
+# The network attachment's network and subnet.
+cat >"${OUT}/net-address.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-na-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${NA}-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-na-sn
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${NA}-sn
+  region: ${REGION}
+  ipCidrRange: 10.251.0.0/28
+  networkRef: {name: live-na-net}
+  description: catalog live test ${RUN}
+NEEDS
 
 cat >"${OUT}/net-cloud-armor.values.yaml" <<VALUES
 name: ${ARMOR}
@@ -615,7 +663,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Project ${PROJECT}, as ${RUNNER}; catalog $(git rev-parse --short HEAD 2>/dev/null || echo unknown); Config Connector at config-connector-extensions' pin."
+  echo "Project ${PROJECT}, as ${RUNNER}; catalog $(git rev-parse --short HEAD 2>/dev/null || echo unknown); Config Connector at config-connector-extensions' pin, and config-connector-extensions' manager, from ${CCE_TARBALL}."
   echo
   echo "| Chart | Object | Ready | Deleted | Gone from Google Cloud | Message |"
   echo "| --- | --- | --- | --- | --- | --- |"
@@ -707,7 +755,10 @@ for chart in ${LIVE_CHARTS}; do
     net-address)
       gone=yes
       "${G[@]}" compute addresses describe "${ADDR_G}" --global >/dev/null 2>&1 && gone=no
-      "${G[@]}" compute addresses describe "${ADDR_E}" --region "${REGION}" >/dev/null 2>&1 && gone=no ;;
+      "${G[@]}" compute addresses describe "${ADDR_E}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute network-attachments describe "${NA}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks subnets describe "${NA}-sn" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${NA}-net" >/dev/null 2>&1 && gone=no ;;
     net-cloud-armor) "${G[@]}" compute security-policies describe "${ARMOR}" >/dev/null 2>&1 && gone=no || gone=yes ;;
     net-lb-proxy-int-cross-region)
       gone=yes

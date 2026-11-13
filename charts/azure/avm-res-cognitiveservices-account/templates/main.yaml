@@ -1,0 +1,204 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-cognitiveservices-account main.tf,
+main.aiservies.tf, lock.tf, main_role_assignments.tf, diagnostic.tf and
+variables.tf (v0.11.1), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (every kind but AIServices) and .ai_service
+(AIServices), Microsoft.CognitiveServices/accounts@2025-06-01: one ASO
+Account, owned by the resource group parent_id names, with the body each
+of the module's resources sends. azurerm_cognitive_account_customer_managed_key
+and azapi_update_resource.ai_service_hsm_key: the account's encryption
+(ASO's Account carries it inline). azurerm_management_lock.this: an
+aso-extensions ManagementLock with the module's notes.
+azurerm_role_assignment.this: one ASO RoleAssignment each.
+azurerm_monitor_diagnostic_setting.this: one ASO DiagnosticSetting each.
+Deployments, RAI policies and private endpoints are in their own
+templates. random_string.default_custom_subdomain_name_suffix: a stable
+suffix from the account's ID instead (README.md). The key listings
+(listKeys) and the time_sleeps are not ported; the telemetry is not sent.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := "avm-res-cognitiveservices-account" }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.unsupported" (list $ "custom_question_answering_search_service_key" $v.custom_question_answering_search_service_key "a secret value: ASO reads the key from a Kubernetes Secret (apiProperties.qnaAzureSearchEndpointKey), and how a component supplies a Secret is not settled") }}
+{{- include "aso.names" (list $ (list "account")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $n) }}{{ end }}
+{{- /* The module's validations and preconditions. */ -}}
+{{- if not (regexMatch "^/subscriptions/[a-f0-9-]+/resourceGroups/.+$" (toString $v.parent_id)) }}
+{{- fail (printf "%s: The parent_id must be a valid Azure Resource Group ID in the format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}" $n) }}
+{{- end }}
+{{- with $v.network_injections }}
+{{- if not (or (kindIs "invalid" .scenario) (eq (toString .scenario) "agent")) }}
+{{- fail (printf "%s: If specified, the value of 'scenario' must be \"agent\"." $n) }}
+{{- end }}
+{{- end }}
+{{- $ai := eq $v.kind "AIServices" }}
+{{- if not $ai }}
+{{- if and (eq $v.kind "QnAMaker") (not $v.qna_runtime_endpoint) }}{{ fail (printf "%s: the QnAMaker runtime endpoint `qna_runtime_endpoint` is required when kind is set to `QnAMaker`" $n) }}{{ end }}
+{{- if and $v.custom_question_answering_search_service_id (ne $v.kind "TextAnalytics") }}{{ fail (printf "%s: the Search Service ID `custom_question_answering_search_service_id` can only be set when kind is set to `TextAnalytics`" $n) }}{{ end }}
+{{- range $f := list "metrics_advisor_aad_client_id" "metrics_advisor_aad_tenant_id" "metrics_advisor_super_user_name" "metrics_advisor_website_name" }}
+{{- if and (index $v $f) (ne $v.kind "MetricsAdvisor") }}{{ fail (printf "%s: %s can only used set when kind is set to `MetricsAdvisor`" $n $f) }}{{ end }}
+{{- end }}
+{{- end }}
+{{- /* The customer managed key: the key's version and the identity's client ID are read from Azure by the module. */ -}}
+{{- $cmk := $v.customer_managed_key }}
+{{- $encryption := dict }}
+{{- with $cmk }}
+{{- include "aso.unsupported" (list $ "customer_managed_key.user_assigned_identity" .user_assigned_identity "the module reads the identity's client ID from Azure, and ASO's Account takes encryption.keyVaultProperties.identityClientId only as a literal (no identityClientIdFromConfig): give the account a system-assigned identity, or wait for the field") }}
+{{- if not .key_version }}
+{{- fail (printf "%s: customer_managed_key.key_version is required here: the module reads the key's current version from Key Vault, which a render cannot (docs/azure.md, \"Charts\")" $n) }}
+{{- end }}
+{{- $kv := regexFind "(?i)/providers/Microsoft\\.KeyVault/(vaults|managedHSMs)/[^/]+$" .key_vault_resource_id }}
+{{- if not $kv }}{{ fail (printf "%s: customer_managed_key.key_vault_resource_id %q is not a key vault's or managed HSM's ID" $n .key_vault_resource_id) }}{{ end }}
+{{- $hsm := regexMatch "(?i)/managedHSMs/" $kv }}
+{{- if ne $hsm $v.is_hsm_key }}{{ fail (printf "%s: customer_managed_key.key_vault_resource_id must be a %s ID when is_hsm_key is %t" $n (ternary "managed HSM's" "key vault's" $v.is_hsm_key) $v.is_hsm_key) }}{{ end }}
+{{- $vault := splitList "/" $kv | last }}
+{{- if not $hsm }}
+{{- $encryption = dict "keySource" "Microsoft.KeyVault" "keyVaultProperties" (dict "keyName" .key_name "keyVaultUri" (printf "https://%s.vault.azure.net/" $vault) "keyVersion" .key_version) }}
+{{- else if $ai }}
+{{- $encryption = dict "keySource" "Microsoft.KeyVault" "keyVaultProperties" (dict "keyName" .key_name "keyVaultUri" (printf "https://%s.managedhsm.azure.net/" $vault) "keyVersion" .key_version) }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "cog.object" . }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := uniq ($mi.user_assigned_resource_ids | default list) | sortAlpha }}
+{{- $sys := eq $mi.system_assigned true }}
+{{- $acl := $v.network_acls }}
+---
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Account
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "account" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "cog.accountName" . | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  kind: {{ $v.kind | quote }}
+  sku:
+    name: {{ $v.sku_name | quote }}
+  {{- if or $sys $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned, UserAssigned" "UserAssigned" $sys) "SystemAssigned" (gt (len $uai) 0) | quote }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range . }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  properties:
+    allowProjectManagement: {{ $v.allow_project_management }}
+    {{- with $v.fqdns }}
+    allowedFqdnList:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- if $ai }}
+    {{- with $v.aml_workspace }}
+    amlWorkspace:
+      {{- with .identity_client_id }}
+      identityClientId: {{ . | quote }}
+      {{- end }}
+      resourceReference:
+        armId: {{ .resource_id | quote }}
+    {{- end }}
+    {{- with $v.associated_projects }}
+    associatedProjects:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $v.custom_subdomain_name }}
+    customSubDomainName: {{ . | quote }}
+    {{- end }}
+    {{- with $v.default_project }}
+    defaultProject: {{ . | quote }}
+    {{- end }}
+    {{- if $v.dynamic_throttling_enabled }}
+    dynamicThrottlingEnabled: true
+    {{- end }}
+    {{- with $v.network_injections }}
+    networkInjections:
+      - scenario: {{ .scenario | quote }}
+        subnetArmReference:
+          armId: {{ .subnet_id | quote }}
+        useMicrosoftManagedNetwork: {{ eq .microsoft_managed_network_enabled true }}
+    {{- end }}
+    {{- with $v.rai_monitor_config }}
+    raiMonitorConfig:
+      adxStorageResourceReference:
+        armId: {{ .adx_storage_resource_id | quote }}
+      {{- with .identity_client_id }}
+      identityClientId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- else }}
+    {{- $api := dict }}
+    {{- if and (eq $v.kind "QnAMaker") $v.qna_runtime_endpoint }}{{ $_ := set $api "qnaRuntimeEndpoint" $v.qna_runtime_endpoint }}{{ end }}
+    {{- if and (eq $v.kind "TextAnalytics") $v.custom_question_answering_search_service_id }}{{ $_ := set $api "qnaAzureSearchEndpointId" $v.custom_question_answering_search_service_id }}{{ end }}
+    {{- if eq $v.kind "MetricsAdvisor" }}
+    {{- with $v.metrics_advisor_aad_client_id }}{{ $_ := set $api "aadClientId" . }}{{ end }}
+    {{- with $v.metrics_advisor_aad_tenant_id }}{{ $_ := set $api "aadTenantId" . }}{{ end }}
+    {{- with $v.metrics_advisor_super_user_name }}{{ $_ := set $api "superUser" . }}{{ end }}
+    {{- with $v.metrics_advisor_website_name }}{{ $_ := set $api "websiteName" . }}{{ end }}
+    {{- end }}
+    {{- with $api }}
+    apiProperties:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    customSubDomainName: {{ $v.custom_subdomain_name | default (printf "azure-cognitive-%s" (sha256sum (include "cog.accountId" .) | trunc 5)) | quote }}
+    dynamicThrottlingEnabled: {{ $v.dynamic_throttling_enabled }}
+    {{- end }}
+    disableLocalAuth: {{ eq $v.local_auth_enabled false }}
+    {{- with $encryption }}
+    encryption:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $acl }}
+    networkAcls:
+      {{- with .bypass }}
+      bypass: {{ . | quote }}
+      {{- end }}
+      defaultAction: {{ .default_action | quote }}
+      {{- if not (kindIs "invalid" .ip_rules) }}
+      ipRules:
+        {{- range (uniq .ip_rules | sortAlpha) }}
+        - value: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .virtual_network_rules) }}
+      virtualNetworkRules:
+        {{- range .virtual_network_rules }}
+        - ignoreMissingVnetServiceEndpoint: {{ eq .ignore_missing_vnet_service_endpoint true }}
+          reference:
+            armId: {{ .subnet_id | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    publicNetworkAccess: {{ ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
+    restrictOutboundNetworkAccess: {{ eq $v.outbound_network_access_restricted true }}
+    {{- if not (kindIs "invalid" $v.storage) }}
+    userOwnedStorage:
+      {{- range $v.storage }}
+      - {{- with .identity_client_id }}
+        identityClientId: {{ . | quote }}
+        {{- end }}
+        resourceReference:
+          armId: {{ .storage_account_id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "cognitiveservices.azure.com" "kind" "Account" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}
