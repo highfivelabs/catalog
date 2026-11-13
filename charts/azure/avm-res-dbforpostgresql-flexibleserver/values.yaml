@@ -1,0 +1,176 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-dbforpostgresql-flexibleserver (v0.2.3): same names, types and
+# defaults, so a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted or condensed from
+# terraform-azurerm-avm-res-dbforpostgresql-flexibleserver (variables*.tf,
+# v0.2.3), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The server's name in full, {flexibleServer}. A name set here takes no
+# prefix; one not set is name, with the namePrefix in front. Private
+# endpoints are named by their entries (else pe-<server name>).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the server's name
+# and of a private endpoint's default name (never one set in full).
+# Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's azurerm provider knows its subscription; ASO's owner is an
+# Azure resource ID. Not needed when resource_group_name is a resource
+# group's ID (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# (Required) Azure region where the resource should be deployed.
+location: ""
+# (Required) The name of the this resource: 3 to 63 lower-case letters,
+# digits and hyphens, not starting or ending with a hyphen.
+name: ""
+# (Required) The resource group where the resources will be deployed: its
+# name (with subscription_id) or its ID.
+resource_group_name: ""
+
+# Server (variables.server.tf).
+#
+# The administrator login. Required when create_mode is Default and
+# password authentication is enabled; the chart refuses password
+# authentication (below), so it is only kept for a server that has one.
+administrator_login: null
+# Refused (by-design): a password is a secret value, which does not belong
+# in a component's inputs. ASO takes it from a Kubernetes Secret
+# (administratorLoginPassword); how a component supplies that Secret is
+# open. Use Entra authentication.
+administrator_password: null
+# Refused, as administrator_password.
+administrator_password_wo: null
+# Refused, as administrator_password_wo.
+administrator_password_wo_version: null
+# {active_directory_auth_enabled (default false), password_auth_enabled
+# (default true), tenant_id}. Password authentication needs a password,
+# which the chart does not take: a server the chart creates (create_mode
+# Default) must set password_auth_enabled: false, and so Entra
+# authentication (active_directory_auth_enabled: true).
+authentication: null
+# Is storage auto grow enabled? Azure's default is false.
+auto_grow_enabled: null
+# Backup retention, 7 to 35 days.
+backup_retention_days: null
+# Default, GeoRestore, PointInTimeRestore, Replica or Update.
+create_mode: null
+# The ID of the subnet the server is created in (delegated to it).
+delegated_subnet_id: null
+# Is geo-redundant backup enabled? Azure's default is false.
+geo_redundant_backup_enabled: null
+# {mode (SameZone or ZoneRedundant), standby_availability_zone}. Null
+# deploys without high availability (mode Disabled), which Burstable SKUs
+# (B_...) need.
+high_availability:
+  mode: ZoneRedundant
+# {day_of_week ("0" is Sunday), start_hour, start_minute}: a custom window.
+# Null leaves the system-managed window.
+maintenance_window:
+  day_of_week: "0"
+  start_hour: 0
+  start_minute: 0
+# The point in time to restore from source_server_id (GeoRestore,
+# PointInTimeRestore), RFC 3339.
+point_in_time_restore_time_in_utc: null
+# The ID of the private DNS zone for a server in a delegated subnet.
+private_dns_zone_id: null
+# Whether the server is publicly accessible.
+public_network_access_enabled: false
+# The replication role: None.
+replication_role: null
+# The PostgreSQL major version: 11 to 18 (ASO's 2025-08-01 API). Required
+# when create_mode is Default.
+server_version: null
+# tier + name, e.g. B_Standard_B1ms (Burstable), GP_Standard_D2s_v3
+# (GeneralPurpose), MO_Standard_E4s_v3 (MemoryOptimized).
+sku_name: null
+# The ID of the source server (GeoRestore, PointInTimeRestore, Replica).
+source_server_id: null
+# The storage size in MB: 32768, 65536, ... (Azure takes whole GiB; the
+# chart sends storage_mb / 1024).
+storage_mb: null
+# P4, P6, P10, P15, P20, P30, P40, P50, P60, P70 or P80.
+storage_tier: null
+# Refused (by-design): ASO has no per-request timeouts; Bundt sets a
+# component's time limit.
+timeouts: null
+# The availability zone of the server.
+zone: null
+
+# Children.
+#
+# Databases, the module's database submodule: {name, charset, collation,
+# timeouts (refused)} per entry.
+databases: {}
+# Firewall rules: {name, start_ip_address, end_ip_address} per entry; they
+# apply only when public_network_access_enabled is true. Not set (null),
+# the chart creates the module's default, which allows every address:
+#   rule1: {name: AllowAllFireWallRule, start_ip_address: 0.0.0.0,
+#           end_ip_address: 255.255.255.255}
+# The default is applied in the template, not here, so a map given
+# replaces it as in Terraform (Helm would merge it into a default here).
+# {} creates none.
+firewall_rules: null
+# Server parameters: {name, config (the value)} per entry.
+server_configuration: {}
+# Entra administrators: {tenant_id, object_id, principal_name,
+# principal_type (Group, ServicePrincipal or User)} per entry.
+ad_administrator: {}
+# Virtual endpoints: {name, replica_server_id, type (ReadWrite)} per entry.
+virtual_endpoint: {}
+
+# Interfaces (avm-utl-interfaces).
+#
+# {key_vault_key_id, primary_user_assigned_identity_id,
+# geo_backup_key_vault_key_id, geo_backup_user_assigned_identity_id}: data
+# encryption with a customer-managed key.
+customer_managed_key: null
+# Diagnostic settings: {name, log_categories, log_groups (["allLogs"]),
+# metric_categories (["AllMetrics"]), log_analytics_destination_type
+# (Dedicated), workspace_resource_id, storage_account_resource_id,
+# event_hub_authorization_rule_resource_id, event_hub_name,
+# marketplace_partner_resource_id} per entry.
+diagnostic_settings: {}
+# Accepted; nothing is sent.
+enable_telemetry: true
+# {kind (CanNotDelete or ReadOnly), name}: an aso-extensions
+# ManagementLock on the server.
+lock: null
+# {system_assigned, user_assigned_resource_ids}.
+managed_identities: {}
+# Private endpoints to the server (sub-resource postgresqlServer): {name,
+# role_assignments, lock, tags, subnet_resource_id,
+# private_dns_zone_group_name ("default"), private_dns_zone_resource_ids,
+# application_security_group_associations, private_service_connection_name,
+# network_interface_name, location, resource_group_name (a name, in
+# subscription_id, or an ID), ip_configurations {name,
+# private_ip_address}} per entry. An entry's role_assignments and lock,
+# which the module declares and does not create, are created on the
+# endpoint.
+private_endpoints: {}
+# Whether the chart manages each private endpoint's DNS zone group (false:
+# Azure Policy, for one, manages it).
+private_endpoints_manage_dns_zone_group: true
+# Role assignments on the server: {role_definition_id_or_name,
+# principal_id, description, skip_service_principal_aad_check, condition,
+# condition_version, delegated_managed_identity_resource_id,
+# principal_type} per entry.
+role_assignments: {}
+# Azure tags on the server.
+tags: null

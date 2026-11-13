@@ -1,0 +1,282 @@
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+kind: CloudBuildConnection
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "connection"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "us-central1"
+  resourceID: "ci"
+  annotations:
+    "owner": "platform"
+  disabled: true
+  gitlabConfig:
+    hostUri: "https://gitlab.example.com"
+    webhookSecretSecretVersion: "projects/my-project/secrets/webhook/versions/1"
+    sslCa: "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"
+    authorizerCredential:
+      userTokenSecretVersion: "projects/my-project/secrets/api/versions/3"
+    readAuthorizerCredential:
+      userTokenSecretVersion: "projects/my-project/secrets/read/versions/2"
+    serviceDirectoryConfig:
+      service: "projects/my-project/locations/us-central1/namespaces/ns/services/gitlab"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1alpha1
+kind: CloudBuildRepository
+metadata:
+  name: full-repo-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "repository:app"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "us-central1"
+  connection: "ci"
+  resourceID: "app"
+  remoteUri: "https://gitlab.example.com/team/app.git"
+  annotations:
+    "team": "app"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1alpha1
+kind: CloudBuildRepository
+metadata:
+  name: full-repo-lib
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "repository:lib"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "us-central1"
+  connection: "ci"
+  resourceID: "lib"
+  remoteUri: "https://gitlab.example.com/team/lib.git"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: full-trigger-app-main
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "trigger:app-main"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  location: "us-central1"
+  description: "Build main."
+  disabled: false
+  repositoryEventConfig:
+    repository: "projects/my-project/locations/us-central1/connections/ci/repositories/app"
+    push:
+      branch: "^main$"
+      invertRegex: false
+  includeBuildLogs: "INCLUDE_BUILD_LOGS_WITH_STATUS"
+  tags:
+    - "app"
+    - "main"
+  substitutions:
+    "_ENV": "prod"
+  serviceAccountRef:
+    external: "projects/my-project/serviceAccounts/builder@my-project.iam.gserviceaccount.com"
+  filename: "ci/cloudbuild.yaml"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: full-trigger-app-pr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "trigger:app-pr"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  location: "us-central1"
+  disabled: false
+  repositoryEventConfig:
+    repository: "projects/my-project/locations/us-central1/connections/ci/repositories/app"
+    pullRequest:
+      branch: ".*"
+      invertRegex: true
+      commentControl: "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
+  filename: "ci/pr.yaml"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: full-trigger-app-tags
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "trigger:app-tags"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  location: "us-central1"
+  disabled: true
+  repositoryEventConfig:
+    repository: "projects/my-project/locations/us-central1/connections/ci/repositories/app"
+    push:
+      invertRegex: true
+      tag: "^v.*"
+  filename: "ci/release.yaml"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-roles-cloudbuild-connectionadmin-3564a12b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam:roles/cloudbuild.connectionAdmin"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: full
+  role: "roles/cloudbuild.connectionAdmin"
+  members:
+    - "group:admins@example.com"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-roles-cloudbuild-connectionviewer-f7808910
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam:roles/cloudbuild.connectionViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: full
+  role: "roles/cloudbuild.connectionViewer"
+  members:
+    - "group:viewers@example.com"
+    - "user:ops@example.com"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-roles-cloudbuild-readtokenaccessor-94a29f6d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam:roles/cloudbuild.readTokenAccessor"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: full
+  role: "roles/cloudbuild.readTokenAccessor"
+  members:
+    - "user:ops@example.com"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-conditional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-binding:conditional"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: full
+  role: "roles/cloudbuild.tokenAccessor"
+  members:
+    - "serviceAccount:builder@my-project.iam.gserviceaccount.com"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  name: full-iam-member-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-member:one"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    name: full
+  role: "roles/cloudbuild.connectionViewer"
+  member: "user:one@example.com"

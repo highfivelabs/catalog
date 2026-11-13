@@ -266,6 +266,9 @@ and optionally:
                  sent, as the module does
   dedicatedNull  true when the module sends Dedicated as null, leaving
                  the destination type to Azure
+  selfWorkspace  a workspaceReference (a dict) for a setting that names no
+                 destination, where the module sends the resource's own
+                 workspace (a Log Analytics workspace's settings)
 */}}
 {{- define "aso.diagnosticSettings" -}}
 {{- $root := .root -}}
@@ -276,8 +279,11 @@ and optionally:
 {{- if not (has $dest (list "Dedicated" "AzureDiagnostics")) }}
 {{- fail (printf "%s: Log analytics destination type must be one of: 'Dedicated', 'AzureDiagnostics'." $root.Chart.Name) }}
 {{- end }}
+{{- $self := false }}
 {{- if not (or $d.workspace_resource_id $d.storage_account_resource_id $d.event_hub_authorization_rule_resource_id $d.marketplace_partner_resource_id) }}
+{{- if $.selfWorkspace }}{{ $self = true }}{{ else }}
 {{- fail (printf "%s: At least one of `workspace_resource_id`, `storage_account_resource_id`, `marketplace_partner_resource_id`, or `event_hub_authorization_rule_resource_id`, must be set." $root.Chart.Name) }}
+{{- end }}
 {{- end }}
 {{- $groups := ternary (list "allLogs") $d.log_groups (kindIs "invalid" $d.log_groups) }}
 {{- $metrics := ternary (list "AllMetrics") $d.metric_categories (kindIs "invalid" $d.metric_categories) }}
@@ -315,6 +321,10 @@ spec:
   {{- with $d.workspace_resource_id }}
   workspaceReference:
     armId: {{ . | quote }}
+  {{- end }}
+  {{- if $self }}
+  workspaceReference:
+{{- toYaml $.selfWorkspace | nindent 4 }}
   {{- end }}
   {{- with $d.storage_account_resource_id }}
   storageAccountReference:

@@ -1,0 +1,78 @@
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeCatalog
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "catalog"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "US"
+  resourceID: "my_catalog"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeDatabase
+metadata:
+  name: basic-database-my-database-c4bae459
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:my_database"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "US"
+  catalog: "my_catalog"
+  resourceID: "my_database"
+  type: "HIVE"
+  hiveOptions:
+    locationUri: "gs://my-bucket/my-database-folder"
+    parameters:
+      "owner": "John Doe"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+kind: BigLakeTable
+metadata:
+  name: basic-table-my-database-my-table-80fbc8a4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:my_database-my_table"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentDatabaseRef:
+    external: "projects/my-project/locations/US/catalogs/my_catalog/databases/my_database"
+  resourceID: "my_table"
+  type: "HIVE"
+  hiveOptions:
+    tableType: "MANAGED_TABLE"
+    storageDescriptor:
+      locationURI: "gs://my-bucket/my-table-folder"
+      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
+      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"
+    parameters:
+      "owner": "John Doe"
+      "provider": "iceberg"
+      "spark.sql.create.version": "3.1.3"
+      "spark.sql.partitionProvider": "catalog"
+      "spark.sql.sources.provider": "iceberg"
+      "spark.sql.sources.schema.numParts": "1"
+      "spark.sql.sources.schema.part.0": "{\"fields\":[{\"metadata\":{},\"name\":\"id\",\"nullable\":true,\"type\":\"integer\"},{\"metadata\":{},\"name\":\"name\",\"nullable\":true,\"type\":\"string\"},{\"metadata\":{},\"name\":\"age\",\"nullable\":true,\"type\":\"integer\"}],\"type\":\"struct\"}"
+      "transient_lastDdlTime": "1680894197"

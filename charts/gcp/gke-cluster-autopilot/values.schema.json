@@ -1,0 +1,1518 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gke-cluster-autopilot values (fabric gke-cluster-autopilot v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "location",
+    "name",
+    "project_id",
+    "vpc_config"
+  ],
+  "properties": {
+    "names": {
+      "description": "The cluster's and the notifications topic's names in full (not Terraform variables). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cluster": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z][-A-Za-z0-9_.~+%]*$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "fabric's labels (the cluster's resource labels): Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "access_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dns_access": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "allow_external_traffic": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_k8s_tokens": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_k8s_certs": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "ip_access": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "authorized_ranges": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "disable_public_endpoint": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "gcp_public_cidrs_access_enabled": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "private_endpoint_authorized_ranges_enforcement": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "private_endpoint_config": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "endpoint_subnetwork": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "global_access": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "master_ipv4_cidr_block": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "private_nodes": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "description": "Control plane endpoint and nodes access configurations."
+    },
+    "backup_configs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable_backup_agent": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "backup_channels": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "destination_project": {
+                "type": "string",
+                "minLength": 1
+              },
+              "region": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "deletion_policy": {
+                "enum": [
+                  "DELETE",
+                  "PREVENT",
+                  "ABANDON",
+                  null
+                ]
+              },
+              "labels": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "destination_project"
+            ]
+          }
+        },
+        "backup_plans": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "region": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "applications": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "deletion_policy": {
+                "enum": [
+                  "DELETE",
+                  "ABANDON",
+                  null
+                ]
+              },
+              "encryption_key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "include_secrets": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "include_volume_data": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "labels": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "namespaces": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "permissive_mode": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "schedule": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retention_policy_days": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "retention_policy_lock": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "retention_policy_delete_lock_days": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "restore_channels": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "destination_project": {
+                "type": "string",
+                "minLength": 1
+              },
+              "region": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "deletion_policy": {
+                "enum": [
+                  "DELETE",
+                  "PREVENT",
+                  "ABANDON",
+                  null
+                ]
+              },
+              "labels": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "destination_project"
+            ]
+          }
+        },
+        "restore_plans": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "backup_plan": {
+                "type": "string",
+                "minLength": 1
+              },
+              "region": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "deletion_policy": {
+                "enum": [
+                  "DELETE",
+                  "ABANDON",
+                  null
+                ]
+              },
+              "labels": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "cluster_resource_restore_scope": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "all_group_kinds": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "no_group_kinds": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "conflict_policy": {
+                    "enum": [
+                      "USE_EXISTING_VERSION",
+                      "USE_BACKUP_VERSION",
+                      null
+                    ]
+                  },
+                  "excluded_group_kinds": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resource_group": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resource_kind": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "selected_group_kinds": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resource_group": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resource_kind": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "namespaced_restore_scope": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "all_namespaces": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "no_namespaces": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "applications": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "excluded_namespaces": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "restore_mode": {
+                    "enum": [
+                      "DELETE_AND_RESTORE",
+                      "FAIL_ON_CONFLICT",
+                      "MERGE_SKIP_ON_CONFLICT",
+                      "MERGE_REPLACE_VOLUME_ON_CONFLICT",
+                      "MERGE_REPLACE_ON_CONFLICT",
+                      null
+                    ]
+                  },
+                  "selected_namespaces": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "restore_order": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "requiring": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resource_group": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resource_kind": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "satisfying": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "resource_group": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resource_kind": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "requiring",
+                    "satisfying"
+                  ]
+                }
+              },
+              "transformation_rules": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "field_actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "op": {
+                            "enum": [
+                              "REMOVE",
+                              "MOVE",
+                              "COPY",
+                              "ADD",
+                              "TEST",
+                              "REPLACE"
+                            ]
+                          },
+                          "from_path": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "path": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "value": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "op"
+                        ]
+                      }
+                    },
+                    "resource_filter": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "json_path": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "namespaces": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "group_kinds": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "resource_group": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "resource_kind": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "field_actions"
+                  ]
+                }
+              },
+              "volume_data_restore": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "policy": {
+                    "enum": [
+                      "RESTORE_VOLUME_DATA_FROM_BACKUP",
+                      "REUSE_VOLUME_HANDLE_FROM_BACKUP",
+                      "NO_VOLUME_DATA_RESTORATION",
+                      null
+                    ]
+                  },
+                  "bindings": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "enum": [
+                        "RESTORE_VOLUME_DATA_FROM_BACKUP",
+                        "REUSE_VOLUME_HANDLE_FROM_BACKUP",
+                        "NO_VOLUME_DATA_RESTORATION"
+                      ]
+                    }
+                  }
+                }
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "backup_plan"
+            ]
+          }
+        }
+      },
+      "description": "Configuration for Backup for GKE."
+    },
+    "context": {
+      "description": "Context-specific interpolations. Refused when set (by design).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "deletion_protection": {
+      "type": "boolean"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "enable_addons": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agent_sandbox": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cloudrun": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "config_connector": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "istio": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enable_tls": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enable_tls"
+          ]
+        },
+        "kalm": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "enable_features": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "anonymous_authentication": {
+          "enum": [
+            "ENABLED",
+            "LIMITED",
+            null
+          ]
+        },
+        "beta_apis": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "binary_authorization": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cilium_clusterwide_network_policy": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cost_management": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dns": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "additive_vpc_scope_dns_domain": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "provider": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scope": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "domain": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "multi_networking": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "database_encryption": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "type": "string"
+            },
+            "key_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "key_name"
+          ]
+        },
+        "fqdn_network_policy": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "gateway_api": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "groups_for_rbac": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identity_service": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "l4_ilb_subsetting": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "managed_opentelemetry": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "mesh_certificates": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "pod_security_policy": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rbac_binding_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enable_insecure_binding_system_unauthenticated": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_insecure_binding_system_authenticated": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "secret_manager_config": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "secret_sync_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "rotation_config": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "rotation_interval": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "required": [
+            "enabled"
+          ]
+        },
+        "security_posture_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string"
+            },
+            "vulnerability_mode": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode",
+            "vulnerability_mode"
+          ]
+        },
+        "resource_usage_export": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "dataset": {
+              "type": "string"
+            },
+            "enable_network_egress_metering": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_resource_consumption_metering": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "dataset"
+          ]
+        },
+        "service_external_ips": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "tpu": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "upgrade_notifications": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "event_types": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "enum": [
+                  "UPGRADE_AVAILABLE_EVENT",
+                  "UPGRADE_EVENT",
+                  "SECURITY_BULLETIN_EVENT",
+                  "UPGRADE_INFO_EVENT"
+                ]
+              }
+            },
+            "topic_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kms_key_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "vertical_pod_autoscaling": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "allow_net_admin": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "fleet_project": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "issue_client_certificate": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "location": {
+      "type": "string",
+      "minLength": 1
+    },
+    "logging_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable_api_server_logs": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_scheduler_logs": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_controller_manager_logs": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "maintenance_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "daily_window_start_time": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recurring_window": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "start_time": {
+              "type": "string"
+            },
+            "end_time": {
+              "type": "string"
+            },
+            "recurrence": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "start_time",
+            "end_time",
+            "recurrence"
+          ]
+        },
+        "maintenance_exclusions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "start_time": {
+                "type": "string"
+              },
+              "end_time": {
+                "type": "string"
+              },
+              "scope": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "start_time",
+              "end_time"
+            ]
+          }
+        }
+      }
+    },
+    "min_master_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "monitoring_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable_api_server_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_controller_manager_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_scheduler_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_daemonset_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_deployment_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_hpa_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_pod_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_statefulset_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_storage_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_cadvisor_metrics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable_managed_prometheus": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "advanced_datapath_observability": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enable_metrics": {
+              "type": "boolean"
+            },
+            "enable_relay": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enable_metrics",
+            "enable_relay"
+          ]
+        }
+      }
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "node_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "boot_disk_kms_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "service_account": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "workload_metadata_config_mode": {
+          "enum": [
+            "GCE_METADATA",
+            "GKE_METADATA",
+            null
+          ]
+        },
+        "kubelet_readonly_port_enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "resource_manager_tags": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "node_locations": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "release_channel": {
+      "description": "Release channel for GKE upgrades: RAPID, REGULAR or STABLE.",
+      "enum": [
+        "RAPID",
+        "REGULAR",
+        "STABLE"
+      ]
+    },
+    "vpc_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disable_default_snat": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "disable_l4_lb_firewall_reconciliation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "network": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subnetwork": {
+          "type": "string",
+          "minLength": 1
+        },
+        "secondary_range_blocks": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pods": {
+              "type": "string"
+            },
+            "services": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pods",
+            "services"
+          ]
+        },
+        "secondary_range_names": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pods": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "services": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "additional_ranges": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "stack_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "network",
+        "subnetwork"
+      ]
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

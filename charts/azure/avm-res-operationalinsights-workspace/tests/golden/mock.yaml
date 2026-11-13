@@ -1,0 +1,155 @@
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScope
+metadata:
+  name: mock-ampls-ampls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:ampls"
+spec:
+  azureName: "catalog-ampls"
+  location: global
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  accessModeSettings:
+    ingestionAccessMode: Open
+    queryAccessMode: Open
+  tags:
+    catalog: mock
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: insights.azure.hfl.dev/v20210901
+kind: PrivateLinkScopesScopedResource
+metadata:
+  name: mock-ampls-ampls-scoped
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "monitor_private_link_scope:ampls:scoped_service"
+spec:
+  azureName: "catalog-law"
+  owner:
+    name: mock-ampls-ampls
+  linkedResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.OperationalInsights/workspaces/catalog-law"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  name: mock-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "workspace"
+spec:
+  azureName: "catalog-law"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  features:
+    disableLocalAuth: false
+  publicNetworkAccessForIngestion: Disabled
+  publicNetworkAccessForQuery: Disabled
+  retentionInDays: 30
+  sku:
+    name: PerGB2018
+  tags:
+    catalog: mock
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesDataExport
+metadata:
+  name: mock-export-storage
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_export:storage"
+spec:
+  azureName: "export-storage"
+  owner:
+    name: mock-law
+  destination:
+    resourceReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Storage/storageAccounts/catalogexport"
+  enable: true
+  tableNames:
+    - AppEvents_CL
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesLinkedStorageAccount
+metadata:
+  name: mock-linked-storage-query
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "linked_storage_account:query"
+spec:
+  azureName: "Query"
+  owner:
+    name: mock-law
+  storageAccountReferences:
+    - armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Storage/storageAccounts/catalogquery"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesTable
+metadata:
+  name: mock-table-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:app"
+spec:
+  azureName: "AppEvents_CL"
+  owner:
+    name: mock-law
+  retentionInDays: 30
+  schema:
+    name: "AppEvents_CL"
+    columns:
+      - name: "TimeGenerated"
+        type: dateTime
+      - name: "Message"
+        type: string
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesTable
+metadata:
+  name: mock-table-update-heartbeat-fce3fb12
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table_update:heartbeat"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Heartbeat"
+  owner:
+    name: mock-law
+  retentionInDays: 60

@@ -1,0 +1,65 @@
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.gcp.hfl.dev/v1alpha1
+kind: CloudBuildRepository
+metadata:
+  name: existing-repo-infra
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "repository:infra"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  connection: "shared-github"
+  resourceID: "infra"
+  remoteUri: "https://github.com/my-org/infra.git"
+---
+# Source: cloud-build-v2-connection/templates/main.yaml
+apiVersion: cloudbuild.cnrm.cloud.google.com/v1beta1
+kind: CloudBuildTrigger
+metadata:
+  name: existing-trigger-infra-pr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "trigger:infra-pr"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  location: "europe-west1"
+  disabled: false
+  repositoryEventConfig:
+    repository: "projects/my-project/locations/europe-west1/connections/shared-github/repositories/infra"
+    pullRequest:
+      branch: "main"
+  filename: "cloudbuild.yaml"
+---
+# Source: cloud-build-v2-connection/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: existing-iam-roles-cloudbuild-connectionviewer-b1fabb2f
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: cloud-build-v2-connection
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/cloudbuild.connectionViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: cloudbuild.gcp.hfl.dev/v1beta1
+    kind: CloudBuildConnection
+    external: "projects/my-project/locations/europe-west1/connections/shared-github"
+  role: "roles/cloudbuild.connectionViewer"
+  members:
+    - "group:infra@example.com"
