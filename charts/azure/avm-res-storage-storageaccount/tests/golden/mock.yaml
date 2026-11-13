@@ -1,4 +1,55 @@
 ---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: mock-storage-pe-blob
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:blob"
+spec:
+  azureName: "pe-catalogst001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-pe-catalogst001"
+      groupIds: ["blob"]
+      privateLinkServiceReference:
+        group: storage.azure.com
+        kind: StorageAccount
+        name: mock-storage
+  ipConfigurations: []
+  applicationSecurityGroups: []
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: mock-storage-pe-blob-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:blob/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: mock-storage-pe-blob
+  privateDnsZoneConfigs:
+    - name: "config-0"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+---
 # Source: avm-res-storage-storageaccount/templates/main.yaml
 apiVersion: storage.azure.com/v20250601
 kind: StorageAccount
@@ -8,7 +59,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-storage-storageaccount
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "storage_account"
 spec:
@@ -40,6 +91,27 @@ spec:
   tags:
     catalog: mock
 ---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobService
+metadata:
+  name: mock-storage-blob
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "blob_service"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: mock-storage
+  deleteRetentionPolicy:
+    days: 7
+    enabled: true
+  isVersioningEnabled: true
+---
 # Source: avm-res-storage-storageaccount/templates/children.yaml
 apiVersion: storage.azure.com/v20250601
 kind: StorageAccountsBlobServicesContainer
@@ -49,7 +121,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-storage-storageaccount
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "container:a"
 spec:
@@ -60,6 +132,23 @@ spec:
   denyEncryptionScopeOverride: false
   publicAccess: None
 ---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobServicesContainer
+metadata:
+  name: mock-dlfs-raw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "data_lake_gen2_filesystem:raw"
+spec:
+  azureName: "raw"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Storage/storageAccounts/catalogst001/blobServices/default"
+---
 # Source: avm-res-storage-storageaccount/templates/children.yaml
 apiVersion: storage.azure.hfl.dev/v20260601
 kind: StorageAccountsLocalUser
@@ -69,7 +158,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-storage-storageaccount
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "local_user:sftp"
 spec:
@@ -88,6 +177,59 @@ spec:
     - key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGRvTE5dTh9cJm1ON6P1kHGlPg5ndp0V0ZOfyQ6Y9Gzr catalog-mock"
       description: "ci"
 ---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsManagementPolicy
+metadata:
+  name: mock-storage-lifecycle
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "management_policy"
+spec:
+  owner:
+    name: mock-storage
+  policy:
+    rules:
+      - name: "expire-tmp"
+        enabled: true
+        type: Lifecycle
+        definition:
+          actions:
+            baseBlob:
+              delete:
+                daysAfterModificationGreaterThan: 7
+          filters:
+            blobTypes: ["blockBlob"]
+            prefixMatch: ["assets/tmp/"]
+---
+# Source: avm-res-storage-storageaccount/templates/services.yaml
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsQueueService
+metadata:
+  name: mock-storage-queue
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-storage-storageaccount
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "queue_service"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: mock-storage
+  cors:
+    corsRules:
+      - allowedHeaders: ["*"]
+        allowedMethods: ["GET"]
+        allowedOrigins: ["*"]
+        exposedHeaders: ["*"]
+        maxAgeInSeconds: 60
+---
 # Source: avm-res-storage-storageaccount/templates/children.yaml
 apiVersion: storage.azure.com/v20250601
 kind: StorageAccountsQueueServicesQueue
@@ -97,7 +239,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-storage-storageaccount
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "queue:q"
 spec:

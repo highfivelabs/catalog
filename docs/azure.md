@@ -334,6 +334,12 @@ Fully covered, apart from the lock.
 The module can also write account keys to a Key Vault as secrets:
 `aso-ext` `VaultSecret`.
 
+Chart `charts/azure/avm-res-storage-storageaccount`: from 0.2.0
+(2026-11-13) the services' properties (`blob_properties`,
+`file_service_properties`, `queue_properties`, `table_properties`), the
+lifecycle rules, Data Lake Gen2 filesystems and private endpoints are
+mapped too; `customer_managed_key` is a gap (section 8).
+
 ### 4. avm-res-keyvault-vault (v0.13.0; azapi with azurerm for the data plane)
 
 | Submodule | Creates | ASO |
@@ -852,7 +858,7 @@ Each is a mapping still to land or landing, not a gap:
 
 | Chart | Variable | aso-extensions kind | Mapped in |
 | --- | --- | --- | --- |
-| `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | not yet (its SSH keys are public keys; a password Azure generates would stay refused) |
+| `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | mapped (its SSH keys are public keys; a password Azure generates stays refused) |
 | `avm-res-network-privatednszone` | `soa_record` | `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev`) | #97 |
 | `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | #120 |
 | `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | #120 |
@@ -950,7 +956,12 @@ does by default.
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
-(`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
+(`avm-res-storage-storageaccount`'s `tables` and `shares`). The storage
+account's `customer_managed_key` is a gap of another sort: the module
+creates the account with Microsoft-managed keys and patches the key in
+afterwards, since Azure rejects one PUT that both gives the account its
+identity and names that identity for encryption, and it reads the vault's
+URI from Azure; ASO applies a `StorageAccount` in one PUT. Likewise ASO's `VaultKey` release policy has no `immutable`
 flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` has no
 `dynamicThrottlingEnabled` (`avm-res-cognitiveservices-account`'s
 `cognitive_deployments`), and its `Account` takes the customer managed

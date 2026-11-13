@@ -21,13 +21,7 @@ deployment is not ported.
 {{- include "aso.unsupported" (list $ (printf "local_user.%s.timeouts" $key) $u.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- end }}
 {{- include "aso.unsupported" (list $ "static_website" $v.static_website "a static website is set on the blob service's data plane, which ASO does not call") }}
-{{- range $n := list "blob_properties" "file_service_properties" "queue_properties" "table_properties" }}
-{{- include "aso.unsupported" (list $ $n (index $v $n) "ASO has the service kind (StorageAccounts*Service); this chart does not map its properties yet") }}
-{{- end }}
-{{- include "aso.unsupported" (list $ "storage_management_policy_rule" $v.storage_management_policy_rule "ASO has StorageAccountsManagementPolicy; this chart does not map the lifecycle rules yet") }}
-{{- include "aso.unsupported" (list $ "storage_data_lake_gen2_filesystems" $v.storage_data_lake_gen2_filesystems "this chart does not map Data Lake Gen2 filesystems yet") }}
-{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
-{{- include "aso.unsupported" (list $ "customer_managed_key" $v.customer_managed_key "ASO's StorageAccount has encryption.keyvaultproperties; this chart does not map the customer-managed key yet") }}
+{{- include "aso.unsupported" (list $ "customer_managed_key" $v.customer_managed_key "the module creates the account with Microsoft-managed keys and then patches in the key (Azure rejects one PUT that both gives the account its identity and names it for encryption), with the vault's URI read from Azure; ASO applies the account in one PUT") }}
 {{- include "aso.unsupported" (list $ "resource_types" (include "storage.anySet" $v.resource_types) "ASO's kinds fix the API versions (StorageAccount 2025-06-01)") }}
 {{- include "aso.unsupported" (list $ "storage_management_policy_timeouts" $v.storage_management_policy_timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}

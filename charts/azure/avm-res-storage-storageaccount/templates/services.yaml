@@ -1,0 +1,295 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-storage-storageaccount
+main.blob_service.tf, main.file_service.tf, main.queue_service.tf,
+main.table_service.tf, main.management_policy.tf, main.data_lake.tf,
+main.privateendpoint.tf and their modules (v0.11.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+module.blob_service, file_service, queue_service, table_service
+(azapi_update_resource on <account>/<service>Services/default): one ASO
+StorageAccountsBlobService, StorageAccountsFileService,
+StorageAccountsQueueService or StorageAccountsTableService
+(storage.azure.com/v20250601) each, owned by the account, the module's
+body property for property, with detach-on-delete: deleting it leaves the
+service, as removing an update resource does. module.management_policy:
+one StorageAccountsManagementPolicy (default) with the module's lifecycle
+rules. module.data_lake_filesystems: one StorageAccountsBlobServicesContainer
+per filesystem, owned by the blob service (default) by ARM ID.
+module.private_endpoints: one ASO PrivateEndpoint (network.azure.com/v20250301)
+per entry, a PrivateEndpointsPrivateDnsZoneGroup when the module manages
+it (its zones config-0, config-1 ... in order), an aso-extensions
+ManagementLock and one ASO RoleAssignment per role assignment.
+*/ -}}
+{{- $v := .Values }}
+{{- $c := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "storage") }}
+{{- $id := include "storage.accountID" . }}
+{{- $owner := dict "group" "storage.azure.com" "kind" "StorageAccount" "name" $obj }}
+{{- with $v.blob_properties }}
+{{- $b := . }}
+{{- with $b.change_feed }}{{ if and (not (kindIs "invalid" .retention_in_days)) (or (lt (float64 .retention_in_days) 1.0) (gt (float64 .retention_in_days) 146000.0)) }}{{ fail (printf "%s: blob_properties.change_feed.retention_in_days must be between 1 and 146000." $c) }}{{ end }}{{ end }}
+{{- with $b.delete_retention_policy }}{{ if and (not (kindIs "invalid" .days)) (or (lt (float64 .days) 1.0) (gt (float64 .days) 365.0)) }}{{ fail (printf "%s: blob_properties.delete_retention_policy.days must be between 1 and 365." $c) }}{{ end }}{{ end }}
+{{- with $b.container_delete_retention_policy }}{{ if and (not (kindIs "invalid" .days)) (or (lt (float64 .days) 1.0) (gt (float64 .days) 365.0)) }}{{ fail (printf "%s: blob_properties.container_delete_retention_policy.days must be between 1 and 365." $c) }}{{ end }}{{ end }}
+{{- with $b.restore_policy }}{{ if and (not (kindIs "invalid" .days)) (or (lt (float64 .days) 1.0) (gt (float64 .days) 365.0)) }}{{ fail (printf "%s: blob_properties.restore_policy.days must be between 1 and 365." $c) }}{{ end }}{{ end }}
+{{- if and $b.restore_policy $b.delete_retention_policy }}{{ if and (not (kindIs "invalid" $b.restore_policy.days)) (not (kindIs "invalid" $b.delete_retention_policy.days)) (ge (float64 $b.restore_policy.days) (float64 $b.delete_retention_policy.days)) }}{{ fail (printf "%s: blob_properties.restore_policy.days must be less than blob_properties.delete_retention_policy.days." $c) }}{{ end }}{{ end }}
+{{- with $b.last_access_time_tracking_policy }}{{ if and .name (ne .name "AccessTimeTracking") }}{{ fail (printf "%s: blob_properties.last_access_time_tracking_policy.name must be \"AccessTimeTracking\"." $c) }}{{ end }}{{ end }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobService
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "blob")) "id" "blob_service" "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  {{- if not (kindIs "invalid" $b.automatic_snapshot_policy_enabled) }}
+  automaticSnapshotPolicyEnabled: {{ $b.automatic_snapshot_policy_enabled }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $b.change_feed) }}
+  {{- include "storage.block" (list "changeFeed" (list "enabled" $b.change_feed.enabled "retentionInDays" $b.change_feed.retention_in_days)) | nindent 2 }}
+  {{- end }}
+  {{- with $b.container_delete_retention_policy }}
+  {{- include "storage.block" (list "containerDeleteRetentionPolicy" (list "allowPermanentDelete" .allow_permanent_delete "days" .days "enabled" .enabled)) | nindent 2 }}
+  {{- end }}
+  {{- with (include "storage.cors" $b.cors_rules) }}{{ . | nindent 2 }}{{ end }}
+  {{- with $b.default_service_version }}
+  defaultServiceVersion: {{ . | quote }}
+  {{- end }}
+  {{- with $b.delete_retention_policy }}
+  {{- include "storage.block" (list "deleteRetentionPolicy" (list "allowPermanentDelete" .allow_permanent_delete "days" .days "enabled" .enabled)) | nindent 2 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $b.versioning_enabled) }}
+  isVersioningEnabled: {{ $b.versioning_enabled }}
+  {{- end }}
+  {{- with $b.last_access_time_tracking_policy }}
+  lastAccessTimeTrackingPolicy:
+    enable: {{ .enable }}
+    {{- with .blob_type }}
+    blobType: {{ toJson . }}
+    {{- end }}
+    {{- with .name }}
+    name: {{ . }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .tracking_granularity_in_days) }}
+    trackingGranularityInDays: {{ .tracking_granularity_in_days | int }}
+    {{- end }}
+  {{- end }}
+  {{- with $b.restore_policy }}
+  restorePolicy:
+    enabled: {{ .enabled }}
+    {{- if not (kindIs "invalid" .days) }}
+    days: {{ .days | int }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- with $v.file_service_properties }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsFileService
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "file")) "id" "file_service" "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  {{- with (include "storage.cors" .cors_rules) }}{{ . | nindent 2 }}{{ end }}
+  {{- with .smb }}
+  protocolSettings:
+    smb:
+      {{- with .authentication_types }}
+      authenticationMethods: {{ uniq . | sortAlpha | join ";" | quote }}
+      {{- end }}
+      {{- with .channel_encryption_types }}
+      channelEncryption: {{ uniq . | sortAlpha | join ";" | quote }}
+      {{- end }}
+      {{- with .kerberos_ticket_encryption_type }}
+      kerberosTicketEncryption: {{ uniq . | sortAlpha | join ";" | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .multichannel_enabled) }}
+      multichannel:
+        enabled: {{ .multichannel_enabled }}
+      {{- end }}
+      {{- with .versions }}
+      versions: {{ uniq . | sortAlpha | join ";" | quote }}
+      {{- end }}
+  {{- end }}
+  {{- with .share_retention_policy }}
+  shareDeleteRetentionPolicy:
+    days: {{ ternary 7 .days (kindIs "invalid" .days) | int }}
+    enabled: {{ ne .enabled false }}
+  {{- end }}
+{{- end }}
+{{- range $svc := list "queue" "table" }}
+{{- with (index $v (printf "%s_properties" $svc)) }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: {{ printf "StorageAccounts%sService" (title $svc) }}
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj $svc)) "id" (printf "%s_service" $svc) "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  {{- with (include "storage.cors" .cors_rules) }}{{ . | nindent 2 }}{{ end }}
+{{- end }}
+{{- end }}
+{{- with $v.storage_management_policy_rule }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsManagementPolicy
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "lifecycle")) "id" "management_policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  policy:
+    rules:
+      {{- range $k, $r := . }}
+      - name: {{ $r.name | quote }}
+        enabled: {{ $r.enabled }}
+        type: Lifecycle
+        definition:
+          actions:
+            {{- with $r.actions.base_blob }}
+            {{- $bb := . }}
+            baseBlob:
+              {{- if not (kindIs "invalid" $bb.auto_tier_to_hot_from_cool_enabled) }}
+              enableAutoTierToHotFromCool: {{ $bb.auto_tier_to_hot_from_cool_enabled }}
+              {{- end }}
+              {{- range $a := list (list "tierToCool" "tier_to_cool") (list "tierToCold" "tier_to_cold") (list "tierToArchive" "tier_to_archive") (list "delete" "delete") }}
+              {{- $p := index $a 1 }}
+              {{- $vals := list "daysAfterCreationGreaterThan" (index $bb (printf "%s_after_days_since_creation_greater_than" $p)) "daysAfterLastAccessTimeGreaterThan" (index $bb (printf "%s_after_days_since_last_access_time_greater_than" $p)) "daysAfterModificationGreaterThan" (index $bb (printf "%s_after_days_since_modification_greater_than" $p)) }}
+              {{- if eq $p "tier_to_archive" }}{{ $vals = concat $vals (list "daysAfterLastTierChangeGreaterThan" $bb.tier_to_archive_after_days_since_last_tier_change_greater_than) }}{{ end }}
+              {{- $out := include "storage.optional" $vals }}
+              {{- if $out }}
+              {{ index $a 0 }}:
+                {{- $out | nindent 16 }}
+              {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- range $kind := list "snapshot" "version" }}
+            {{- with (index $r.actions $kind) }}
+            {{- $s := . }}
+            {{ $kind }}:
+              {{- $del := ternary $s.delete_after_days_since_creation_greater_than $s.delete_after_days_since_creation (eq $kind "snapshot") }}
+              {{- range $a := list (list "tierToCool" (list "daysAfterCreationGreaterThan" $s.change_tier_to_cool_after_days_since_creation)) (list "tierToCold" (list "daysAfterCreationGreaterThan" $s.tier_to_cold_after_days_since_creation_greater_than)) (list "tierToArchive" (list "daysAfterCreationGreaterThan" $s.change_tier_to_archive_after_days_since_creation "daysAfterLastTierChangeGreaterThan" $s.tier_to_archive_after_days_since_last_tier_change_greater_than)) (list "delete" (list "daysAfterCreationGreaterThan" $del)) }}
+              {{- $out := include "storage.optional" (index $a 1) }}
+              {{- if $out }}
+              {{ index $a 0 }}:
+                {{- $out | nindent 16 }}
+              {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+          filters:
+            blobTypes: {{ toJson (uniq $r.filters.blob_types | sortAlpha) }}
+            {{- if not (kindIs "invalid" $r.filters.prefix_match) }}
+            prefixMatch: {{ toJson (uniq $r.filters.prefix_match | sortAlpha) }}
+            {{- end }}
+            {{- if not (kindIs "invalid" $r.filters.match_blob_index_tag) }}
+            blobIndexMatch:
+              {{- range $t := $r.filters.match_blob_index_tag }}
+              - name: {{ $t.name | quote }}
+                op: {{ $t.operation | default "==" | quote }}
+                value: {{ $t.value | quote }}
+              {{- else }} []
+              {{- end }}
+            {{- end }}
+      {{- end }}
+{{- end }}
+{{- range $key, $f := $v.storage_data_lake_gen2_filesystems }}
+{{- if eq $key "legacy" }}{{ fail (printf "%s: Key `legacy` is reserved for state-migration backwards compatibility." $c) }}{{ end }}
+{{- include "aso.unsupported" (list $ (printf "storage_data_lake_gen2_filesystems.%s.timeouts" $key) $f.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+---
+apiVersion: storage.azure.com/v20250601
+kind: StorageAccountsBlobServicesContainer
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "dlfs" $key)) "id" (printf "data_lake_gen2_filesystem:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $f.name | quote }}
+  owner:
+    armId: {{ printf "%s/blobServices/default" $id | quote }}
+  {{- with $f.default_encryption_scope }}
+  defaultEncryptionScope: {{ . | quote }}
+  {{- end }}
+  {{- with $f.properties }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- $sub := index (splitList "/" (toString $v.parent_id)) 2 }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- if not $p.subresource_name }}{{ fail (printf "%s: Each private_endpoints entry must set `subresource_name`. A storage account exposes several subresources (blob, dfs, file, queue, table, web), so the module cannot choose one for you." $c) }}{{ end }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peName := include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pe-%s" $v.name)) 80 false) }}
+{{- $peParent := ternary (printf "/subscriptions/%s/resourceGroups/%s" $sub $p.resource_group_name) $v.parent_id (not (empty $p.resource_group_name)) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $peName | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $peName) | quote }}
+      groupIds: [{{ $p.subresource_name | quote }}]
+      privateLinkServiceReference:
+        group: storage.azure.com
+        kind: StorageAccount
+        name: {{ $obj }}
+  ipConfigurations:
+    {{- range $ik, $ic := $p.ip_configurations }}
+    - name: {{ $ic.name | quote }}
+      groupId: {{ $p.subresource_name | quote }}
+      memberName: {{ $ic.member_name | default $p.subresource_name | quote }}
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- else }} []
+    {{- end }}
+  applicationSecurityGroups:
+    {{- range $ak := (keys ($p.application_security_group_associations | default dict) | sortAlpha) }}
+    - reference:
+        armId: {{ index $p.application_security_group_associations $ak | quote }}
+    {{- else }} []
+    {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $i, $zid := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ printf "config-%d" $i | quote }}
+      privateDnsZoneReference:
+        armId: {{ $zid | quote }}
+    {{- end }}
+{{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe }}
+{{- with $p.lock }}
+{{- $notes := .notes | default (ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete")) }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $peName)) "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" ($p.role_assignments | default dict)) }}
+{{- end }}
