@@ -526,6 +526,14 @@ aso-extensions kind's 2021-09-01 API has no `kind` or
 | --- | --- |
 | `App/containerApps@2025-07-01` (and a preview), `containerApps/authConfigs@2025-01-01` | `app/ContainerApp`, `app/AuthConfig`. Covered, on an older API |
 
+Covered, but for `kind`. Chart `charts/azure/avm-res-app-containerapp`
+(2026-11-13): 22 of 24 variables and all 12 outputs; the app as a
+`ContainerApp` (2025-01-01), each `auth_configs` entry as an `AuthConfig`.
+Refused: `kind` (2025-01-01 has none), `timeouts` (by design), and in part
+a null `location`, an identity setting's `Retain` lifecycle (not in
+2025-01-01), registry passwords and secret values (secret values; Key
+Vault references are taken).
+
 ### 22. avm-res-web-site (v0.24.1; azapi)
 
 | Submodule | ARM types | ASO |
@@ -771,6 +779,7 @@ aso-extensions:
 | --- | --- | --- |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
+| `avm-res-app-containerapp` | `kind`, `identity_settings[].lifecycle` `Retain` | none: fields of a later API version than ASO's `ContainerApp` (2025-01-01) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-loadbalancer` | `backend_address_pool_network_interfaces` | none: a NIC joins a pool through its own `ipConfigurations[].loadBalancerBackendAddressPools`; ASO has no association kind and sets a NIC's IP configurations only by owning the whole `NetworkInterface` |
 
@@ -931,7 +940,7 @@ trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
 identity, Log Analytics workspace, container registry, firewall policy, load
 balancer, bastion host, private endpoint, application gateway and
-firewall charts are applied
+firewall and container app charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -1063,6 +1072,22 @@ detached on delete, as the module's `azapi_update_resource` leaves it. Its
 against aso-extensions' fakearm at `b9beb5b` with PR #98's
 `hack/azure-mock.sh`, run `off-catalog-1113013709-32534`: 2 objects Ready
 and deleted, outputs evaluated).
+
+The container app (`avm-res-app-containerapp`, case `ca`: Microsoft's
+public hello-world image, scaled to zero, external ingress on port 80, in
+a Consumption-only environment the case makes first as an ASO object of
+no chart) passed in run `cat111307137a10` (offload
+`off-catalog-1113070946-25437`) on 2026-11-13: 2 objects Ready, the 12
+outputs evaluated (the FQDN and outbound addresses among them), deleted,
+Azure answering 404, nothing left. Earlier runs found that the sandbox
+subscription may hold one Container Apps environment per region ("cannot
+have more than 1 Container App Environments in East US 2"), so an
+environment a stopped run leaves blocks the next until it is deleted
+(about 25 minutes), and that ASO retries an app whose environment is still
+provisioning only slowly, hence the environment first. Its
+`tests/mock.values.yaml` passed against the fake cloud too (aso-extensions
+`b9beb5b`, run `off-catalog-1113030900-10353`: the app and its auth config
+Ready and deleted, outputs evaluated).
 
 The PostgreSQL flexible server (`avm-res-dbforpostgresql-flexibleserver`,
 case `psql`: Burstable B1ms, 32 GiB, Entra authentication only, a
