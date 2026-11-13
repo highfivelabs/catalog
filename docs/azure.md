@@ -276,7 +276,7 @@ version than ASO has released:
 | VirtualMachine | 2022-03-01 | azurerm's current resource |
 | ApplicationGateway | 2022-07-01 | 2025-03-01 |
 | KeyVault Vault | 2023-07-01 | 2026-02-01 |
-| ContainerRegistry Registry | 2023-07-01 (2025-11-01 next) | 2025-11-01 |
+| ContainerRegistry Registry | 2025-11-01 (released in v2.22.0 as `v20251101`; found when the chart was built) | 2025-11-01 |
 | ManagedCluster | 2025-08-01 (2026-05-01 next) | 2026-03-01 and 2026-03-02-preview |
 | ContainerApp | 2025-01-01 | 2025-07-01 and 2025-02-02-preview |
 | ResourceGroup | 2020-06-01 | 2025-04-01 |
@@ -705,6 +705,14 @@ aso-extensions:
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
+| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `Microsoft.ContainerRegistry/registries/credentialSets` |
+| `avm-res-containerregistry-registry` | `scope_maps` | `Microsoft.ContainerRegistry/registries/scopeMaps`, `.../tokens` (a token's passwords are secrets returned once) |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `Microsoft.OperationalInsights/workspaces/linkedServices` (the module links a dedicated cluster with one) |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `Microsoft.OperationalInsights/workspaces/linkedStorageAccounts` |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `Microsoft.OperationalInsights/workspaces/tables` |
+| `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `Microsoft.Insights/privateLinkScopes`, `.../scopedResources` |
+| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `Microsoft.Network/networkSecurityPerimeters/resourceAssociations` |
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
@@ -713,6 +721,10 @@ Not a kind gap, but an ASO field gap: a table's or share's
 flag (`avm-res-keyvault-vault`'s `keys`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+
+`lib/_aso.tpl`'s `aso.diagnosticSettings` takes `selfWorkspace` for a Log
+Analytics workspace, whose module sends a setting with no destination to
+the workspace itself.
 
 The network security group (`avm-res-network-networksecuritygroup`)
 needs no gap: ASO's `NetworkSecurityGroup` has no `securityRules` field at
@@ -746,7 +758,9 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP, private DNS zone, managed
+identity, Log Analytics workspace and container registry charts are
+applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -759,7 +773,13 @@ security group (two rules), route table (two routes, the group by name
 and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
-Azure answering 404, nothing left.
+Azure answering 404, nothing left. The private DNS zone (an A and a TXT
+record), the managed identity (a federated credential; no outbound role
+assignment, which the live identity may not make) and the Log Analytics
+workspace (a diagnostic setting to itself) passed the same way (run
+`cat1112191727ea`, 7 objects), and the container registry (Basic, a
+cache rule from MCR) in run `cat11121946e404`. The first registry run
+found that Azure refuses a Docker Hub cache rule without credentials.
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO

@@ -1,0 +1,34 @@
+# Every input the chart carries: the group by ID, retention, quota, a
+# capacity reservation, public access (one SecuredByPerimeter), local
+# authentication off, resource-only permissions, CMK for query, a
+# user-assigned identity, tags, a lock, role assignments and diagnostic
+# settings (one to this workspace, one to storage).
+name: law-platform
+location: westeurope
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops
+enable_telemetry: false
+tags: {environment: prod}
+log_analytics_workspace_sku: CapacityReservation
+log_analytics_workspace_reservation_capacity_in_gb_per_day: 100
+log_analytics_workspace_retention_in_days: 90
+log_analytics_workspace_daily_quota_gb: 10.5
+log_analytics_workspace_internet_ingestion_enabled: "true"
+log_analytics_workspace_internet_query_enabled: SecuredByPerimeter
+log_analytics_workspace_local_authentication_enabled: false
+log_analytics_workspace_allow_resource_only_permissions: false
+log_analytics_workspace_cmk_for_query_forced: true
+log_analytics_workspace_identity:
+  type: UserAssigned
+  identity_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-law]
+lock: {kind: CanNotDelete}
+role_assignments:
+  readers:
+    role_definition_id_or_name: Log Analytics Reader
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+diagnostic_settings:
+  self:
+    log_groups: [audit]
+  archive:
+    name: to-storage
+    storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag
