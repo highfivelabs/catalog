@@ -573,7 +573,7 @@ public IP it makes as a `PublicIPAddress`.
 | Module | ASO coverage |
 | --- | --- |
 | avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. The admin password goes to Key Vault (`aso-ext` `VaultSecret`). Entra database users: aso-extensions candidate a1, PR #5104 |
-| avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered |
+| avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered. Chart `charts/azure/avm-res-network-azurefirewall` (2026-11-13): 18 of 23 variables (the five refused are the azapi mechanics: `ignore_body_changes`, `resource_types`, `retry`, `timeouts`, `firewall_timeouts`), 2 of 4 outputs: ASO's status has no IP configuration's private address (section 8) |
 | avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered. Chart `charts/azure/avm-res-web-serverfarm` (2026-11-12): `ServerFarm` at 2025-05-01 (the module sends 2025-03-01), 24 of 27 variables (`retry`, `timeouts` and a non-default `server_farm_resource_type` refused), both outputs |
 | avm-ptn-alz (35) | management groups, policy definitions, policy set definitions and policy assignments are all **GAP** (no `Microsoft.Management` or `Microsoft.Authorization/policy*` kinds; management groups are issue #2249, open). Role definitions and assignments, and identities, are covered |
 | avm-res-documentdb-databaseaccount (36) | `documentdb/DatabaseAccount` and its SQL and Mongo children. **GAP**: Gremlin databases and graphs, SQL dedicated gateway |
@@ -887,6 +887,10 @@ a user-assigned identity's client ID, which the module reads from Azure,
 cannot be given (`customer_managed_key.user_assigned_identity`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+An output gap of the same sort: ASO's `AzureFirewall` status gives an IP
+configuration's ID only, not its private address, so
+`avm-res-network-azurefirewall` has no `private_ip_address` output (nor
+the azurerm-shaped `resource` that carries it).
 
 `lib/_aso.tpl`'s `aso.diagnosticSettings` takes `selfWorkspace` for a Log
 Analytics workspace, whose module sends a setting with no destination to
@@ -926,8 +930,8 @@ chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
 identity, Log Analytics workspace, container registry, firewall policy, load
-balancer, bastion host, private endpoint and application gateway charts
-are applied
+balancer, bastion host, private endpoint, application gateway and
+firewall charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -1029,6 +1033,22 @@ of it the gateway's create and delete, so the case has a 40-minute limit.
 Its `tests/mock.values.yaml` passed against the fake cloud too (PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113030418-6345`: 2 objects Ready
 and deleted, outputs evaluated).
+
+The firewall (`avm-res-network-azurefirewall`, case `afw`: Basic,
+zoneless, in the AzureFirewallSubnet of a network the case makes first,
+with the AzureFirewallManagementSubnet and the two Standard public IPs a
+Basic firewall needs, made first too as ASO objects of no chart; no
+policy, so it passes nothing) passed in run `cat1113040454ba` (offload
+`off-catalog-1113040024-17962`) on 2026-11-13, and again on this loop's
+prerequisites (`afw-pre.objects.yaml`) in run `cat11130600091d` (offload
+`off-catalog-1113055650-13517`): 6 objects Ready, outputs evaluated,
+deleted, Azure answering 404. A Basic firewall is about 0.4 USD
+an hour while it exists and the case took about 28 minutes, most of it the
+firewall's create and delete, so it fits the sandbox and has a 40-minute
+limit. Its `tests/mock.values.yaml` passed against the fake cloud too (PR
+#118's `hack/azure-mock.sh`, aso-extensions `b9beb5b`, run
+`off-catalog-1113034015-32067`: the firewall and its lock Ready and
+deleted, outputs evaluated).
 
 The Application Insights component (`avm-res-insights-component`, case
 `appi`: workspace-based, a 1 GB daily cap, with a workspace the case makes

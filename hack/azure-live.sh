@@ -18,16 +18,19 @@
 # avm-res-network-applicationgateway,
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
-# avm-res-web-serverfarm)
+# avm-res-web-serverfarm,
+# avm-res-network-azurefirewall)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
 # applies only those; the default is all but cog, vm and asp (asp: the
 # sandbox has no App Service quota, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
-# subnet), deleted after the case's own objects are gone. Only on
+# subnet), or ASO objects of no chart (CASE-pre.objects.yaml: the
+# firewall's network, subnets and public IPs), deleted after the case's own
+# objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
 # `task test-live-azure` runs it:
@@ -76,7 +79,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -200,7 +203,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     accounts.cognitiveservices.azure.com \
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
-    serverfarms.web.azure.com; do
+    serverfarms.web.azure.com \
+    azurefirewalls.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -543,8 +547,82 @@ http_listeners:
 request_routing_rules:
   - {name: rule-basic, rule_type: Basic, priority: 100, http_listener: {http_listener_key: listener-80}, backend_address_pool: {backend_address_pool_key: pool-web}, backend_http_settings: {backend_http_settings_key: http-80}}
 EOF
+# A Basic firewall (the cheapest tier, billed by the hour while it exists:
+# about 0.4 USD), zoneless, in the AzureFirewallSubnet of a network of the
+# run, with the AzureFirewallManagementSubnet and the two Standard public
+# IPs a Basic firewall needs, all made first as ASO objects of no chart
+# (afw-pre.objects.yaml). No policy and no rules: it passes nothing. A
+# firewall takes several minutes to create and to delete (CASE_TIMEOUT).
+cat >"${WORK}/afw.yaml" <<EOF
+name: ${RUN}-afw
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+firewall_sku_name: AZFW_VNet
+firewall_sku_tier: Basic
+firewall_zones: []
+tags: {catalog-run: ${RUN}}
+ip_configurations:
+  a:
+    name: ipconfig1
+    subnet_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-afw-vnet/subnets/AzureFirewallSubnet
+    public_ip_address_id: ${RG}/providers/Microsoft.Network/publicIPAddresses/${RUN}-afw-pip
+firewall_management_ip_configuration:
+  name: mgmt
+  subnet_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-afw-vnet/subnets/AzureFirewallManagementSubnet
+  public_ip_address_id: ${RG}/providers/Microsoft.Network/publicIPAddresses/${RUN}-afw-mgmt-pip
+EOF
+cat >"${WORK}/afw-pre.objects.yaml" <<EOF
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata: {name: afw-vnet}
+spec:
+  azureName: ${RUN}-afw-vnet
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  addressSpace: {addressPrefixes: [10.252.0.0/24]}
+  tags: {catalog-run: ${RUN}}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata: {name: afw-subnet}
+spec:
+  azureName: AzureFirewallSubnet
+  owner: {name: afw-vnet}
+  addressPrefix: 10.252.0.0/26
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata: {name: afw-mgmt-subnet}
+spec:
+  azureName: AzureFirewallManagementSubnet
+  owner: {name: afw-vnet}
+  addressPrefix: 10.252.0.64/26
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata: {name: afw-pip}
+spec:
+  azureName: ${RUN}-afw-pip
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  sku: {name: Standard, tier: Regional}
+  publicIPAllocationMethod: Static
+  tags: {catalog-run: ${RUN}}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata: {name: afw-mgmt-pip}
+spec:
+  azureName: ${RUN}-afw-mgmt-pip
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  sku: {name: Standard, tier: Regional}
+  publicIPAllocationMethod: Static
+  tags: {catalog-run: ${RUN}}
+EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -670,7 +748,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     appgw:avm-res-network-applicationgateway \
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
-    asp:avm-res-web-serverfarm; do
+    asp:avm-res-web-serverfarm \
+    afw:avm-res-network-azurefirewall; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -678,12 +757,17 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   limit="${CASE_TIMEOUT[${case_}]:-${TIMEOUT}}"
   declare -A ready=() armid=()
   pre_objects=()
-  if [[ -n "${PRE[${case_}]:-}" ]]; then
-    # What the case needs first, from its own chart, Ready before the case.
-    helm template "${case_}-pre" "charts/azure/${PRE[${case_}]}" --namespace "${NS}" -f "${WORK}/${case_}-pre.yaml" >"${OUT}/${chart}/pre.yaml"
+  if [[ -n "${PRE[${case_}]:-}" || -f "${WORK}/${case_}-pre.objects.yaml" ]]; then
+    # What the case needs first, from its own chart or as ASO objects of no
+    # chart, Ready before the case.
+    if [[ -n "${PRE[${case_}]:-}" ]]; then
+      helm template "${case_}-pre" "charts/azure/${PRE[${case_}]}" --namespace "${NS}" -f "${WORK}/${case_}-pre.yaml" >"${OUT}/${chart}/pre.yaml"
+    else
+      cp "${WORK}/${case_}-pre.objects.yaml" "${OUT}/${chart}/pre.yaml"
+    fi
     kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/pre.yaml" >"${OUT}/${chart}/pre-apply.log"
     mapfile -t pre_objects < <(object_list "${OUT}/${chart}/pre.yaml")
-    deadline=$(( $(date +%s) + TIMEOUT ))
+    deadline=$(( $(date +%s) + limit ))
     for o in "${pre_objects[@]}"; do
       left=$(( deadline - $(date +%s) )); (( left < 5 )) && left=5
       if kubectl wait -n "${NS}" --for=condition=Ready "${o}" --timeout="${left}s" >/dev/null 2>&1; then ready["$o"]=yes; else ready["$o"]=no; fi
