@@ -1,0 +1,157 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-compute-virtualmachine main.disks.tf
+(v0.21.0), Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_managed_disk.this: one ASO Disk (compute.azure.com/v20240302) per
+data_disk_managed_disks entry, owned by its resource group (its own
+resource_group_name, else the machine's), in the machine's zone unless
+zone-redundant. azurerm_virtual_machine_data_disk_attachment: an entry of
+the machine's storageProfile.dataDisks (main.yaml), as ARM keeps it.
+azurerm_management_lock.this_disk and azurerm_role_assignment.disks: the
+AVM interfaces on each disk.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $rg := include "vm.rgId" (list $ "resource_group_name" $v.resource_group_name) }}
+{{- range $dk, $d := ($v.data_disk_managed_disks | default dict) }}
+{{- $obj := include "aso.name" (list $.Release.Name "disk" $dk) }}
+{{- $drg := $rg }}
+{{- with $d.resource_group_name }}{{ $drg = include "vm.rgId" (list $ (printf "data_disk_managed_disks.%s.resource_group_name" $dk) .) }}{{ end }}
+{{- $owner := dict "group" "compute.azure.com" "kind" "Disk" "name" $obj }}
+{{- $tags := include "vm.owntags" (list $ $d.tags) | fromJson }}
+{{- $secType := $d.security_type }}
+{{- if and (not $secType) $d.trusted_launch_enabled }}{{ $secType = "TrustedLaunch" }}{{ end }}
+---
+apiVersion: compute.azure.com/v20240302
+kind: Disk
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "data_disk:%s" $dk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "disk" $d.name 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "data_disk_managed_disks.%s.resource_group_name" $dk) $drg) | nindent 4 }}
+  {{- if not (kindIs "invalid" $d.on_demand_bursting_enabled) }}
+  burstingEnabled: {{ $d.on_demand_bursting_enabled }}
+  {{- end }}
+  creationData:
+    createOption: {{ $d.create_option | default "Empty" }}
+    {{- with $d.gallery_image_reference_resource_id }}
+    galleryImageReference:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    {{- with $d.image_reference_resource_id }}
+    imageReference:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $d.logical_sector_size) }}
+    logicalSectorSize: {{ $d.logical_sector_size | int }}
+    {{- end }}
+    {{- if $d.performance_plus_enabled }}
+    performancePlus: true
+    {{- end }}
+    {{- with $d.source_resource_id }}
+    sourceResourceReference:
+      armId: {{ . | quote }}
+    {{- end }}
+    {{- with $d.source_uri }}
+    sourceUri: {{ . | quote }}
+    {{- end }}
+    {{- with $d.storage_account_resource_id }}
+    storageAccountId: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $d.upload_size_bytes) }}
+    uploadSizeBytes: {{ $d.upload_size_bytes | int64 }}
+    {{- end }}
+  {{- with $d.disk_access_resource_id }}
+  diskAccessReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- range $f := list (list "disk_iops_read_only" "diskIOPSReadOnly") (list "disk_iops_read_write" "diskIOPSReadWrite") (list "disk_mbps_read_only" "diskMBpsReadOnly") (list "disk_mbps_read_write" "diskMBpsReadWrite") }}
+  {{- if not (kindIs "invalid" (index $d (index $f 0))) }}
+  {{ index $f 1 }}: {{ index $d (index $f 0) | int64 }}
+  {{- end }}
+  {{- end }}
+  diskSizeGB: {{ $d.disk_size_gb | default 128 | int }}
+  {{- with $d.disk_encryption_set_resource_id }}
+  encryption:
+    diskEncryptionSetReference:
+      armId: {{ . | quote }}
+    type: EncryptionAtRestWithCustomerKey
+  {{- end }}
+  {{- with $d.encryption_settings }}
+  encryptionSettingsCollection:
+    enabled: true
+    encryptionSettings:
+      {{- range $e := . }}
+      - {{- if or $e.disk_encryption_key_vault_secret_url $e.disk_encryption_key_vault_resource_id }}
+        diskEncryptionKey:
+          secretUrl: {{ $e.disk_encryption_key_vault_secret_url | quote }}
+          sourceVault:
+            reference:
+              armId: {{ $e.disk_encryption_key_vault_resource_id | quote }}
+        {{- end }}
+        {{- if or $e.key_encryption_key_vault_secret_url $e.key_encryption_key_vault_resource_id }}
+        keyEncryptionKey:
+          keyUrl: {{ $e.key_encryption_key_vault_secret_url | quote }}
+          sourceVault:
+            reference:
+              armId: {{ $e.key_encryption_key_vault_resource_id | quote }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  {{- with $d.hyper_v_generation }}
+  hyperVGeneration: {{ . }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.max_shares) }}
+  maxShares: {{ $d.max_shares | int }}
+  {{- end }}
+  {{- with $d.network_access_policy }}
+  networkAccessPolicy: {{ . }}
+  {{- end }}
+  {{- if $d.optimized_frequent_attach_enabled }}
+  optimizedForFrequentAttach: true
+  {{- end }}
+  {{- with $d.os_type }}
+  osType: {{ . }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.public_network_access_enabled) }}
+  publicNetworkAccess: {{ ternary "Enabled" "Disabled" $d.public_network_access_enabled }}
+  {{- end }}
+  {{- if or $secType $d.secure_vm_disk_encryption_set_resource_id }}
+  securityProfile:
+    {{- with $d.secure_vm_disk_encryption_set_resource_id }}
+    secureVMDiskEncryptionSetReference:
+      armId: {{ . | quote }}
+    {{- end }}
+    {{- with $secType }}
+    securityType: {{ . }}
+    {{- end }}
+  {{- end }}
+  sku:
+    name: {{ $d.storage_account_type }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $d.tier }}
+  tier: {{ . | quote }}
+  {{- end }}
+  {{- if and $v.zone (not (contains "ZRS" $d.storage_account_type)) }}
+  zones:
+    - {{ $v.zone | quote }}
+  {{- end }}
+{{- with $d.lock_level }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" (printf "data_disk:%s/" $dk) "owner" $owner "v" (dict "kind" . "name" (coalesce $d.lock_name (printf "%s-lock" $dk)))) }}
+{{- end }}
+{{- include "vm.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "data_disk:%s/" $dk) "owner" $owner "v" $d.role_assignments) }}
+{{- end }}

@@ -113,13 +113,13 @@ release, see [`UPSTREAM.md`](../../../UPSTREAM.md), "Moving the pins".
 validated against the CRDs in `crds/config-connector-extensions`, and the
 refusals in `tests/*.fail.yaml`.
 
-Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a data quality scan of a BigQuery table. On
-2026-11-12 (offload VM `off-catalog-1113012542-21205`, its second attempt
-after a Spot preemption; config-connector-extensions `11baa460`) the scan
-became Ready, the outputs evaluated (`type` null: mockgcp's scan reports none) and it was deleted. The case has no `iam`: in an
-earlier run (`off-catalog-1113010926-3070`) mockgcp answered
-`getIamPolicy` on a data scan with 404, so the `IAMBinding`s are only render-tested; the `IAMMember`s
-(`v1alpha1`) were not applied there either.
+Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a data quality
+scan of a BigQuery table and a role on it (`iam`). On 2026-11-13 (offload
+VM `off-catalog-1113061109-28826`, config-connector-extensions `35833eb8`, whose fake cloud serves
+`getIamPolicy` on a data scan) the scan and its `IAMBinding` became Ready,
+the outputs evaluated (`type` null: mockgcp's scan reports none) and both
+were deleted. The `IAMMember`s (`v1alpha1`) are only render-tested: alpha
+features are not in fake-cloud cases.
 
 Not applied live: the Dataplex API is enabled in the live-test project,
 but neither live-test service account has a Dataplex role, and this work

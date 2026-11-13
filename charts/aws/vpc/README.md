@@ -52,6 +52,8 @@ the controllers are GA). Objects of one loop carry their index in their
 | `aws_db_subnet_group` | database subnets and `create_database_subnet_group` | `rds/DBSubnetGroup` `database-subnet-group` |
 | `aws_elasticache_subnet_group` | ElastiCache subnets and `create_elasticache_subnet_group` | `elasticache/CacheSubnetGroup` `elasticache-subnet-group` |
 | `aws_customer_gateway` | `customer_gateways`, with `allow_alpha: true` | `ec2.aws.hfl.dev/CustomerGateway` (ack-extensions) `customer-gateway-<key>` |
+| `aws_vpc_block_public_access_options` | `vpc_block_public_access_options`, with `allow_alpha: true` | `ec2.cloudcontrol.aws.hfl.dev/VPCBlockPublicAccessOptions` (ack-extensions, Cloud Control) `vpc-block-public-access-options` |
+| `aws_vpc_block_public_access_exclusion` | `vpc_block_public_access_exclusions`, with `allow_alpha: true` | `ec2.cloudcontrol.aws.hfl.dev/VPCBlockPublicAccessExclusion` (ack-extensions, Cloud Control) `vpc-block-public-access-exclusion-<key>`, with `vpcRef` (`exclude_vpc`) or `subnetRef` (`exclude_subnet`, by `subnet_type` and `subnet_index`) |
 
 References between the chart's objects are ACK references by Kubernetes
 name (`vpcRef`, `subnetRef`, `gatewayRef`, ...), so ACK resolves the IDs at
@@ -119,7 +121,6 @@ renders each). 127 of the module's 236 variables:
   the route table as plain IDs, with no reference field.
 - **IPAM by netmask** (`use_ipam_pool`, `ipv4_netmask_length`): ACK's
   `VPC.cidrBlocks` is required.
-- **Block Public Access** (`vpc_block_public_access_*`): no kind.
 - **The default VPC** (`manage_default_vpc`, `default_vpc_*`): no kind.
 - **The VPC's default security group, network ACL and main route table**
   (`default_security_group_*`, `default_network_acl_*`,

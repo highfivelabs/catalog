@@ -1,0 +1,43 @@
+# Every accepted variable on a network firewall: a Basic firewall (which
+# needs a management IP configuration) with a policy, a second public IP,
+# SNAT ranges, one zone, a lock with its own notes, role assignments and a
+# diagnostic setting; the group by parent_id.
+name: afw-full
+location: eastus2
+resource_group_name: ignored-when-parent-id-is-set
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+firewall_sku_name: AZFW_VNet
+firewall_sku_tier: Basic
+firewall_policy_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/firewallPolicies/afwp-example
+firewall_private_ip_ranges: [IANAPrivateRanges, 100.64.0.0/10]
+firewall_zones: ["1"]
+enable_telemetry: false
+tags: {env: test}
+ip_configurations:
+  a:
+    name: ipconfig1
+    subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/AzureFirewallSubnet
+    public_ip_address_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-afw-1
+  b:
+    name: ipconfig2
+    public_ip_address_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-afw-2
+firewall_management_ip_configuration:
+  name: mgmt
+  subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/AzureFirewallManagementSubnet
+  public_ip_address_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-afw-mgmt
+lock: {kind: CanNotDelete, name: afw-lock, notes: Owned by the platform team.}
+role_assignments:
+  reader:
+    role_definition_id_or_name: Reader
+    principal_id: 44444444-5555-6666-7777-888888888888
+  contributor:
+    name: 9f1c2d3e-0000-4000-8000-000000000001
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+    principal_id: 55555555-6666-7777-8888-999999999999
+    skip_service_principal_aad_check: true
+    description: network contributor for the pipeline
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law-example
+    log_groups: [allLogs]
+    metric_categories: []

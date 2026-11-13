@@ -174,8 +174,8 @@ not have. Each is refused by the chart when set.
 | 33 | [net-lb-int](#net-lb-int) | full | L | 1389 | 24 | 6 / 0 / 0 |
 | 34 | [net-lb-ext](#net-lb-ext) | full | M | 646 | 11 | 4 / 0 / 0 |
 | 35 | [net-lb-app-int](#net-lb-app-int) | partial | XL | 2770 | 22 | 12 / 0 / 2 |
-| 36 | [compute-vm](#compute-vm) | partial | XL | 2404 | 43 | 11 / 3 / 4 |
-| 37 | [compute-mig](#compute-mig) | partial | L | 1085 | 21 | 3 / 2 / 2 |
+| 36 | [compute-vm](#compute-vm) | partial | XL | 2404 | 43 | 11 / 2 / 5 |
+| 37 | [compute-mig](#compute-mig) | partial | L | 1085 | 21 | 3 / 0 / 4 |
 | 38 | [service-directory](#service-directory) | full | S | 249 | 8 | 5 / 0 / 0 |
 | 39 | [workflows](#workflows) | full, with alpha | M | 798 | 18 | 4 / 2 / 0 |
 | 40 | [cloud-function-v2](#cloud-function-v2) | partial | L | 917 | 25 | 6 / 0 / 3 |
@@ -185,7 +185,7 @@ not have. Each is refused by the chart when set.
 | 44 | [firestore](#firestore) | full, with alpha | M | 452 | 7 | 2 / 3 / 0 |
 | 45 | [managed-kafka](#managed-kafka) | full, with alpha | S | 283 | 11 | 2 / 2 / 0 |
 | 46 | [net-cloud-armor](#net-cloud-armor) | partial | XL | 2216 | 33 | 4 / 0 / 3 |
-| 47 | [net-swp](#net-swp) | partial | M | 474 | 14 | 2 / 3 / 1 |
+| 47 | [net-swp](#net-swp) | partial | M | 474 | 14 | 1 / 0 / 5 |
 | 48 | [net-lb-app-ext-regional](#net-lb-app-ext-regional) | partial | XL | 2481 | 19 | 10 / 0 / 2 |
 | 49 | [net-lb-app-int-cross-region](#net-lb-app-int-cross-region) | partial | XL | 2742 | 23 | 10 / 0 / 1 |
 | 50 | [net-lb-proxy-int](#net-lb-proxy-int) | partial | L | 958 | 14 | 8 / 0 / 2 |
@@ -216,7 +216,7 @@ not have. Each is refused by the chart when set.
 | 75 | [data-catalog-tag](#data-catalog-tag) | partial | S | 146 | 2 | 0 / 0 / 1 |
 | 76 | [data-catalog-tag-template](#data-catalog-tag-template) | partial | S | 351 | 4 | 0 / 1 / 2 |
 | 77 | [api-gateway](#api-gateway) | partial | M | 522 | 11 | 4 / 0 / 5 |
-| 78 | [apigee](#apigee) | partial | M | 827 | 13 | 9 / 2 / 1 |
+| 78 | [apigee](#apigee) | partial | M | 827 | 13 | 9 / 1 / 2 |
 | 79 | [endpoints](#endpoints) | none | S | 143 | 5 | 0 / 0 / 2 |
 | 80 | [cloud-function-v1](#cloud-function-v1) | partial | M | 759 | 24 | 6 / 0 / 1 |
 | 81 | [workstation-cluster](#workstation-cluster) | partial | M | 738 | 12 | 3 / 0 / 4 |
@@ -886,7 +886,7 @@ Rank 36. Terraform module: [`modules/compute-vm`](https://github.com/GoogleCloud
 | `google_compute_instance_iam_binding` | IAMPartialPolicy -> ComputeInstance |  |
 | `google_compute_instance_template` | ComputeInstanceTemplate |  |
 | `google_compute_region_disk` | ComputeDisk |  |
-| `google_compute_region_disk_resource_policy_attachment` | ComputeRegionDiskResourcePolicyAttachment | alpha only |
+| `google_compute_region_disk_resource_policy_attachment` | ComputeRegionDiskResourcePolicyAttachment (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_region_instance_template` | ComputeRegionInstanceTemplate (compute.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_compute_resource_policy` | ComputeResourcePolicy |  |
 | `google_iap_tunnel_instance_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on IAPTunnelInstance | gap kind (config-connector-extensions) |
@@ -908,8 +908,8 @@ Rank 37. Terraform module: [`modules/compute-mig`](https://github.com/GoogleClou
 | `google_compute_autoscaler` | ComputeAutoscaler (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_health_check` | ComputeHealthCheck |  |
 | `google_compute_instance_group_manager` | ComputeInstanceGroupManager |  |
-| `google_compute_per_instance_config` | ComputePerInstanceConfig | alpha only |
-| `google_compute_region_autoscaler` | ComputeRegionAutoscaler | alpha only |
+| `google_compute_per_instance_config` | ComputePerInstanceConfig (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_compute_region_autoscaler` | ComputeRegionAutoscaler (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_region_instance_group_manager` | ComputeInstanceGroupManager |  |
 | `google_compute_region_per_instance_config` | ComputeRegionPerInstanceConfig (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
@@ -1055,11 +1055,11 @@ Rank 47. Terraform module: [`modules/net-swp`](https://github.com/GoogleCloudPla
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
 | `google_compute_service_attachment` | ComputeServiceAttachment |  |
-| `google_network_security_gateway_security_policy` | NetworkSecurityGatewaySecurityPolicy | alpha only |
-| `google_network_security_gateway_security_policy_rule` | none | **gap** |
-| `google_network_security_tls_inspection_policy` | NetworkSecurityTLSInspectionPolicy | alpha only |
-| `google_network_security_url_lists` | NetworkSecurityURLList | alpha only |
-| `google_network_services_gateway` | NetworkServicesGateway |  |
+| `google_network_security_gateway_security_policy` | NetworkSecurityGatewaySecurityPolicy (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_network_security_gateway_security_policy_rule` | NetworkSecurityGatewaySecurityPolicyRule (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_network_security_tls_inspection_policy` | NetworkSecurityTLSInspectionPolicy (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_network_security_url_lists` | NetworkSecurityURLList (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_network_services_gateway` | none | **gap** |
 
 ### net-lb-app-ext-regional
 
@@ -1509,7 +1509,7 @@ Rank 78. Terraform module: [`modules/apigee`](https://github.com/GoogleCloudPlat
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
 | `google_apigee_addons_config` | ApigeeAddonsConfig | alpha only |
-| `google_apigee_dns_zone` | none | **gap** |
+| `google_apigee_dns_zone` | ApigeeDnsZone (apigee.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_apigee_endpoint_attachment` | ApigeeEndpointAttachment |  |
 | `google_apigee_envgroup` | ApigeeEnvgroup |  |
 | `google_apigee_envgroup_attachment` | ApigeeEnvgroupAttachment |  |
@@ -1518,7 +1518,7 @@ Rank 78. Terraform module: [`modules/apigee`](https://github.com/GoogleCloudPlat
 | `google_apigee_environment_iam_member` | IAMPolicyMember -> ApigeeEnvironment |  |
 | `google_apigee_instance` | ApigeeInstance |  |
 | `google_apigee_instance_attachment` | ApigeeInstanceAttachment |  |
-| `google_apigee_nat_address` | ApigeeNATAddress | alpha only |
+| `google_apigee_nat_address` | ApigeeNATAddress (apigee.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_apigee_organization` | ApigeeOrganization |  |
 | `local_file` | n/a | not Google Cloud |
 

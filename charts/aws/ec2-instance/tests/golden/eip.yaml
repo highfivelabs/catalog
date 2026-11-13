@@ -1,0 +1,72 @@
+---
+# Source: ec2-instance/templates/eip.yaml
+apiVersion: ec2.cloudcontrol.aws.hfl.dev/v1alpha1
+kind: EIPAssociation
+metadata:
+  name: eip-eip-association
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "eip"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "eip-association"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  allocationRef:
+    from:
+      name: eip-eip
+  instanceRef:
+    from:
+      name: eip-instance
+---
+# Source: ec2-instance/templates/eip.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: ElasticIPAddress
+metadata:
+  name: eip-eip
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "eip"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "eip"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Role"
+      value: "public"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Instance
+metadata:
+  name: eip-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "eip"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  imageID: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+  instanceType: "t3.micro"
+  minCount: 1
+  maxCount: 1
+  subnetID: "subnet-0a1b2c3d4e5f60001"
+  securityGroupIDs:
+    - "sg-0a1b2c3d4e5f60001"
+  metadataOptions:
+    httpEndpoint: "enabled"
+    httpPutResponseHopLimit: 1
+    httpTokens: "required"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "web"

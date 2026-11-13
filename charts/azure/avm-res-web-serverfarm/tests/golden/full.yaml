@@ -1,0 +1,176 @@
+---
+# Source: avm-res-web-serverfarm/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-plan-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-web-serverfarm
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "diag-law"
+  owner:
+    group: web.azure.com
+    kind: ServerFarm
+    name: full-plan
+  logAnalyticsDestinationType: "Dedicated"
+  metrics:
+    - category: AllMetrics
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-web-serverfarm/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-plan-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-web-serverfarm
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "no-delete"
+  owner:
+    group: web.azure.com
+    kind: ServerFarm
+    name: full-plan
+  level: CanNotDelete
+---
+# Source: avm-res-web-serverfarm/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-plan-role-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-web-serverfarm
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "role-assignment-owner"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    group: web.azure.com
+    kind: ServerFarm
+    name: full-plan
+  principalId: "22222222-2222-2222-2222-222222222222"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+  description: "owners"
+---
+# Source: avm-res-web-serverfarm/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-plan-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-web-serverfarm
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    group: web.azure.com
+    kind: ServerFarm
+    name: full-plan
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-web-serverfarm/templates/main.yaml
+apiVersion: web.azure.com/v20250501
+kind: ServerFarm
+metadata:
+  name: full-plan
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-web-serverfarm
+    app.kubernetes.io/version: "0.1.0"
+    team: "web"
+  annotations:
+    hfl.dev/id: "server_farm"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "asp-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full"
+  kind: windows
+  asyncScalingEnabled: false
+  elasticScaleEnabled: false
+  hostingEnvironmentProfile:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Web/hostingEnvironments/ase"
+  hyperV: false
+  identity:
+    type: "SystemAssigned, UserAssigned"
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai"
+  installScripts:
+    - name: "FontInstaller"
+      source:
+        type: RemoteAzureBlob
+        sourceUri: "https://st.blob.core.windows.net/scripts/fonts.zip"
+  isCustomMode: true
+  maximumElasticWorkerCount: 2
+  network:
+    virtualNetworkSubnetReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-apps"
+  perSiteScaling: true
+  planDefaultIdentity:
+    identityType: "UserAssigned"
+    userAssignedIdentityResourceReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai"
+  rdpEnabled: true
+  registryAdapters:
+    - registryKey: "HKEY_LOCAL_MACHINE/SOFTWARE/MyApp/Port"
+      type: DWord
+      keyVaultSecretReference:
+        secretUri: "https://kv.vault.azure.net/secrets/port"
+    - registryKey: "HKEY_LOCAL_MACHINE/SOFTWARE/MyApp/Name"
+      type: String
+      keyVaultSecretReference:
+        secretUri: "https://kv.vault.azure.net/secrets/name"
+  reserved: false
+  sku:
+    name: P1v3
+    capacity: 2
+  storageMounts:
+    - name: "g-drive"
+      type: LocalStorage
+      source: ""
+      destinationPath: "G:\\"
+      credentialsKeyVaultReference: {}
+    - name: "share"
+      type: AzureFiles
+      source: "https://st.file.core.windows.net/share"
+      destinationPath: "H:\\"
+      credentialsKeyVaultReference:
+        secretUri: "https://kv.vault.azure.net/secrets/share-key"
+  tags:
+    env: test
+  zoneRedundant: false
