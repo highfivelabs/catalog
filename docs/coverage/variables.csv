@@ -1204,21 +1204,21 @@ gcp,ai-applications,engines_configs,"object({chat_engine_config, collection_id, 
 gcp,ai-applications,location,string,no,,no-chart
 gcp,ai-applications,name,string,no,,no-chart
 gcp,ai-applications,project_id,string,no,,no-chart
-gcp,geap-agent-gateway,access_path,string,no,,no-chart
-gcp,geap-agent-gateway,access_policies,"map(object({annotations, bind, binding_condition, binding_id, display_name, policy_reuse, +2}))",no,,no-chart
-gcp,geap-agent-gateway,context,"object({access_policies, agent_connectivity_templates, condition_vars, custom_roles, iam_principals, locations, +4})",no,,no-chart
-gcp,geap-agent-gateway,description,string,no,,no-chart
-gcp,geap-agent-gateway,iap_config,"object({fail_open, iam_enforcement_mode, name, policy_version, timeout})",no,,no-chart
-gcp,geap-agent-gateway,is_google_managed,bool,no,,no-chart
-gcp,geap-agent-gateway,labels,map(string),no,,no-chart
-gcp,geap-agent-gateway,model_armor_config,"object({authz_hosts, fail_open, name, request_template_id, response_template_id, timeout})",no,,no-chart
-gcp,geap-agent-gateway,name,string,no,,no-chart
-gcp,geap-agent-gateway,networking_config,"object({access_types, connectivity_template_reuse, description, dns_peering_config, labels, name, +2})",no,,no-chart
-gcp,geap-agent-gateway,project_id,string,no,,no-chart
-gcp,geap-agent-gateway,project_number,string,no,,no-chart
-gcp,geap-agent-gateway,proxy_uri,string,no,,no-chart
-gcp,geap-agent-gateway,region,string,no,,no-chart
-gcp,geap-agent-gateway,registries,list(string),no,,no-chart
+gcp,geap-agent-gateway,access_path,string,yes,,
+gcp,geap-agent-gateway,access_policies,"map(object({annotations, bind, binding_condition, binding_id, display_name, policy_reuse, +2}))",no,"Config Connector's IAMAccessPolicy (v1alpha1) takes an organization only, not a project, and config-connector-extensions' IAMPolicyBinding targets a principal set only, not a resource (the project or the gateway)",gap
+gcp,geap-agent-gateway,context,"object({access_policies, agent_connectivity_templates, condition_vars, custom_roles, iam_principals, locations, +4})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,geap-agent-gateway,description,string,yes,,
+gcp,geap-agent-gateway,iap_config,"object({fail_open, iam_enforcement_mode, name, policy_version, timeout})",no,"Config Connector's NetworkServicesAuthzExtension (v1alpha1) is a load balancer callout with a required backend service and no service field, so it cannot delegate to IAP; fabric's default ({}) makes one, so every render sets iap_config: null",gap
+gcp,geap-agent-gateway,is_google_managed,bool,yes,,
+gcp,geap-agent-gateway,labels,map(string),yes,,
+gcp,geap-agent-gateway,model_armor_config,"object({authz_hosts, fail_open, name, request_template_id, response_template_id, timeout})",no,"Config Connector's NetworkServicesAuthzExtension (v1alpha1) is a load balancer callout with a required backend service and no service field, so it cannot delegate to Model Armor",gap
+gcp,geap-agent-gateway,name,string,yes,,
+gcp,geap-agent-gateway,networking_config,"object({access_types, connectivity_template_reuse, description, dns_peering_config, labels, name, +2})",yes,,
+gcp,geap-agent-gateway,project_id,string,yes,,
+gcp,geap-agent-gateway,project_number,string,partial,"accepted; null (fabric's default, which reads the google_project data source) is refused when the chart makes a connectivity template: a chart cannot read the project's number",by-design
+gcp,geap-agent-gateway,proxy_uri,string,yes,,
+gcp,geap-agent-gateway,region,string,yes,,
+gcp,geap-agent-gateway,registries,list(string),yes,,
 gcp,geap-agent-runtime,agent_runtime_config,"object({agent_framework, class_methods, container_concurrency, environment_variables, identity_type, max_instances, +4})",partial,"AIPlatformReasoningEngine has no spec.identityType (so identity_type AGENT_IDENTITY, the default, is refused; SERVICE_ACCOUNT is what the kind does) and no classMethods",gap
 gcp,geap-agent-runtime,bucket_config,"object({create, name, uniform_bucket_level_access})",yes,,
 gcp,geap-agent-runtime,context,"object({agent_gateways, custom_roles, iam_principals, kms_keys, locations, models, +3})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design

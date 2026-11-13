@@ -1,0 +1,28 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"). id is the gateway's status.externalRef
+# (projects/<p>/locations/<l>/agentGateways/<id>); null until reported.
+# connectivity_template_id is the template the gateway references, by
+# project number, as fabric's: the one the chart makes, or
+# networking_config.connectivity_template_reuse; null with neither. Not
+# outputs: agent_gateway (fabric's whole object), and access_policy_ids,
+# authz_extension_ids, authz_policy_ids and policy_binding_ids, whose
+# resources the chart refuses (README.md, "Values").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-geap-agent-gateway
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      has(resources.gateway.status) && has(resources.gateway.status.externalRef)
+      ? dyn(resources.gateway.status.externalRef) : null
+    connectivity_template_id: >-
+      has(resources.gateway.spec.agentConnectivityTemplate)
+      ? dyn(resources.gateway.spec.agentConnectivityTemplate) : null
