@@ -1,0 +1,99 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "aws_sfn_state_machine" and "CloudWatch Logs": the state machine
+(sfn/StateMachine), running as the role this chart makes (roleRef) or
+role_arn, logging (logging_configuration with a level other than OFF) to
+the log group this chart makes (cloudwatchlogs/LogGroup), an existing one
+(use_existing_cloudwatch_log_group) or log_destination, and traced with
+X-Ray when service_integrations.xray.xray is true. StateMachine takes the
+log group by ARN only, so without log_destination the chart builds it,
+arn:<partition>:logs:<region>:<account_id>:log-group:<name>:*, as the
+module reads it from the log group.
+*/ -}}
+{{- include "ack.names" (list $ (list "stateMachine" "role" "logGroup")) -}}
+{{- $v := .Values -}}
+{{- $n := include "sfn.names" . | fromJson -}}
+{{- if $v.create }}
+{{- if not $n.stateMachine }}
+{{- fail "step-functions: name is required: the state machine's name (or names.stateMachine)" }}
+{{- end }}
+{{- if not $v.definition }}
+{{- fail "step-functions: definition is required: the state machine's Amazon States Language definition" }}
+{{- end }}
+{{- if and (not $v.use_existing_role) (not $v.create_role) }}
+{{- fail "step-functions: create_role: false needs use_existing_role: true and role_arn (the module then has no role to run the state machine as)" }}
+{{- end }}
+{{- if and $v.use_existing_role (not $v.role_arn) }}
+{{- fail "step-functions: use_existing_role needs role_arn" }}
+{{- end }}
+{{- $lc := $v.logging_configuration | default dict }}
+{{- $logging := ne (toString (get $lc "level" | default "OFF")) "OFF" }}
+{{- if and $logging (not $v.use_existing_cloudwatch_log_group) }}
+---
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "log-group")) "id" "log-group" "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ $n.logGroup | quote }}
+{{- if not (kindIs "invalid" $v.cloudwatch_log_group_retention_in_days) }}
+  retentionDays: {{ int64 $v.cloudwatch_log_group_retention_in_days }}
+{{- end }}
+{{- with $v.cloudwatch_log_group_kms_key_id }}
+  kmsKeyID: {{ . | quote }}
+{{- end }}
+{{- $lt := include "ack.tags" (list $ $v.tags $v.cloudwatch_log_group_tags) | fromJson }}
+{{- if $lt }}
+  tags:
+{{- range $k := keys $lt | sortAlpha }}
+    {{ $k | quote }}: {{ get $lt $k | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "state-machine")) "id" "state-machine" "region" $v.region) | nindent 2 }}
+spec:
+  name: {{ $n.stateMachine | quote }}
+  definition: {{ $v.definition | quote }}
+{{- if $v.use_existing_role }}
+  roleARN: {{ $v.role_arn | quote }}
+{{- else }}
+  roleRef:
+    from:
+      name: {{ include "ack.name" (list .Release.Name "role") }}
+{{- end }}
+  type_: {{ upper $v.type | quote }}
+{{- if $v.publish }}
+  publish: true
+{{- end }}
+{{- if $logging }}
+{{- $dest := get $lc "log_destination" | default "" }}
+{{- if not $dest }}
+{{- include "sfn.need" (list $ "account_id" "the log group's ARN the state machine logs to (logging_configuration without log_destination)") }}
+{{- include "sfn.need" (list $ "region" "the log group's ARN the state machine logs to (logging_configuration without log_destination)") }}
+{{- $dest = printf "arn:%s:logs:%s:%s:log-group:%s:*" $v.partition $v.region $v.account_id $n.logGroup }}
+{{- end }}
+  loggingConfiguration:
+    destinations:
+      - cloudWatchLogsLogGroup:
+          logGroupARN: {{ $dest | quote }}
+{{- with get $lc "include_execution_data" }}
+    includeExecutionData: {{ eq (toString .) "true" }}
+{{- end }}
+    level: {{ get $lc "level" | quote }}
+{{- end }}
+{{- $xray := get ($v.service_integrations | default dict) "xray" | default dict }}
+{{- if eq (toString (get $xray "xray")) "true" }}
+  tracingConfiguration:
+    enabled: true
+{{- end }}
+{{- with include "ack.tags" (list $ (dict "Name" $n.stateMachine) $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

@@ -128,14 +128,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 10 ported, 70 partial, 71 blocked, 26 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 10 ported, 71 partial, 71 blocked, 25 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 717 of 1478 (48.5%) |
-| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 469 of 2348 (20.0%) |
+| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 509 of 2348 (21.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 419 of 1170 (35.8%) |
-| **All** | **177** | | **1605 of 4996 (32.1%)** |
+| **All** | **177** | | **1645 of 4996 (32.9%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -220,7 +220,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### AWS: terraform-aws-modules
 
-0 ported, 13 partial, 25 blocked, 4 not started.
+0 ported, 14 partial, 25 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -237,6 +237,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) ([chart](charts/aws/dynamodb-table)) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 27 of 39 | 4 of 8 | 4 of 4 | partial |
 | [`sns`](https://github.com/terraform-aws-modules/terraform-aws-sns/tree/v7.2.0) ([chart](charts/aws/sns)) | ![sns](docs/coverage/bars/aws-sns.svg) 27 of 29 | 4 of 6 | 4 of 4 | partial |
 | [`ssm-parameter`](https://github.com/terraform-aws-modules/terraform-aws-ssm-parameter/tree/v2.1.2) ([chart](charts/aws/ssm-parameter)) | ![ssm-parameter](docs/coverage/bars/aws-ssm-parameter.svg) 14 of 16 | 8 of 9 | 1 of 1 | partial |
+| [`step-functions`](https://github.com/terraform-aws-modules/terraform-aws-step-functions/tree/v5.1.1) ([chart](charts/aws/step-functions)) | ![step-functions](docs/coverage/bars/aws-step-functions.svg) 40 of 42 | 9 of 10 | 6 of 6 | partial |
 | [`iam-role`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-role) ([chart](charts/aws/iam-role)) | ![iam-role](docs/coverage/bars/aws-iam-role.svg) 31 of 31 | 7 of 7 | 4 of 4 | partial |
 | [`iam-policy`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-policy) ([chart](charts/aws/iam-policy)) | ![iam-policy](docs/coverage/bars/aws-iam-policy.svg) 6 of 7 | 4 of 4 | 1 of 1 | partial |
 
@@ -261,7 +262,6 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | --- | ---: | ---: | --- |
 | [`lambda`](https://github.com/terraform-aws-modules/terraform-aws-lambda/tree/v8.13.0) | ![lambda](docs/coverage/bars/aws-lambda.svg) 0 of 141 | 0 of 36 | 21 | not started |
 | [`eks-pod-identity`](https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/tree/v2.10.0) | ![eks-pod-identity](docs/coverage/bars/aws-eks-pod-identity.svg) 0 of 82 | 0 of 8 | 4 of 4 | not started |
-| [`step-functions`](https://github.com/terraform-aws-modules/terraform-aws-step-functions/tree/v5.1.1) | ![step-functions](docs/coverage/bars/aws-step-functions.svg) 0 of 42 | 0 of 10 | 6 of 6 | not started |
 | [`notify-slack`](https://github.com/terraform-aws-modules/terraform-aws-notify-slack/tree/v7.5.2) | ![notify-slack](docs/coverage/bars/aws-notify-slack.svg) 0 of 51 | 0 of 11 | 4 of 4 | not started |
 
 ### Azure: Azure Verified Modules
