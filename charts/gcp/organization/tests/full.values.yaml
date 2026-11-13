@@ -1,0 +1,188 @@
+# Every value the chart carries: IAM in each form, custom roles, contacts,
+# org policies (boolean, list, conditional, dry run, parameters, reset) and
+# a custom constraint, a firewall policy association, tag keys, network
+# tags and tag bindings, data access logs, exclusions, sinks of each
+# destination type, a PAM entitlement, access levels, an asset feed and a
+# workforce pool with an OIDC and a SAML provider.
+organization_id: organizations/123456789012
+iam:
+  roles/viewer: ["group:viewers@example.org"]
+iam_bindings:
+  admins:
+    role: roles/resourcemanager.organizationAdmin
+    members: ["group:admins@example.org"]
+    condition: {title: expires, expression: "request.time < timestamp('2027-01-01T00:00:00Z')", description: until 2027}
+iam_bindings_additive:
+  browser: {role: roles/browser, member: "user:one@example.org"}
+  conditional:
+    role: roles/storage.admin
+    member: "user:four@example.org"
+    condition: {title: dev, expression: "resource.matchTag('123/env', 'dev')"}
+iam_by_principals:
+  "group:auditors@example.org": [roles/iam.securityReviewer]
+iam_by_principals_additive:
+  "user:two@example.org": [roles/browser]
+iam_by_principals_conditional:
+  "user:three@example.org":
+    roles: [roles/storage.admin]
+    condition: {title: test, expression: "resource.matchTag('123/env', 'test')"}
+custom_roles:
+  myRole:
+    title: My role
+    description: Lists instances.
+    stage: BETA
+    permissions: [compute.instances.list, compute.instances.get]
+  bareRole:
+    permissions: [storage.buckets.list]
+contacts:
+  "admins@example.org": [ALL]
+  "security@example.org": [SECURITY, TECHNICAL]
+org_policy_custom_constraints:
+  custom.denyPublicBuckets:
+    resource_types: [storage.googleapis.com/Bucket]
+    method_types: [CREATE, UPDATE]
+    condition: resource.iamConfiguration.publicAccessPrevention != 'enforced'
+    action_type: DENY
+org_policies:
+  compute.disableGuestAttributesAccess:
+    rules: [{enforce: true}]
+  iam.allowedPolicyMemberDomains:
+    inherit_from_parent: false
+    rules:
+      - allow: {values: [C0xxxxxxx]}
+      - allow: {all: true}
+        condition: {title: test, expression: "resource.matchTag('1234567890/environment', 'dev')"}
+  "dry_run:compute.restrictCloudNATUsage":
+    rules: [{deny: {all: true}}]
+  compute.restrictCloudNATUsage:
+    rules: [{allow: {all: true}}]
+  custom.denyPublicBuckets:
+    rules: [{enforce: true}]
+  compute.managed.restrictProtocolForwardingCreationForTypes:
+    rules: [{enforce: true, parameters: '{"allowedSchemes": ["INTERNAL"]}'}]
+  compute.requireOsLogin:
+    reset: true
+firewall_policy: {name: default, policy: locations/global/firewallPolicies/12345}
+tags:
+  environment:
+    description: Environment.
+    iam:
+      roles/resourcemanager.tagAdmin: ["group:admins@example.org"]
+    values:
+      dev: {}
+      prod: {description: Production.}
+  existing:
+    id: tagKeys/111
+    values:
+      extra: {}
+      known: {id: tagValues/222, iam: {roles/resourcemanager.tagUser: ["group:users@example.org"]}}
+  team: shop
+network_tags:
+  net-all:
+    network: ALL
+    values:
+      on: {}
+tag_bindings:
+  env-prod: tagValues/1234567890
+logging_data_access:
+  allServices:
+    ADMIN_READ: {exempted_members: ["group:organization-admins@example.org"]}
+  storage.googleapis.com:
+    DATA_READ: {}
+    DATA_WRITE: {}
+logging_exclusions:
+  no-gce-instances: resource.type=gce_instance
+logging_sinks:
+  warnings:
+    destination: my-bucket
+    type: storage
+    filter: severity=WARNING
+  info:
+    destination: projects/my-project/topics/info
+    type: pubsub
+    filter: severity=INFO
+    disabled: true
+    include_children: false
+  notice:
+    destination: projects/my-project/locations/global/buckets/notice
+    exclusions: {no-compute: resource.type=gce_instance}
+  debug:
+    destination: projects/my-project/datasets/debug
+    type: bigquery
+    bq_partitioned_table: true
+    iam: false
+    description: Debug logs.
+pam_entitlements:
+  net-admins:
+    max_request_duration: 3600s
+    eligible_users: ["group:net-admins@example.org"]
+    privileged_access:
+      - role: roles/compute.networkAdmin
+      - role: roles/compute.admin
+        condition: "resource.name.startsWith('projects/p')"
+    requester_justification_config: {not_mandatory: true, unstructured: false}
+    manual_approvals:
+      require_approver_justification: true
+      steps:
+        - approvers: ["group:approvers@example.org"]
+          approvals_needed: 1
+          approver_email_recipients: [approvers@example.org]
+    additional_notification_targets:
+      admin_email_recipients: [admins@example.org]
+      requester_email_recipients: [requesters@example.org]
+tags_config: {ignore_iam: false}
+access_policy: accessPolicies/1234567890
+access_levels:
+  corp:
+    combining_function: OR
+    description: Corporate devices.
+    conditions:
+      - device_policy:
+          allowed_device_management_levels: [COMPLETE]
+          allowed_encryption_statuses: [ENCRYPTED]
+          require_admin_approval: true
+          require_corp_owned: true
+          require_screen_lock: true
+          os_constraints:
+            - {os_type: DESKTOP_CHROME_OS, minimum_version: "100.0", require_verified_chrome_os: true}
+        members: ["user:one@example.org", "serviceAccount:sa@my-project.iam.gserviceaccount.com"]
+        negate: false
+        regions: [IT, FR]
+        required_access_levels: ["$access_levels:ips", accessPolicies/1234567890/accessLevels/other]
+  ips:
+    conditions:
+      - ip_subnetworks: [203.0.113.0/24]
+  empty: {}
+asset_feeds:
+  all:
+    billing_project: my-project
+    content_type: RESOURCE
+    asset_types: [compute.googleapis.com/Instance]
+    asset_names: [//compute.googleapis.com/projects/my-project/zones/europe-west1-b/instances/vm]
+    feed_output_config:
+      pubsub_destination: {topic: projects/my-project/topics/feeds}
+    condition: {expression: "!temporal_asset.deleted", title: live, description: Live assets., location: here}
+workforce_identity_pools:
+  corp:
+    display_name: Corp
+    description: Corporate users.
+    disabled: false
+    session_duration: 7200s
+    providers:
+      okta:
+        display_name: Okta
+        description: Okta SAML.
+        attribute_condition: "true"
+        attribute_mapping_template: okta
+        attribute_mapping: {google.subject: assertion.nameid}
+        disabled: true
+        detailed_audit_logging: false
+        identity_provider:
+          saml: {idp_metadata_xml: "<xml/>"}
+      entra:
+        identity_provider:
+          oidc:
+            issuer_uri: https://login.microsoftonline.com/x/v2.0
+            client_id: client
+            jwks_json: '{"keys": []}'
+            web_sso_config: {additional_scopes: [groups]}

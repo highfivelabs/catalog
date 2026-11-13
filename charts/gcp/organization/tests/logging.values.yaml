@@ -1,0 +1,34 @@
+# The module README's log sinks and data access logs examples, less what
+# the chart refuses: the project sink (LoggingLogSink's destination is
+# never a project), the $context destination (Bundt replaces it), and the
+# bigquery sink's grant (iam: false; dataset IAM is alpha).
+organization_id: organizations/1122334455
+logging_sinks:
+  warnings:
+    destination: test-prod-log-audit-0
+    filter: severity=WARNING
+    type: storage
+  info:
+    bq_partitioned_table: true
+    destination: projects/my-project/datasets/bq_sink
+    filter: severity=INFO
+    type: bigquery
+    iam: false
+  notice:
+    destination: projects/my-project/topics/pubsub_sink
+    filter: severity=NOTICE
+    type: pubsub
+  debug:
+    destination: projects/my-project/locations/global/buckets/my-bucket
+    filter: severity=DEBUG
+    exclusions:
+      no-compute: logName:compute
+logging_exclusions:
+  no-gce-instances: resource.type=gce_instance
+logging_data_access:
+  allServices:
+    ADMIN_READ:
+      exempted_members: ["group:organization-admins@example.org"]
+  storage.googleapis.com:
+    DATA_READ: {}
+    DATA_WRITE: {}

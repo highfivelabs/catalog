@@ -1,0 +1,96 @@
+---
+# Source: organization/templates/organization.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: pam-firewall-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pam"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "firewall_policy"
+spec:
+  resourceID: "test-1"
+  attachmentTargetRef:
+    external: "organizations/1122334455"
+  firewallPolicyRef:
+    external: "locations/global/firewallPolicies/123456789"
+---
+# Source: organization/templates/custom-roles.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMCustomRole
+metadata:
+  name: pam-role-myrole-ff7b2f63
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pam"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "custom-role:myRole"
+    cnrm.cloud.google.com/organization-id: "1122334455"
+spec:
+  resourceID: "myRole"
+  title: "My custom role"
+  description: "Allows listing compute instances."
+  permissions:
+    - "compute.instances.list"
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: pam-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pam"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    external: "1122334455"
+    kind: Organization
+  bindings:
+    - role: "organizations/1122334455/roles/myRole"
+      members:
+        - member: "group:organization-admins@example.org"
+---
+# Source: organization/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: pam-pam-net-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pam"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "pam-entitlement:net-admins"
+spec:
+  resourceID: "net-admins"
+  organizationRef:
+    external: "organizations/1122334455"
+  location: global
+  maxRequestDuration: "3600s"
+  eligibleUsers:
+    - principals: ["group:gcp-network-admins@example.com"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/compute.networkAdmin"
+        - role: "roles/compute.admin"
+  requesterJustificationConfig:
+    unstructured: {}
+  approvalWorkflow:
+    manualApprovals:
+      requireApproverJustification: true
+      steps:
+        - approvers:
+            - principals: ["group:gcp-organization-admins@example.com"]
+          approvalsNeeded: 1

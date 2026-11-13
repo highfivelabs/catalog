@@ -1,0 +1,43 @@
+---
+# Source: organization/templates/organization.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyCustomConstraint
+metadata:
+  name: custom-constraints-constraint-custom-gkeenableautoupgr-d5d05da0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "custom-constraints"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "custom-constraint:custom.gkeEnableAutoUpgrade"
+spec:
+  resourceID: "custom.gkeEnableAutoUpgrade"
+  organizationRef:
+    external: "organizations/1122334455"
+  displayName: "Enable node auto-upgrade"
+  description: "All node pools must have node auto-upgrade enabled."
+  actionType: "ALLOW"
+  condition: "resource.management.autoUpgrade == true"
+  methodTypes: ["CREATE"]
+  resourceTypes: ["container.googleapis.com/NodePool"]
+---
+# Source: organization/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: custom-constraints-org-policy-custom-gkeenableautoupgr-61ce1b7d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "custom-constraints"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "org_policy:custom.gkeEnableAutoUpgrade"
+spec:
+  resourceID: custom.gkeEnableAutoUpgrade
+  organizationRef:
+    external: "organizations/1122334455"
+  spec:
+    rules:
+    - enforce: true
