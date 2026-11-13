@@ -26,6 +26,7 @@ those modules keeps its variables, its names and its outputs.
 | `hack/test.sh`, `hack/ack.sh` | render tests (offline, seconds), behind `task test`; `hack/ack.sh` fetches the CRDs of the ACK controllers `UPSTREAM.md` pins |
 | `hack/mock-apply.sh`, `hack/mock-apply-aws.sh`, `hack/live-apply.sh` | the fake-cloud (Google Cloud, AWS) and real-project applies (an offload VM, never a laptop), behind `task test-mock`, `task test-mock-aws` and `task test-live` |
 | `hack/azure-live.sh` | the Azure charts applied to the Azure sandbox with Azure Service Operator on kind (an offload VM, keyless federation), behind `task test-live-azure` |
+| `hack/azure-mock.sh` | each Azure chart's `tests/mock.values.yaml` applied to aso-extensions' fake cloud (fakearm, fakeentra) with stock Azure Service Operator on kind (an offload VM), behind `task test-mock-azure` |
 | `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
 | `UPSTREAM.md` | the fabric and Config Connector commits everything is pinned to, the tracked modules' licences, and how to move a pin |
 
@@ -127,14 +128,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 5 ported, 53 partial, 83 blocked, 36 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 5 ported, 58 partial, 83 blocked, 31 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 617 of 1478 (41.7%) |
-| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 352 of 2348 (15.0%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 180 of 1170 (15.4%) |
-| **All** | **177** | | **1149 of 4996 (23.0%)** |
+| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 420 of 2348 (17.9%) |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 227 of 1170 (19.4%) |
+| **All** | **177** | | **1264 of 4996 (25.3%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -208,7 +209,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### AWS: terraform-aws-modules
 
-0 ported, 10 partial, 26 blocked, 6 not started.
+0 ported, 13 partial, 26 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -221,6 +222,9 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`acm`](https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1) ([chart](charts/aws/acm)) | ![acm](docs/coverage/bars/aws-acm.svg) 23 of 24 | 7 of 7 | 2 of 3 | partial |
 | [`ec2-instance`](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1) ([chart](charts/aws/ec2-instance)) | ![ec2-instance](docs/coverage/bars/aws-ec2-instance.svg) 53 of 83 | 20 of 30 | 8 of 12 | partial |
 | [`sqs`](https://github.com/terraform-aws-modules/terraform-aws-sqs/tree/v5.2.2) ([chart](charts/aws/sqs)) | ![sqs](docs/coverage/bars/aws-sqs.svg) 22 of 42 | 5 of 10 | 4 of 4 | partial |
+| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) ([chart](charts/aws/dynamodb-table)) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 27 of 39 | 4 of 8 | 4 of 4 | partial |
+| [`sns`](https://github.com/terraform-aws-modules/terraform-aws-sns/tree/v7.2.0) ([chart](charts/aws/sns)) | ![sns](docs/coverage/bars/aws-sns.svg) 27 of 29 | 4 of 6 | 4 of 4 | partial |
+| [`ssm-parameter`](https://github.com/terraform-aws-modules/terraform-aws-ssm-parameter/tree/v2.1.2) ([chart](charts/aws/ssm-parameter)) | ![ssm-parameter](docs/coverage/bars/aws-ssm-parameter.svg) 14 of 16 | 8 of 9 | 1 of 1 | partial |
 | [`step-functions`](https://github.com/terraform-aws-modules/terraform-aws-step-functions/tree/v5.1.1) ([chart](charts/aws/step-functions)) | ![step-functions](docs/coverage/bars/aws-step-functions.svg) 40 of 42 | 9 of 10 | 6 of 6 | partial |
 | [`iam-role`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-role) ([chart](charts/aws/iam-role)) | ![iam-role](docs/coverage/bars/aws-iam-role.svg) 31 of 31 | 7 of 7 | 4 of 4 | partial |
 | [`iam-policy`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-policy) ([chart](charts/aws/iam-policy)) | ![iam-policy](docs/coverage/bars/aws-iam-policy.svg) 6 of 7 | 4 of 4 | 1 of 1 | partial |
@@ -245,15 +249,12 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`lambda`](https://github.com/terraform-aws-modules/terraform-aws-lambda/tree/v8.13.0) | ![lambda](docs/coverage/bars/aws-lambda.svg) 0 of 141 | 0 of 36 | 21 | not started |
-| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 0 of 39 | 0 of 8 | 4 of 4 | not started |
 | [`eks-pod-identity`](https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/tree/v2.10.0) | ![eks-pod-identity](docs/coverage/bars/aws-eks-pod-identity.svg) 0 of 82 | 0 of 8 | 4 of 4 | not started |
-| [`sns`](https://github.com/terraform-aws-modules/terraform-aws-sns/tree/v7.2.0) | ![sns](docs/coverage/bars/aws-sns.svg) 0 of 29 | 0 of 6 | 4 of 4 | not started |
-| [`ssm-parameter`](https://github.com/terraform-aws-modules/terraform-aws-ssm-parameter/tree/v2.1.2) | ![ssm-parameter](docs/coverage/bars/aws-ssm-parameter.svg) 0 of 16 | 0 of 9 | 1 of 1 | not started |
 | [`notify-slack`](https://github.com/terraform-aws-modules/terraform-aws-notify-slack/tree/v7.5.2) | ![notify-slack](docs/coverage/bars/aws-notify-slack.svg) 0 of 51 | 0 of 11 | 4 of 4 | not started |
 
 ### Azure: Azure Verified Modules
 
-1 ported, 9 partial, 0 blocked, 27 not started.
+1 ported, 11 partial, 0 blocked, 25 not started.
 
 **Ported and partial**
 
@@ -265,25 +266,27 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-keyvault-vault`](https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/tree/v0.13.0) ([chart](charts/azure/avm-res-keyvault-vault)) | ![avm-res-keyvault-vault](docs/coverage/bars/azure-avm-res-keyvault-vault.svg) 24 of 34 | 5 of 8 | 5 | partial |
 | [`avm-res-resources-resourcegroup`](https://github.com/Azure/terraform-azurerm-avm-res-resources-resourcegroup/tree/v0.5.0) ([chart](charts/azure/avm-res-resources-resourcegroup)) | ![avm-res-resources-resourcegroup](docs/coverage/bars/azure-avm-res-resources-resourcegroup.svg) 7 of 10 | 3 of 4 | 2 | partial |
 | [`avm-res-managedidentity-userassignedidentity`](https://github.com/Azure/terraform-azurerm-avm-res-managedidentity-userassignedidentity/tree/v0.6.0) ([chart](charts/azure/avm-res-managedidentity-userassignedidentity)) | ![avm-res-managedidentity-userassignedidentity](docs/coverage/bars/azure-avm-res-managedidentity-userassignedidentity.svg) 8 of 9 | 5 of 6 | 4 | partial |
+| [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1) ([chart](charts/azure/avm-res-operationalinsights-workspace)) | ![avm-res-operationalinsights-workspace](docs/coverage/bars/azure-avm-res-operationalinsights-workspace.svg) 19 of 31 | 1 of 3 | 20 | partial |
 | [`avm-res-network-routetable`](https://github.com/Azure/terraform-azurerm-avm-res-network-routetable/tree/v0.6.0) ([chart](charts/azure/avm-res-network-routetable)) | ![avm-res-network-routetable](docs/coverage/bars/azure-avm-res-network-routetable.svg) 10 of 11 | 3 of 4 | 6 | partial |
 | [`avm-res-network-natgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-natgateway/tree/v0.3.2) ([chart](charts/azure/avm-res-network-natgateway)) | ![avm-res-network-natgateway](docs/coverage/bars/azure-avm-res-network-natgateway.svg) 17 of 18 | 2 of 3 | 4 | partial |
 | [`avm-res-network-privatednszone`](https://github.com/Azure/terraform-azurerm-avm-res-network-privatednszone/tree/v0.6.0) ([chart](charts/azure/avm-res-network-privatednszone)) | ![avm-res-network-privatednszone](docs/coverage/bars/azure-avm-res-network-privatednszone.svg) 16 of 19 | 11 of 12 | 12 | partial |
 | [`avm-res-network-publicipaddress`](https://github.com/Azure/terraform-azurerm-avm-res-network-publicipaddress/tree/v0.2.1) ([chart](charts/azure/avm-res-network-publicipaddress)) | ![avm-res-network-publicipaddress](docs/coverage/bars/azure-avm-res-network-publicipaddress.svg) 21 of 21 | 4 of 4 | 4 | ported |
+| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) ([chart](charts/azure/avm-res-containerregistry-registry)) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 28 of 35 | 7 of 12 | 10 | partial |
 
-**Not started (first 10 of 27, by rank)**
+**Not started (first 10 of 25, by rank)**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
 | [`avm-res-compute-virtualmachine`](https://github.com/Azure/terraform-azurerm-avm-res-compute-virtualmachine/tree/v0.21.0) | ![avm-res-compute-virtualmachine](docs/coverage/bars/azure-avm-res-compute-virtualmachine.svg) 0 of 74 | 0 of 13 | 20 | not started |
-| [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1) | ![avm-res-operationalinsights-workspace](docs/coverage/bars/azure-avm-res-operationalinsights-workspace.svg) 0 of 31 | 0 of 3 | 20 | not started |
 | [`avm-res-network-loadbalancer`](https://github.com/Azure/terraform-azurerm-avm-res-network-loadbalancer/tree/v0.5.0) | ![avm-res-network-loadbalancer](docs/coverage/bars/azure-avm-res-network-loadbalancer.svg) 0 of 23 | 0 of 7 | 13 | not started |
-| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 0 of 35 | 0 of 12 | 10 | not started |
 | [`avm-res-network-firewallpolicy`](https://github.com/Azure/terraform-azurerm-avm-res-network-firewallpolicy/tree/v0.3.4) | ![avm-res-network-firewallpolicy](docs/coverage/bars/azure-avm-res-network-firewallpolicy.svg) 0 of 22 | 0 of 2 | 5 | not started |
 | [`avm-res-containerservice-managedcluster`](https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster/tree/v0.9.0) | ![avm-res-containerservice-managedcluster](docs/coverage/bars/azure-avm-res-containerservice-managedcluster.svg) 0 of 73 | 0 of 26 | 3 | not started |
 | [`avm-res-dbforpostgresql-flexibleserver`](https://github.com/Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver/tree/v0.2.3) | ![avm-res-dbforpostgresql-flexibleserver](docs/coverage/bars/azure-avm-res-dbforpostgresql-flexibleserver.svg) 0 of 40 | 0 of 6 | 11 | not started |
 | [`avm-res-cognitiveservices-account`](https://github.com/Azure/terraform-azurerm-avm-res-cognitiveservices-account/tree/v0.11.1) | ![avm-res-cognitiveservices-account](docs/coverage/bars/azure-avm-res-cognitiveservices-account.svg) 0 of 41 | 0 of 11 | 9 | not started |
 | [`avm-ptn-alz-sub-vending`](https://github.com/Azure/terraform-azure-avm-ptn-alz-sub-vending/tree/v0.3.4) | ![avm-ptn-alz-sub-vending](docs/coverage/bars/azure-avm-ptn-alz-sub-vending.svg) 0 of 29 | 0 of 14 | 13 | not started |
 | [`avm-res-insights-component`](https://github.com/Azure/terraform-azurerm-avm-res-insights-component/tree/v0.5.0) | ![avm-res-insights-component](docs/coverage/bars/azure-avm-res-insights-component.svg) 0 of 25 | 0 of 6 | 2 | not started |
+| [`avm-res-app-containerapp`](https://github.com/Azure/terraform-azurerm-avm-res-app-containerapp/tree/v0.9.0) | ![avm-res-app-containerapp](docs/coverage/bars/azure-avm-res-app-containerapp.svg) 0 of 24 | 0 of 12 | 4 | not started |
+| [`avm-res-web-site`](https://github.com/Azure/terraform-azurerm-avm-res-web-site/tree/v0.24.1) | ![avm-res-web-site](docs/coverage/bars/azure-avm-res-web-site.svg) 0 of 99 | 0 of 14 | 3 | not started |
 
 Every module, variable and output: [`modules.csv`](docs/coverage/modules.csv), [`variables.csv`](docs/coverage/variables.csv), [`outputs.csv`](docs/coverage/outputs.csv), [`resource-types.csv`](docs/coverage/resource-types.csv). `task coverage` regenerates this section and those files; `task coverage-check` fails when they are out of date.
 <!-- coverage:end -->

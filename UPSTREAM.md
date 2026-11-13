@@ -46,6 +46,9 @@ charts use are copied in `crds/ack-extensions`.
 | `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
 | `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
 | `sqs-controller` | `v1.9.0` | `0810c99dd5b0c45939727e0ca04e4810ced1fdfa` | Queue |
+| `sns-controller` | `v1.13.0` | `a1f0e5b19582a199ae3e6fbb071ced23b40d9655` | Topic, Subscription |
+| `ssm-controller` | `v1.8.0` | `d07ea0193aef939118ac220a60ff3d3f9d496f46` | Parameter |
+| `dynamodb-controller` | `v1.14.2` | `2fcea71a4f8d6049c9e03d729561a26735245346` | Table |
 | `sfn-controller` | `v1.9.1` | `8de3cc822d99a9fd8682789a21dd65acb0ecc3de` | StateMachine |
 | `cloudwatchlogs-controller` | `v1.10.0` | `01e3ea012e97a2bb079e8cd4c9c5036bb33ef217` | LogGroup |
 
@@ -101,6 +104,8 @@ must carry.
 | `charts/azure/avm-res-network-publicipaddress` | Azure Verified Module `avm-res-network-publicipaddress` (v0.2.1) | the address, lock, role assignments, diagnostic settings | none |
 | `charts/azure/avm-res-network-privatednszone` | Azure Verified Module `avm-res-network-privatednszone` (v0.6.0) | the zone, A/AAAA/CNAME/MX/PTR/SRV/TXT records, virtual network links, lock, role assignments | `soa_record`, `retry`, `timeouts` |
 | `charts/azure/avm-res-managedidentity-userassignedidentity` | Azure Verified Module `avm-res-managedidentity-userassignedidentity` (v0.6.0) | the identity, federated identity credentials, outbound role assignments, lock | `isolation_scope` |
+| `charts/azure/avm-res-operationalinsights-workspace` | Azure Verified Module `avm-res-operationalinsights-workspace` (v0.5.1) | the workspace, lock, role assignments, diagnostic settings | see the chart's README |
+| `charts/azure/avm-res-containerregistry-registry` | Azure Verified Module `avm-res-containerregistry-registry` (v0.9.0) | the registry, geo-replications, cache rules, lock, role assignments, diagnostic settings | see the chart's README |
 
 ## Moving the pins
 

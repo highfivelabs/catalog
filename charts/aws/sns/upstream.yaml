@@ -1,0 +1,39 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/sns
+repo: https://github.com/terraform-aws-modules/terraform-aws-sns
+path: .
+version: v7.2.0
+commit: 4538b7e208f5bbd6c9972f427f85c9bd735aedad
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-sns/tree/v7.2.0
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/sns/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field), not-ported (ACK has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is not carried.
+refused:
+- variable: archive_policy
+  kind: gap
+  reason: "ACK's Topic (sns-controller v1.13.0) has no archive policy field (a FIFO topic's message archive)"
+- variable: subscriptions
+  kind: gap
+  reason: "accepted, except replay_policy (ACK's Subscription has no field for it) and confirmation_timeout_in_minutes and endpoint_auto_confirms (Terraform waits for an HTTP(S) endpoint to confirm; ACK does not wait)"
+  partial: true
+  fields:
+  - replay_policy
+  - confirmation_timeout_in_minutes
+  - endpoint_auto_confirms
+- variable: use_name_prefix
+  kind: gap
+  reason: "a topic name with Terraform's random suffix (name_prefix) would change between renders; set name (the namePrefix value keeps two Instances' topics apart)"

@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name is computed from inputs as the module
+# sets it (a registry name takes the namePrefix without its hyphens);
+# resource_id, login_server and data_endpoint_host_names are the
+# registry's, from ASO's status; the system-assigned identity's principal
+# and tenant IDs likewise (null without one); cache_rules is {<key>:
+# {name, resource_id}}, as the module builds it. Not outputs: the admin
+# user's name and password (secrets: ASO can write them to a Kubernetes
+# Secret, which is not an output), credential_sets and scope_maps
+# (refused), private_endpoints (refused).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-containerregistry-registry
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('registry' in inputs.names && inputs.names.registry != '' ? inputs.names.registry : inputs.namePrefix.replace('-', '') + inputs.name)
+    resource_id: resources.registry.status.id
+    login_server: resources.registry.status.loginServer
+    data_endpoint_host_names: >-
+      'dataEndpointHostNames' in resources.registry.status ? resources.registry.status.dataEndpointHostNames : []
+    system_assigned_mi_principal_id: >-
+      'identity' in resources.registry.status && 'principalId' in resources.registry.status.identity ? resources.registry.status.identity.principalId : null
+    system_assigned_mi_tenant_id: >-
+      'identity' in resources.registry.status && 'tenantId' in resources.registry.status.identity ? resources.registry.status.identity.tenantId : null
+    cache_rules: >-
+      resources.transformMapEntry(k, v, k.startsWith('cache_rule:'), {k.substring(11): {'name': v.spec.azureName, 'resource_id': v.status.id}})
