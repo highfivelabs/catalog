@@ -1,0 +1,107 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric
+modules/net-lb-proxy-int-cross-region/backend-service.tf (v60.0.0),
+Copyright 2026 Google LLC, Apache-2.0.
+
+google_compute_backend_service.default: a global ComputeBackendService
+(INTERNAL_MANAGED, TCP). A backend's group is the key of one of the
+chart's instance groups or network endpoint groups, or an existing
+group's ID or self link.
+*/ -}}
+{{- $v := .Values }}
+{{- $bs := $v.backend_service_config | default dict }}
+{{- with $bs.log_config }}
+{{- include "kcc.unsupported" (list $ "backend_service_config.log_config.optional_mode" .optional_mode "ComputeBackendService's logConfig has no optionalMode field") }}
+{{- include "kcc.unsupported" (list $ "backend_service_config.log_config.optional_fields" .optional_fields "ComputeBackendService's logConfig has no optionalFields field") }}
+{{- end }}
+{{- if and (kindIs "invalid" $v.health_check) (kindIs "invalid" $v.health_check_config) }}
+{{- fail "net-lb-proxy-int-cross-region: set health_check (an existing health check) or health_check_config (the auto-created one)" }}
+{{- end }}
+{{- $groups := $v.group_configs | default dict }}
+{{- $negs := $v.neg_configs | default dict }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "backend_service" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "backendService" "backend service" ($bs.name | default $v.name) 63 "letter") | quote }}
+  location: global
+  description: {{ ternary "Terraform managed." $bs.description (kindIs "invalid" $bs.description) | quote }}
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: TCP
+  healthChecks:
+    - healthCheckRef:
+        {{- if $v.health_check }}
+        external: {{ include "netlbpxr.link" $v.health_check | quote }}
+        {{- else }}
+        name: {{ include "kcc.name" (list $.Release.Name) }}
+        {{- end }}
+  {{- if not (kindIs "invalid" $bs.affinity_cookie_ttl_sec) }}
+  affinityCookieTtlSec: {{ $bs.affinity_cookie_ttl_sec }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $bs.connection_draining_timeout_sec) }}
+  connectionDrainingTimeoutSec: {{ $bs.connection_draining_timeout_sec }}
+  {{- end }}
+  {{- with $bs.port_name }}
+  portName: {{ . | quote }}
+  {{- end }}
+  sessionAffinity: {{ $bs.session_affinity | default "NONE" | quote }}
+  {{- if not (kindIs "invalid" $bs.timeout_sec) }}
+  timeoutSec: {{ $bs.timeout_sec }}
+  {{- end }}
+  {{- if $bs.backends }}
+  backend:
+    {{- $seen := dict }}
+    {{- range $b := $bs.backends }}
+    {{- if not (hasKey $seen $b.group) }}
+    {{- $_ := set $seen $b.group true }}
+    {{- $mc := $b.max_connections | default dict }}
+    - balancingMode: {{ $b.balancing_mode | default "CONNECTION" | quote }}
+      capacityScaler: {{ ternary 1 $b.capacity_scaler (kindIs "invalid" $b.capacity_scaler) }}
+      description: {{ ternary "Terraform managed." $b.description (kindIs "invalid" $b.description) | quote }}
+      group:
+        {{- if hasKey $groups $b.group }}
+        instanceGroupRef:
+          name: {{ include "kcc.name" (list $.Release.Name "group" $b.group) }}
+        {{- else if hasKey $negs $b.group }}
+        {{- $n := index $negs $b.group }}
+        networkEndpointGroupRef:
+          {{- if $n.psc }}
+          external: {{ printf "projects/%s/regions/%s/networkEndpointGroups/%s" (include "netlbpxr.project" (list $ $n)) $n.psc.region (include "netlbpxr.negName" (list $ $b.group)) | quote }}
+          {{- else }}
+          name: {{ include "kcc.name" (list $.Release.Name "neg" $b.group) }}
+          {{- end }}
+        {{- else if contains "/instanceGroups/" $b.group }}
+        instanceGroupRef:
+          external: {{ include "netlbpxr.link" $b.group | quote }}
+        {{- else }}
+        networkEndpointGroupRef:
+          external: {{ include "netlbpxr.link" $b.group | quote }}
+        {{- end }}
+      {{- if not (kindIs "invalid" $mc.per_group) }}
+      maxConnections: {{ $mc.per_group }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $mc.per_endpoint) }}
+      maxConnectionsPerEndpoint: {{ $mc.per_endpoint }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $mc.per_instance) }}
+      maxConnectionsPerInstance: {{ $mc.per_instance }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $b.max_utilization) }}
+      maxUtilization: {{ $b.max_utilization }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.log_config }}
+  logConfig:
+    {{- if not (kindIs "invalid" .enable) }}
+    enable: {{ .enable }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .sample_rate) }}
+    sampleRate: {{ .sample_rate }}
+    {{- end }}
+  {{- end }}
