@@ -24,12 +24,13 @@
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
 # artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int,
-# net-lb-ext and net-lb-proxy-int-cross-region. Each
+# net-lb-ext, net-lb-proxy-int-cross-region and
+# net-lb-app-int-cross-region. Each
 # needs the runner's roles on its resources: the pilot's are
 # catalog-live-tests', artifact-registry needs roles/artifactregistry.admin,
 # net-vpc-firewall roles/compute.securityAdmin (cce-live-tests has both),
-# net-lb-int, net-lb-ext and net-lb-proxy-int-cross-region
-# roles/compute.networkAdmin (both have it). A chart whose case
+# net-lb-int, net-lb-ext, net-lb-proxy-int-cross-region and
+# net-lb-app-int-cross-region roles/compute.networkAdmin (both have it). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -75,6 +76,7 @@ PEER_B="${RUN}-pb"
 ILB="${RUN}-ilb"
 NLB="${RUN}-nlb"
 XILB="${RUN}-xilb"
+XALB="${RUN}-xalb"
 REGION2=us-east1
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
@@ -130,10 +132,29 @@ sweep_run() {
   for n in "${r}-xilb-sn1:${REGION}" "${r}-xilb-pr1:${REGION}" "${r}-xilb-sn2:${REGION2}" "${r}-xilb-pr2:${REGION2}"; do
     "${G[@]}" compute networks subnets delete "${n%%:*}" --region "${n#*:}" >/dev/null 2>&1 && echo "swept subnet ${n%%:*}" || true
   done
+  # net-lb-app-int-cross-region: the global forwarding rules, the HTTP
+  # proxy, the URL map, the backend services, the health checks, the
+  # group and the NEG, then its subnets (the network goes below).
+  for g in "${REGION}" "${REGION2}"; do
+    "${G[@]}" compute forwarding-rules delete "${r}-xalb-${g}" --global >/dev/null 2>&1 && echo "swept forwarding rule ${r}-xalb-${g}" || true
+  done
+  "${G[@]}" compute target-http-proxies delete "${r}-xalb" --global >/dev/null 2>&1 && echo "swept target proxy ${r}-xalb" || true
+  "${G[@]}" compute url-maps delete "${r}-xalb" --global >/dev/null 2>&1 && echo "swept URL map ${r}-xalb" || true
+  for b in default groups; do
+    "${G[@]}" compute backend-services delete "${r}-xalb-${b}" --global >/dev/null 2>&1 && echo "swept backend service ${r}-xalb-${b}" || true
+  done
+  for h in default tcp; do
+    "${G[@]}" compute health-checks delete "${r}-xalb-${h}" --global >/dev/null 2>&1 && echo "swept health check ${r}-xalb-${h}" || true
+  done
+  "${G[@]}" compute instance-groups unmanaged delete "${r}-xalb-a" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept instance group ${r}-xalb-a" || true
+  "${G[@]}" compute network-endpoint-groups delete "${r}-xalb-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && echo "swept network endpoint group ${r}-xalb-neg" || true
+  for n in "${r}-xalb-sn1:${REGION}" "${r}-xalb-pr1:${REGION}" "${r}-xalb-sn2:${REGION2}" "${r}-xalb-pr2:${REGION2}"; do
+    "${G[@]}" compute networks subnets delete "${n%%:*}" --region "${n#*:}" >/dev/null 2>&1 && echo "swept subnet ${n%%:*}" || true
+  done
   for n in "${r}-ilb-psc" "${r}-ilb-sn"; do
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
-  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-xilb-net"; do
+  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-xilb-net" "${r}-xalb-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
 }
@@ -143,7 +164,7 @@ sweep_old() {
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|xilb-net\)$/\1/p'
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|xilb-net\|xalb-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
@@ -162,6 +183,8 @@ list_left() {
   "${G[@]}" compute health-checks list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute instance-groups list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute target-tcp-proxies list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute target-http-proxies list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute url-maps list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute network-endpoint-groups list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute service-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
 }
@@ -474,6 +497,57 @@ spec:
   networkRef: {name: live-xilb-net}
 NEEDS
 
+# The cross-region application load balancer: forwarding rules in two
+# regions, each beside a GLOBAL_MANAGED_PROXY subnet; an HTTP proxy (no
+# certificates); a URL map sending /groups to a backend service on an
+# instance group and the rest to one on a zonal NEG (the API refuses
+# groups and NEGs in one service); an HTTP and a TCP health check. No
+# endpoints, as for net-lb-proxy-int-cross-region.
+cat >"${OUT}/net-lb-app-int-cross-region.values.yaml" <<VALUES
+project_id: ${PROJECT}
+name: ${XALB}
+labels: {catalog-run: ${RUN}}
+vpc_config:
+  network: projects/${PROJECT}/global/networks/${XALB}-net
+  subnetworks:
+    ${REGION}: projects/${PROJECT}/regions/${REGION}/subnetworks/${XALB}-sn1
+    ${REGION2}: projects/${PROJECT}/regions/${REGION2}/subnetworks/${XALB}-sn2
+group_configs:
+  a: {zone: ${REGION}-a, named_ports: {http: 80}}
+neg_configs:
+  neg:
+    gce:
+      zone: ${REGION2}-b
+      subnetwork: projects/${PROJECT}/regions/${REGION2}/subnetworks/${XALB}-sn2
+health_check_configs:
+  default:
+    http: {port_specification: USE_SERVING_PORT, request_path: /healthz}
+  tcp:
+    tcp: {port: 80}
+backend_service_configs:
+  default:
+    backends:
+      - {group: neg, balancing_mode: RATE, max_rate: {per_endpoint: 100}}
+  groups:
+    port_name: http
+    health_checks: [tcp]
+    backends:
+      - {group: a}
+urlmap_config:
+  default_service: default
+  host_rules:
+    - hosts: ["*"]
+      path_matcher: main
+  path_matchers:
+    main:
+      default_service: default
+      path_rules:
+        - paths: [/groups, /groups/*]
+          service: groups
+VALUES
+sed -e 's/live-xilb-/live-xalb-/g' -e "s/${XILB}-/${XALB}-/g" -e 's#10\.252\.#10.253.#g' \
+  "${OUT}/net-lb-proxy-int-cross-region.needs.yaml" >"${OUT}/net-lb-app-int-cross-region.needs.yaml"
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -567,6 +641,22 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute instance-groups unmanaged describe "${XILB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute network-endpoint-groups describe "${XILB}-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks describe "${XILB}-net" >/dev/null 2>&1 && gone=no ;;
+    net-lb-app-int-cross-region)
+      gone=yes
+      for g in "${REGION}" "${REGION2}"; do
+        "${G[@]}" compute forwarding-rules describe "${XALB}-${g}" --global >/dev/null 2>&1 && gone=no
+      done
+      "${G[@]}" compute target-http-proxies describe "${XALB}" --global >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute url-maps describe "${XALB}" --global >/dev/null 2>&1 && gone=no
+      for b in default groups; do
+        "${G[@]}" compute backend-services describe "${XALB}-${b}" --global >/dev/null 2>&1 && gone=no
+      done
+      for h in default tcp; do
+        "${G[@]}" compute health-checks describe "${XALB}-${h}" --global >/dev/null 2>&1 && gone=no
+      done
+      "${G[@]}" compute instance-groups unmanaged describe "${XALB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute network-endpoint-groups describe "${XALB}-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${XALB}-net" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
