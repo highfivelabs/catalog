@@ -1,0 +1,106 @@
+---
+# Source: sns/templates/topic.yaml
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Subscription
+metadata:
+  name: full-subscription-email
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: sns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscriptions/email"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  topicRef:
+    from:
+      name: full-topic
+  protocol: "email"
+  endpoint: "ops@example.com"
+  deliveryPolicy: "{\"healthyRetryPolicy\":{\"numRetries\":5}}"
+---
+# Source: sns/templates/topic.yaml
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Subscription
+metadata:
+  name: full-subscription-firehose
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: sns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscriptions/firehose"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  topicRef:
+    from:
+      name: full-topic
+  protocol: "firehose"
+  endpoint: "arn:aws:firehose:us-east-1:111122223333:deliverystream/complete"
+  subscriptionRoleARN: "arn:aws:iam::111122223333:role/sns-firehose"
+---
+# Source: sns/templates/topic.yaml
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Subscription
+metadata:
+  name: full-subscription-sqs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: sns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscriptions/sqs"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  topicRef:
+    from:
+      name: full-topic
+  protocol: "sqs"
+  endpoint: "arn:aws:sqs:us-east-1:111122223333:complete"
+  filterPolicy: "{\"store\":[\"example_corp\"]}"
+  filterPolicyScope: "MessageBody"
+  redrivePolicy: "{\"deadLetterTargetArn\":\"arn:aws:sqs:us-east-1:111122223333:complete-dlq\"}"
+---
+# Source: sns/templates/topic.yaml
+apiVersion: sns.services.k8s.aws/v1alpha1
+kind: Topic
+metadata:
+  name: full-topic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: sns
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "topic"
+    services.k8s.aws/region: "us-east-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "complete"
+  applicationFailureFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  applicationSuccessFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  applicationSuccessFeedbackSampleRate: "100"
+  firehoseFailureFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  httpSuccessFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  httpSuccessFeedbackSampleRate: "50"
+  lambdaFailureFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  sqsFailureFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  sqsSuccessFeedbackRoleARN: "arn:aws:iam::111122223333:role/feedback"
+  sqsSuccessFeedbackSampleRate: "0"
+  dataProtectionPolicy: "{\"Name\":\"data_protection_policy\",\"Version\":\"2021-06-01\",\"Statement\":[{\"DataDirection\":\"Inbound\",\"Principal\":[\"*\"],\"DataIdentifier\":[\"arn:aws:dataprotection::aws:data-identifier/EmailAddress\"],\"Operation\":{\"Deny\":{}}}]}"
+  deliveryPolicy: "{\"http\":{\"defaultHealthyRetryPolicy\":{\"minDelayTarget\":20,\"maxDelayTarget\":20,\"numRetries\":3}}}"
+  displayName: "complete"
+  kmsMasterKeyID: "alias/sns"
+  maximumMessageSize: "2048"
+  policy: "{\"Statement\":[{\"Action\":\"sns:Publish\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::111122223333:root\"},\"Resource\":\"*\",\"Sid\":\"SourceA\"},{\"Action\":[\"sns:Subscribe\",\"sns:SetTopicAttributes\",\"sns:RemovePermission\",\"sns:Publish\",\"sns:ListSubscriptionsByTopic\",\"sns:GetTopicAttributes\",\"sns:DeleteTopic\",\"sns:AddPermission\"],\"Condition\":{\"StringEquals\":{\"AWS:SourceAccount\":[\"111122223333\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Resource\":[\"arn:aws:sns:us-east-1:111122223333:complete\"],\"Sid\":\"DefaultStatementID\"},{\"Action\":\"sns:Publish\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Resource\":\"*\",\"Sid\":\"pub\"},{\"Action\":[\"sns:Subscribe\",\"sns:Receive\"],\"Condition\":{\"StringLike\":{\"sns:Endpoint\":[\"arn:aws:sqs:us-east-1:111122223333:*\"]}},\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Resource\":[\"*\"],\"Sid\":\"sub\"}],\"Version\":\"2012-10-17\"}"
+  signatureVersion: "2"
+  tracingConfig: "Active"
+  tags:
+    - key: "Environment"
+      value: "dev"

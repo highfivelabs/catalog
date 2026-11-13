@@ -1,0 +1,110 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the queue (aws_sqs_queue.this, sqs/Queue). ACK's Queue carries the
+module's standalone policy resources inline: the queue policy
+(aws_sqs_queue_policy.this -> policy), the redrive policy
+(aws_sqs_queue_redrive_policy.this -> redrivePolicy) and the redrive allow
+policy (aws_sqs_queue_redrive_allow_policy.this -> redriveAllowPolicy).
+Every Queue attribute is a string. The dead-letter queue (create_dlq) is
+refused (refusals.yaml).
+*/ -}}
+{{- include "ack.names" (list $ (list "queue")) -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $n := include "sqs.names" $ | fromJson }}
+{{- if not $n.queue }}
+{{- fail "sqs: name is required: the queue's name (or names.queue); Terraform's generated name would change between renders" }}
+{{- end }}
+{{- $fifo := eq (toString $v.fifo_queue) "true" }}
+{{- range $k, $q := $n }}
+{{- if and $q $fifo (not (hasSuffix ".fifo" $q)) }}
+{{- fail (printf "sqs: names.%s %q must end in .fifo: a FIFO queue's name does (fifo_queue)" $k $q) }}
+{{- end }}
+{{- end }}
+{{- $region := $v.region | default "" }}
+{{- /* The queue's attributes, in the module's terms (main.tf's
+aws_sqs_queue.this). */}}
+{{- $queues := list }}
+{{- $redrive := "" }}
+{{- $allow := "" }}
+{{- if $v.redrive_policy }}
+{{- $redrive = $v.redrive_policy | toJson }}
+{{- end }}
+{{- if $v.redrive_allow_policy }}
+{{- $allow = $v.redrive_allow_policy | toJson }}
+{{- end }}
+{{- $policy := "" }}
+{{- if $v.create_queue_policy }}
+{{- $policy = include "sqs.policy" (list $ "queue" $n.queue $v.source_queue_policy_documents $v.queue_policy_statements $v.override_queue_policy_documents) }}
+{{- end }}
+{{- $queues = append $queues (dict "id" "queue" "name" $n.queue
+  "cbd" $v.content_based_deduplication "scope" $v.deduplication_scope "delay" $v.delay_seconds
+  "fifoLimit" $v.fifo_throughput_limit "reuse" $v.kms_data_key_reuse_period_seconds "kms" $v.kms_master_key_id
+  "retention" $v.message_retention_seconds "wait" $v.receive_wait_time_seconds
+  "sse" (ternary "" (toString $v.sqs_managed_sse_enabled) (not (kindIs "invalid" $v.kms_master_key_id)))
+  "visibility" $v.visibility_timeout_seconds
+  "policy" $policy "redrive" $redrive "allow" $allow
+  "tags" (include "ack.tags" (list $ $v.tags) | fromJson)) }}
+{{- range $q := $queues }}
+---
+apiVersion: sqs.services.k8s.aws/v1alpha1
+kind: Queue
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name $q.id)) "id" $q.id "region" $region) | nindent 2 }}
+spec:
+  queueName: {{ $q.name | quote }}
+{{- if not (kindIs "invalid" $q.cbd) }}
+  contentBasedDeduplication: {{ $q.cbd | toString | quote }}
+{{- end }}
+{{- with $q.scope }}
+  deduplicationScope: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $q.delay) }}
+  delaySeconds: {{ $q.delay | int64 | toString | quote }}
+{{- end }}
+{{- if $fifo }}
+  fifoQueue: "true"
+{{- end }}
+{{- with $q.fifoLimit }}
+  fifoThroughputLimit: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $q.reuse) }}
+  kmsDataKeyReusePeriodSeconds: {{ $q.reuse | int64 | toString | quote }}
+{{- end }}
+{{- with $q.kms }}
+  kmsMasterKeyID: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.max_message_size) }}
+  maximumMessageSize: {{ $v.max_message_size | int64 | toString | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $q.retention) }}
+  messageRetentionPeriod: {{ $q.retention | int64 | toString | quote }}
+{{- end }}
+{{- with $q.policy }}
+  policy: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $q.wait) }}
+  receiveMessageWaitTimeSeconds: {{ $q.wait | int64 | toString | quote }}
+{{- end }}
+{{- with $q.allow }}
+  redriveAllowPolicy: {{ . | quote }}
+{{- end }}
+{{- with $q.redrive }}
+  redrivePolicy: {{ . | quote }}
+{{- end }}
+{{- if and $q.sse (ne $q.sse "<nil>") }}
+  sqsManagedSSEEnabled: {{ $q.sse | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $q.visibility) }}
+  visibilityTimeout: {{ $q.visibility | int64 | toString | quote }}
+{{- end }}
+{{- with $q.tags }}
+  tags:
+{{- range $k := keys . | sortAlpha }}
+    {{ $k | quote }}: {{ get $q.tags $k | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

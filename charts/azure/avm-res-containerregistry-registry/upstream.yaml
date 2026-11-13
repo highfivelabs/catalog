@@ -1,0 +1,51 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-containerregistry-registry
+repo: https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry
+path: .
+version: v0.9.0
+commit: 7f2dc78bb5dbfc6e05809963410be844006f9490
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-containerregistry-registry/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the ARM type when a kind is missing), not-ported
+# (one exists, the chart does not map it yet) or by-design. partial: the
+# variable is accepted, the reason says what is refused.
+refused:
+  - variable: credential_sets
+    kind: gap
+    reason: "Microsoft.ContainerRegistry/registries/credentialSets has no ASO or aso-extensions kind"
+  - variable: scope_maps
+    kind: gap
+    reason: "Microsoft.ContainerRegistry/registries/scopeMaps and tokens (and a token's passwords, secrets returned once) have no ASO or aso-extensions kind"
+  - variable: cache_rules
+    kind: gap
+    reason: "accepted, but an entry's credential_set_key is refused: it names one of credential_sets, which have no ASO kind (credential_set_resource_id is carried)"
+    partial: true
+    fields: [credential_set_key]
+  - variable: customer_managed_key
+    kind: not-ported
+    reason: "ASO's Registry takes the key's URI and the identity's client ID (keyIdentifier, identity); the module looks both up from the vault and identity IDs, which a render cannot"
+  - variable: private_endpoints
+    kind: not-ported
+    reason: "ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's kinds fix the API versions (RegistryCacheRule 2025-11-01)"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

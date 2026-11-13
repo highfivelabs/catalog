@@ -1,0 +1,247 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-firewall-policy
+(hierarchical.tf, net-global.tf, net-regional.tf, factory.tf, tags.tf,
+main.tf; v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+One policy, by region (main.tf's use_hierarchical and use_regional):
+  - region null, hierarchical.tf: ComputeFirewallPolicy under the folder
+    or organization, a ComputeFirewallPolicyAssociation per attachment and
+    a ComputeFirewallPolicyRule per rule;
+  - region global, net-global.tf: ComputeNetworkFirewallPolicy, a
+    ComputeNetworkFirewallPolicyAssociation per attachment, a
+    ComputeNetworkFirewallPolicyRule of config-connector-extensions
+    (compute.gcp.hfl.dev/v1beta1; Config Connector's own is v1alpha1) per
+    rule, and a ComputeNetworkFirewallPolicyPacketMirroringRule
+    (config-connector-extensions, v1alpha1: allow_alpha) per mirroring
+    rule;
+  - any other region, net-regional.tf: config-connector-extensions'
+    ComputeRegionNetworkFirewallPolicy, its associations and rules (all
+    v1alpha1: allow_alpha).
+Rules are keyed and named as fabric keys them, "<direction>/<name>".
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "policy")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.unsupported" (list $ "tag_bindings" $v.tag_bindings "a network firewall policy's tag binding names the policy by its number, which the cloud assigns at creation, and TagsLocationTagBinding cannot reference a firewall policy object") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $hier := kindIs "invalid" $v.region }}
+{{- $regional := and (not $hier) (ne $v.region "global") }}
+{{- $policy := include "kcc.resourceName" (list $ "policy" "firewall policy" $v.name 63 "letter") }}
+{{- $policyObject := include "kcc.name" (list .Release.Name "policy") }}
+{{- $project := ternary "" $v.parent_id $hier }}
+{{- $rules := include "nfwp.rules" (list $ false) | fromJson }}
+{{- $mirroring := include "nfwp.rules" (list $ true) | fromJson }}
+{{- $sgs := $v.security_profile_group_ids | default dict }}
+{{- if $regional }}
+{{- include "kcc.alpha" (list $ "region" $v.region "ComputeRegionNetworkFirewallPolicy (config-connector-extensions)") }}
+{{- end }}
+{{- if not (or $hier $regional) }}
+{{- include "kcc.alpha" (list $ "ingress_mirroring_rules" $v.ingress_mirroring_rules "ComputeNetworkFirewallPolicyPacketMirroringRule (config-connector-extensions)") }}
+{{- include "kcc.alpha" (list $ "egress_mirroring_rules" $v.egress_mirroring_rules "ComputeNetworkFirewallPolicyPacketMirroringRule (config-connector-extensions)") }}
+{{- include "kcc.alpha" (list $ "ingress_mirroring_rules (factories_data)" ($v.factories_data | default dict).ingress_mirroring_rules "ComputeNetworkFirewallPolicyPacketMirroringRule (config-connector-extensions)") }}
+{{- include "kcc.alpha" (list $ "egress_mirroring_rules (factories_data)" ($v.factories_data | default dict).egress_mirroring_rules "ComputeNetworkFirewallPolicyPacketMirroringRule (config-connector-extensions)") }}
+{{- end }}
+{{- range $k, $r := $rules }}
+{{- include "kcc.unsupported" (list $ (printf "rule %s's tls_inspect" $k) $r.tls_inspect "the firewall policy rule kinds have no tlsInspect") }}
+{{- include "kcc.unsupported" (list $ (printf "rule %s's security_profile_group" $k) $r.security_profile_group "the firewall policy rule kinds have no securityProfileGroup, so action apply_security_profile_group cannot be carried") }}
+{{- if eq $r.action "apply_security_profile_group" }}
+{{- include "kcc.unsupported" (list $ (printf "rule %s's action apply_security_profile_group" $k) true "the firewall policy rule kinds have no securityProfileGroup") }}
+{{- end }}
+{{- if $hier }}
+{{- include "kcc.unsupported" (list $ (printf "rule %s's target_tags" $k) $r.target_tags "ComputeFirewallPolicyRule (a hierarchical policy's rule) has no targetSecureTags") }}
+{{- include "kcc.unsupported" (list $ (printf "rule %s's match.source_tags" $k) $r.match.source_tags "ComputeFirewallPolicyRule (a hierarchical policy's rule) has no srcSecureTags") }}
+{{- end }}
+{{- end }}
+{{- range $k, $r := $mirroring }}
+{{- if or (kindIs "invalid" $r.priority) (kindIs "invalid" $r.match) }}
+{{- fail (printf "net-firewall-policy: mirroring rule %s needs priority and match" $k) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "mirroring rule %s's tls_inspect" $k) $r.tls_inspect "ComputeNetworkFirewallPolicyPacketMirroringRule has no tlsInspect") }}
+{{- include "kcc.unsupported" (list $ (printf "mirroring rule %s's match.source_tags" $k) $r.match.source_tags "ComputeNetworkFirewallPolicyPacketMirroringRule's match has no srcSecureTags") }}
+{{- end }}
+{{- if $hier }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $policyObject "id" "policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  {{ ternary "organizationRef" "folderRef" (hasPrefix "organizations/" $v.parent_id) }}:
+    external: {{ $v.parent_id | quote }}
+  shortName: {{ $policy | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- else if $regional }}
+---
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRegionNetworkFirewallPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $policyObject "id" "policy" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $policy | quote }}
+  projectRef:
+    external: {{ $v.parent_id | quote }}
+  region: {{ $v.region | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- else }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $policyObject "id" "policy" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $policy | quote }}
+  projectRef:
+    external: {{ $v.parent_id | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $target := $v.attachments }}
+{{- $name := include "kcc.fit" (list $ "firewall policy association" (printf "%s-%s" $policy $key) 63) }}
+---
+{{- if $hier }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+{{- else if $regional }}
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRegionNetworkFirewallPolicyAssociation
+{{- else }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkFirewallPolicyAssociation
+{{- end }}
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "association" $key)) "id" (printf "association:%s" $key) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  firewallPolicyRef:
+    {{- if or $hier $regional }}
+    name: {{ $policyObject }}
+    {{- else }}
+    {{- /* the policy's name, as Terraform records firewall_policy (as network-firewall-policy's chart: an object reference resolves to the policy's number) */}}
+    external: {{ $policy | quote }}
+    {{- end }}
+  {{- if $regional }}
+  networkRef:
+    external: {{ trimPrefix "https://www.googleapis.com/compute/v1/" $target | quote }}
+  {{- else }}
+  {{- if not $hier }}
+  projectRef:
+    external: {{ $v.parent_id | quote }}
+  {{- end }}
+  attachmentTargetRef:
+    external: {{ ternary $target (ternary $target (printf "https://www.googleapis.com/compute/v1/%s" $target) (hasPrefix "https://" $target)) $hier | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key := (keys $rules | sortAlpha) }}
+{{- $r := index $rules $key }}
+{{- $m := $r.match }}
+{{- $in := eq $r.direction "INGRESS" }}
+---
+{{- if $hier }}
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyRule
+{{- else if $regional }}
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRegionNetworkFirewallPolicyRule
+{{- else }}
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkFirewallPolicyRule
+{{- end }}
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $key)) "id" (printf "rule:%s" $key) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  firewallPolicyRef:
+    name: {{ $policyObject }}
+  {{- if and (not $hier) (not $regional) }}
+  projectRef:
+    external: {{ $v.parent_id | quote }}
+  {{- end }}
+  priority: {{ int64 $r.priority }}
+  action: {{ $r.action | quote }}
+  direction: {{ $r.direction }}
+  {{- if not $hier }}
+  ruleName: {{ $r.name | quote }}
+  {{- end }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  disabled: {{ $r.disabled }}
+  {{- if not (kindIs "invalid" $r.enable_logging) }}
+  enableLogging: {{ $r.enable_logging }}
+  {{- end }}
+  {{- if and $hier $r.target_resources }}
+  targetResources:
+    {{- range $t := $r.target_resources }}
+    - external: {{ ternary $t (printf "https://www.googleapis.com/compute/v1/%s" $t) (hasPrefix "https://" $t) | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $r.target_service_accounts }}
+  targetServiceAccounts:
+    {{- range $sa := . }}
+    - external: {{ $sa | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if and (not $hier) $r.target_tags }}
+  targetSecureTags:
+    {{- range $t := (uniq $r.target_tags | sortAlpha) }}
+    - name: {{ $t | quote }}
+    {{- end }}
+  {{- end }}
+  match:
+    {{- include "nfwp.list" (list "srcIPRanges" $m.source_ranges 4) }}
+    {{- include "nfwp.list" (list "destIPRanges" $m.destination_ranges 4) }}
+    {{- include "nfwp.list" (list (ternary "srcAddressGroups" "destAddressGroups" $in) $m.address_groups 4) }}
+    {{- include "nfwp.list" (list (ternary "srcFqdns" "destFqdns" $in) $m.fqdns 4) }}
+    {{- include "nfwp.list" (list (ternary "srcRegionCodes" "destRegionCodes" $in) $m.region_codes 4) }}
+    {{- include "nfwp.list" (list (ternary "srcThreatIntelligences" "destThreatIntelligences" $in) $m.threat_intelligences 4) }}
+    {{- if and (not $hier) $m.source_tags }}
+    srcSecureTags:
+      {{- range $t := (uniq $m.source_tags | sortAlpha) }}
+      - name: {{ $t | quote }}
+      {{- end }}
+    {{- end }}
+{{ include "nfwp.l4" (list $m.layer4_configs 4) }}
+{{- end }}
+{{- if not (or $hier $regional) }}
+{{- range $key := (keys $mirroring | sortAlpha) }}
+{{- $r := index $mirroring $key }}
+{{- $m := $r.match }}
+---
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeNetworkFirewallPolicyPacketMirroringRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $key)) "id" (printf "rule:%s" $key) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  firewallPolicyRef:
+    name: {{ $policyObject }}
+  projectRef:
+    external: {{ $v.parent_id | quote }}
+  priority: {{ int64 $r.priority }}
+  action: {{ $r.action | quote }}
+  direction: {{ $r.direction }}
+  ruleName: {{ $r.name | quote }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  disabled: {{ $r.disabled }}
+  {{- with $r.security_profile_group }}
+  securityProfileGroup: {{ index $sgs . | default . | quote }}
+  {{- end }}
+  {{- with $r.target_tags }}
+  targetSecureTags:
+    {{- range $t := (uniq . | sortAlpha) }}
+    - name: {{ $t | quote }}
+    {{- end }}
+  {{- end }}
+  match:
+    {{- include "nfwp.list" (list "srcIPRanges" $m.source_ranges 4) }}
+    {{- include "nfwp.list" (list "destIPRanges" $m.destination_ranges 4) }}
+{{ include "nfwp.l4" (list $m.layer4_configs 4) }}
+{{- end }}
+{{- end }}

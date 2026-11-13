@@ -896,7 +896,8 @@ tasks (`task --list`).
    are not in the fake-cloud cases.
    The AWS charts have the same layer, `task test-mock-aws`
    (`hack/mock-apply-aws.sh`): ACK's pinned controllers and ack-extensions
-   on kind against moto (`docs/aws.md`, "Charts").
+   on kind against AWS Emulator, then moto for a chart that fails there
+   (`docs/aws.md`, "Charts").
 3. **Live**, `task test-live` (`hack/live-apply.sh`), pilot only, after the
    fake cloud passes: an offload VM acting as
    `$GCP_LIVE_SA` (no keys;

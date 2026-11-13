@@ -1,0 +1,60 @@
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: FirewallPoliciesRuleCollectionGroup
+metadata:
+  name: mock-rcg-core
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule_collection_group:core"
+spec:
+  azureName: "rcg-core"
+  owner:
+    name: mock-fwp
+  priority: 200
+  ruleCollections:
+    - firewallPolicyFilterRuleCollection:
+        ruleCollectionType: FirewallPolicyFilterRuleCollection
+        name: "dns"
+        priority: 400
+        action:
+          type: Allow
+        rules:
+          - networkRule:
+              ruleType: NetworkRule
+              name: "dns"
+              ipProtocols:
+                - UDP
+              destinationPorts:
+                - "53"
+              destinationAddresses:
+                - 168.63.129.16
+              sourceAddresses:
+                - 10.42.0.0/16
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: FirewallPolicy
+metadata:
+  name: mock-fwp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_policy"
+spec:
+  azureName: "catalog-fwp"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  sku:
+    tier: Standard
+  threatIntelMode: Alert
+  tags:
+    catalog: mock
