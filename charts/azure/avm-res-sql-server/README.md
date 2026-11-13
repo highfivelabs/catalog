@@ -47,6 +47,7 @@ to `resource.fully_qualified_domain_name` with an Entra token.
 | a database's `short_term_retention_policy` block | set | `ServersDatabasesBackupShortTermRetentionPolicy`, `database:<key>/short_term_retention_policy` |
 | a database's `threat_detection_policy` block | set | `ServersDatabasesSecurityAlertPolicy`, `database:<key>/threat_detection_policy` |
 | a database's `transparent_data_encryption_enabled` | `false` (Azure's default is on) | `ServersDatabasesTransparentDataEncryption` (`state: Disabled`), `database:<key>/transparent_data_encryption` |
+| a database's `geo_backup_enabled` | `false` on a DataWarehouse (`DW...`) SKU | `ServersDatabasesGeoBackupPolicy` (aso-extensions, `sql.azure.hfl.dev/v20250101`; `state: Disabled`, owned by the database), `database:<key>/geo_backup_policy` |
 | the server's `express_vulnerability_assessment_enabled` | `true` | `ServersSqlVulnerabilityAssessment` (aso-extensions, `sql.azure.hfl.dev/v20250101`; `state: Enabled`), `express_vulnerability_assessment` |
 | `azurerm_mssql_firewall_rule.this` | one per `firewall_rules` entry, named by its key | `ServersFirewallRule`, `firewall_rule:<key>` |
 | `azurerm_private_endpoint.this` / `this_unmanaged_dns_zone_groups` | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`, sub-resource `sqlServer`), `private_endpoint:<key>`; a `PrivateEndpointsPrivateDnsZoneGroup` (`private_endpoint:<key>/dns_zone_group`) when `private_endpoints_manage_dns_zone_group` and zones are given |
@@ -115,20 +116,21 @@ Not as in the module:
   with a storage key and an administrator password (secret values) and no
   ASO kind. **`threat_detection_policy.storage_account_access_key`** is
   refused (a secret value; ASO takes it only from a Kubernetes Secret).
-  **`geo_backup_enabled: false` on a DataWarehouse (`DW...`) SKU** is
-  refused (gap 19): aso-extensions' `ServersDatabasesGeoBackupPolicy` at
-  `3d9ba27` names its owner as `sql.azure.hfl.dev` `Servers_Database`
-  instead of ASO's `ServersDatabase`, so it never reconciles ("failed to
-  get owner", fake cloud run `off-catalog-1113155314-18721`); azurerm sets
-  the policy only for DW SKUs, so on any other SKU the value has no
-  effect, as in the module. A database's
+A database's
   `managed_identities.system_assigned` is accepted and ignored, as the
   module ignores it (Azure has no system identity on a database).
+- **A database's `geo_backup_enabled: false`** renders a
+  `ServersDatabasesGeoBackupPolicy` with `state: Disabled` only on a
+  DataWarehouse (`DW...`) SKU, as azurerm sets
+  `Microsoft.Sql/servers/databases/geoBackupPolicies` for DW SKUs only;
+  real Azure accepts the policy only on a DataWarehouse database, so on any
+  other SKU the value has no effect, as in the module. `true` (the default)
+  renders nothing: Azure's policy is on.
 - **A firewall rule's `timeouts`** are refused: ASO has no per-request
   timeouts; Bundt sets a component's time limit.
 - **Settings detached on delete.** The connection policy, a database's
   retention policies, its threat detection policy, its transparent data
-  encryption setting and the server's express
+  encryption setting, its geo-backup policy and the server's express
   vulnerability assessment are settings of their parent with no delete in Azure
   (blocks of the azurerm resource in the module), so their objects always
   carry `reconcile-policy: detach-on-delete`. Removing one from the values
@@ -184,7 +186,12 @@ vulnerability assessment (`ServersSqlVulnerabilityAssessment`) Ready and
 deleted, the outputs evaluated, `resource.fully_qualified_domain_name`
 (`catalog-sql.database.windows.net`) among them. A DataWarehouse
 database's geo-backup policy, tried in run `off-catalog-1113155314-18721`,
-never became Ready (the kind's owner is broken at `3d9ba27`, above).
+never became Ready (the kind's owner was broken at `3d9ba27`). 0.3.0
+against aso-extensions `f73f5ca` (run `off-catalog-1113185043-30939`):
+the same objects plus a DW100c database and its
+`ServersDatabasesGeoBackupPolicy` (`state: Disabled`), 9 objects Ready
+and deleted, the outputs evaluated. Live: pending (live pending AZURE env
+in catalog/.env).
 The first fake run (`off-catalog-1113075959-109`) had every object Ready
 and the outputs evaluated, but stopped at the delete: Kubernetes had
 already collected a firewall rule its server owned when `kubectl delete -f`
