@@ -1,0 +1,456 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-sql-server main.tf,
+main.database.tf, main.elasticpool.tf, main.firewall_rule.tf,
+main.privateendpoint.tf, modules/database/main.tf and
+modules/elasticpool/main.tf (v0.2.1), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_mssql_server.this: one ASO Server (sql.azure.com/v20250101),
+owned by the resource group resource_group_name names, its Entra
+administrator in its administrators; its connection_policy (a separate
+call in azurerm) a ServersConnectionPolicy. module.database
+(azurerm_mssql_database) as ServersDatabase, its long-term and short-term
+retention policies, threat detection policy and disabled transparent data
+encryption (blocks of the azurerm resource, separate calls in azurerm) as
+ServersDatabasesBackupLongTermRetentionPolicy,
+ServersDatabasesBackupShortTermRetentionPolicy,
+ServersDatabasesSecurityAlertPolicy and
+ServersDatabasesTransparentDataEncryption. module.elasticpool
+(azurerm_mssql_elasticpool) as ServersElasticPool.
+azurerm_mssql_firewall_rule as ServersFirewallRule. azurerm_private_endpoint
+(either of the module's two) as PrivateEndpoint (network.azure.com/v20250301),
+with a PrivateEndpointsPrivateDnsZoneGroup when it manages the zone group,
+and the application security group associations as the endpoint's
+applicationSecurityGroups. azurerm_management_lock: an aso-extensions
+ManagementLock (on the server, a database, a pool or an endpoint).
+azurerm_role_assignment: one ASO RoleAssignment each.
+azurerm_monitor_diagnostic_setting: one ASO DiagnosticSetting each. The
+random password, its Key Vault secret and the telemetry deployment are not
+ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $secret := "a password is a secret value, which does not belong in a component's inputs; use Entra-only authentication (azuread_administrator with azuread_authentication_only: true)" }}
+{{- $timeouts := "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" }}
+{{- include "aso.unsupported" (list $ "administrator_login_password" $v.administrator_login_password $secret) }}
+{{- include "aso.unsupported" (list $ "administrator_login_password_wo" $v.administrator_login_password_wo $secret) }}
+{{- include "aso.unsupported" (list $ "administrator_login_password_wo_version" $v.administrator_login_password_wo_version "it versions administrator_login_password_wo, which is refused") }}
+{{- include "aso.unsupported" (list $ "generate_administrator_login_password" $v.generate_administrator_login_password $secret) }}
+{{- include "aso.unsupported" (list $ "administrator_login_password_key_vault_configuration" $v.administrator_login_password_key_vault_configuration "it stores the administrator password, a secret value the chart does not take, in Key Vault") }}
+{{- include "aso.unsupported" (list $ "express_vulnerability_assessment_enabled" $v.express_vulnerability_assessment_enabled "Microsoft.Sql/servers/sqlVulnerabilityAssessments (the express vulnerability assessment) has no Azure Service Operator or aso-extensions kind") }}
+{{- range $k, $r := $v.firewall_rules }}
+{{- include "aso.unsupported" (list $ (printf "firewall_rules.%s.timeouts" $k) $r.timeouts $timeouts) }}
+{{- end }}
+{{- range $k, $d := $v.databases }}
+{{- include "aso.unsupported" (list $ (printf "databases.%s.import" $k) $d.import "a .bacpac import is an action with a storage key and an administrator password, secret values, and no Azure Service Operator kind") }}
+{{- include "aso.unsupported" (list $ (printf "databases.%s.threat_detection_policy.storage_account_access_key" $k) (($d.threat_detection_policy | default dict).storage_account_access_key) "a storage account key is a secret value, which does not belong in a component's inputs") }}
+{{- if and (eq $d.geo_backup_enabled false) (hasPrefix "DW" (toString ($d.sku_name | default ""))) }}
+{{- include "aso.unsupported" (list $ (printf "databases.%s.geo_backup_enabled" $k) "false" "Microsoft.Sql/servers/databases/geoBackupPolicies has no Azure Service Operator or aso-extensions kind") }}
+{{- end }}
+{{- end }}
+{{- include "aso.names" (list $ (list "server")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- if not $v.server_version }}{{ fail (printf "%s: server_version is required" $chart) }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail (printf "%s: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" $chart) }}
+{{- end }}
+{{- $sub := index (splitList "/" $parent) 2 }}
+{{- $admin := $v.azuread_administrator }}
+{{- if not (and $admin (eq $admin.azuread_authentication_only true)) }}
+{{- fail (printf "%s: a server without Entra-only authentication needs administrator_login_password, a secret value the chart does not take: set azuread_administrator with azuread_authentication_only: true (docs/azure.md, \"Charts\")" $chart) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "sql") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $serverName := include "aso.resourceName" (list $ "server" "SQL server" $v.name 63 "^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$") }}
+{{- $owner := dict "group" "sql.azure.com" "kind" "Server" "name" $obj }}
+{{- $maint := printf "/subscriptions/%s/providers/Microsoft.Maintenance/publicMaintenanceConfigurations/" $sub }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: Server
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "server" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $serverName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with $v.administrator_login }}
+  administratorLogin: {{ . | quote }}
+  {{- end }}
+  administrators:
+    administratorType: ActiveDirectory
+    azureADOnlyAuthentication: true
+    login: {{ $admin.login_username | quote }}
+    sid: {{ $admin.object_id | quote }}
+    {{- with $admin.tenant_id }}
+    tenantId: {{ . | quote }}
+    {{- end }}
+  {{- $mi := $v.managed_identities | default dict }}
+  {{- $uai := $mi.user_assigned_resource_ids | default list }}
+  {{- if or $mi.system_assigned $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned,UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" (eq $mi.system_assigned true) }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.transparent_data_encryption_key_vault_key_id }}
+  keyId: {{ . | quote }}
+  {{- end }}
+  minimalTlsVersion: "1.2"
+  {{- with $v.primary_user_assigned_identity_id }}
+  primaryUserAssignedIdentityReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  publicNetworkAccess: {{ ternary "Enabled" "Disabled" (eq $v.public_network_access_enabled true) }}
+  {{- if not (kindIs "invalid" $v.outbound_network_restriction_enabled) }}
+  restrictOutboundNetworkAccess: {{ ternary "Enabled" "Disabled" (eq $v.outbound_network_restriction_enabled true) }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  version: {{ $v.server_version | toString | quote }}
+{{- with $v.connection_policy }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersConnectionPolicy
+metadata:
+  {{- /* Always detached on delete: a server's connection policy has no
+  delete in Azure (it goes with the server), as azurerm leaves it. */}}
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "connection-policy")) "id" "connection_policy" "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  connectionType: {{ . }}
+{{- end }}
+{{- range $k, $p := $v.elastic_pools }}
+{{- $pool := include "aso.name" (list $obj "pool" $k) }}
+{{- if not $p.sku }}{{ fail (printf "%s: elastic_pools.%s needs a sku (the module's elasticpool submodule does)" $chart $k) }}{{ end }}
+{{- if not $p.per_database_settings }}{{ fail (printf "%s: elastic_pools.%s needs per_database_settings (the module's elasticpool submodule does)" $chart $k) }}{{ end }}
+{{- if and (not (kindIs "invalid" $p.max_size_gb)) (not (kindIs "invalid" $p.max_size_bytes)) }}
+{{- fail (printf "%s: elastic_pools.%s sets both max_size_gb and max_size_bytes; set one" $chart $k) }}
+{{- end }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersElasticPool
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pool "id" (printf "elastic_pool:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.name | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- with $p.license_type }}
+  licenseType: {{ . }}
+  {{- end }}
+  maintenanceConfigurationId: {{ printf "%s%s" $maint (kindIs "invalid" $p.maintenance_configuration_name | ternary "SQL_Default" (toString $p.maintenance_configuration_name)) | quote }}
+  {{- if not (kindIs "invalid" $p.max_size_gb) }}
+  maxSizeBytes: {{ mulf $p.max_size_gb 1073741824 | int64 }}
+  {{- else if not (kindIs "invalid" $p.max_size_bytes) }}
+  maxSizeBytes: {{ int64 $p.max_size_bytes }}
+  {{- end }}
+  perDatabaseSettings:
+    maxCapacity: {{ $p.per_database_settings.max_capacity }}
+    minCapacity: {{ $p.per_database_settings.min_capacity }}
+  sku:
+    capacity: {{ int $p.sku.capacity }}
+    {{- with $p.sku.family }}
+    family: {{ . | quote }}
+    {{- end }}
+    name: {{ $p.sku.name | quote }}
+    tier: {{ $p.sku.tier | quote }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  zoneRedundant: {{ ne (toString $p.zone_redundant) "false" }}
+{{- $poolOwner := dict "group" "sql.azure.com" "kind" "ServersElasticPool" "name" $pool }}
+{{- with $p.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $pool "idPrefix" (printf "elastic_pool:%s/" $k) "owner" $poolOwner "v" (dict "kind" .kind "name" .name) "defaultName" (printf "lock-%s" $p.name)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pool "idPrefix" (printf "elastic_pool:%s/" $k) "owner" $poolOwner "v" ($p.role_assignments | default dict)) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $pool "idPrefix" (printf "elastic_pool:%s/" $k) "owner" $poolOwner "v" ($p.diagnostic_settings | default dict) "defaultName" (printf "diag-%s" $p.name)) }}
+{{- end }}
+{{- range $k, $d := $v.databases }}
+{{- $db := include "aso.name" (list $obj "db" $k) }}
+{{- if and $d.elastic_pool_key $d.maintenance_configuration_name }}
+{{- fail (printf "%s: databases.%s: When creating a database resource with an elastic_pool_id, the maintenance_configuration_name is not supported at the database scope. Set this on the elastic pool instead." $chart $k) }}
+{{- end }}
+{{- if and $d.elastic_pool_key (not (hasKey ($v.elastic_pools | default dict) $d.elastic_pool_key)) }}
+{{- fail (printf "%s: databases.%s.elastic_pool_key %q is not a key of elastic_pools" $chart $k $d.elastic_pool_key) }}
+{{- end }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabase
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $db "id" (printf "database:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- if not (kindIs "invalid" $d.auto_pause_delay_in_minutes) }}
+  autoPauseDelay: {{ int $d.auto_pause_delay_in_minutes }}
+  {{- end }}
+  {{- with $d.collation }}
+  collation: {{ . | quote }}
+  {{- end }}
+  createMode: {{ $d.create_mode | default "Default" }}
+  {{- with $d.elastic_pool_key }}
+  elasticPoolReference:
+    group: sql.azure.com
+    kind: ServersElasticPool
+    name: {{ include "aso.name" (list $obj "pool" .) }}
+  {{- end }}
+  {{- with $d.transparent_data_encryption_key_vault_key_id }}
+  encryptionProtector: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.transparent_data_encryption_key_automatic_rotation_enabled) }}
+  encryptionProtectorAutoRotation: {{ eq $d.transparent_data_encryption_key_automatic_rotation_enabled true }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.read_replica_count) }}
+  highAvailabilityReplicaCount: {{ int $d.read_replica_count }}
+  {{- end }}
+  {{- $dmi := $d.managed_identities | default dict }}
+  {{- with $dmi.user_assigned_resource_ids }}
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+  {{- end }}
+  isLedgerOn: {{ eq $d.ledger_enabled true }}
+  {{- with $d.license_type }}
+  licenseType: {{ . }}
+  {{- end }}
+  {{- with $d.maintenance_configuration_name }}
+  maintenanceConfigurationId: {{ printf "%s%s" $maint . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.max_size_gb) }}
+  maxSizeBytes: {{ mulf $d.max_size_gb 1073741824 | int64 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.min_capacity) }}
+  minCapacity: {{ $d.min_capacity }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.read_scale) }}
+  readScale: {{ ternary "Enabled" "Disabled" (eq $d.read_scale true) }}
+  {{- end }}
+  {{- with $d.recover_database_id }}
+  recoverableDatabaseReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  requestedBackupStorageRedundancy: {{ $d.storage_account_type | default "Geo" }}
+  {{- with $d.restore_dropped_database_id }}
+  restorableDroppedDatabaseReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $d.restore_point_in_time }}
+  restorePointInTime: {{ . | quote }}
+  {{- end }}
+  {{- with $d.sample_name }}
+  sampleName: {{ . }}
+  {{- end }}
+  {{- with $d.sku_name }}
+  sku:
+    name: {{ . | quote }}
+  {{- end }}
+  {{- with $d.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.zone_redundant) }}
+  zoneRedundant: {{ eq $d.zone_redundant true }}
+  {{- end }}
+{{- $dbOwner := dict "name" $db }}
+{{- with $d.long_term_retention_policy }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabasesBackupLongTermRetentionPolicy
+metadata:
+  {{- /* The retention policies, the threat detection policy and
+  transparent data encryption are settings of the database (blocks of
+  azurerm_mssql_database), with no delete in Azure: always detached on
+  delete; they go with the database. */}}
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $db "ltr")) "id" (printf "database:%s/long_term_retention_policy" $k) "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $db }}
+  {{- with .monthly_retention }}
+  monthlyRetention: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .week_of_year) }}
+  weekOfYear: {{ int .week_of_year }}
+  {{- end }}
+  {{- with .weekly_retention }}
+  weeklyRetention: {{ . | quote }}
+  {{- end }}
+  {{- with .yearly_retention }}
+  yearlyRetention: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- with $d.short_term_retention_policy }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabasesBackupShortTermRetentionPolicy
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $db "str")) "id" (printf "database:%s/short_term_retention_policy" $k) "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $db }}
+  diffBackupIntervalInHours: {{ kindIs "invalid" .backup_interval_in_hours | ternary 12 .backup_interval_in_hours }}
+  retentionDays: {{ int .retention_days }}
+{{- end }}
+{{- with $d.threat_detection_policy }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabasesSecurityAlertPolicy
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $db "threat")) "id" (printf "database:%s/threat_detection_policy" $k) "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $db }}
+  {{- with .disabled_alerts }}
+  disabledAlerts:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  emailAccountAdmins: {{ eq (toString .email_account_admins) "Enabled" }}
+  {{- with .email_addresses }}
+  emailAddresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .retention_days) }}
+  retentionDays: {{ int .retention_days }}
+  {{- end }}
+  state: {{ .state | default "Disabled" }}
+  {{- with .storage_endpoint }}
+  storageEndpoint: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- if eq $d.transparent_data_encryption_enabled false }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabasesTransparentDataEncryption
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $db "tde")) "id" (printf "database:%s/transparent_data_encryption" $k) "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $db }}
+  state: Disabled
+{{- end }}
+{{- $dbRef := dict "group" "sql.azure.com" "kind" "ServersDatabase" "name" $db }}
+{{- with $d.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $db "idPrefix" (printf "database:%s/" $k) "owner" $dbRef "v" (dict "kind" .kind "name" .name) "defaultName" (printf "lock-%s" $d.name)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $db "idPrefix" (printf "database:%s/" $k) "owner" $dbRef "v" ($d.role_assignments | default dict)) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $db "idPrefix" (printf "database:%s/" $k) "owner" $dbRef "v" ($d.diagnostic_settings | default dict) "defaultName" (printf "diag-%s" $d.name)) }}
+{{- end }}
+{{- range $k, $r := $v.firewall_rules }}
+---
+apiVersion: sql.azure.com/v20250101
+kind: ServersFirewallRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "fw" $k)) "id" (printf "firewall_rule:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $k | quote }}
+  owner:
+    name: {{ $obj }}
+  startIpAddress: {{ $r.start_ip_address | quote }}
+  endIpAddress: {{ $r.end_ip_address | quote }}
+{{- end }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peRg := toString ($p.resource_group_name | default $rg) }}
+{{- $peParent := $parent }}
+{{- if hasPrefix "/" $peRg }}
+{{- $peParent = $peRg }}
+{{- else if $p.resource_group_name }}
+{{- if not $v.subscription_id }}{{ fail (printf "%s: private_endpoints.%s.resource_group_name is a name: set subscription_id too" $chart $k) }}{{ end }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $peRg }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pep-%s" $v.name)) 80 false) | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [sqlServer]
+      privateLinkServiceReference:
+        group: sql.azure.com
+        kind: Server
+        name: {{ $obj }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: sqlServer
+      memberName: sqlServer
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $id := (values . | uniq | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe }}
+{{- with $p.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (dict "kind" .kind "name" .name)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" ($p.role_assignments | default dict)) }}
+{{- end }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name) "defaultName" (printf "lock-%s" $v.name)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}

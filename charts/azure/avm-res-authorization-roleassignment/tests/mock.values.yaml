@@ -1,0 +1,33 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): the
+# Reader role by name on the fake cloud's resource group for a user by
+# object ID, a basic assignment of Contributor by ID there, and a directory
+# role assignment (Directory Readers) through the fake Microsoft Graph,
+# whose directory hack/azure-mock.sh gives this user.
+subscription_id: 00000000-0000-0000-0000-000000000000
+users_by_object_id:
+  mock-user: 0a0a0a0a-0000-4000-8000-000000000001
+role_definitions:
+  reader:
+    name: Reader
+entra_id_role_definitions:
+  directory-readers:
+    template_id: 88d8e3e3-8f55-4a1e-953a-9b9898b8876b
+role_assignments_for_resource_groups:
+  catalog-rg:
+    resource_group_name: catalog-rg
+    role_assignments:
+      read:
+        role_definition: reader
+        users: [mock-user]
+role_assignments_azure_resource_manager:
+  contributor:
+    role_definition_id: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c
+    principal_id: 0a0a0a0a-0000-4000-8000-000000000001
+    principal_type: User
+    scope: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+role_assignments_for_entra_id:
+  directory:
+    role_assignments:
+      readers:
+        role_definition: directory-readers
+        users: [mock-user]

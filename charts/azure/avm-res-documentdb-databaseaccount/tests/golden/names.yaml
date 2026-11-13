@@ -1,0 +1,162 @@
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  name: names-cosmos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "account"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "cosmos-shop-dev-eus2"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  backupPolicy:
+    continuous:
+      type: Continuous
+      continuousModeProperties:
+        tier: Continuous30Days
+  capacity:
+    totalThroughputLimit: -1
+  consistencyPolicy:
+    defaultConsistencyLevel: BoundedStaleness
+    maxIntervalInSeconds: 5
+    maxStalenessPrefix: 100
+  databaseAccountOfferType: Standard
+  defaultIdentity: FirstPartyIdentity
+  disableKeyBasedMetadataWriteAccess: true
+  disableLocalAuth: true
+  enableAnalyticalStorage: false
+  enableAutomaticFailover: true
+  enableBurstCapacity: false
+  enableFreeTier: false
+  enableMultipleWriteLocations: false
+  enablePartitionMerge: false
+  isVirtualNetworkFilterEnabled: false
+  kind: GlobalDocumentDB
+  locations:
+    - locationName: "eastus2"
+      failoverPriority: 0
+      isZoneRedundant: true
+  minimalTlsVersion: Tls12
+  networkAclBypass: None
+  publicNetworkAccess: Disabled
+  tags:
+    team: shop
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-cosmos-pe-pe-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "keep"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: names-cosmos-pe-pe
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-cosmos-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "keep"
+  owner:
+    group: documentdb.azure.com
+    kind: DatabaseAccount
+    name: names-cosmos
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: names-cosmos-pe-nolock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "private_endpoint:nolock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "pep-nolock"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  privateLinkServiceConnections:
+    - name: "pse-nolock"
+      groupIds: ["Sql"]
+      privateLinkServiceReference:
+        group: documentdb.azure.com
+        kind: DatabaseAccount
+        name: names-cosmos
+  tags:
+    team: shop
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: names-cosmos-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "pep-orders"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  privateLinkServiceConnections:
+    - name: "pse-pe"
+      groupIds: ["Sql"]
+      privateLinkServiceReference:
+        group: documentdb.azure.com
+        kind: DatabaseAccount
+        name: names-cosmos
+  tags:
+    team: shop

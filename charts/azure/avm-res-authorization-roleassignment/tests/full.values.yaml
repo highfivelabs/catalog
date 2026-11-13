@@ -1,0 +1,107 @@
+# Every accepted input: principals of every kind by object ID, role
+# definitions by ID and by name, each scope variable, the basic
+# assignments, and Entra directory role assignments.
+subscription_id: 00000000-0000-0000-0000-000000000000
+labels: {team: platform}
+deletion_policy: ABANDON
+enable_telemetry: false
+skip_service_principal_aad_check: true
+users_by_object_id:
+  user-1: 11111111-0000-0000-0000-000000000001
+groups_by_object_id:
+  group-1: 22222222-0000-0000-0000-000000000001
+app_registrations_by_principal_id:
+  app-1: 33333333-0000-0000-0000-000000000001
+system_assigned_managed_identities_by_principal_id:
+  vm-1: 44444444-0000-0000-0000-000000000001
+user_assigned_managed_identities_by_principal_id:
+  uami-1: 55555555-0000-0000-0000-000000000001
+role_definitions:
+  owner:
+    name: Owner
+  contributor:
+    id: b24988ac-6180-42a0-ab88-20f7382dd24c
+  reader-by-path:
+    id: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7
+entra_id_role_definitions:
+  directory-readers:
+    template_id: 88d8e3e3-8f55-4a1e-953a-9b9898b8876b
+role_assignments_for_resources:
+  storage:
+    resource_name: stexample
+    resource_group_name: rg-example
+    resource_type: Microsoft.Storage/storageAccounts
+    role_assignments:
+      contrib:
+        role_definition: contributor
+        app_registrations: [app-1]
+        skip_service_principal_aad_check: true
+role_assignments_for_resource_groups:
+  other-sub:
+    resource_group_name: rg-other
+    subscription_id: 99999999-0000-0000-0000-000000000000
+    role_assignments:
+      read:
+        role_definition: reader-by-path
+        system_assigned_managed_identities: [vm-1]
+role_assignments_for_subscriptions:
+  this:
+    role_assignments:
+      own:
+        role_definition: owner
+        groups: [group-1]
+        user_assigned_managed_identities: [uami-1]
+role_assignments_for_management_groups:
+  root:
+    management_group_id: mg-root
+    role_assignments:
+      read:
+        role_definition: reader-by-path
+        users: [user-1]
+role_assignments_for_scopes:
+  vnet:
+    scope: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet
+    role_assignments:
+      contrib:
+        role_definition: contributor
+        any_principals: [user-1, uami-1]
+  mg:
+    scope: /providers/Microsoft.Management/managementGroups/mg-apps
+    role_assignments:
+      own:
+        role_definition: owner
+        users: [user-1]
+role_assignments_azure_resource_manager:
+  by-id:
+    role_definition_id: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7
+    principal_id: 66666666-0000-0000-0000-000000000001
+    principal_type: ServicePrincipal
+    scope: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+    description: Reads the example group.
+  by-name:
+    role_definition_name: Storage Blob Data Reader
+    principal_id: 66666666-0000-0000-0000-000000000002
+    scope: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample
+    condition: "@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals 'logs'"
+    condition_version: "2.0"
+    delegated_managed_identity_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami
+    skip_service_principal_aad_check: true
+role_assignments_for_entra_id:
+  directory:
+    role_assignments:
+      readers:
+        role_definition: directory-readers
+        users: [user-1]
+        any_principals: [app-1]
+role_assignments_entra_id:
+  tenant:
+    principal_object_id: 11111111-0000-0000-0000-000000000001
+    role_id: f2ef992c-3afb-46b9-b7cf-a126ee74c451
+  unit:
+    principal_object_id: 22222222-0000-0000-0000-000000000001
+    role_id: fe930be7-5e62-47db-91af-98c3a49a38b1
+    directory_scope_id: /administrativeUnits/77777777-0000-0000-0000-000000000001
+  app:
+    principal_object_id: 33333333-0000-0000-0000-000000000001
+    role_id: 5d6b6bb7-de71-4623-b4af-96380a352509
+    app_scope_id: /88888888-0000-0000-0000-000000000001

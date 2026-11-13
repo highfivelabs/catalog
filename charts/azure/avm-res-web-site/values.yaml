@@ -1,0 +1,415 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-web-site (v0.24.1): same names, types and defaults, so a module
+# block's arguments become this file one to one. values.schema.json carries
+# the types and the module's validations. Refusals are listed in
+# upstream.yaml and the README.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-web-site
+# (variables.tf, v0.24.1), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The site's name in full, {site}. A name set here takes no prefix; one not
+# set is name, with the namePrefix in front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the site's name and
+# the certificates' (never one set under names). Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps the Azure resources when the
+# component is deleted (ASO's reconcile-policy detach-on-delete). PREVENT
+# is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# Should child resources inherit tags from the parent resource? Defaults to
+# `true`.
+all_child_resources_inherit_tags: true
+# A map of always-ready instances for Flex Consumption Function Apps. -
+# `name`: The trigger type or function name. Valid values: `http`, `blob`,
+# `durable`, `function:<target-function-app-name>`. - `instance_count`: The
+# number of always-ready instances. Defaults to `0`.
+always_ready: {}
+# Object that sets the active slot for the App Service.
+# Refused when set: a slot swap is an action no ASO or aso-extensions kind
+# performs.
+app_service_active_slot: null
+# A map of key-value pairs for App Settings and custom values to assign to
+# the App Service. These are set via the `Microsoft.Web/sites/config` (name:
+# `appsettings`) sub-resource.
+app_settings: {}
+# The Application Insights connection string. Provide this from an
+# externally managed Application Insights resource.
+# Refused when set: a secret value (the module marks it sensitive), the
+# builder's decision.
+application_insights_connection_string: null
+# The Application Insights instrumentation key. Provide this from an
+# externally managed Application Insights resource.
+# Refused when set: a secret value (the module marks it sensitive), the
+# builder's decision.
+application_insights_key: null
+# A map of authentication settings to assign to the App Service.
+# Refused when set: sites/config authsettings has no ASO or aso-extensions
+# kind.
+auth_settings: null
+# Authentication settings V2 configuration for the App Service. Mirrors the
+# API structure.
+# Refused when set: sites/config authsettingsV2 has no ASO or aso-extensions
+# kind.
+auth_settings_v2: null
+# (Optional) The scope of the auto-generated domain name label. Possible
+# values are `NoReuse`, `ResourceGroupReuse`, `SubscriptionReuse`, and
+# `TenantReuse`.
+auto_generated_domain_name_label_scope: null
+# A map of backup settings for the App Service.
+# Refused when set: sites/config backup has no ASO or aso-extensions kind.
+backup: {}
+# Should builtin logging be enabled for the Function App? Defaults to
+# `true`.
+builtin_logging_enabled: true
+# The version of the extension bundle to use. Defaults to `[1.*, 2.0.0)`.
+# (Logic App)
+# Refused at any other value: only a Logic App reads it, and kind logicapp
+# is refused.
+bundle_version: '[1.*, 2.0.0)'
+# A map of `Microsoft.Web/certificates` resources to create on the App
+# Service plan. Each entry materialises a certificate that can be referenced
+# from a `custom_domains` entry (on the main site or any slot) via
+# `certificate_key`, removing the need for callers to invoke the
+# `certificate` submodule directly.
+# From Key Vault only: pfx_blob and password (secret values) are refused.
+certificates: {}
+# Should client affinity be enabled for the App Service? Defaults to
+# `false`.
+client_affinity_enabled: false
+# (Optional) Should client affinity partitioning (CHIPS cookie partitioning)
+# be enabled? When enabled, the affinity cookie uses the CHIPS partitioned
+# attribute.
+client_affinity_partitioning_enabled: null
+# (Optional) Should client affinity proxy be enabled? When enabled, the
+# `X-Forwarded-Host` header overrides the host value used for affinity
+# cookie routing.
+client_affinity_proxy_enabled: null
+# Should client certificate be enabled for the App Service? Defaults to
+# `false`.
+client_certificate_enabled: false
+# The client certificate exclusion paths for the App Service.
+client_certificate_exclusion_paths: null
+# The client certificate mode for the App Service. Possible values are
+# `Required`, `Optional`, and `OptionalInteractiveUser`. Defaults to
+# `Required`.
+client_certificate_mode: Required
+# A map of connection strings to assign to the App Service. An empty map
+# still updates the connection strings endpoint when
+# `manage_connection_strings` is `true`. - `name` - (Optional) The name of
+# the connection string. - `type` - (Optional) The type of the connection
+# string. - `value` - (Optional) The value of the connection string.
+# Refused when set: a connection string's value is a secret, the builder's
+# decision.
+connection_strings: {}
+# (Optional) The size of the function container in MB. Only applicable to
+# Function Apps under a Consumption plan.
+container_size: null
+# Should content share be force disabled for the Function App? Defaults to
+# `false`. Ignored when `function_app_uses_fc1` is `true`: Flex Consumption
+# apps have no content share, and `WEBSITE_CONTENTSHARE` is deprecated
+# there.
+content_share_force_disabled: false
+# A map of custom domains to bind to the main App Service site.
+# certificate_key is refused (the thumbprint is Azure's, read after the
+# certificate is made): set thumbprint.
+custom_domains: {}
+# (Optional) The amount of memory in gigabyte-seconds that your application
+# is allowed to consume per day. Setting this value only affects Function
+# Apps under the consumption plan. Defaults to `0`.
+daily_memory_time_quota: 0
+# (Optional) Dapr configuration for the App Service. Only applicable to apps
+# hosted in Azure Container Apps environments.
+dapr_config: null
+# (Optional) Should the App Service Plan be deleted when this app is deleted
+# and it was the last app on that plan? Defaults to `true`, which matches
+# the Azure REST API default.
+# false is refused: ASO sends no deleteEmptyServerFarm on delete (Azure's
+# default, true, applies).
+delete_empty_service_plan: true
+# A map of deployment slots to create for the App Service.
+# Each slot must set ftp_publish_basic_authentication_enabled and
+# webdeploy_publish_basic_authentication_enabled to true; its
+# connection_strings, storage_shares_to_mount, private_endpoints,
+# zip_deploy_file, site_config.application_insights_* and
+# custom_domains.*.certificate_key are refused.
+deployment_slots: {}
+# Whether to inherit the lock from the parent resource for the deployment
+# slots. Defaults to `true`.
+deployment_slots_inherit_lock: true
+# A map of diagnostic settings to create on the App Service Environment
+# (ASE). The map key is deliberately arbitrary to avoid issues where map
+# keys maybe unknown at plan time.
+diagnostic_settings: {}
+# (Optional) DNS configuration for the App Service.
+# The module's body reads attributes this type does not have; the chart
+# sends these fields to ASO's same-named ones.
+dns_configuration: null
+# This variable controls whether or not telemetry is enabled for the module.
+# For more information see <https://aka.ms/avm/telemetryinfo>. If it is set
+# to false, then no telemetry will be collected.
+# Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# Is the App Service enabled? Defaults to `true`.
+enabled: true
+# (Optional) Should end-to-end encryption be enabled between the App Service
+# front ends and the workers?
+end_to_end_encryption_enabled: null
+# The Runtime of the Flex Consumption Function App. Possible values are
+# `node`, `dotnet-isolated`, `powershell`, `python`, `java`. Required when
+# `function_app_uses_fc1` is `true`, otherwise ignored.
+fc1_runtime_name: null
+# The Runtime version of the Flex Consumption Function App. Required when
+# `function_app_uses_fc1` is `true`, otherwise ignored.
+fc1_runtime_version: null
+# Should basic authentication be enabled for FTP publish? Defaults to
+# `false`.
+# Must be true: false (the module's default) writes a
+# basicPublishingCredentialsPolicies object, which has no ASO or aso-
+# extensions kind, so the chart refuses it.
+ftp_publish_basic_authentication_enabled: false
+# Should this Function App run on a Flex Consumption Plan? Defaults to
+# `false`.
+function_app_uses_fc1: false
+# The version of the Azure Functions runtime to use, set through the
+# `FUNCTIONS_EXTENSION_VERSION` app setting. Defaults to `~4`.
+functions_extension_version: ~4
+# (Optional) Should the public hostnames of the app be disabled? When
+# `true`, the app is only accessible via the API management process.
+host_names_disabled: null
+# (Optional) The resource ID of the App Service Environment to host this App
+# Service in.
+hosting_environment_id: null
+# Should the App Service only be accessible over HTTPS? Defaults to `true`.
+https_only: true
+# (Optional) Should the App Service run in Hyper-V isolation?
+hyper_v: null
+# Body-relative paths whose changes are ignored, keyed by AzAPI resource
+# type for resources this module declares, and by submodule name for
+# resources its submodules declare. Paths use dot notation, and a change
+# takes effect only after an apply. Configuration at an ignored path is not
+# sent to Azure until the path is removed.
+# Refused when any list is set: ASO owns every field it is given.
+ignore_body_changes: {}
+# The amount of memory to allocate for Flex Consumption instances. Defaults
+# to `2048`.
+instance_memory_in_mb: 2048
+# (Optional) Specifies the IP mode of the app. Possible values are `IPv4`,
+# `IPv4AndIPv6`, and `IPv6`.
+ip_mode: null
+# The identity to use for Key Vault references.
+key_vault_reference_identity: null
+# The type of App Service to deploy. This maps to the ARM API `kind`
+# property. Possible values are `functionapp`, `webapp` and `logicapp`.
+# Defaults to `webapp`.
+# logicapp is refused: the module writes the storage account key into an app
+# setting.
+kind: webapp
+# Azure region where the resource should be deployed.
+location: ''
+# The lock level to apply.
+lock: null
+# The Node.js version that the Logic App runtime uses on Windows, set
+# through the `WEBSITE_NODE_DEFAULT_VERSION` app setting. Defaults to `~22`.
+# Use a tilde so that Azure selects the latest available minor version
+# within that major version.
+# Refused at any other value: only a Logic App reads it, and kind logicapp
+# is refused.
+logic_app_node_version: ~22
+# The runtime version for the Logic App. Defaults to `~4`.
+# Refused at any other value: only a Logic App reads it, and kind logicapp
+# is refused.
+logic_app_runtime_version: ~4
+# A map of logs configuration for the App Service.
+# Refused when set: sites/config logs has no ASO or aso-extensions kind.
+logs: {}
+# Whether to manage the site's connection strings. Defaults to `true`,
+# including when `connection_strings` is empty. Set to `false` to leave
+# connection strings unmanaged and skip the config endpoint. Switching from
+# `true` to `false` removes the update resource from Terraform state without
+# deleting connection strings in Azure.
+# Accepted; the chart sends no connection strings (connection_strings is
+# refused).
+manage_connection_strings: true
+# (Optional) The Azure Resource Manager ID of the Azure Container Apps
+# managed environment to host this App Service in.
+managed_environment_id: null
+# Managed identities to be created for the resource.
+managed_identities: {}
+# The number of workers this function app can scale out to.
+maximum_instance_count: null
+# The name which should be used for the App Service.
+name: ''
+# The operating system type. `Linux` sets `reserved = true` on the ARM
+# resource. Defaults to `Linux`.
+os_type: Linux
+# The resource ID of the Resource Group where the App Service will be
+# deployed.
+parent_id: ''
+# A map of private endpoints to create on this resource. The map key is
+# deliberately arbitrary to avoid issues where map keys maybe unknown at
+# plan time.
+private_endpoints: {}
+# Should the private endpoints inherit the lock from the parent resource?
+# Defaults to `true`.
+# As in the module, read for a slot's private endpoints only (refused); the
+# site's endpoints take only their own lock.
+private_endpoints_inherit_lock: true
+# Whether to manage private DNS zone groups with this module. If set to
+# false, you must manage private DNS zone groups externally. Defaults to
+# `true`.
+private_endpoints_manage_dns_zone_group: true
+# Should the App Service be accessible from the public network? Defaults to
+# `false`.
+public_network_access_enabled: false
+# (Optional) The site redundancy mode. Possible values are `ActiveActive`,
+# `Failover`, `GeoRedundant`, `Manual`, and `None`.
+redundancy_mode: null
+# (Optional) Function app resource requirements for Container App
+# environment hosted apps.
+resource_config: null
+# AzAPI resource types and API versions, keyed by resource type for
+# resources this module declares, and by submodule name for resources its
+# submodules declare. Each submodule owns the API-version defaults for its
+# own resources, so nested fields have no defaults here.
+# Refused when set: the API versions are the kinds' (ASO Site 2025-05-01;
+# aso-extensions SitesSlot, SitesHostNameBinding, Certificate 2026-07-15).
+resource_types: {}
+# Retry configuration for the AzAPI resources declared by this module and
+# its submodules. Defaults to retrying the conflict Azure returns while
+# another operation on the site is in progress.
+# Refused when set: ASO retries itself.
+retry: {}
+# A map of role assignments to create on this resource. The map key is
+# deliberately arbitrary to avoid issues where map keys maybe unknown at
+# plan time.
+role_assignments: {}
+# Should basic authentication be enabled for SCM publish? Defaults to
+# `true`.
+# false is refused: it writes a basicPublishingCredentialsPolicies object,
+# which has no ASO or aso-extensions kind.
+scm_publish_basic_authentication_enabled: true
+# (Optional) Should the SCM site also be stopped when the app is stopped?
+# Defaults to `false`.
+scm_site_also_stopped: null
+# The resource ID of the App Service Plan to deploy the App Service in.
+service_plan_resource_id: ''
+# An object that configures the App Service's site configuration. These map
+# to the ARM API `siteConfig` properties.
+# application_insights_connection_string and application_insights_key are
+# refused (secret values).
+site_config: {}
+# A map of sensitive app settings to apply to the deployment slot(s). The
+# key MUST be the same key as the slot key.
+# Refused when set: secret values (the module marks them sensitive), the
+# builder's decision.
+slot_sensitive_app_settings: {}
+# A map of sensitive values (Storage Access Key) for the Storage Account SMB
+# file shares to mount to the deployment slots. The key is the supplied
+# input to `var.deployment_slots.<slot_key>.storage_shares_to_mount`. The
+# value is the secret value (storage access key).
+# Refused when set: secret values (the module marks them sensitive), the
+# builder's decision.
+slots_storage_shares_to_mount_sensitive_values: {}
+# (Optional) Should SSH be enabled for the App Service?
+ssh_enabled: null
+# A map of sticky settings to assign to the App Service.
+# Refused when set: sites/config slotConfigNames has no ASO or aso-
+# extensions kind.
+sticky_settings: {}
+# The access key of the Storage Account for the Function App. Required when
+# `kind` is `logicapp`.
+# Refused when set: a secret value (the module marks it sensitive), the
+# builder's decision.
+storage_account_access_key: null
+# The name of the Storage Account for the Function App. Required when `kind`
+# is `logicapp`, and when `storage_uses_managed_identity` is `true`.
+storage_account_name: null
+# (Optional) Should a storage account be required for the Function App? When
+# set, the storage account must be specified in the app settings.
+storage_account_required: null
+# The name of the storage account file share (Logic App).
+# Refused when set: only a Logic App reads it, and kind logicapp is refused.
+storage_account_share_name: null
+# The authentication type Flex Consumption uses to read the deployment
+# package from its blob container. Possible values are
+# `StorageAccountConnectionString`, `SystemAssignedIdentity`, and
+# `UserAssignedIdentity`. Required when `function_app_uses_fc1` is `true`,
+# otherwise ignored.
+storage_authentication_type: null
+# The backend storage container endpoint for Flex Consumption Function Apps.
+# Required when `function_app_uses_fc1` is `true`, otherwise ignored.
+storage_container_endpoint: null
+# The storage container type used by Flex Consumption Function Apps. The
+# only supported value today is `blobContainer`, which is the default.
+# Ignored unless `function_app_uses_fc1` is `true`.
+storage_container_type: blobContainer
+# A map of Storage Account file shares to mount to the App Service.
+# Refused when set: each mount needs the storage account's access key, a
+# secret value.
+storage_shares_to_mount: {}
+# (Optional) The client ID of the User Assigned Managed Identity the
+# Functions host authenticates as when reaching the default storage account.
+# Sets the `AzureWebJobsStorage__clientId` app setting.
+storage_user_assigned_identity_client_id: null
+# The ID of the User Assigned Managed Identity for storage. Required when
+# `function_app_uses_fc1` is `true` and `storage_authentication_type` is
+# `UserAssignedIdentity`.
+storage_user_assigned_identity_id: null
+# Should the Function App's `AzureWebJobsStorage` app setting use a Managed
+# Identity instead of a connection string? Defaults to `false`.
+storage_uses_managed_identity: false
+# The map of tags to be applied to the resource.
+tags: null
+# - `create` - (Defaults to 30 minutes) Used when creating the App Service.
+# - `delete` - (Defaults to 30 minutes) Used when deleting the App Service.
+# - `read` - (Defaults to 5 minutes) Used when retrieving the App Service. -
+# `update` - (Defaults to 30 minutes) Used when updating the App Service.
+# Refused when set: ASO has none; Bundt sets a component's time limit.
+timeouts: null
+# Should the extension bundle be used? (Logic App) Defaults to `true`.
+# Refused when false: only a Logic App reads it, and kind logicapp is
+# refused.
+use_extension_bundle: true
+# Should backup and restore operations over the linked virtual network be
+# enabled? Defaults to `false`.
+virtual_network_backup_restore_enabled: false
+# The ID of the subnet to deploy the App Service in for regional VNet
+# integration.
+virtual_network_subnet_id: null
+# Should application traffic be routed over virtual network? Maps to
+# `outboundVnetRouting.applicationTraffic`. Defaults to `false`.
+vnet_application_traffic_enabled: false
+# Should the traffic for the content share be routed over virtual network?
+# Defaults to `false`.
+vnet_content_share_enabled: false
+# Should the traffic for image pull be routed over virtual network? Defaults
+# to `false`.
+vnet_image_pull_enabled: false
+# Should all outbound traffic be routed over virtual network? Maps to
+# `outboundVnetRouting.allTraffic`. Defaults to `false`.
+vnet_route_all_traffic: false
+# (Optional) The workload profile name for apps hosted in a Container Apps
+# environment.
+workload_profile_name: null
+# The path to the zip file to deploy to the App Service.
+# Refused when set: a zip deploy uploads application code, which a Package
+# does not carry.
+zip_deploy_file: null
+# The duration to wait after applying app settings and connection strings
+# before triggering zip deploy. This allows the SCM site to pick up settings
+# like `SCM_DO_BUILD_DURING_DEPLOYMENT` before the deploy starts.
+# Accepted; nothing waits (the module's time_sleep before a zip deploy,
+# which is refused).
+zip_deploy_wait_duration: 60s

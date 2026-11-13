@@ -1,0 +1,162 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-documentdb-databaseaccount
+main.gremlin.tf, local.gremlin.tf and variables.gremlin.tf (v0.12.0),
+Copyright (c) Microsoft Corporation, MIT.
+
+ASO has no Gremlin kinds; aso-extensions has them
+(documentdb.azure.hfl.dev/v20240815, the API version of ASO's SQL and
+MongoDB kinds). azurerm_cosmosdb_gremlin_database:
+DatabaseAccountsGremlinDatabase, owned by the account.
+azurerm_cosmosdb_gremlin_graph: DatabaseAccountsGremlinDatabasesGraph,
+owned by its database, its index policy as the module builds it (the
+"/\"_etag\"/?" path always excluded).
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "cosmos") }}
+{{- $dbNames := list }}
+{{- range $dk, $db := ($v.gremlin_databases | default dict) }}
+{{- if has $db.name $dbNames }}{{ fail (printf "%s: The 'name' in the gremlin database value must be unique." $chart) }}{{ end }}
+{{- $dbNames = append $dbNames $db.name }}
+{{- $dbAuto := ($db.autoscale_settings | default dict).max_throughput }}
+{{- if and $dbAuto (not (kindIs "invalid" $db.throughput)) }}
+{{- fail (printf "%s: The 'throughput' and 'autoscale_settings.max_throughput' cannot be specified at the same time at database level." $chart) }}
+{{- end }}
+{{- $dbObj := include "aso.name" (list $obj "gremlindb" $dk) }}
+---
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabase
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $dbObj "id" (printf "gremlin_database:%s" $dk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $db.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- if or $dbAuto (not (kindIs "invalid" $db.throughput)) }}
+  options:
+    {{- if $dbAuto }}
+    autoscaleSettings:
+      maxThroughput: {{ int $dbAuto }}
+    {{- else }}
+    throughput: {{ int $db.throughput }}
+    {{- end }}
+  {{- end }}
+  resource:
+    id: {{ $db.name | quote }}
+{{- $gNames := list }}
+{{- range $gk, $g := ($db.graphs | default dict) }}
+{{- if has $g.name $gNames }}{{ fail (printf "%s: Graph names must be unique within each database." $chart) }}{{ end }}
+{{- $gNames = append $gNames $g.name }}
+{{- $gAuto := ($g.autoscale_settings | default dict).max_throughput }}
+{{- if and $gAuto (not (kindIs "invalid" $g.throughput)) }}
+{{- fail (printf "%s: The 'throughput' and 'autoscale_settings.max_throughput' cannot be specified at the same time at graph level." $chart) }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $g.default_ttl)) (eq (int64 $g.default_ttl) 0) }}
+{{- fail (printf "%s: The 'default_ttl' must be either -1 (never expire) or a positive number if specified." $chart) }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $g.analytical_storage_ttl)) (eq (int64 $g.analytical_storage_ttl) 0) }}
+{{- fail (printf "%s: The 'analytical_storage_ttl' must be either -1 (never expire) or between 1 and 2147483647 (excluding 0) if specified." $chart) }}
+{{- end }}
+{{- with $g.conflict_resolution_policy }}
+{{- if and (eq .mode "LastWriterWins") (not .conflict_resolution_path) }}
+{{- fail (printf "%s: When 'conflict_resolution_policy.mode' is 'LastWriterWins', 'conflict_resolution_path' is required." $chart) }}
+{{- end }}
+{{- if and (eq .mode "Custom") (not .conflict_resolution_procedure) }}
+{{- fail (printf "%s: When 'conflict_resolution_policy.mode' is 'Custom', 'conflict_resolution_procedure' is required." $chart) }}
+{{- end }}
+{{- end }}
+{{- with $g.index_policy }}
+{{- if and (has .indexing_mode (list "consistent" "lazy")) (or (kindIs "invalid" .included_paths) (kindIs "invalid" .excluded_paths)) }}
+{{- fail (printf "%s: When 'indexing_mode' is 'consistent' or 'lazy', both 'included_paths' and 'excluded_paths' are required." $chart) }}
+{{- end }}
+{{- if and (or (not (kindIs "invalid" .included_paths)) (not (kindIs "invalid" .excluded_paths))) (not (or (has "/" (.included_paths | default list)) (has "/" (.excluded_paths | default list)))) }}
+{{- fail (printf "%s: When 'index_policy' is specified, the root path '/' must be included in either 'included_paths' or 'excluded_paths'." $chart) }}
+{{- end }}
+{{- end }}
+---
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "graph" $dk $gk)) "id" (printf "gremlin_graph:%s/%s" $dk $gk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $g.name | quote }}
+  owner:
+    name: {{ $dbObj }}
+  {{- if or $gAuto (not (kindIs "invalid" $g.throughput)) }}
+  options:
+    {{- if $gAuto }}
+    autoscaleSettings:
+      maxThroughput: {{ int $gAuto }}
+    {{- else }}
+    throughput: {{ int $g.throughput }}
+    {{- end }}
+  {{- end }}
+  resource:
+    id: {{ $g.name | quote }}
+    {{- if not (kindIs "invalid" $g.analytical_storage_ttl) }}
+    analyticalStorageTtl: {{ int64 $g.analytical_storage_ttl }}
+    {{- end }}
+    {{- with $g.conflict_resolution_policy }}
+    conflictResolutionPolicy:
+      mode: {{ .mode }}
+      {{- with .conflict_resolution_path }}
+      conflictResolutionPath: {{ . | quote }}
+      {{- end }}
+      {{- with .conflict_resolution_procedure }}
+      conflictResolutionProcedure: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $g.default_ttl) }}
+    defaultTtl: {{ int64 $g.default_ttl }}
+    {{- end }}
+    {{- with $g.index_policy }}
+    indexingPolicy:
+      automatic: {{ ne .automatic false }}
+      {{- with .composite_index }}
+      compositeIndexes:
+        {{- range $ci := . }}
+        -
+          {{- range $ci.index }}
+          - path: {{ .path | quote }}
+            order: {{ lower .order }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      excludedPaths:
+        {{- range (append (.excluded_paths | default list) "/\"_etag\"/?" | uniq) }}
+        - path: {{ . | quote }}
+        {{- end }}
+      {{- with .included_paths }}
+      includedPaths:
+        {{- range . }}
+        - path: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      indexingMode: {{ lower .indexing_mode }}
+      {{- with .spatial_index }}
+      spatialIndexes:
+        {{- range . }}
+        - path: {{ .path | quote }}
+          types: [Point, LineString, Polygon, MultiPolygon]
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    partitionKey:
+      kind: Hash
+      paths: [{{ $g.partition_key_path | quote }}]
+      {{- if not (kindIs "invalid" $g.partition_key_version) }}
+      version: {{ int $g.partition_key_version }}
+      {{- end }}
+    {{- with $g.unique_key }}
+    uniqueKeyPolicy:
+      uniqueKeys:
+        - paths:
+            {{- range .paths }}
+            - {{ . | quote }}
+            {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

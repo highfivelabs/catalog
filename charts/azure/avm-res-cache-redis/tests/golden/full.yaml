@@ -1,0 +1,382 @@
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-redis-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-redis-full"
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: full-redis
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-redis-diag-st
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-st"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: full-redis
+  logs:
+    - category: "ConnectedClientList"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.Storage/storageAccounts/stlogs"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-redis-pe-a-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-redis-pe-a
+  level: CanNotDelete
+  notes: "keep the endpoint"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-redis-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: full-redis
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-redis-pe-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a"
+spec:
+  azureName: "pe-redis-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-cache"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe"
+  customNetworkInterfaceName: "nic-pe-redis"
+  privateLinkServiceConnections:
+    - name: "psc-redis"
+      groupIds: ["redisCache"]
+      privateLinkServiceReference:
+        group: cache.azure.com
+        kind: Redis
+        name: full-redis
+  ipConfigurations:
+    - name: "ipc1"
+      groupId: "redisCache"
+      memberName: "redisCache"
+      privateIPAddress: "10.0.2.10"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app"
+  tags:
+    tier: data
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-redis-pe-a-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-redis-pe-a
+  privateDnsZoneConfigs:
+    - name: "privatelink.redis.cache.windows.net"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.redis.cache.windows.net"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: Redis
+metadata:
+  name: full-redis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache"
+spec:
+  azureName: "redis-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-cache"
+  sku:
+    name: Premium
+    family: P
+    capacity: 1
+  disableAccessKeyAuthentication: true
+  enableNonSslPort: false
+  identity:
+    type: "SystemAssigned, UserAssigned"
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-id/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-redis"
+  minimumTlsVersion: "1.2"
+  publicNetworkAccess: Disabled
+  redisConfiguration:
+    aad-enabled: "true"
+    aof-backup-enabled: "false"
+    authnotrequired: "false"
+    maxfragmentationmemory-reserved: "50"
+    maxmemory-delta: "50"
+    maxmemory-policy: "volatile-lru"
+    maxmemory-reserved: "50"
+    notify-keyspace-events: "KEA"
+    preferred-data-persistence-auth-method: "ManagedIdentity"
+    rdb-backup-enabled: "false"
+    rdb-backup-frequency: "60"
+    rdb-backup-max-snapshot-count: "1"
+    storage-subscription-id: "00000000-0000-0000-0000-000000000000"
+  redisVersion: "6"
+  replicasPerMaster: 1
+  replicasPerPrimary: 1
+  shardCount: 2
+  staticIP: "10.0.1.10"
+  subnetReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/redis"
+  tags:
+    scenario: full
+  tenantSettings:
+    team: data
+  zones:
+    - "1"
+    - "2"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisAccessPolicy
+metadata:
+  name: full-redis-policy-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_policy:reader"
+spec:
+  azureName: "catalog reader"
+  owner:
+    name: full-redis
+  permissions: "+@read +@connection +cluster|info"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisAccessPolicyAssignment
+metadata:
+  name: full-redis-assign-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "access_policy_assignment:app"
+spec:
+  azureName: "app-reader"
+  owner:
+    name: full-redis
+  accessPolicyName: "catalog reader"
+  objectId: "22222222-3333-4444-5555-666666666666"
+  objectIdAlias: "app-sp"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisFirewallRule
+metadata:
+  name: full-redis-fw-office
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_rule:office"
+spec:
+  azureName: "office"
+  owner:
+    name: full-redis
+  startIP: "203.0.113.1"
+  endIP: "203.0.113.5"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisLinkedServer
+metadata:
+  name: full-redis-link-dr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "linked_redis_cache:dr"
+spec:
+  azureName: "redis-full-dr"
+  owner:
+    name: full-redis
+  linkedRedisCacheLocation: "centralus"
+  linkedRedisCacheReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dr/providers/Microsoft.Cache/redis/redis-full-dr"
+  serverRole: Secondary
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: RedisPatchSchedule
+metadata:
+  name: full-redis-patch
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "patch_schedule"
+spec:
+  owner:
+    name: full-redis
+  scheduleEntries:
+    - dayOfWeek: Friday
+      maintenanceWindow: "PT5H"
+      startHourUtc: 23
+    - dayOfWeek: Saturday
+      maintenanceWindow: "PT5H"
+      startHourUtc: 0
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-redis-pe-a-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:a/role-assignment-reader"
+spec:
+  azureName: "44444444-5555-6666-7777-888888888888"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-redis-pe-a
+  principalId: "33333333-4444-5555-6666-777777777777"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+  description: "endpoint reader"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-redis-role-byid
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-byid"
+spec:
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: full-redis
+  principalId: "33333333-4444-5555-6666-777777777777"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/e0f68234-74aa-48ed-b826-c38b57376e17"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-redis-role-contrib
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-contrib"
+spec:
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: full-redis
+  principalId: "33333333-4444-5555-6666-777777777777"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Redis Cache Contributor"

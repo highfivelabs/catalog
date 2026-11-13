@@ -1,0 +1,74 @@
+# Every variable the chart maps: a Premium cluster in a subnet with a
+# static address, Entra authentication with access keys off, user and
+# system identities, persistence settings (no connection strings: refused),
+# a patch schedule, access policies and an assignment, firewall rules, a
+# linked secondary, a private endpoint with IP configurations, application
+# security groups, a lock and a role assignment, and the cache's lock, role
+# assignments and diagnostic settings.
+name: redis-full
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-cache
+sku_name: Premium
+capacity: 1
+access_keys_authentication_enabled: false
+enable_non_ssl_port: false
+minimum_tls_version: "1.2"
+public_network_access_enabled: false
+redis_version: 6
+replicas_per_master: 1
+replicas_per_primary: 1
+shard_count: 2
+subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/redis
+private_static_ip_address: 10.0.1.10
+tenant_settings: {team: data}
+zones: ["1", "2"]
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-id/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-redis]
+redis_configuration:
+  aof_backup_enabled: false
+  enable_authentication: true
+  active_directory_authentication_enabled: true
+  maxmemory_reserved: 50
+  maxmemory_delta: 50
+  maxfragmentationmemory_reserved: 50
+  maxmemory_policy: volatile-lru
+  data_persistence_authentication_method: ManagedIdentity
+  rdb_backup_enabled: false
+  rdb_backup_frequency: 60
+  rdb_backup_max_snapshot_count: 1
+  storage_account_subscription_resource_id: 00000000-0000-0000-0000-000000000000
+  notify_keyspace_events: KEA
+patch_schedule:
+  - {day_of_week: Friday, maintenance_window: PT5H, start_hour_utc: 23}
+  - {}
+cache_access_policies:
+  reader: {name: catalog reader, permissions: "+@read +@connection +cluster|info"}
+cache_access_policy_assignments:
+  app: {name: app-reader, access_policy_name: catalog reader, object_id: 22222222-3333-4444-5555-666666666666, object_id_alias: app-sp}
+cache_firewall_rules:
+  office: {name: office, start_ip: 203.0.113.1, end_ip: 203.0.113.5}
+linked_redis_caches:
+  dr: {linked_redis_cache_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dr/providers/Microsoft.Cache/redis/redis-full-dr, linked_redis_cache_location: centralus, server_role: Secondary}
+private_endpoints:
+  a:
+    name: pe-redis-full
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    private_service_connection_name: psc-redis
+    network_interface_name: nic-pe-redis
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.redis.cache.windows.net]
+    application_security_group_associations: {app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app}
+    ip_configurations:
+      one: {name: ipc1, private_ip_address: 10.0.2.10, member_name: redisCache}
+    tags: {tier: data}
+    lock: {kind: CanNotDelete, notes: keep the endpoint}
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 33333333-4444-5555-6666-777777777777, name: 44444444-5555-6666-7777-888888888888, description: endpoint reader}
+lock: {kind: CanNotDelete}
+role_assignments:
+  contrib: {role_definition_id_or_name: Redis Cache Contributor, principal_id: 33333333-4444-5555-6666-777777777777, principal_type: ServicePrincipal}
+  byid: {role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/e0f68234-74aa-48ed-b826-c38b57376e17, principal_id: 33333333-4444-5555-6666-777777777777}
+diagnostic_settings:
+  law: {workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law, log_analytics_destination_type: AzureDiagnostics}
+  st: {name: to-storage, log_groups: [], log_categories: [ConnectedClientList], storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.Storage/storageAccounts/stlogs}
+tags: {scenario: full}

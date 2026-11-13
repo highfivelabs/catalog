@@ -20,19 +20,31 @@
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
 # avm-res-network-azurefirewall,
+# avm-res-documentdb-databaseaccount,
+# avm-res-web-site,
+# avm-res-sql-server,
+# avm-ptn-alz-management,
+# avm-res-app-managedenvironment,
+# avm-res-cache-redis,
+# avm-ptn-alz-management,
+# avm-res-app-managedenvironment,
+# avm-res-sql-server,
+# avm-ptn-network-private-link-private-dns-zones,
 # avm-res-network-dnsresolver,
 # avm-res-app-containerapp)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw dnspr ca)
-# applies only those; the default is all but cog, vm and asp (asp: the
-# sandbox has no App Service quota, docs/azure.md). A case may first apply
-# what it needs: another chart (PRE, the networks of the cases that name
-# one) or ASO objects of no chart (CASE-pre.objects.yaml: the firewall's
-# network, subnets and public IPs; the container app's environment),
-# deleted after the case's own
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos redis pldns dnspr ca alz cae sql web)
+# applies only those; the default is all but cog, vm, asp, web, redis and
+# cosmos (asp and web: the sandbox has no App Service quota; cog, redis and
+# cosmos: their providers are not registered, docs/azure.md). A case may first apply what
+# it needs: another chart (PRE: the networks of the cases that name one, the
+# web app's App Service plan) or ASO
+# objects of no chart (CASE-pre.objects.yaml: the firewall's network,
+# subnets and public IPs; the container app's environment), deleted after
+# the case's own
 # objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -82,7 +94,13 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw dnspr ca}"
+# cosmos is not in the default for the same reason: Microsoft.DocumentDB is
+# not registered (run cat11130805699c, 2026-11-13: ASO's register call got
+# 403 AuthorizationFailed for Microsoft.DocumentDB/register/action).
+# redis is not in the default for the same reason: Microsoft.Cache is not
+# registered (run cat11130800eaa5, 2026-11-13: 403 AuthorizationFailed on
+# Microsoft.Cache/register/action).
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw cae pldns dnspr ca alz sql}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -131,17 +149,31 @@ api() { curl -sS -H "Authorization: Bearer $(arm_token)" "$@"; }
 run_resources() {
   api "${ARM}${RG}/resources?api-version=2021-04-01" | jq -r --args '.value[] | select(.name as $n | $ARGS.positional | any(. as $p | $n | startswith($p))) | "\(.id) \(.type)"' "$@"
 }
-sweep() { # sweep PREFIX: delete what this run left in the group
+# sweep_tagged RUN: delete what carries catalog-run=RUN in the group, the
+# deepest types first (a private DNS zone's links before the zone): a
+# Private Link zone is named for its service, not the run.
+sweep_tagged() {
   local id type ns rtype v
-  run_resources "$1" | while read -r id type; do
+  api "${ARM}${RG}/resources?api-version=2021-04-01&%24filter=tagName%20eq%20'catalog-run'%20and%20tagValue%20eq%20'$1'" \
+    | jq -r '.value | sort_by(-(.type | split("/") | length))[] | "\(.id) \(.type)"' | while read -r id type; do
     ns="${type%%/*}" rtype="${type#*/}"
     v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
       | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
     echo "   sweep: delete ${type} ${id##*/}: $(api -o /dev/null -w '%{http_code}' -X DELETE "${ARM}${id}?api-version=${v}")"
   done
 }
+sweep() { # sweep PREFIX: delete what this run left in the group
+  local id type ns rtype v
+  run_resources "$1" | while read -r id type; do
+    ns="${type%%/*}" rtype="${type#*/}"
+    v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
+      | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | (map(select(test("preview")|not)) + .) | .[0] // empty')"
+    echo "   sweep: delete ${type} ${id##*/}: $(api -o /dev/null -w '%{http_code}' -X DELETE "${ARM}${id}?api-version=${v}")"
+  done
+}
 cleanup() {
   kill "${refresher}" 2>/dev/null || true
+  sweep_tagged "${RUN}" || true
   sweep "${RUN}" || true
   kind delete cluster --name "${CLUSTER}" >/dev/null 2>&1 || true
   rm -rf "${WORK}"
@@ -176,7 +208,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*;app.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*;documentdb.azure.com/*;cache.azure.com/*;app.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -206,8 +238,15 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     accounts.cognitiveservices.azure.com \
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
+    serverfarms.web.azure.com sites.web.azure.com \
+    azurefirewalls.network.azure.com \
     serverfarms.web.azure.com \
     azurefirewalls.network.azure.com \
+    databaseaccounts.documentdb.azure.com sqldatabases.documentdb.azure.com sqldatabasecontainers.documentdb.azure.com \
+    managedenvironments.app.azure.com \
+    servers.sql.azure.com serversdatabases.sql.azure.com serversfirewallrules.sql.azure.com \
+    redis.cache.azure.com redisfirewallrules.cache.azure.com \
+    datacollectionrules.insights.azure.com \
     dnsresolvers.network.azure.com dnsresolversinboundendpoints.network.azure.com dnsresolversoutboundendpoints.network.azure.com \
     dnsforwardingrulesets.network.azure.com dnsforwardingrulesetsforwardingrules.network.azure.com \
     dnsforwardingrulesetsvirtualnetworklinks.network.azure.com \
@@ -628,6 +667,177 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
+# A serverless SQL API account (billed per request and per GB stored, no
+# provisioned throughput: nothing while idle) in one region, not zone
+# redundant, with the free 7-day continuous backup, Entra only and no
+# public network access (the defaults), one database and one container.
+# An account takes about ten minutes to create and as long to delete
+# (CASE_TIMEOUT). AZURE_LIVE_COSMOS_LOCATION overrides the region.
+cat >"${WORK}/cosmos.yaml" <<EOF
+name: ${RUN}-cosmos
+location: ${AZURE_LIVE_COSMOS_LOCATION:-${LOCATION}}
+resource_group_name: ${RG}
+capabilities: [{name: EnableServerless}]
+geo_locations: [{location: ${AZURE_LIVE_COSMOS_LOCATION:-${LOCATION}}, failover_priority: 0, zone_redundant: false}]
+backup: {type: Continuous, tier: Continuous7Days}
+tags: {catalog-run: ${RUN}}
+sql_databases:
+  app:
+    name: app
+    containers:
+      items: {name: items, partition_key_paths: [/tenant], default_ttl: 86400}
+EOF
+# A Linux Python web app with a system-assigned identity and an app
+# setting, on a B1 plan (about 0.02 USD an hour) the case makes first with
+# the serverfarm chart (PRE). Not in the default cases: the sandbox
+# subscription's App Service quota is 0 (B1 and F1 alike), so Azure refuses
+# the plan (docs/azure.md, "8. Charts").
+cat >"${WORK}/web-pre.yaml" <<EOF
+name: ${RUN}-web-asp
+location: ${LOCATION}
+parent_id: ${RG}
+os_type: Linux
+sku_name: B1
+worker_count: 1
+zone_balancing_enabled: false
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/web.yaml" <<EOF
+name: ${RUN}-app
+location: ${LOCATION}
+parent_id: ${RG}
+service_plan_resource_id: ${RG}/providers/Microsoft.Web/serverfarms/${RUN}-web-asp
+ftp_publish_basic_authentication_enabled: true
+public_network_access_enabled: true
+managed_identities: {system_assigned: true}
+app_settings: {CATALOG_RUN: ${RUN}}
+site_config:
+  always_on: false
+  application_stack:
+    python: {python_version: "3.12"}
+tags: {catalog-run: ${RUN}}
+EOF
+# A Consumption-only Container Apps environment (no network, no logs
+# destination, not zone redundant: Azure needs an infrastructure subnet for
+# that) with one Dapr component that names no secret (a blob state store by
+# account and container name; Azure does not reach the account until an app
+# loads the component). The sandbox subscription may hold one environment
+# per region, and the container app case (ca) makes one in the run's
+# LOCATION, so this case makes its own in AZURE_LIVE_CAE_LOCATION
+# (centralus by default). An environment takes several minutes to create
+# and to delete (CASE_TIMEOUT).
+CAE_LOCATION="${AZURE_LIVE_CAE_LOCATION:-centralus}"
+cat >"${WORK}/cae.yaml" <<EOF
+name: ${RUN}-cae
+location: ${CAE_LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+zone_redundant: false
+tags: {catalog-run: ${RUN}}
+dapr_components:
+  state:
+    name: statestore
+    component_type: state.azure.blobstorage
+    dapr_components_version: v1
+    metadata:
+      - {name: accountName, value: ${RUN}}
+      - {name: containerName, value: state}
+    scopes: [none]
+EOF
+# The smallest Azure SQL server: Entra-only authentication (the chart takes
+# no password), the live identity itself as its Entra administrator (a
+# login on this server, not an Azure role assignment; its object ID is the
+# oid of the identity's own token, as the psql case's), one Basic database
+# (5 DTUs, about 0.007 USD an hour) with locally redundant backups, and a
+# firewall rule for one documentation address (TEST-NET-3).
+# The region is AZURE_LIVE_SQL_LOCATION, else centralus: eastus2 refuses
+# Azure SQL servers for the sandbox subscription ("Provisioning is
+# restricted in this region", 2026-11-13; the chart's README).
+cat >"${WORK}/sql.yaml" <<EOF
+name: ${RUN}-sql
+location: ${AZURE_LIVE_SQL_LOCATION:-centralus}
+resource_group_name: ${RG}
+server_version: "12.0"
+public_network_access_enabled: true
+azuread_administrator: {azuread_authentication_only: true, login_username: aso-extensions-live-tests, object_id: ${SP_OID}, tenant_id: ${AZURE_TENANT_ID}}
+tags: {catalog-run: ${RUN}}
+databases:
+  app: {name: app, sku_name: Basic, storage_account_type: Local, tags: {catalog-run: ${RUN}}}
+firewall_rules:
+  doc: {start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.10}
+EOF
+# The cheapest Azure Cache for Redis: Basic C0 (about 0.02 USD an hour),
+# zoneless (a Basic cache takes no zones), TLS 1.2 only, with one firewall
+# rule for one documentation address (TEST-NET-3). No access key leaves
+# Azure: the chart exports none. Creating and deleting a cache takes many
+# minutes (CASE_TIMEOUT). Not in the default cases until Microsoft.Cache is
+# registered in the sandbox subscription. Private endpoints and linked
+# servers (Premium) are not applied.
+cat >"${WORK}/redis.yaml" <<EOF
+name: ${RUN}-redis
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+sku_name: Basic
+capacity: 0
+zones: []
+tags: {catalog-run: ${RUN}}
+cache_firewall_rules:
+  doc: {name: docnet, start_ip: 203.0.113.10, end_ip: 203.0.113.10}
+EOF
+# The landing zone's management resources in the sandbox group (the
+# identity cannot make a resource group, so resource_group_creation_enabled
+# is false): a workspace at the smallest retention PerGB2018 takes (30
+# days), a Basic Automation account linked to it (free at this use), the
+# VM insights data collection rule (the other two off) and the AMA
+# identity. No solutions: the sandbox subscription has not registered
+# Microsoft.OperationsManagement, and registering a provider is a
+# subscription-scope action the identity may not take (run
+# cat111308090228, 2026-11-13: 403 AuthorizationFailed on
+# Microsoft.OperationsManagement/register/action). Not Sentinel
+# onboarding: it turns a paid SIEM on for the workspace.
+cat >"${WORK}/alz.yaml" <<EOF
+automation_account_name: ${RUN}-aa
+location: ${LOCATION}
+resource_group_name: ${RG}
+resource_group_creation_enabled: false
+log_analytics_workspace_name: ${RUN}-law
+log_analytics_workspace_retention_in_days: 30
+linked_automation_account_creation_enabled: true
+tags: {catalog-run: ${RUN}}
+log_analytics_solution_plans: []
+data_collection_rules:
+  change_tracking: {name: ${RUN}-dcr-ct, enabled: false}
+  vm_insights: {name: ${RUN}-dcr-vmi}
+  defender_sql: {name: ${RUN}-dcr-sql, enabled: false}
+user_assigned_managed_identities:
+  ama: {name: ${RUN}-ama}
+EOF
+# The Private Link zones pattern, narrowed with the module's own variable
+# to three zones of its list: one with the region's name put in, one with
+# its code, one global. Each is linked to a network of the run that the
+# case applies with it (CASE.network.yaml). The zones' names are Azure's,
+# not the run's (one of a name per group), so none is one another case
+# uses (pe's is privatelink.blob.core.windows.net) and the case stops if
+# the group has one already (below).
+cat >"${WORK}/pldns.yaml" <<EOF
+location: ${LOCATION}
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+private_link_private_dns_zones:
+  azure_container_apps: {zone_name: "privatelink.{regionName}.azurecontainerapps.io"}
+  azure_backup: {zone_name: "privatelink.{regionCode}.backup.windowsazure.com"}
+  azure_web_pubsub: {zone_name: "privatelink.webpubsub.azure.com"}
+virtual_network_link_default_virtual_networks:
+  run: {virtual_network_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-pldns-vnet}
+EOF
+cat >"${WORK}/pldns.network.yaml" <<EOF
+name: ${RUN}-pldns-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.253.0.0/24]
+tags: {catalog-run: ${RUN}}
+EOF
 # A DNS private resolver (about 0.25 USD an hour per endpoint while it
 # exists) with a dynamic inbound endpoint and an outbound endpoint, each in
 # a /28 of its own (Azure's smallest) delegated to
@@ -702,8 +912,11 @@ spec:
   zoneRedundant: false
   tags: {catalog-run: ${RUN}}
 EOF
-declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [dnspr]=1800 [ca]=2400)
+
+
+
+declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork [web]=avm-res-web-serverfarm)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400 [redis]=2700 [dnspr]=1800 [ca]=2400 [cae]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -831,6 +1044,13 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
     afw:avm-res-network-azurefirewall \
+    cosmos:avm-res-documentdb-databaseaccount \
+    web:avm-res-web-site \
+    cae:avm-res-app-managedenvironment \
+    sql:avm-res-sql-server \
+    redis:avm-res-cache-redis \
+    alz:avm-ptn-alz-management \
+    pldns:avm-ptn-network-private-link-private-dns-zones \
     dnspr:avm-res-network-dnsresolver \
     ca:avm-res-app-containerapp; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
@@ -866,11 +1086,6 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   for w in "${WORK}/${case_}".with.*.yaml; do
     [[ -f "${w}" ]] || continue
     wchart="${w#"${WORK}/${case_}".with.}" wchart="${wchart%.yaml}"
-    if [[ "${wchart}" == avm-res-network-privatednszone ]]; then
-      zone="$(sed -n 's/^domain_name: //p' "${w}")"
-      code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
-      [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
-    fi
     helm template "${case_}-${wchart#avm-res-}" "charts/azure/${wchart}" --namespace "${NS}" -f "${w}" >>"${OUT}/${chart}/rendered.yaml"
   done
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
@@ -880,6 +1095,13 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   # What a case needs that its chart does not make (appi's workspace).
   if [[ -f "${WORK}/${case_}.pre.yaml" ]]; then cat "${WORK}/${case_}.pre.yaml" >>"${OUT}/${chart}/rendered.yaml"; fi
+  # A private DNS zone is one of a name per group, and ASO adopts one that
+  # exists: every zone the case renders (pe's and pldns's are named for a
+  # Private Link service, not the run) must not be there yet.
+  while read -r zone; do
+    code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
+    [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
+  done < <(awk '/^kind: /{k=$2} k=="PrivateDnsZone" && /^  azureName: /{gsub(/"/,"",$2); print $2}' "${OUT}/${chart}/rendered.yaml")
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(object_list "${OUT}/${chart}/rendered.yaml")
   deadline=$(( $(date +%s) + limit ))
@@ -896,7 +1118,10 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     outputs_ok=no
   fi
   echo "-- outputs (${outputs_ok})"; cat "${OUT}/${chart}/outputs.json" "${OUT}/${chart}/outputs.err"
-  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
+  # --ignore-not-found: deleting an owner lets Kubernetes collect the
+  # children ASO gave it as owner references, which can go before
+  # kubectl reaches them in the file (the fake cloud deletes fast).
+  kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false --ignore-not-found >/dev/null
   # Until every object is gone (kubectl get -f fails as soon as one is),
   # then what the case needed first.
   wait_gone "${limit}" "${objects[@]}"
@@ -906,7 +1131,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))
-    msg="$(cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
+    # pre-live.json exists only for a case with prerequisites: cat's
+    # failure on it must not end the run (pipefail).
+    msg="$({ cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null || true; } | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then
@@ -914,7 +1141,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
       # resource (a diagnostic setting) is its own type, not its parent's.
       tail="${armid[$o]##*/providers/}"; ns="${tail%%/*}"; rest="${tail#*/}"; rtype="${rest%%/*}"
       v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
-        | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
+        | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | (map(select(test("preview")|not)) + .) | .[0] // empty')"
       code="$(api -o /dev/null -w '%{http_code}' "${ARM}${armid[$o]}?api-version=${v}")"
       if [[ "${code}" == 404 ]]; then gone=yes; else gone="no (${code})"; fi
     fi

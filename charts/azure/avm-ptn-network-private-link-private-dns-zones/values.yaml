@@ -1,0 +1,119 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-ptn-network-private-link-private-dns-zones (v0.23.2): same names,
+# types and defaults, so a module block's arguments become this file one to
+# one. Two defaults differ in form, not in meaning:
+# private_link_private_dns_zones is null here, which is the module's
+# default list (templates/_data.tpl; Helm merges a map given in values into
+# a map default, where Terraform replaces it), and timeouts is null (ASO has
+# no use for the module's timeouts).
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from
+# terraform-azurerm-avm-ptn-network-private-link-private-dns-zones
+# (variables.tf, v0.23.2), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# No name here takes a namePrefix: a zone's name is the domain Private Link
+# resolves, and links are named inside their zone. names has no keys and
+# namePrefix changes nothing; both are kept so every Azure chart takes them.
+names: {}
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# Azure region where each of the private link private DNS zones and
+# Resource Group, if created, will be deployed. A region's name (uksouth)
+# or display name (UK South); it fills {regionName} and {regionCode} in
+# the zone names. Required.
+location: null
+# The resource ID of the existing Resource Group. e.g.
+# /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}.
+# Required.
+parent_id: null
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# Controls the Resource Lock configuration for the Resource Group that
+# hosts the private link private DNS zones. {kind (CanNotDelete or
+# ReadOnly), name (default lock-<resource group name>)}
+lock: null
+# A set of private link private DNS zones to exclude. Either DNS zone names
+# or the private_link_private_dns_zones map key name (e.g. 'azure_ml')
+# must match what is provided as the default values or any input to the
+# private_link_private_dns_zones parameter e.g. privatelink.api.azureml.ms
+# or privatelink.{regionCode}.backup.windowsazure.com or azure_ml.
+private_link_excluded_zones: []
+# A set of private link private DNS zones to create. null (the default) is
+# the module's 85 zones (templates/_data.tpl, plpdz.defaultZones); a map
+# replaces them. Each: {zone_name (may hold {regionName} and
+# {regionCode}), private_dns_zone_supports_private_link (true),
+# custom_iterator: {replacement_placeholder, replacement_values: {<key>:
+# <value>}} (a zone per value, {<placeholder>} replaced with the value's
+# key), resolution_policy (Default or NxDomainRedirect)}.
+private_link_private_dns_zones: null
+# A set of private link private DNS zones to create in addition to the
+# zones supplied in private_link_private_dns_zones, of the same shape.
+private_link_private_dns_zones_additional: {}
+# This variable controls whether or not the private link private DNS zones
+# should be filtered based on the zone name. {enabled (false),
+# regex_filter ("{regionName}|{regionCode}": the regional zones often
+# needed for secondary regions)}.
+private_link_private_dns_zones_regex_filter: {}
+# A map of role assignments to create on the Resource Group. Each:
+# {role_definition_id_or_name, principal_id, principal_type, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id}.
+resource_group_role_assignments: {}
+# (Optional) Tags of the resource: every zone and link.
+tags: null
+# Timeouts per resource type. Refused when set: ASO has none; Bundt sets a
+# component's time limit.
+timeouts: null
+# A map of objects of Virtual Network Resource IDs to link to all the
+# private link private DNS zones created, merged with (and winning over)
+# virtual_network_link_default_virtual_networks. Each:
+# {virtual_network_resource_id, virtual_network_link_name_template_override,
+# resolution_policy}.
+virtual_network_link_additional_virtual_networks: {}
+# A map of maps of objects of Virtual Network Resource IDs to link to
+# specific private link private DNS zones: {<zone key>: {<link key>:
+# {virtual_network_resource_id, name, resolution_policy}}}. A link key that
+# is also a default or additional network's replaces that link for the
+# zone.
+virtual_network_link_by_zone_and_virtual_network: {}
+# A map of objects of Virtual Network Resource IDs to link to all the
+# private link private DNS zones created. Each:
+# {virtual_network_resource_id, virtual_network_link_name_template_override,
+# resolution_policy}.
+virtual_network_link_default_virtual_networks: {}
+# A template for the default name of the virtual network link. The
+# template can include ${zone_key}, ${vnet_name}, ${vnet_key} and
+# ${location} (Terraform's $${...} in a .tf file).
+virtual_network_link_name_template: "vnet_link-${zone_key}-${vnet_key}"
+# A map of overrides for the default Virtual Network Links applied per
+# virtual network (by link key). Each:
+# {virtual_network_link_name_template_override, resolution_policy,
+# enabled (true)}.
+virtual_network_link_overrides_by_virtual_network: {}
+# A map of overrides for the default Virtual Network Links applied per DNS
+# zone (by zone key). Each: {virtual_network_link_name_template_override,
+# resolution_policy, enabled (true)}.
+virtual_network_link_overrides_by_zone: {}
+# A map of overrides for the default Virtual Network Links applied per DNS
+# zone and Virtual Network: {<zone key>: {<link key>: {name,
+# resolution_policy, enabled (true)}}}. It wins over the other two.
+virtual_network_link_overrides_by_zone_and_virtual_network: {}
+# The default resolution policy for the Virtual Network Links created:
+# Default or NxDomainRedirect. Sent only for a zone that supports Private
+# Link.
+virtual_network_link_resolution_policy_default: Default
