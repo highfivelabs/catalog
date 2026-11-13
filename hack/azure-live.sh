@@ -5,10 +5,11 @@
 # Apply the Azure charts (avm-res-network-virtualnetwork,
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
-# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
+# avm-res-network-natgateway, avm-res-network-publicipaddress,
+# avm-res-network-loadbalancer) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip lb)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -45,7 +46,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip lb}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -149,7 +150,8 @@ kubectl -n azureserviceoperator-system rollout status deployment azureserviceope
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
-    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    loadbalancers.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -227,6 +229,29 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# A public Standard load balancer with a regional (zoneless) public IP the
+# chart makes: a pool, a TCP probe, a rule, a NAT rule and an outbound rule
+# on the one frontend (the rule leaves outbound SNAT to the outbound rule).
+# No backends: nothing is reachable, and an empty pool costs nothing more.
+cat >"${WORK}/lb.yaml" <<EOF
+name: ${RUN}-lb
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+tags: {catalog-run: ${RUN}}
+frontend_ip_configurations:
+  pub: {name: fe-public, create_public_ip_address: true, public_ip_address_resource_name: ${RUN}-lb-pip, zones: [None]}
+backend_address_pools:
+  web: {name: be-web}
+lb_probes:
+  tcp: {name: probe-tcp, protocol: Tcp, port: 80}
+lb_rules:
+  http: {name: rule-http, frontend_ip_configuration_name: fe-public, backend_address_pool_object_names: [web], frontend_port: 80, backend_port: 80, probe_object_name: tcp, disable_outbound_snat: true}
+lb_nat_rules:
+  ssh: {name: nat-ssh, frontend_ip_configuration_name: fe-public, protocol: Tcp, frontend_port: 2222, backend_port: 22}
+lb_outbound_rules:
+  out: {name: outbound-web, frontend_ip_configurations: [{name: fe-public}], backend_address_pool_object_name: web}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -240,7 +265,7 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress; do
+    pip:avm-res-network-publicipaddress lb:avm-res-network-loadbalancer; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"

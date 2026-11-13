@@ -405,6 +405,13 @@ The core works. The VM's ARM version is old.
 | --- | --- |
 | LB, backend pools and addresses, probes, rules, NAT rules and pools, outbound rules, public IPs, NIC associations | `network/LoadBalancer` (pools, probes, rules and outbound rules are inline ARM properties), `LoadBalancersInboundNatRule`, `PublicIPAddress`. NIC association is a `NetworkInterface` property. Covered |
 
+Covered, except the NIC association. Chart
+`charts/azure/avm-res-network-loadbalancer` (2026-11-12): 22 of 23
+variables, every child inline in the `LoadBalancer` (NAT rules too, not
+`LoadBalancersInboundNatRule`, so one object owns them all), the public IPs
+it makes as `PublicIPAddress` objects; `backend_address_pool_network_interfaces`
+is refused (section 8).
+
 ### 14. avm-res-containerregistry-registry (v0.9.0)
 
 | Submodule | Creates | ASO |
@@ -704,6 +711,7 @@ aso-extensions:
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
+| `avm-res-network-loadbalancer` | `backend_address_pool_network_interfaces` | none: a NIC joins a pool through its own `ipConfigurations[].loadBalancerBackendAddressPools`; ASO has no association kind and sets a NIC's IP configurations only by owning the whole `NetworkInterface` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
 
 Not a kind gap, but an ASO field gap: a table's or share's

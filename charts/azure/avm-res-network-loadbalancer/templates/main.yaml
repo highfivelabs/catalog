@@ -1,0 +1,430 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-loadbalancer main.tf,
+main.public_ip.tf, main.locks.tf, main.role_assignments.tf,
+main.diagnostic_settings.tf and locals.tf (v0.5.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azurerm_lb.this and its children (azurerm_lb_backend_address_pool,
+azurerm_lb_backend_address_pool_address, azurerm_lb_probe, azurerm_lb_rule,
+azurerm_lb_nat_rule, azurerm_lb_outbound_rule, azurerm_lb_nat_pool): one
+ASO LoadBalancer, owned by the resource group resource_group_name names,
+its children inline as ARM carries them (a child refers to another by its
+ARM ID: the load balancer's ID and the child's name).
+azurerm_public_ip.this: one ASO PublicIPAddress per frontend with
+create_public_ip_address, which the frontend references by Kubernetes name.
+azurerm_management_lock.this and .pip: aso-extensions ManagementLocks.
+azurerm_role_assignment.this and .pip: ASO RoleAssignments.
+azurerm_monitor_diagnostic_setting.this and .pip: ASO DiagnosticSettings,
+Dedicated sent as null, as the module sends it. The telemetry is not
+ported. backend_address_pool_network_interfaces is refused (upstream.yaml).
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.names" (list $ (list "loadBalancer")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-loadbalancer: name is required" }}{{ end }}
+{{- include "aso.unsupported" (list $ "backend_address_pool_network_interfaces" $v.backend_address_pool_network_interfaces "a NIC joins a pool through its own ipConfigurations[].loadBalancerBackendAddressPools; ASO has no association kind and sets a NIC's IP configurations only by owning the whole NetworkInterface") }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-loadbalancer: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "lb") }}
+{{- $lbName := include "aso.resourceName" (list $ "loadBalancer" "load balancer" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,78}[a-zA-Z0-9_])?$") }}
+{{- $lbID := printf "%s/providers/Microsoft.Network/loadBalancers/%s" $parent $lbName }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $pipCfg := $v.public_ip_address_configuration | default dict }}
+{{- /* The module's defaults for optional object attributes. */ -}}
+{{- $pools := dict }}
+{{- range $k, $p := ($v.backend_address_pools | default dict) }}
+{{- $_ := set $pools $k (ternary "bepool-1" $p.name (kindIs "invalid" $p.name)) }}
+{{- end }}
+{{- $probes := dict }}
+{{- range $k, $p := ($v.lb_probes | default dict) }}
+{{- $_ := set $probes $k ($p.name | default (printf "probe-%s" $v.name)) }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: LoadBalancer
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "load_balancer" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $lbName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  sku:
+    name: {{ $v.sku }}
+    tier: {{ $v.sku_tier }}
+  {{- if not $v.frontend_ip_configurations }}
+  {{- fail "avm-res-network-loadbalancer: frontend_ip_configurations needs at least one entry (a load balancer needs a frontend)" }}
+  {{- end }}
+  frontendIPConfigurations:
+    {{- range $k, $f := $v.frontend_ip_configurations }}
+    {{- $alloc := $f.frontend_private_ip_address_allocation | default "Dynamic" }}
+    {{- if not (has $alloc (list "Dynamic" "Static")) }}
+    {{- fail "avm-res-network-loadbalancer: The accepted values for `frontend_private_ip_address_allocation` are `Dynamic` or `Static`" }}
+    {{- end }}
+    {{- $subnet := $f.frontend_private_ip_subnet_resource_id | default $v.frontend_subnet_resource_id }}
+    - name: {{ $f.name | default (printf "frontend-%s" $v.name) | quote }}
+      {{- with $f.gateway_load_balancer_frontend_ip_configuration_id }}
+      gatewayLoadBalancer:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+      {{- with $f.frontend_private_ip_address }}
+      privateIPAddress: {{ . | quote }}
+      {{- end }}
+      {{- with $f.frontend_private_ip_address_version }}
+      privateIPAddressVersion: {{ . }}
+      {{- end }}
+      privateIPAllocationMethod: {{ $alloc }}
+      {{- if $f.create_public_ip_address }}
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: {{ include "aso.name" (list $.Release.Name "pip" $k) }}
+      {{- else if $f.public_ip_address_resource_id }}
+      publicIPAddress:
+        reference:
+          armId: {{ $f.public_ip_address_resource_id | quote }}
+      {{- end }}
+      {{- with $subnet }}
+      subnet:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+      {{- /* The module sends zones unless it makes the public IP or zones holds
+      "None"; Azure takes a frontend's zones only for a private address, so
+      they are sent only with a subnet. */ -}}
+      {{- $zones := list }}
+      {{- range (ternary (list "1" "2" "3") $f.zones (kindIs "invalid" $f.zones)) }}{{ $zones = append $zones (toString .) }}{{ end }}
+      {{- if and $subnet (not $f.create_public_ip_address) (not (has "None" $zones)) $zones }}
+      zones:
+        {{- toYaml (uniq $zones | sortAlpha) | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- with $v.backend_address_pools }}
+  backendAddressPools:
+    {{- range $k, $p := . }}
+    {{- $vnet := $p.virtual_network_resource_id | default $v.backend_address_pool_configuration }}
+    - name: {{ get $pools $k | quote }}
+      {{- $addrs := list }}
+      {{- range $ak, $a := ($v.backend_address_pool_addresses | default dict) }}
+      {{- if eq (toString $a.backend_address_pool_object_name) $k }}
+      {{- $item := dict }}
+      {{- with $a.name }}{{ $_ := set $item "name" . }}{{ end }}
+      {{- with $a.ip_address }}{{ $_ := set $item "ipAddress" . }}{{ end }}
+      {{- with ($a.virtual_network_resource_id | default $v.backend_address_pool_configuration) }}{{ $_ := set $item "virtualNetwork" (dict "reference" (dict "armId" .)) }}{{ end }}
+      {{- $addrs = append $addrs $item }}
+      {{- end }}
+      {{- end }}
+      {{- with $addrs }}
+      loadBalancerBackendAddresses:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $p.tunnel_interfaces }}
+      tunnelInterfaces:
+        {{- range $tk, $t := . }}
+        - {{- with $t.identifier }} identifier: {{ . | int }}{{ end }}
+          {{- with $t.port }}
+          port: {{ . | int }}
+          {{- end }}
+          {{- with $t.protocol }}
+          protocol: {{ . }}
+          {{- end }}
+          {{- with $t.type }}
+          type: {{ . }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $vnet }}
+      virtualNetwork:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- range $ak, $a := ($v.backend_address_pool_addresses | default dict) }}
+  {{- if not (hasKey ($v.backend_address_pools | default dict) (toString $a.backend_address_pool_object_name)) }}
+  {{- fail (printf "avm-res-network-loadbalancer: backend_address_pool_addresses.%s: backend_address_pool_object_name %q is not a key of backend_address_pools" $ak (toString $a.backend_address_pool_object_name)) }}
+  {{- end }}
+  {{- end }}
+  {{- with $v.lb_probes }}
+  probes:
+    {{- range $k, $p := . }}
+    {{- $proto := $p.protocol | default "Tcp" }}
+    - name: {{ get $probes $k | quote }}
+      intervalInSeconds: {{ ternary 15 $p.interval_in_seconds (kindIs "invalid" $p.interval_in_seconds) | int }}
+      numberOfProbes: {{ ternary 2 $p.number_of_probes_before_removal (kindIs "invalid" $p.number_of_probes_before_removal) | int }}
+      port: {{ ternary 80 $p.port (kindIs "invalid" $p.port) | int }}
+      probeThreshold: {{ ternary 1 $p.probe_threshold (kindIs "invalid" $p.probe_threshold) | int }}
+      protocol: {{ $proto }}
+      {{- if and (has $proto (list "Http" "Https")) $p.request_path }}
+      requestPath: {{ $p.request_path | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.lb_rules }}
+  loadBalancingRules:
+    {{- range $k, $r := . }}
+    {{- $poolRefs := list }}
+    {{- if $r.backend_address_pool_resource_ids }}
+    {{- range $r.backend_address_pool_resource_ids }}{{ $poolRefs = append $poolRefs . }}{{ end }}
+    {{- else }}
+    {{- range $r.backend_address_pool_object_names }}
+    {{- if not (hasKey $pools .) }}{{ fail (printf "avm-res-network-loadbalancer: lb_rules.%s: backend_address_pool_object_names: %q is not a key of backend_address_pools" $k .) }}{{ end }}
+    {{- $poolRefs = append $poolRefs (printf "%s/backendAddressPools/%s" $lbID (get $pools .)) }}
+    {{- end }}
+    {{- end }}
+    - name: {{ $r.name | default (printf "rule-%s" $v.name) | quote }}
+      {{- if eq (len $poolRefs) 1 }}
+      backendAddressPool:
+        reference:
+          armId: {{ first $poolRefs | quote }}
+      {{- else if gt (len $poolRefs) 1 }}
+      backendAddressPools:
+        {{- range $poolRefs }}
+        - reference:
+            armId: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      backendPort: {{ ternary 3389 $r.backend_port (kindIs "invalid" $r.backend_port) | int }}
+      disableOutboundSnat: {{ eq $r.disable_outbound_snat true }}
+      enableFloatingIP: {{ eq $r.enable_floating_ip true }}
+      enableTcpReset: {{ eq $r.enable_tcp_reset true }}
+      {{- with $r.frontend_ip_configuration_name }}
+      frontendIPConfiguration:
+        reference:
+          armId: {{ printf "%s/frontendIPConfigurations/%s" $lbID . | quote }}
+      {{- end }}
+      frontendPort: {{ ternary 3389 $r.frontend_port (kindIs "invalid" $r.frontend_port) | int }}
+      idleTimeoutInMinutes: {{ ternary 4 $r.idle_timeout_in_minutes (kindIs "invalid" $r.idle_timeout_in_minutes) | int }}
+      loadDistribution: {{ $r.load_distribution | default "Default" }}
+      {{- if $r.probe_object_name }}
+      {{- if not (hasKey $probes $r.probe_object_name) }}{{ fail (printf "avm-res-network-loadbalancer: lb_rules.%s: probe_object_name %q is not a key of lb_probes" $k $r.probe_object_name) }}{{ end }}
+      probe:
+        reference:
+          armId: {{ printf "%s/probes/%s" $lbID (get $probes $r.probe_object_name) | quote }}
+      {{- else if $r.probe_resource_id }}
+      probe:
+        reference:
+          armId: {{ $r.probe_resource_id | quote }}
+      {{- end }}
+      protocol: {{ $r.protocol | default "Tcp" }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.lb_nat_rules }}
+  inboundNatRules:
+    {{- range $k, $r := . }}
+    {{- if not $r.name }}{{ fail (printf "avm-res-network-loadbalancer: lb_nat_rules.%s needs a name (the module keys NAT rules by name)" $k) }}{{ end }}
+    {{- if not (has (toString $r.protocol) (list "Udp" "Tcp" "All")) }}{{ fail "avm-res-network-loadbalancer: The accepted values for `protocol` are Udp, Tcp, or All" }}{{ end }}
+    - name: {{ $r.name | quote }}
+      {{- if $r.backend_address_pool_resource_id }}
+      backendAddressPool:
+        reference:
+          armId: {{ $r.backend_address_pool_resource_id | quote }}
+      {{- else if $r.backend_address_pool_object_name }}
+      {{- if not (hasKey $pools $r.backend_address_pool_object_name) }}{{ fail (printf "avm-res-network-loadbalancer: lb_nat_rules.%s: backend_address_pool_object_name %q is not a key of backend_address_pools" $k $r.backend_address_pool_object_name) }}{{ end }}
+      backendAddressPool:
+        reference:
+          armId: {{ printf "%s/backendAddressPools/%s" $lbID (get $pools $r.backend_address_pool_object_name) | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $r.backend_port) }}
+      backendPort: {{ $r.backend_port | int }}
+      {{- end }}
+      enableFloatingIP: {{ eq $r.enable_floating_ip true }}
+      enableTcpReset: {{ eq $r.enable_tcp_reset true }}
+      {{- with $r.frontend_ip_configuration_name }}
+      frontendIPConfiguration:
+        reference:
+          armId: {{ printf "%s/frontendIPConfigurations/%s" $lbID . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $r.frontend_port) }}
+      frontendPort: {{ $r.frontend_port | int }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $r.frontend_port_end) }}
+      frontendPortRangeEnd: {{ $r.frontend_port_end | int }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $r.frontend_port_start) }}
+      frontendPortRangeStart: {{ $r.frontend_port_start | int }}
+      {{- end }}
+      idleTimeoutInMinutes: {{ ternary 4 $r.idle_timeout_in_minutes (kindIs "invalid" $r.idle_timeout_in_minutes) | int }}
+      protocol: {{ $r.protocol }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.lb_nat_pools }}
+  inboundNatPools:
+    {{- range $k, $p := . }}
+    {{- if not $p.name }}{{ fail (printf "avm-res-network-loadbalancer: lb_nat_pools.%s needs a name (the module keys NAT pools by name)" $k) }}{{ end }}
+    - name: {{ $p.name | quote }}
+      backendPort: {{ ternary 3389 $p.backend_port (kindIs "invalid" $p.backend_port) | int }}
+      enableFloatingIP: {{ eq $p.enable_floating_ip true }}
+      enableTcpReset: {{ eq $p.enable_tcp_reset true }}
+      {{- with $p.frontend_ip_configuration_name }}
+      frontendIPConfiguration:
+        reference:
+          armId: {{ printf "%s/frontendIPConfigurations/%s" $lbID . | quote }}
+      {{- end }}
+      frontendPortRangeEnd: {{ ternary 3389 $p.frontend_port_end (kindIs "invalid" $p.frontend_port_end) | int }}
+      frontendPortRangeStart: {{ ternary 3000 $p.frontend_port_start (kindIs "invalid" $p.frontend_port_start) | int }}
+      idleTimeoutInMinutes: {{ ternary 4 $p.idle_timeout_in_minutes (kindIs "invalid" $p.idle_timeout_in_minutes) | int }}
+      protocol: {{ $p.protocol | default "Tcp" }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.lb_outbound_rules }}
+  outboundRules:
+    {{- range $k, $o := . }}
+    {{- if not $o.name }}{{ fail (printf "avm-res-network-loadbalancer: lb_outbound_rules.%s needs a name (the module keys outbound rules by name)" $k) }}{{ end }}
+    - name: {{ $o.name | quote }}
+      allocatedOutboundPorts: {{ ternary 1024 $o.number_of_allocated_outbound_ports (kindIs "invalid" $o.number_of_allocated_outbound_ports) | int }}
+      {{- if $o.backend_address_pool_resource_id }}
+      backendAddressPool:
+        reference:
+          armId: {{ $o.backend_address_pool_resource_id | quote }}
+      {{- else if (and $o.backend_address_pool_object_name (hasKey $pools $o.backend_address_pool_object_name)) }}
+      backendAddressPool:
+        reference:
+          armId: {{ printf "%s/backendAddressPools/%s" $lbID (get $pools $o.backend_address_pool_object_name) | quote }}
+      {{- else }}
+      {{- fail (printf "avm-res-network-loadbalancer: lb_outbound_rules.%s needs a backend_address_pool_resource_id or a backend_address_pool_object_name that is a key of backend_address_pools" $k) }}
+      {{- end }}
+      enableTcpReset: {{ eq $o.enable_tcp_reset true }}
+      {{- with $o.frontend_ip_configurations }}
+      frontendIPConfigurations:
+        {{- range . }}
+        - reference:
+            armId: {{ printf "%s/frontendIPConfigurations/%s" $lbID (toString .name) | quote }}
+        {{- end }}
+      {{- end }}
+      idleTimeoutInMinutes: {{ ternary 4 $o.idle_timeout_in_minutes (kindIs "invalid" $o.idle_timeout_in_minutes) | int }}
+      protocol: {{ $o.protocol | default "Tcp" }}
+    {{- end }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "LoadBalancer" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $v.name)) "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}
+{{- /* The public IPs the module makes: azurerm_public_ip.this, one per
+frontend with create_public_ip_address, and its lock, role assignments and
+diagnostic settings (.pip). */ -}}
+{{- range $k, $f := $v.frontend_ip_configurations }}
+{{- if $f.create_public_ip_address }}
+{{- $pobj := include "aso.name" (list $.Release.Name "pip" $k) }}
+{{- $pname := include "aso.cloudName" (list $ "public IP" ($f.public_ip_address_resource_name | default (printf "pip-%s" $v.name)) 80 false) }}
+{{- $prg := toString ($f.new_public_ip_resource_group_name | default $pipCfg.resource_group_name | default $v.resource_group_name) }}
+{{- $pparent := $prg }}
+{{- if not (hasPrefix "/" $prg) }}
+{{- if not $v.subscription_id }}{{ fail (printf "avm-res-network-loadbalancer: frontend_ip_configurations.%s: the public IP's resource group %q is a name: set subscription_id too" $k $prg) }}{{ end }}
+{{- $pparent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $prg }}
+{{- end }}
+{{- $alloc := $pipCfg.allocation_method | default "Static" }}
+{{- $ver := $pipCfg.ip_version | default "IPv4" }}
+{{- if and (eq $ver "IPv6") (eq $alloc "Dynamic") }}{{ fail "avm-res-network-loadbalancer: Only Static `allocation_method` supported for `IPv6`" }}{{ end }}
+{{- $ptags := dict }}
+{{- if ne $f.inherit_tags false }}
+{{- $ptags = merge (deepCopy ($v.tags | default dict)) ($f.tags | default dict) ($pipCfg.tags | default dict) }}
+{{- else }}
+{{- $ptags = merge (deepCopy ($f.tags | default dict)) ($pipCfg.tags | default dict) }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pobj "id" (printf "public_ip:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $pname | quote }}
+  location: {{ $f.new_public_ip_location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "the public IP's resource group" $pparent) | nindent 4 }}
+  ddosSettings:
+    {{- with $pipCfg.ddos_protection_plan_resource_id }}
+    ddosProtectionPlan:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    protectionMode: {{ $pipCfg.ddos_protection_mode | default "VirtualNetworkInherited" }}
+  {{- if or $pipCfg.domain_name_label $pipCfg.reverse_fqdn }}
+  dnsSettings:
+    {{- with $pipCfg.domain_name_label }}
+    domainNameLabel: {{ . | quote }}
+    {{- end }}
+    {{- with $pipCfg.reverse_fqdn }}
+    reverseFqdn: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $f.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  idleTimeoutInMinutes: {{ ternary 4 $pipCfg.idle_timeout_in_minutes (kindIs "invalid" $pipCfg.idle_timeout_in_minutes) | int }}
+  {{- with $pipCfg.ip_tags }}
+  ipTags:
+    {{- range $tk, $t := . }}
+    - ipTagType: {{ $tk | quote }}
+      tag: {{ $t | quote }}
+    {{- end }}
+  {{- end }}
+  publicIPAddressVersion: {{ $ver }}
+  publicIPAllocationMethod: {{ $alloc }}
+  {{- with $pipCfg.public_ip_prefix_resource_id }}
+  publicIPPrefix:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  sku:
+    name: {{ $pipCfg.sku | default "Standard" }}
+    tier: {{ $pipCfg.sku_tier | default "Regional" }}
+  {{- $zones := list }}
+  {{- range (ternary (list "1" "2" "3") $f.zones (kindIs "invalid" $f.zones)) }}{{ $zones = append $zones (toString .) }}{{ end }}
+  {{- if and $zones (not (has "None" $zones)) }}
+  zones:
+    {{- toYaml (uniq $zones | sortAlpha) | nindent 4 }}
+  {{- end }}
+  {{- with $ptags }}
+  tags:
+    {{- range $tk, $tv := . }}
+    {{ $tk | quote }}: {{ toString $tv | quote }}
+    {{- end }}
+  {{- end }}
+{{- $powner := dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" $pobj }}
+{{- $inherit := ne $f.inherit_lock false }}
+{{- if or $f.lock_type_if_not_inherited (and $inherit $v.lock) }}
+{{- $level := ternary (($v.lock | default dict).kind | default "") $f.lock_type_if_not_inherited (and $inherit (not (empty $v.lock))) }}
+{{- include "aso.lock" (dict "root" $ "base" $pobj "idPrefix" (printf "pip-%s-" $k) "owner" $powner "v" (dict "kind" $level "name" (printf "lock-%s" $pname))) }}
+{{- end }}
+{{- $pras := dict }}
+{{- range $rk, $r := ($f.role_assignments | default dict) }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $pras $rk $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pobj "idPrefix" (printf "pip-%s-" $k) "owner" $powner "v" $pras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $pobj "idPrefix" (printf "pip-%s-" $k) "owner" $powner "v" $f.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}
+{{- end }}
+{{- end }}
