@@ -1,0 +1,79 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's vpc-sc module (v60.0.0):
+# same names, types and defaults, so a module block's arguments become this
+# file one to one (README.md, "From Terraform"). values.schema.json carries
+# the types and the module's validations.
+#
+# An organization-scoped chart: it runs only in a platform namespace whose
+# Config Connector account has Access Context Manager roles on the
+# organization (docs/design.md, "Organization, folders and Config
+# Connector's scope"). It takes no project.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.policy: the created access policy's title in full (its cloud name is
+# a number Google assigns; the title is the name people know it by). A name
+# set here takes no prefix; unset, access_policy_create.title.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the access policy's
+# title, and "<namePrefix>_" (its hyphens as underscores, since these names
+# hold only letters, digits and "_") in front of every access level's and
+# perimeter's name. Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. Access Context Manager resources take
+# no Google Cloud labels, so these stay in Kubernetes.
+labels: {}
+# Cloud labels on every resource; these resources take none, so these stay
+# in Kubernetes too.
+tags: {}
+
+# Access level definitions: {NAME: {combining_function, conditions:
+# [{device_policy, ip_subnetworks, members, negate, regions,
+# required_access_levels, vpc_subnets}], description, title}}.
+access_levels: {}
+# Access Policy name (its number), set to null if creating one.
+access_policy: null
+# Access Policy configuration, fill in to create: {parent, title, scopes}.
+# Parent is in 'organizations/123456' format.
+access_policy_create: null
+# fabric's external context used in replacements; refused when set (Bundt's
+# ${...} expressions and valueFrom replace it).
+context: {}
+# Egress policy definitions that can be referenced in perimeters
+# ("$egress_policies:<NAME>").
+egress_policies: {}
+# Paths to folders that enable factory functionality; accepted and ignored:
+# the files' contents go under factories_data.
+factories_config: {}
+# Not a fabric variable: the factory folders' files, by file name (without
+# .yaml), each exactly the file's content: access_levels, egress_policies,
+# ingress_policies and perimeters.
+factories_data:
+  access_levels: {}
+  egress_policies: {}
+  ingress_policies: {}
+  perimeters: {}
+# IAM bindings on the access policy in {ROLE => [MEMBERS]} format.
+iam: {}
+# Authoritative IAM bindings in {KEY => {role, members, condition}}.
+iam_bindings: {}
+# Individual additive IAM bindings in {KEY => {member, role, condition}}.
+iam_bindings_additive: {}
+# Ingress policy definitions that can be referenced in perimeters
+# ("$ingress_policies:<NAME>").
+ingress_policies: {}
+# Regular service perimeters: {NAME: {description, ignore_resource_changes,
+# title, use_explicit_dry_run_spec, spec, status}}.
+perimeters: {}
+# fabric's Cloud Asset Inventory scope to turn project IDs into numbers;
+# refused when set (give projects/<number>).
+project_id_search_scope: null
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# access policy, levels and perimeters when the component is deleted.
+# PREVENT has no Config Connector equivalent.
+deletion_policy: null

@@ -1,0 +1,23 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). resource_id is the gateway's ARM ID from
+# ASO's status. public_ip_resource is the module's map of whole azapi
+# public IP objects, keyed like public_ips: here each carries the fields
+# consumers take, id, name and the allocated ip_address. The module's
+# resource output (the whole azapi object) is not an output.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-natgateway
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    resource_id: resources.nat_gateway.status.id
+    public_ip_resource: >-
+      resources.transformMapEntry(k, v, k.startsWith('public_ip:') && !k.contains('/'),
+      {k.substring(10): {'id': v.status.id, 'name': v.spec.azureName, 'ip_address': 'ipAddress' in v.status ? v.status.ipAddress : null}})

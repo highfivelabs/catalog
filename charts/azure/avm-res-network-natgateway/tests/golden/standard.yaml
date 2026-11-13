@@ -1,0 +1,56 @@
+---
+# Source: avm-res-network-natgateway/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: NatGateway
+metadata:
+  name: standard-natgw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "standard"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "nat_gateway"
+spec:
+  azureName: "natgw-zonal"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  idleTimeoutInMinutes: 4
+  publicIpAddresses:
+    - reference:
+        group: network.azure.com
+        kind: PublicIPAddress
+        name: standard-pip-a
+  sku:
+    name: Standard
+  zones:
+    - "2"
+---
+# Source: avm-res-network-natgateway/templates/public-ips.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: standard-pip-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "standard"
+    app.kubernetes.io/name: avm-res-network-natgateway
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:a"
+spec:
+  azureName: "pip-natgw-zonal"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 30
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "2"

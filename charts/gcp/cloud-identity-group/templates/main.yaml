@@ -1,0 +1,52 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-identity-group/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_cloud_identity_group.group: a CloudIdentityGroup in the customer,
+keyed by name, with fabric's discussion-forum label;
+google_cloud_identity_group_membership.managers and .members: a
+CloudIdentityMembership per manager (roles MEMBER and MANAGER) and per
+member (MEMBER).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "group")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $key := $v.name }}
+{{- with $v.names.group }}{{ $key = . }}{{ end }}
+---
+apiVersion: cloudidentity.cnrm.cloud.google.com/v1beta1
+kind: CloudIdentityGroup
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "group" "abandon" $abandon) | nindent 2 }}
+spec:
+  parent: {{ $v.customer_id | quote }}
+  groupKey:
+    id: {{ $key | quote }}
+  displayName: {{ $v.display_name | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  initialGroupConfig: EMPTY
+  labels:
+    cloudidentity.googleapis.com/groups.discussion_forum: ""
+{{- range $kind := list "managers" "members" }}
+{{- range $m := (index $v $kind | default list | uniq) }}
+---
+apiVersion: cloudidentity.cnrm.cloud.google.com/v1beta1
+kind: CloudIdentityMembership
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name (trimSuffix "s" $kind) $m)) "id" (printf "%s:%s" (trimSuffix "s" $kind) $m) "abandon" $abandon) | nindent 2 }}
+spec:
+  groupRef:
+    name: {{ $.Release.Name }}
+  preferredMemberKey:
+    id: {{ $m | quote }}
+  roles:
+    - name: MEMBER
+    {{- if eq $kind "managers" }}
+    - name: MANAGER
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -19,12 +19,18 @@ vars:
   LIVE_SA: '{{.GCP_LIVE_SA}}'
   # config-connector-extensions at this commit supplies the pinned Config
   # Connector and the fake cloud (docs/design.md, "Testing").
-  CCE_COMMIT: 1de954784fadefcc6124fb8ea7d9a4cdef68754e
+  CCE_COMMIT: 11baa460f60ad9f9345cefcb6f2b594a95ce0568
   # The offramp's root modules, one per directory, relative to this
   # repository (offramp/fixtures until they move to the
   # terraform-offramp-demo repository's layout).
   FIXTURES: '{{.FIXTURES | default "offramp/fixtures"}}'
   CCE_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/cce-{{.CCE_COMMIT | trunc 8}}.tar.gz'
+  # ack-extensions at this commit supplies the fakes (AWS Emulator's pinned
+  # package and moto), the no-real-AWS guard and its kinds for the AWS
+  # charts' fake-AWS runs; crds/ack-extensions/README.md says which commit
+  # each copied CRD comes from.
+  ACKX_COMMIT: 74d322ff304f19badbc121e0d8769dc28e416342
+  ACKX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/ackx-{{.ACKX_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:
@@ -162,13 +168,29 @@ tasks:
     status:
       - gcloud storage ls {{.CCE_TARBALL}}
     cmds:
-      - git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}
+      - bash -c 'set -o pipefail; git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}'
 
   test-mock:
     desc: Apply each chart's tests/mock.values.yaml to the fake cloud on an offload VM (MOCK_CHARTS="gcs net-vpc" for some)
     deps: [test, cce-snapshot]
     cmds:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env CCE_TARBALL={{.CCE_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply.sh'
+
+  ackx-snapshot:
+    desc: Upload ack-extensions at ACKX_COMMIT for the AWS charts' fake-AWS runs
+    preconditions:
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
+    status:
+      - gcloud storage ls {{.ACKX_TARBALL}}
+    cmds:
+      - bash -c 'set -o pipefail; git -C ../ack-extensions archive --format=tar.gz {{.ACKX_COMMIT}} | gcloud storage cp --quiet - {{.ACKX_TARBALL}}'
+
+  test-mock-aws:
+    desc: Apply each AWS chart's tests/mock.values.yaml to a fake AWS (the pinned ACK controllers and ack-extensions on kind, against AWS Emulator first and moto for what fails there) on an offload VM (MOCK_CHARTS="vpc kms" for some, MOCK_BACKENDS="moto" for one fake)
+    deps: [test, ackx-snapshot]
+    cmds:
+      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env ACKX_TARBALL={{.ACKX_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply-aws.sh'
 
   offramp-test:
     desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/), the equivalence of each fixture's module calls with their charts included (FIXTURES=dir of root modules, default offramp/fixtures)
@@ -211,7 +233,7 @@ tasks:
       - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} LIVE_CHARTS="{{.LIVE_CHARTS}}" hack/live-apply.sh'
 
   test-live-azure:
-    desc: "Apply three Azure charts (virtual network, storage account, key vault) to the Azure sandbox's resource group {{.AZURE_LIVE_RESOURCE_GROUP}} with Azure Service Operator on kind, on an offload VM acting as {{.AZURE_LIVE_SA}} (keyless federation); tiny resources, deleted straight after"
+    desc: "Apply the Azure charts (virtual network, storage account, key vault, network security group, route table, NAT gateway, public IP; AZURE_LIVE_CASES picks some) to the Azure sandbox's resource group {{.AZURE_LIVE_RESOURCE_GROUP}} with Azure Service Operator on kind, on an offload VM acting as {{.AZURE_LIVE_SA}} (keyless federation); tiny resources, deleted straight after"
     preconditions:
       - sh: test -n "{{.AZURE_LIVE_SA}}" -a -n "{{.AZURE_SUBSCRIPTION_ID}}" -a -n "{{.AZURE_TENANT_ID}}" -a -n "{{.AZURE_CLIENT_ID}}" -a -n "{{.AZURE_LIVE_RESOURCE_GROUP}}"
         msg: 'set AZURE_LIVE_SA, AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID and AZURE_LIVE_RESOURCE_GROUP (see .env.example)'

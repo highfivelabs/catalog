@@ -1,0 +1,45 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: source-repository
+spec:
+  version: "1.0.0"
+  components:
+    - name: repo
+      package:
+        name: gcp-source-repository
+        version: "0.1.0"
+      inputs:
+        project_id: my-project
+        name: my-repo
+        iam:
+          roles/source.reader:
+            - user:foo@example.com
+        triggers:
+          foo:
+            filename: ci/workflow-foo.yaml
+            included_files:
+              - '**/*yaml'
+            service_account: null
+            substitutions: null
+            template:
+              branch_name: main
+              project_id: null
+              tag_name: null
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: source-repository
+  scope: my-team
+spec:
+  template: source-repository
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: source-repository-dev
+  scope: my-team/dev
+spec:
+  stack: source-repository
+  version: "1.0.0"

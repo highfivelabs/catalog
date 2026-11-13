@@ -1,0 +1,78 @@
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-nlb-bs"
+  location: "europe-west1"
+  description: "Terraform managed."
+  loadBalancingScheme: EXTERNAL
+  protocol: "UNSPECIFIED"
+  healthChecks:
+    - healthCheckRef:
+        name: names
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: names-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-test"
+  location: "europe-west1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: names
+  loadBalancingScheme: EXTERNAL
+  allPorts: true
+---
+# Source: net-lb-ext/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-nlb-hc"
+  location: "europe-west1"
+  description: "Terraform managed."
+  tcpHealthCheck:
+    portSpecification: USE_SERVING_PORT

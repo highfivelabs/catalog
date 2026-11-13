@@ -1,4 +1,208 @@
 ---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-intra-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:intra_egress"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-catalog-gke-intra-cluster-egress"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by terraform gke module: Allow pods to communicate with each other and the master"
+  direction: EGRESS
+  priority: 1000
+  destinationRanges: ["10.128.0.0/20","10.4.0.0/14"]
+  targetTags: ["gke-catalog-gke"]
+  allow:
+    - protocol: "tcp"
+    - protocol: "udp"
+    - protocol: "icmp"
+    - protocol: "sctp"
+    - protocol: "esp"
+    - protocol: "ah"
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-webhooks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:master_webhooks"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-catalog-gke-webhooks"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by terraform gke module: Allow master to hit pods for admission controllers/webhooks"
+  direction: INGRESS
+  priority: 1000
+  sourceRanges: ["10.128.0.0/20"]
+  targetTags: ["gke-catalog-gke"]
+  allow:
+    - protocol: "tcp"
+      ports: ["8443","9443","15017"]
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-shadow-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:shadow_allow_pods"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-shadow-catalog-gke-all"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by terraform gke module: A shadow firewall rule to match the default rule allowing pod communication."
+  direction: INGRESS
+  priority: 999
+  sourceRanges: ["10.4.0.0/14"]
+  targetTags: ["gke-catalog-gke"]
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+  allow:
+    - protocol: "tcp"
+    - protocol: "udp"
+    - protocol: "icmp"
+    - protocol: "sctp"
+    - protocol: "esp"
+    - protocol: "ah"
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-shadow-master
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:shadow_allow_master"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-shadow-catalog-gke-master"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by terraform GKE module: A shadow firewall rule to match the default rule allowing worker nodes communication."
+  direction: INGRESS
+  priority: 999
+  sourceRanges: ["10.128.0.0/20"]
+  targetTags: ["gke-catalog-gke"]
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+  allow:
+    - protocol: "tcp"
+      ports: ["10250","443"]
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-shadow-vms
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:shadow_allow_nodes"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-shadow-catalog-gke-vms"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by Terraform GKE module: A shadow firewall rule to match the default rule allowing worker nodes communication."
+  direction: INGRESS
+  priority: 999
+  sourceRanges: ["10.128.0.0/20"]
+  targetTags: ["gke-catalog-gke"]
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+  allow:
+    - protocol: "icmp"
+    - protocol: "udp"
+      ports: ["1-65535"]
+    - protocol: "tcp"
+      ports: ["1-65535"]
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-shadow-inkubelet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:shadow_allow_inkubelet"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-shadow-catalog-gke-inkubelet"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by terraform GKE module: A shadow firewall rule to match the default rule allowing worker nodes & pods communication to kubelet."
+  direction: INGRESS
+  priority: 998
+  sourceRanges: ["10.4.0.0/14"]
+  sourceTags: ["gke-catalog-gke"]
+  targetTags: ["gke-catalog-gke"]
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+  allow:
+    - protocol: "tcp"
+      ports: ["10255"]
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: mock-fw-shadow-exkubelet
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:shadow_deny_exkubelet"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "gke-shadow-catalog-gke-exkubelet"
+  networkRef:
+    external: "projects/mock-project/global/networks/default"
+  description: "Managed by terraform GKE module: A shadow firewall rule to match the default deny rule to kubelet."
+  direction: INGRESS
+  priority: 999
+  sourceRanges: ["0.0.0.0/0"]
+  targetTags: ["gke-catalog-gke"]
+  logConfig:
+    metadata: "INCLUDE_ALL_METADATA"
+  deny:
+    - protocol: "tcp"
+      ports: ["10255"]
+---
 # Source: gke-cluster/templates/cluster.yaml
 apiVersion: container.cnrm.cloud.google.com/v1beta1
 kind: ContainerCluster
@@ -8,7 +212,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: gke-cluster
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "cluster"
     cnrm.cloud.google.com/project-id: "mock-project"
@@ -104,7 +308,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: gke-cluster
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "pool:pool-1"
     cnrm.cloud.google.com/project-id: "mock-project"
@@ -153,7 +357,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: gke-cluster
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "grant-mock-project|roles/container.defaultNodeServiceAccount"
     cnrm.cloud.google.com/project-id: "mock-project"
@@ -176,7 +380,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: gke-cluster
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "grant-mock-project|roles/monitoring.metricWriter"
     cnrm.cloud.google.com/project-id: "mock-project"
@@ -199,7 +403,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: gke-cluster
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "grant-mock-project|roles/stackdriver.resourceMetadata.writer"
     cnrm.cloud.google.com/project-id: "mock-project"
@@ -222,7 +426,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: gke-cluster
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "service_account"
     cnrm.cloud.google.com/project-id: "mock-project"
