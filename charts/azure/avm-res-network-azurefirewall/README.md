@@ -124,8 +124,8 @@ v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD, and the
 refusals in `tests/*.fail.yaml`. `task test-live-azure` (case `afw`)
 applies a zoneless Basic firewall in a network with its two subnets and two
 public IPs, which the case makes beside it, evaluates the outputs, deletes
-them all and checks Azure no longer has them: passed on 2026-11-13 (run
-`cat1113040454ba`, 6 objects). `task test-mock-azure` applies
+them all and checks Azure no longer has them: passed on 2026-11-13 (runs
+`cat1113040454ba` and `cat11130600091d`, 6 objects). `task test-mock-azure` applies
 `tests/mock.values.yaml` to aso-extensions' fake cloud: passed on
 2026-11-13, the firewall and its lock Ready and deleted, the outputs
 evaluated.

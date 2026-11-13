@@ -1,0 +1,53 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: api-gateway
+spec:
+  version: "1.0.0"
+  components:
+    - name: gateway
+      package:
+        name: gcp-api-gateway
+        version: "0.1.0"
+      inputs:
+        api_id: orders
+        region: europe-west1
+        service_account_create: true
+        iam:
+          roles/apigateway.viewer:
+            - group:orders-readers@example.com
+        spec: |
+          swagger: "2.0"
+          info:
+            title: orders
+            version: "1.0.0"
+          paths:
+            /orders:
+              get:
+                operationId: listOrders
+                x-google-backend:
+                  address: https://orders.example.com
+                responses:
+                  "200":
+                    description: OK
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: api-gateway
+  scope: my-team
+spec:
+  template: api-gateway
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: api-gateway-dev
+  scope: my-team/dev
+spec:
+  stack: api-gateway
+  version: "1.0.0"
+  components:
+    gateway:
+      values:
+        project_id: myproject

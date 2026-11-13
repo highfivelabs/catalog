@@ -1,0 +1,44 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>). name and
+# resource_id are the gateway's; the others are read from its status as the
+# module reads them from azapi's output, null (private_endpoint_connections
+# []) until Azure reports them. public_ip_addresses maps each
+# public_ip_addresses key to its public IP's resource_id, ip_address and
+# fqdn, as the module's does. default_predefined_ssl_policy is not an
+# output: ASO's ApplicationGateway (ARM 2022-07-01) has no
+# defaultPredefinedSslPolicy in its status.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-applicationgateway
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.application_gateway.spec.azureName
+    resource_id: resources.application_gateway.status.id
+    identity_principal_id: >-
+      'identity' in resources.application_gateway.status && 'principalId' in resources.application_gateway.status.identity
+      ? resources.application_gateway.status.identity.principalId : null
+    identity_tenant_id: >-
+      'identity' in resources.application_gateway.status && 'tenantId' in resources.application_gateway.status.identity
+      ? resources.application_gateway.status.identity.tenantId : null
+    operational_state: >-
+      'operationalState' in resources.application_gateway.status ? resources.application_gateway.status.operationalState : null
+    private_endpoint_connections: >-
+      'privateEndpointConnections' in resources.application_gateway.status ? resources.application_gateway.status.privateEndpointConnections : []
+    provisioning_state: >-
+      'provisioningState' in resources.application_gateway.status ? resources.application_gateway.status.provisioningState : null
+    resource_guid: >-
+      'resourceGuid' in resources.application_gateway.status ? resources.application_gateway.status.resourceGuid : null
+    type: >-
+      'type' in resources.application_gateway.status ? resources.application_gateway.status.type : null
+    public_ip_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('public_ip:'),
+      {k.substring(10): {'resource_id': v.status.id,
+      'ip_address': 'ipAddress' in v.status ? v.status.ipAddress : null,
+      'fqdn': 'dnsSettings' in v.status && 'fqdn' in v.status.dnsSettings ? v.status.dnsSettings.fqdn : null}})

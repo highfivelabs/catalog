@@ -1,0 +1,66 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's
+# net-lb-proxy-int-cross-region module (v60.0.0): same names, types and
+# defaults, so a module block's arguments become this file one to one
+# (README.md, "From Terraform"). values.schema.json carries the types.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.backendService, names.healthCheck and names.targetProxy set those
+# cloud names in full (else fabric's: the entry's name, or name).
+# Forwarding rules, groups and network endpoint groups are named in their
+# own entries, <name>-<key> (with the namePrefix).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the chart
+# derives or is given in an entry, never one set under names. Empty (the
+# default) changes nothing.
+namePrefix: ""
+# fabric's labels: Kubernetes labels on every object. An unprefixed key also
+# becomes a Google Cloud label (the forwarding rules take labels; the other
+# resources none), so it must be a valid one.
+labels: {}
+# Cloud labels on every resource that takes them (the forwarding rules).
+tags: {}
+
+# Optional IP addresses used for the forwarding rules, mapped by subnetwork
+# key.
+addresses: null
+# Backend service level configuration.
+backend_service_config: {}
+# Context-specific interpolations. Refused when set: Bundt expressions
+# (${...}) and valueFrom replace fabric's $context lookups.
+context: {}
+# Optional description used for resources.
+description: Terraform managed.
+# Optional unmanaged groups to create. Can be referenced in backends via key
+# or outputs.
+group_configs: {}
+# Name of existing health check to use, disables auto-created health check.
+health_check: null
+# Optional auto-created health check configurations.
+health_check_config:
+  tcp:
+    port_specification: USE_SERVING_PORT
+# Load balancer name.
+name: ""
+# Optional network endpoint groups to create. Can be referenced in backends
+# via key or outputs.
+neg_configs: {}
+# Forwarding rule port. Cross-region internal proxy load balancers support a
+# single port.
+port: 80
+# Project id.
+project_id: ""
+# Target proxy configuration.
+target_proxy_config: {}
+# VPC-level configuration: {network, subnetworks: {KEY: SUBNETWORK}}.
+vpc_config: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# load balancer's resources when the component is deleted. PREVENT has no
+# Config Connector equivalent.
+deletion_policy: null

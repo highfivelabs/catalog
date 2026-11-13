@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dataplex values (fabric dataplex v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "project_id", "region", "zones"],
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lake": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the lake's derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it).",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "iam": {
+      "description": "Dataplex lake IAM bindings in {ROLE => [MEMBERS]} format.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "location_type": {"description": "The location type of the Dataplax Lake.", "type": "string"},
+    "name": {"description": "Name of Dataplex Lake.", "type": "string", "minLength": 1},
+    "prefix": {"description": "Optional prefix used to generate Dataplex Lake.", "type": ["string", "null"]},
+    "project_id": {"description": "The ID of the project where this Dataplex Lake will be created.", "type": "string", "minLength": 1},
+    "region": {"description": "Region of the Dataplax Lake.", "type": "string", "minLength": 1},
+    "zones": {
+      "description": "Dataplex lake zones, such as `RAW` and `CURATED`.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "assets"],
+        "properties": {
+          "type": {"type": "string"},
+          "discovery": {"type": ["boolean", "null"]},
+          "iam": {"type": ["object", "null"], "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+          "assets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["resource_name"],
+              "properties": {
+                "resource_name": {"type": "string", "minLength": 1},
+                "resource_project": {"type": ["string", "null"]},
+                "cron_schedule": {"type": ["string", "null"]},
+                "discovery_spec_enabled": {"type": ["boolean", "null"]},
+                "resource_spec_type": {
+                  "description": "Asset spect type must be one of 'BIGQUERY_DATASET' or 'STORAGE_BUCKET'.",
+                  "enum": ["BIGQUERY_DATASET", "STORAGE_BUCKET", null]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}

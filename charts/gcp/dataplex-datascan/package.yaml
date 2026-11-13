@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"):
+# data_scan_id and id from the inputs, as fabric's resource computes them
+# (<prefix>-<name>, projects/<project>/locations/<region>/dataScans/<id>);
+# name and type are what the API reports (the object's status.externalRef
+# and status.observedState.type), null until it does.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-dataplex-datascan
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    data_scan_id: >-
+      'datascan' in inputs.names && inputs.names.datascan != '' ? inputs.names.datascan :
+      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') +
+      (inputs.prefix != null && inputs.prefix != '' ? inputs.prefix + '-' : '') + inputs.name
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.region + '/dataScans/' +
+      ('datascan' in inputs.names && inputs.names.datascan != '' ? inputs.names.datascan :
+      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') +
+      (inputs.prefix != null && inputs.prefix != '' ? inputs.prefix + '-' : '') + inputs.name)
+    name: >-
+      has(resources.datascan.status) && has(resources.datascan.status.externalRef)
+      ? dyn(resources.datascan.status.externalRef) : null
+    type: >-
+      has(resources.datascan.status) && has(resources.datascan.status.observedState) && has(resources.datascan.status.observedState.type)
+      ? dyn(resources.datascan.status.observedState.type) : null

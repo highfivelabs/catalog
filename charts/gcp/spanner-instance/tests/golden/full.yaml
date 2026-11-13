@@ -1,0 +1,114 @@
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerDatabase
+metadata:
+  name: full-db-audit
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "database:audit"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "audit"
+  instanceRef:
+    name: full
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerDatabase
+metadata:
+  name: full-db-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "database:orders"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "orders"
+  instanceRef:
+    name: full
+  ddl:
+    - "CREATE TABLE t (id INT64) PRIMARY KEY (id)"
+  enableDropProtection: true
+  versionRetentionPeriod: "3d"
+  encryptionConfig:
+    kmsKeyRef:
+      external: "projects/my-project/locations/us-east1/keyRings/r/cryptoKeys/k"
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerInstance
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    app: "orders"
+    cost-center: "cc1"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "orders"
+  config: "custom-orders"
+  displayName: "Orders"
+  processingUnits: 100
+  edition: "ENTERPRISE"
+  defaultBackupScheduleType: "AUTOMATIC"
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.gcp.hfl.dev/v1beta1
+kind: SpannerInstanceConfig
+metadata:
+  name: full-config
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "cc1"
+    env: "prod"
+    hfl.dev/team: "data"
+    tier: "gold"
+  annotations:
+    hfl.dev/id: "instance_config"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "custom-orders"
+  displayName: "custom-orders"
+  baseConfigRef:
+    external: "projects/my-project/instanceConfigs/nam3"
+  replicas:
+    - location: "us-east1"
+      type: "READ_WRITE"
+      defaultLeaderLocation: true
+    - location: "us-east4"
+      type: "READ_ONLY"
+      defaultLeaderLocation: false
+  labels:
+    cost-center: "cc1"
+    env: "prod"
+    tier: "gold"

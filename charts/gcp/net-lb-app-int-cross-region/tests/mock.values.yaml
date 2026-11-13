@@ -1,0 +1,57 @@
+# Applied to the fake cloud by hack/mock-apply.sh: forwarding rules in two
+# regions' subnets (tests/mock.needs.yaml makes the network and subnets),
+# an HTTP proxy and a URL map with a host rule and a path matcher, three
+# backend services (a hybrid NEG with one endpoint, an instance group, a
+# serverless NEG; the API refuses groups and NEGs in one service), and
+# their health checks.
+name: catalog-mock-xalb
+project_id: mock-project
+labels: {env: test}
+vpc_config:
+  network: projects/mock-project/global/networks/catalog-mock-xalb-net
+  subnetworks:
+    us-central1: projects/mock-project/regions/us-central1/subnetworks/catalog-mock-xalb-sn1
+    us-east1: projects/mock-project/regions/us-east1/subnetworks/catalog-mock-xalb-sn2
+group_configs:
+  a: {zone: us-central1-a, named_ports: {http: 80}}
+neg_configs:
+  hybrid:
+    hybrid:
+      zone: us-east1-b
+      endpoints:
+        e1: {ip_address: 10.21.2.5, port: 80}
+  run:
+    cloudrun:
+      region: us-central1
+      target_service: {name: hello}
+health_check_configs:
+  default:
+    http: {port_specification: USE_SERVING_PORT, request_path: /healthz}
+  tcp:
+    tcp: {port: 80}
+backend_service_configs:
+  default:
+    backends:
+      - {group: hybrid, balancing_mode: RATE, max_rate: {per_endpoint: 100}}
+  groups:
+    port_name: http
+    health_checks: [tcp]
+    backends:
+      - {group: a}
+  run:
+    health_checks: []
+    backends:
+      - {group: run}
+urlmap_config:
+  default_service: default
+  host_rules:
+    - hosts: ["*"]
+      path_matcher: main
+  path_matchers:
+    main:
+      default_service: default
+      path_rules:
+        - paths: [/groups, /groups/*]
+          service: groups
+        - paths: [/run/*]
+          service: run

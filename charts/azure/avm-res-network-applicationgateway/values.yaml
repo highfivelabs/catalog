@@ -1,0 +1,246 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-network-applicationgateway (v0.6.0): same names, types and
+# defaults, so a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-network-applicationgateway
+# (variables*.tf, v0.6.0), Copyright (c) Microsoft Corporation, MIT.
+#
+# ASO's ApplicationGateway is at ARM API version 2022-07-01 (the module
+# sends 2025-03-01). A field the later versions added is refused by name
+# when set (upstream.yaml).
+#
+# Internal references: a component's reference object takes either id (any
+# ARM ID) or its type's *_key, which must case-insensitively match the
+# configured name of exactly one component; it becomes the gateway's ARM ID,
+# the collection's segment and that name, as in the module.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The application gateway's name in full, {applicationGateway}. A name set
+# here takes no prefix; one not set is name, with the namePrefix in front.
+# The public IPs take their entries' names, with the namePrefix in front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the gateway's and
+# the public IPs' names (never one set under names). Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+
+# Authentication certificates of the application gateway resource.
+# Refused when set: ASO takes a certificate's data only from a Kubernetes
+# Secret.
+authentication_certificates: null
+# Application Gateway autoscale configuration. {min_capacity (required),
+# max_capacity}
+autoscale_configuration: null
+# Backend address pool of the application gateway resource. Each: {name,
+# backend_addresses: [{fqdn, ip_address}]}.
+backend_address_pools: null
+# Backend http settings of the application gateway resource. Each: {name,
+# affinity_cookie_name, authentication_certificates: [{id,
+# authentication_certificate_key}], connection_draining:
+# {drain_timeout_in_sec, enabled}, cookie_based_affinity, host_name, path,
+# pick_host_name_from_backend_address, port, probe: {id, probe_key},
+# probe_enabled, protocol, request_timeout, trusted_root_certificates:
+# [{id, trusted_root_certificate_key}]}. dedicated_backend_connection,
+# sni_name, validate_cert_chain_and_expiry and validate_sni are refused
+# (not in ARM 2022-07-01). A certificate reference takes only id (the
+# certificates themselves are refused).
+backend_http_settings_collection: null
+# Backend settings of the application gateway resource (TLS/TCP proxy).
+# Each: {name, host_name, pick_host_name_from_backend_address, port, probe:
+# {id, probe_key}, protocol, timeout, trusted_root_certificates: [{id}]}.
+# enable_l4_client_ip_preservation is refused (not in ARM 2022-07-01).
+backend_settings_collection: null
+# Custom error configurations of the application gateway resource. Each:
+# {custom_error_page_url, status_code}.
+custom_error_configurations: null
+# A map describing customer-managed keys to associate with the resource.
+# Accepted; as in the module, it changes nothing (an application gateway
+# has no customer-managed key).
+customer_managed_key: null
+# A map of diagnostic settings to create on the gateway. Each: {name
+# (default diag-<name>), log_categories ([]), log_groups (["allLogs"]),
+# metric_categories (["AllMetrics"]), log_analytics_destination_type
+# ("Dedicated"), workspace_resource_id, storage_account_resource_id,
+# event_hub_authorization_rule_resource_id, event_hub_name,
+# marketplace_partner_resource_id}.
+diagnostic_settings: {}
+# Whether FIPS is enabled on the application gateway resource.
+enable_fips: null
+# Whether HTTP2 is enabled on the application gateway resource.
+enable_http2: null
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# Entra JWT validation configurations for the application gateway
+# resource. Refused when set: ARM 2022-07-01 has none.
+entra_jwt_validation_configs: null
+# Reference to another subresource: the WAF policy, {id}.
+firewall_policy: null
+# If true, associates a firewall policy with an application gateway
+# regardless whether the policy differs from the WAF Config.
+force_firewall_policy_association: null
+# Frontend IP addresses of the application gateway resource. Each: {name,
+# private_ip_address, private_ip_allocation_method,
+# private_link_configuration: {id, private_link_configuration_key},
+# public_ip_address: {id}, public_ip_address_key (a key of
+# public_ip_addresses: the public IP the chart makes), subnet: {id}}.
+frontend_ip_configurations: null
+# Frontend ports of the application gateway resource. Each: {name, port}.
+frontend_ports: null
+# Subnets of the application gateway resource. Each: {name, subnet: {id}}.
+gateway_ip_configurations: null
+# Application Gateway global configuration. {enable_request_buffering,
+# enable_response_buffering}
+global_configuration: null
+# Http listeners of the application gateway resource. Each: {name,
+# custom_error_configurations, firewall_policy: {id},
+# frontend_ip_configuration: {id, frontend_ip_configuration_key},
+# frontend_port: {id, frontend_port_key}, host_name, host_names, protocol,
+# require_server_name_indication, ssl_certificate: {id}, ssl_profile: {id,
+# ssl_profile_key}}.
+http_listeners: null
+# Body-relative paths to leave to another writer. Refused when set: ASO
+# applies the whole spec it is given.
+ignore_body_changes: {}
+# Listeners of the application gateway resource (TLS/TCP proxy). Each:
+# {name, frontend_ip_configuration, frontend_port, protocol,
+# ssl_certificate: {id}, ssl_profile}. host_names is refused (not in ARM
+# 2022-07-01).
+listeners: null
+# Load distribution policies of the application gateway resource. Each:
+# {name, load_distribution_algorithm, load_distribution_targets: [{id}]}.
+# A target's name, backend_address_pool and weight_per_server are refused:
+# ASO's 2022-07-01 type takes a target only by reference.
+load_distribution_policies: null
+# Azure region where the resource should be deployed.
+location: ""
+# Controls the Resource Lock configuration for this resource.
+# {kind (CanNotDelete or ReadOnly), name (default lock-<kind>)}
+lock: null
+# Controls the Managed Identity configuration on this resource.
+# {system_assigned (false), user_assigned_resource_ids ([])}
+managed_identities: {}
+# The name of the this resource.
+name: ""
+# The parent resource ID for this resource: the resource group,
+# /subscriptions/<id>/resourceGroups/<name>.
+parent_id: ""
+# Private endpoint configuration schema retained for compatibility.
+# Accepted; as in the module (issue #284), it has no deployment effect.
+private_endpoints: {}
+# Standard private-endpoint DNS-zone-group control. Accepted; as in the
+# module, it has no deployment effect.
+private_endpoints_manage_dns_zone_group: true
+# PrivateLink configurations on application gateway. Each: {name,
+# ip_configurations: [{name, primary, private_ip_address,
+# private_ip_allocation_method, subnet: {id}}]}. An IP configuration's id
+# is refused (ASO's type has none).
+private_link_configurations: null
+# Probes of the application gateway resource. Each: {name, host, interval,
+# match: {body, status_codes}, min_servers, path,
+# pick_host_name_from_backend_http_settings,
+# pick_host_name_from_backend_settings, port, protocol, timeout,
+# unhealthy_threshold}. id is accepted and, as in the module, not sent;
+# enable_probe_proxy_protocol_header is refused (not in ARM 2022-07-01).
+probes: null
+# Public IP addresses owned by this module, keyed for
+# frontend_ip_configurations[*].public_ip_address_key. Each: {name
+# (required), ddos_protection_mode ("VirtualNetworkInherited"),
+# ddos_protection_plan_resource_id, domain_name_label,
+# idle_timeout_in_minutes (4), ip_tags ({}), ip_version ("IPv4"),
+# parent_id (the gateway's), public_ip_prefix_resource_id, reverse_fqdn,
+# tags ({}; merged over tags), zones (the gateway's)}. Standard, Regional,
+# Static.
+public_ip_addresses: {}
+# Redirect configurations of the application gateway resource. Each:
+# {name, include_path, include_query_string, path_rules: [{id,
+# path_rule_key, url_path_map_key}], redirect_type, request_routing_rules:
+# [{id, request_routing_rule_key}], target_listener: {id,
+# http_listener_key}, target_url, url_path_maps: [{id, url_path_map_key}]}.
+redirect_configurations: null
+# Request routing rules of the application gateway resource. Each: {name,
+# priority, rule_type, and references backend_address_pool,
+# backend_http_settings, http_listener, load_distribution_policy,
+# redirect_configuration, rewrite_rule_set, url_path_map}.
+# entra_jwt_validation_config is refused (not in ARM 2022-07-01).
+request_routing_rules: null
+# AzAPI resource types and API versions. Refused when set: the API
+# versions are the ASO kinds'.
+resource_types: {}
+# Retry configuration. Refused when set: ASO retries itself.
+retry: null
+# Rewrite rules for the application gateway resource. Each: {name,
+# rewrite_rules: [{name, rule_sequence, conditions: [{ignore_case, negate,
+# pattern, variable}], action_set: {request_header_configurations:
+# [{header_name, header_value}], response_header_configurations,
+# url_configuration: {modified_path, modified_query_string, reroute}}}]}.
+# id is accepted and, as in the module, not sent; header_value_matcher is
+# refused (not in ARM 2022-07-01).
+rewrite_rule_sets: null
+# A map of role assignments to create on this resource. Each:
+# {role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+role_assignments: {}
+# Routing rules of the application gateway resource (TLS/TCP proxy). Each:
+# {name, priority, rule_type, backend_address_pool, backend_settings,
+# listener}.
+routing_rules: null
+# SKU of an application gateway. {capacity (1 to 125), name, tier}. family
+# and the Basic name and tier are refused (not in ARM 2022-07-01).
+sku: null
+# SSL certificates of the application gateway resource. Refused when set:
+# their data and password are secrets, key_vault_secret_id Key Vault
+# secret material.
+ssl_certificates: null
+# Application Gateway Ssl policy. {cipher_suites, disabled_ssl_protocols,
+# min_protocol_version, policy_name, policy_type}; a Predefined policy
+# sends only its name and type, as in the module.
+ssl_policy: null
+# SSL profiles of the application gateway resource. Each: {name,
+# client_auth_configuration: {verify_client_cert_issuer_dn,
+# verify_client_revocation}, ssl_policy, trusted_client_certificates:
+# [{id}]}. verify_client_auth_mode is refused (not in ARM 2022-07-01).
+ssl_profiles: null
+# (Optional) Tags of the resource.
+tags: null
+# Per-operation timeouts. Refused when set: ASO has none; Bundt sets a
+# component's time limit.
+timeouts: null
+# Trusted client certificates of the application gateway resource. Refused
+# when set: ASO takes a certificate's data only from a Kubernetes Secret.
+trusted_client_certificates: null
+# Trusted Root certificates of the application gateway resource. Refused
+# when set: ASO takes a certificate's data only from a Kubernetes Secret,
+# and key_vault_secret_id is Key Vault secret material.
+trusted_root_certificates: null
+# URL path map of the application gateway resource. Each: {name,
+# default_backend_address_pool, default_backend_http_settings,
+# default_load_distribution_policy, default_redirect_configuration,
+# default_rewrite_rule_set, path_rules: [{name, paths, firewall_policy:
+# {id}, and the same references}]}. A path rule's id is refused (ASO's
+# type has none).
+url_path_maps: null
+# Application gateway web application firewall configuration. {enabled,
+# firewall_mode, rule_set_type, rule_set_version (all required),
+# disabled_rule_groups: [{rule_group_name, rules}], exclusions:
+# [{match_variable, selector, selector_match_operator}],
+# file_upload_limit_in_mb, max_request_body_size,
+# max_request_body_size_in_kb, request_body_check}
+web_application_firewall_configuration: null
+# A list of availability zones denoting where the resource needs to come
+# from.
+zones: null

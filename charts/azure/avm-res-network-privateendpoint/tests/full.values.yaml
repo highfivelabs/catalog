@@ -1,0 +1,30 @@
+# Every module input: a key vault endpoint with a static IP configuration,
+# a custom network interface name, two application security groups, a DNS
+# zone group of two zones with its own name, and the lock and role
+# assignments.
+name: pe-full
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+network_interface_name: nic-pe-full
+private_connection_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.KeyVault/vaults/kv-example
+private_service_connection_name: psc-kv
+subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe
+subresource_names: [vault]
+application_security_group_association_ids:
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationSecurityGroups/asg-b
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationSecurityGroups/asg-a
+ip_configurations:
+  vault: {name: ipconfig-vault, private_ip_address: 10.0.1.10, subresource_name: vault}
+  other: {name: ipconfig-other, private_ip_address: 10.0.1.11, subresource_name: vault, member_name: default}
+private_dns_zone_group_name: kv-zones
+private_dns_zone_resource_ids:
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net
+  - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.example.internal
+avm_managed_migration_enabled: true
+enable_telemetry: false
+tags: {env: dev}
+labels: {hfl.dev/team: net}
+lock: {kind: ReadOnly}
+role_assignments:
+  reader: {role_definition_id_or_name: Reader, principal_id: 11111111-1111-1111-1111-111111111111, principal_type: Group}
+  owner: {role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635, principal_id: 22222222-2222-2222-2222-222222222222, skip_service_principal_aad_check: true, name: 33333333-3333-3333-3333-333333333333, description: owners}
