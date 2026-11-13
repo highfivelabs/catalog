@@ -1,0 +1,194 @@
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-bs"
+  location: "europe-west1"
+  description: "the backend"
+  loadBalancingScheme: EXTERNAL
+  protocol: "UNSPECIFIED"
+  healthChecks:
+    - healthCheckRef:
+        name: full
+  connectionDrainingTimeoutSec: 10
+  localityLbPolicy: "WEIGHTED_MAGLEV"
+  portName: "http"
+  securityPolicyRef:
+    external: "projects/my-project/regions/europe-west1/securityPolicies/edge"
+  sessionAffinity: "CLIENT_IP_PROTO"
+  timeoutSec: 30
+  backend:
+    - balancingMode: CONNECTION
+      description: "Terraform managed."
+      failover: false
+      group:
+        instanceGroupRef:
+          name: full-group-my-group
+    - balancingMode: CONNECTION
+      description: "failover group"
+      failover: true
+      group:
+        instanceGroupRef:
+          external: "projects/my-project/zones/europe-west1-c/instanceGroups/other"
+  connectionTrackingPolicy:
+    connectionPersistenceOnUnhealthyBackends: "ALWAYS_PERSIST"
+    idleTimeoutSec: 60
+    trackingMode: PER_CONNECTION
+  failoverPolicy:
+    disableConnectionDrainOnFailover: false
+    dropTrafficIfUnhealthy: true
+    failoverRatio: 0.25
+  logConfig:
+    enable: true
+    sampleRate: 1
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "nlb-full"
+  location: "europe-west1"
+  description: "the main rule"
+  ipAddress:
+    ip: "34.1.2.3"
+  ipProtocol: "UDP"
+  backendServiceRef:
+    name: full
+  loadBalancingScheme: EXTERNAL
+  allPorts: true
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr-ipv6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:ipv6"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-fr"
+  location: "europe-west1"
+  ipVersion: IPV6
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: full
+  loadBalancingScheme: EXTERNAL
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/v6"
+  ports:
+    - "80"
+    - "443"
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr-named
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:named"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "nlb-full-named"
+  location: "europe-west1"
+  ipAddress:
+    addressRef:
+      external: "projects/my-project/regions/europe-west1/addresses/nlb"
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: full
+  loadBalancingScheme: EXTERNAL
+  allPorts: true
+---
+# Source: net-lb-ext/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-hc"
+  location: "europe-west1"
+  description: "Terraform managed."
+  checkIntervalSec: 5
+  healthyThreshold: 2
+  timeoutSec: 5
+  unhealthyThreshold: 3
+  httpHealthCheck:
+    port: 80
+    portSpecification: USE_FIXED_PORT
+    requestPath: /healthz
+  logConfig:
+    enable: true
+---
+# Source: net-lb-ext/templates/groups.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  name: full-group-my-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "group:my-group"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "custom-group"
+  zone: "europe-west1-b"
+  description: "a group"
+  instances:
+    - external: "projects/my-project/zones/europe-west1-b/instances/vm-a"
+  namedPort:
+    - name: "http"
+      port: 80

@@ -17,6 +17,7 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
+| Gap kinds commit | `0ee17dd438d942df8279270dac3f3fe6fcc7bebb` (config-connector-extensions main, 2026-11-13, round 3: ComputeAutoscaler, ComputeDiskResourcePolicyAttachment, ComputeRegionPerInstanceConfig, SpannerInstanceConfig, DataCatalogTag, DNSResponsePolicyRule, CloudBuildRepository, AIPlatformReasoningEngine, IAMBinding on CloudFunctions2Function): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
 | Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
 | Azure Service Operator release | `v2.22.0` (2026-10-30) |
 | Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |
@@ -44,6 +45,10 @@ charts use are copied in `crds/ack-extensions`.
 | `iam-controller` | `v1.11.3` | `538aed660e54fc786fea8a386927ac74a12f9c30` | Role, Policy, InstanceProfile |
 | `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
 | `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
+| `sqs-controller` | `v1.9.0` | `0810c99dd5b0c45939727e0ca04e4810ced1fdfa` | Queue |
+| `sns-controller` | `v1.13.0` | `a1f0e5b19582a199ae3e6fbb071ced23b40d9655` | Topic, Subscription |
+| `ssm-controller` | `v1.8.0` | `d07ea0193aef939118ac220a60ff3d3f9d496f46` | Parameter |
+| `dynamodb-controller` | `v1.14.2` | `2fcea71a4f8d6049c9e03d729561a26735245346` | Table |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in

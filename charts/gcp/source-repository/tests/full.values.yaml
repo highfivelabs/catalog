@@ -1,0 +1,25 @@
+# Every variable: IAM of each kind and a trigger, after the module README.
+project_id: my-project
+name: my-repo
+iam:
+  roles/source.reader: ["user:foo@example.com"]
+iam_by_principals:
+  "group:devs@example.com": [roles/source.writer, roles/source.reader]
+iam_bindings:
+  admins: {role: roles/source.admin, members: ["group:admins@example.com"]}
+iam_bindings_additive:
+  bot: {member: "serviceAccount:bot@my-project.iam.gserviceaccount.com", role: roles/source.writer}
+triggers:
+  foo:
+    filename: ci/workflow-foo.yaml
+    included_files: ["**/*yaml"]
+    service_account: projects/my-project/serviceAccounts/builder@my-project.iam.gserviceaccount.com
+    substitutions: {_ENV: dev}
+    template: {branch_name: main, project_id: my-project, tag_name: null}
+  release:
+    filename: ci/release.yaml
+    included_files: null
+    service_account: null
+    substitutions: null
+    template: {branch_name: null, project_id: null, tag_name: "^v.*"}
+deletion_policy: ABANDON

@@ -29,14 +29,11 @@ refused:
     partial: true
     fields: [alert_strategy.notification_prompts, documentation.subject, documentation.links, conditions.condition_prometheus_query_language.disable_metric_validation]
   - variable: asset_feeds
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: alpha
+    reason: "CloudAssetProjectFeed is v1alpha1; not ported yet, even with allow_alpha"
   - variable: asset_search
     kind: by-design
     reason: "a search is a read, not a resource"
-  - variable: bigquery_reservations
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: cloud_armor_policy
     kind: alpha
     reason: "ComputeOrganizationSecurityPolicyAssociation is alpha in v1.160.0"
@@ -60,17 +57,11 @@ refused:
     partial: true
     values: [PREVENT]
   - variable: factories_config
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
-  - variable: iam_by_principals_conditional
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: by-design
+    reason: "a chart cannot read the caller's files: their entries go in the variables they feed (custom_roles, org_policies, logging_metrics, alerts, notification_channels, quotas, pam_entitlements, tags)"
   - variable: iam_deny_policies
     kind: alpha
     reason: "Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, \"Not ported\")"
-  - variable: kms_autokeys
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: log_scopes
     kind: alpha
     reason: "LoggingLogScope is v1alpha1: needs allow_alpha: true"
@@ -82,16 +73,15 @@ refused:
     partial: true
     values: [project]
   - variable: network_tags
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "tag keys and values take no IAM conditions"
+    partial: true
+    fields: [iam_bindings.condition, iam_bindings_additive.condition]
   - variable: notification_channels
     kind: gap
     reason: "Config Connector names a notification channel by its Kubernetes object, so display_name is refused; sensitive_labels would put a secret in the rendered manifest"
     partial: true
     fields: [display_name, sensitive_labels]
-  - variable: pam_entitlements
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: quotas
     kind: gap
     reason: "APIQuotaPreference has no ignoreSafetyChecks"
@@ -104,17 +94,17 @@ refused:
     kind: alpha
     reason: "Config Connector's kind is v1alpha1; not ported yet (charts/gcp/project/README.md, \"Not ported\")"
   - variable: service_agents_config
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)"
   - variable: service_agents_folder_bindings
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)"
   - variable: service_agents_project_bindings
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)"
   - variable: service_encryption_key_ids
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "grants roles to the project's service agents, whose emails name the project number, known only after apply (gap 8)"
   - variable: shared_vpc_service_config
     kind: gap
     reason: "host_project, network_users and iam_bindings_additive are ported; service_agent_iam, service_agent_subnet_iam, service_iam_grants and network_subnet_users name the project number, known only after apply (gap 8)"
@@ -124,17 +114,23 @@ refused:
     kind: by-design
     reason: "deprecated in fabric: use deletion_policy"
   - variable: tags
-    kind: not-ported
-    reason: "fabric's tag keys (a map value per key) have a stable Config Connector kind; the chart does not map them yet (charts/gcp/project/README.md, \"Not ported\"). A tags entry whose value is a string is the catalog's cloud label, applied to every object"
+    kind: gap
+    reason: "fabric's tag keys are ported; allowed_values_regex is refused (TagsTagKey has no such field), and so are IAM conditions on tag keys and values (they take none). A tags entry whose value is a string is the catalog's cloud label, applied to every object"
+    partial: true
+    fields: [allowed_values_regex, iam_bindings.condition, iam_bindings_additive.condition]
   - variable: tags_config
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: by-design
+    reason: "force_context_ids is refused: Bundt replaces fabric's $context ids with ${...} expressions"
+    partial: true
+    fields: [force_context_ids]
   - variable: universe
     kind: gap
     reason: "universes other than Google Cloud's are not supported"
   - variable: vpc_sc
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: alpha
+    reason: "AccessContextManagerServicePerimeterResource is v1alpha1; not ported yet, even with allow_alpha (and fabric names the project by its number)"
   - variable: workload_identity_pools
-    kind: not-ported
-    reason: "Config Connector has a stable kind for it; the chart does not map it yet (charts/gcp/project/README.md, \"Not ported\")"
+    kind: gap
+    reason: "IAMWorkloadIdentityPoolProvider has no SAML provider and no OIDC jwks_json"
+    partial: true
+    fields: [providers.identity_provider.saml, providers.identity_provider.oidc.jwks_json]

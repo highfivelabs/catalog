@@ -33,13 +33,16 @@ org_policies:
 | `names.project` | not fabric variables: the cloud name in full, used as given (no `namePrefix`, no `prefix`) and checked against the cloud's limit; a name not set derives from `name` (`docs/design.md`, "Names, labels and tags") |
 | `namePrefix` | not a fabric variable: an optional convenience. When set, the derived cloud names this chart gives (the project ID) start with `<namePrefix>-`, in front of the module's own `prefix`; never a name set under `names`; empty changes nothing |
 | `labels` | Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it), so it must be a valid one (fabric's `labels`, on the project, are these: here every object carries them) |
-| `tags` | cloud labels on every object (Google Cloud labels); a value that is a map is fabric's `tags` (tag keys), not ported yet and refused |
+| `tags` | a string value: a cloud label on every object (Google Cloud labels). A map value: fabric's tag key, one `TagsTagKey` on the project (unless it has an `id`; its short name takes the `namePrefix`) and one `TagsTagValue` per value (unless it has an `id`), each with its IAM as the module-level IAM variables; `allowed_values_regex` and IAM conditions are refused (no such field; tag keys and values take no conditions) |
+| `network_tags` | the same, as tag keys with purpose `GCE_FIREWALL` on the network (`<project>/<vpc>`, or `ALL`) |
+| `tags_config` | `ignore_iam` skips the tag keys' and values' IAM; `force_context_ids` is refused (Bundt replaces `$context` ids) |
 | `name`, `prefix`, `descriptive_name`, `parent`, `billing_account`, `auto_create_network` | `Project` `<prefix>-<name>` (checked: 6 to 30 characters) under the folder or organization; `auto_create_network` as Config Connector's annotation |
 | `project_reuse` | no project: everything else goes on the existing project `<prefix>-<name>` |
 | `deletion_policy` | `DELETE` (default) or `ABANDON`; `PREVENT` is refused: use `lien_reason` |
 | `lien_reason` | `ResourceManagerLien` restricting `resourcemanager.projects.delete` |
 | `services`, `service_config` | one `Service` each; `disable_on_destroy` and `disable_dependent_services` as Config Connector's annotations (both false, as fabric) |
 | `iam`, `iam_by_principals` | one `IAMPartialPolicy` on the project |
+| `iam_by_principals_conditional` | merged into `iam_bindings` as fabric merges it: one binding per role and condition title, keyed `iam-bpc:<role>-<title>`; fabric's checks |
 | `iam_bindings` | one `IAMBinding` each (exact per role; config-connector-extensions, `v1beta1`) |
 | `iam_bindings_additive`, `iam_by_principals_additive` | one `IAMPolicyMember` each |
 | `org_policies` | one `OrgPolicyPolicy` per policy; a `dry_run:<policy>` key is its `dryRunSpec`; boolean, list, condition and parameters rules as fabric |
@@ -57,20 +60,22 @@ org_policies:
 | `notification_channels` | one `MonitoringNotificationChannel` each, with its type, description, `enabled`, labels and user labels (as the object's labels). Config Connector names a channel by its Kubernetes object, so the channel's display name is `<component>-channel-<key>`: `display_name` is refused, and so are `sensitive_labels` (a secret would be in the rendered manifest) |
 | `alerts` | one `MonitoringAlertPolicy` each, with its conditions (absent, matched log, MQL, PromQL, threshold), strategy, documentation and user labels; a notification channel named by a key of `notification_channels` is a reference to it, any other is used as given; `display_name` is required (fabric leaves it to the API). Refused: `alert_strategy.notification_prompts`, `documentation.subject` and `links`, and a PromQL condition's `disable_metric_validation` (no such fields) |
 | `quotas` | one `APIQuotaPreference` each, named by its key (with the `namePrefix`); `ignore_safety_checks` is refused (no such field) |
+| `workload_identity_pools` | one `IAMWorkloadIdentityPool` each (its ID with the `namePrefix`) and one `IAMWorkloadIdentityPoolProvider` per provider, with fabric's OIDC templates (`github`, `gitlab`, `okta`, `terraform`: issuer and attribute mapping) and checks; SAML providers and `oidc.jwks_json` are refused (no such fields) |
+| `pam_entitlements` | one `PrivilegedAccessManagerEntitlement` each on the project, with fabric's default justification (unstructured), its approvals and notification targets |
+| `bigquery_reservations` | one `BigQueryReservationReservation` each and one `BigQueryReservationAssignment` per job type and assignee (`projects/`, `folders/` or `organizations/`), keyed as fabric keys them; fabric's `scaling_mode` is not read by its resource either |
+| `kms_autokeys` | one `KMSKeyHandle` each |
 | `allow_alpha` | not a fabric variable: accept `log_scopes`, whose kind is `v1alpha1` |
 | `tag_bindings` | one `TagsTagBinding` each on the project: the `Project` object (Config Connector reads its number), or with `project_reuse` the number in `project_reuse.attributes.number`, which it then needs |
 
 ## Not ported
 
-Config Connector has kinds for these; the chart refuses them until they
-are mapped: `asset_feeds`,
-`bigquery_reservations`, `tags`, `network_tags`, `tags_config`,
-`kms_autokeys`, `service_encryption_key_ids`, `workload_identity_pools`,
-`pam_entitlements`, `iam_deny_policies` (alpha), `scc_mute_configs`
-(alpha), `scc_sha_custom_modules` (alpha), `vpc_sc`,
-`factories_config`, `service_agents_config`,
-`service_agents_folder_bindings`, `service_agents_project_bindings`,
-`iam_by_principals_conditional`.
+Refused when set:
+
+| Variable | Why |
+| --- | --- |
+| `asset_feeds`, `iam_deny_policies`, `scc_mute_configs`, `scc_sha_custom_modules`, `vpc_sc` | their Config Connector kinds are `v1alpha1` (`CloudAssetProjectFeed`, `IAMDenyPolicy`, `SecurityCenterMuteConfig`, the SCC custom module, `AccessContextManagerServicePerimeterResource`); not ported yet, even with `allow_alpha` |
+| `service_agents_config`, `service_agents_folder_bindings`, `service_agents_project_bindings`, `service_encryption_key_ids` | they grant roles to the project's service agents, whose emails name the project number, known only after apply (gap 8); fabric's default grants to service agents are not made either |
+| `factories_config` | a chart cannot read the caller's files: their entries go in the variables they feed |
 
 Refused because Config Connector cannot express them:
 
@@ -95,6 +100,8 @@ Fabric's declared outputs for what the chart ports, selected.
 | `services` | the services the chart enables, sorted |
 | `organization_policies_ids` | `projects/<id>/policies/<policy>` per policy |
 | `sink_writer_identities` | each sink's `status.writerIdentity`, by its key |
+| `tag_keys`, `tag_values`, `network_tag_keys`, `network_tag_values` | the IDs (`tagKeys/<n>`, `tagValues/<n>`) of the keys and values the chart makes, by fabric's keys (`<key>/<value>` for values); fabric outputs whole objects |
+| `kms_autokeys` | each key handle's key (`status.observedState.kmsKey`), by its key |
 | `alert_ids`, `notification_channel_names` | each alert policy's and channel's `status.name` (`projects/<id>/alertPolicies/<n>`), by its key |
 
 With `project_reuse` there is no project object, so `name` and `number`
@@ -119,9 +126,9 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=project`: nine render cases (`extras` carries the
-0.5.0 variables, `logging` the 0.6.0 ones, `monitoring` the 0.7.0 ones, `reuse-tags` tag bindings on a
-reused project), twenty-three refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
+`task test CHART=project`: eleven render cases (`extras` carries the
+0.5.0 variables, `logging` the 0.6.0 ones, `monitoring` the 0.7.0 ones, `tags` the 0.8.0 ones, `identity` the 0.9.0 ones, `reuse-tags` tag bindings on a
+reused project), thirty-one refusals. `tests/mock.values.yaml` (no lien and no Shared VPC: mockgcp has
 neither) is applied to the fake cloud.
 
 On 2026-11-12 (`task test-mock MOCK_CHARTS=project`, offload VM), with the
@@ -140,13 +147,33 @@ On 2026-11-12 again (0.6.0, offload VM), with a log sink to the project's
 notification channel, an alert policy that refers to it by its key, and
 a quota preference added, all 16 objects Ready, outputs evaluated, all
 deleted. Metric scopes need a second project and are render-tested
-only. Log
+only. And for 0.8.0: a tag key with a value added, all 18 objects
+Ready and deleted; tag IAM and network tags are render-tested only. And for 0.9.0: a PAM entitlement, a BigQuery reservation and a
+KMS key handle added, all 21 objects Ready and deleted, outputs
+evaluated. Workload identity pools (mockgcp has none) and reservation
+assignments are render-tested only. Log
 scopes (alpha) are render-tested only. No live run: the project chart's
 live case waits for the test provisioner (`docs/design.md`, "The test
 provisioner").
 
 ## Changes
 
+- **0.9.0** (2026-11-12): `workload_identity_pools` (pools and AWS and
+  OIDC providers, fabric's templates; SAML and `jwks_json` refused),
+  `pam_entitlements`, `bigquery_reservations` (with assignments) and
+  `kms_autokeys`, and the output `kms_autokeys`. The variables still
+  refused say why: alpha kinds, grants to service agents (gap 8), or the
+  caller's files. Values that set none of them render as before, with
+  the new version label.
+- **0.8.0** (2026-11-12): fabric's tags: `tags` entries whose value is a
+  map (tag keys), `network_tags` and `tags_config` (one `TagsTagKey` per
+  key and one `TagsTagValue` per value, with their IAM;
+  `allowed_values_regex`, IAM conditions on tags and `force_context_ids`
+  refused), `iam_by_principals_conditional` (merged into `iam_bindings`),
+  and the outputs `tag_keys`, `tag_values`, `network_tag_keys` and
+  `network_tag_values`. A `tags` value that is a map is no longer
+  refused. Values that set none of them render as before, with the new
+  version label.
 - **0.7.0** (2026-11-12): fabric's monitoring and quotas:
   `notification_channels` (one `MonitoringNotificationChannel` each;
   `display_name` and `sensitive_labels` refused), `alerts` (one
