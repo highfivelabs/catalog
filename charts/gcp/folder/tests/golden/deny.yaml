@@ -1,0 +1,54 @@
+---
+# Source: folder/templates/folder.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Folder
+metadata:
+  name: deny
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "deny"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "folder"
+spec:
+  displayName: "f"
+  organizationRef:
+    external: "123456789012"
+---
+# Source: folder/templates/deny-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMDenyPolicy
+metadata:
+  name: deny-deny-no-sa-keys
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "deny"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam_deny_policy:no-sa-keys"
+spec:
+  resourceID: "no-sa-keys"
+  folderRef:
+    name: deny
+  displayName: "No service account keys"
+  rules:
+    - denyRule:
+        deniedPrincipals:
+          - "principalSet://goog/public:all"
+        deniedPermissions:
+          - "iam.googleapis.com/serviceAccountKeys.create"
+        exceptionPrincipals:
+          - "principalSet://goog/group/admins@example.com"
+        denialCondition:
+          title: "Outside dev"
+          expression: "!resource.matchTag('123456789012/env', 'dev')"
+      description: "Nobody but the admins creates keys."
+    - denyRule:
+        deniedPrincipals:
+          - "principal://goog/subject/one@example.com"
+        deniedPermissions:
+          - "cloudresourcemanager.googleapis.com/projects.delete"
+        exceptionPermissions:
+          - "cloudresourcemanager.googleapis.com/projects.update"

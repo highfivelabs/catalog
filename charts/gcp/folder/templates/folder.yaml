@@ -10,10 +10,14 @@ EssentialContactsContact per entry of contacts, in English, as fabric's.
 google_compute_firewall_policy_association.default (firewall_policy): a
 ComputeFirewallPolicyAssociation of the hierarchical policy with the
 folder. google_kms_autokey_config.default (autokey_config): a
-KMSAutokeyConfig naming the key project. google_tags_tag_binding.binding:
+KMSAutokeyConfig naming the key project.
+google_compute_organization_security_policy_association.default
+(cloud_armor_policy): a ComputeOrganizationSecurityPolicyAssociation
+(v1alpha1: allow_alpha) on an existing folder, named name or
+folder-<number>, as fabric's. google_tags_tag_binding.binding:
 a TagsTagBinding per entry of tag_bindings. Refused (README.md):
 assured_workload_config (AssuredWorkloadsWorkload is v1alpha1),
-cloud_armor_policy (no kind), deletion_protection: true (Folder has no
+deletion_protection: true (Folder has no
 such field), and the variables the other files of the module port.
 */ -}}
 {{- $v := .Values }}
@@ -31,8 +35,6 @@ such field), and the variables the other files of the module port.
 {{- include "kcc.unsupported" (list $ "asset_search" $v.asset_search "a search is a read at plan time, not a resource; Bundt does not run one") }}
 {{- include "kcc.unsupported" (list $ "asset_feeds" $v.asset_feeds "CloudAssetFolderFeed is a v1alpha1 kind; not ported yet") }}
 {{- include "kcc.unsupported" (list $ "assured_workload_config" $v.assured_workload_config "AssuredWorkloadsWorkload is a v1alpha1 kind; not ported yet") }}
-{{- include "kcc.unsupported" (list $ "cloud_armor_policy" $v.cloud_armor_policy "Config Connector has no kind for an organization security policy association (ComputeOrganizationSecurityPolicyAssociation)") }}
-{{- include "kcc.unsupported" (list $ "iam_deny_policies" $v.iam_deny_policies "Config Connector has no IAM deny policy kind (IAMDenyPolicy)") }}
 {{- include "kcc.unsupported" (list $ "logging_settings" $v.logging_settings "Config Connector has no kind for a folder's logging settings (LoggingSettings)") }}
 {{- include "kcc.unsupported" (list $ "scc_mute_configs" $v.scc_mute_configs "Config Connector has no Security Command Center v2 mute config kind (SecurityCenterMuteConfig)") }}
 {{- include "kcc.unsupported" (list $ "scc_sha_custom_modules" $v.scc_sha_custom_modules "SecurityCenterManagementSecurityHealthAnalyticsCustomModule is a v1alpha1 kind; not ported yet") }}
@@ -129,4 +131,21 @@ spec:
     {{- end }}
   tagValueRef:
     external: {{ index $bindings $key | quote }}
+{{- end }}
+{{- with $v.cloud_armor_policy }}
+{{- include "kcc.alpha" (list $ "cloud_armor_policy" . "ComputeOrganizationSecurityPolicyAssociation") }}
+{{- include "kcc.unsupported" (list $ "cloud_armor_policy.excluded_folders" .excluded_folders "ComputeOrganizationSecurityPolicyAssociation has no excludedFolders") }}
+{{- include "kcc.unsupported" (list $ "cloud_armor_policy.excluded_projects" .excluded_projects "ComputeOrganizationSecurityPolicyAssociation has no excludedProjects") }}
+{{- if $create }}
+{{- fail "folder: cloud_armor_policy needs an existing folder (folder_create: false and id): the association's attachmentId is the folder's number, which is known only after a new folder is made" }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeOrganizationSecurityPolicyAssociation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "cloud-armor")) "id" "cloud_armor_policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "Cloud Armor policy association" (.name | default (printf "folder-%s" (include "folder.number" $))) 63) | quote }}
+  attachmentId: {{ printf "folders/%s" (include "folder.number" $) | quote }}
+  policyId: {{ .policy_id | quote }}
 {{- end }}
