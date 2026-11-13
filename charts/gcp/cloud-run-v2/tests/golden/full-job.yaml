@@ -1,0 +1,138 @@
+---
+# Source: cloud-run-v2/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-job-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: run.cnrm.cloud.google.com/v1beta1
+    kind: RunJob
+    name: full-job
+  bindings:
+    - role: "roles/run.invoker"
+      members:
+        - member: "serviceAccount:scheduler@my-project.iam.gserviceaccount.com"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunJob
+metadata:
+  name: full-job
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "full-job"
+  launchStage: "GA"
+  binaryAuthorization:
+    useDefault: true
+  template:
+    taskCount: 5
+    template:
+      encryptionKeyRef:
+        external: "projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k"
+      vpcAccess:
+        egress: "ALL_TRAFFIC"
+        networkInterfaces:
+          - {"networkRef":{"external":"projects/my-project/global/networks/vpc"},"subnetworkRef":{"external":"projects/my-project/regions/europe-west1/subnetworks/jobs"},"tags":["jobs"]}
+      maxRetries: 2
+      timeout: "3.5s"
+      serviceAccountRef:
+        external: "jobs@my-project.iam.gserviceaccount.com"
+      containers:
+        - name: "worker"
+          image: "europe-docker.pkg.dev/my-project/repo/worker:1.0"
+          command: ["/worker"]
+          args: ["--batch"]
+          env:
+            - name: "MODE"
+              value: "batch"
+            - name: "OTHER"
+              valueSource:
+                secretKeyRef:
+                  secretRef:
+                    external: "projects/other/secrets/shared"
+                  versionRef:
+                    external: "latest"
+            - name: "TOKEN"
+              valueSource:
+                secretKeyRef:
+                  secretRef:
+                    external: "projects/my-project/secrets/token"
+                  versionRef:
+                    external: "3"
+          resources:
+            limits:
+              "cpu": "1"
+              "memory": "512Mi"
+          ports:
+            - {"containerPort":8080}
+          volumeMounts:
+            - name: "creds"
+              mountPath: "/creds"
+            - name: "share"
+              mountPath: "/share"
+            - name: "cloudsql"
+              mountPath: "/cloudsql"
+          startupProbe:
+            initialDelaySeconds: 2
+            httpGet:
+              path: "/ready"
+              port: 8080
+      volumes:
+        - name: "creds"
+          secret:
+            secretRef:
+              external: "projects/my-project/secrets/creds"
+            items:
+              - path: "creds.json"
+                versionRef:
+                  external: "latest"
+        - name: "share"
+          nfs:
+            server: "10.0.0.2"
+            path: "/exports/share"
+            readOnly: true
+        - name: "cloudsql"
+          cloudSqlInstance:
+            instanceRefs:
+              - external: "projects/my-project/locations/europe-west1/instances/db1"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  name: full-job-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-job"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "tag:env"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentRef:
+    external: "//run.googleapis.com/projects/my-project/locations/europe-west1/jobs/full-job"
+  tagValueRef:
+    external: "tagValues/1234"
+  location: "europe-west1"

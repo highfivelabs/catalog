@@ -1,0 +1,163 @@
+---
+# Source: cloud-run-v2/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-workerpool-iam-roles-run-developer-a3a3654f
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam:roles/run.developer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/locations/europe-west1/workerPools/full-pool
+    kind: RunWorkerPool
+  role: "roles/run.developer"
+  members:
+    - "group:devs@example.com"
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-workerpool-sa-roles-logging-logwriter-44f3baf9
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: full-workerpool-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-workerpool-sa-roles-monitoring-metricwriter-8de75c25
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: full-workerpool-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: full-workerpool-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "full-pool"
+  displayName: "full-pool"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1alpha1
+kind: RunWorkerPool
+metadata:
+  name: full-workerpool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full-workerpool"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "full-pool"
+  labels:
+    "env": "test"
+    "team": "shop"
+  launchStage: "BETA"
+  binaryAuthorization:
+    breakglassJustification: "urgent"
+  scaling:
+    manualInstanceCount: 3
+  template:
+    encryptionKeyRef:
+      external: "projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k"
+    revision: "full-pool-r1"
+    nodeSelector:
+      accelerator: "nvidia-l4"
+    vpcAccess:
+      egress: "PRIVATE_RANGES_ONLY"
+      networkInterfaces:
+        - {"subnetworkRef":{"external":"projects/my-project/regions/europe-west1/subnetworks/pool"}}
+    serviceAccountRef:
+      external: "full-pool@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "consumer"
+        image: "europe-docker.pkg.dev/my-project/repo/consumer:1.0"
+        command: ["/consumer"]
+        args: ["--queue","jobs"]
+        env:
+          - name: "MODE"
+            value: "pool"
+          - name: "TOKEN"
+            valueSource:
+              secretKeyRef:
+                secretRef:
+                  external: "projects/my-project/secrets/token"
+                versionRef:
+                  external: "latest"
+        resources:
+          limits:
+            "cpu": "1"
+            "memory": "512Mi"
+        volumeMounts:
+          - name: "cache"
+            mountPath: "/cache"
+          - name: "share"
+            mountPath: "/share"
+    volumes:
+      - name: "cache"
+        emptyDir:
+          medium: MEMORY
+          sizeLimit: "1Gi"
+      - name: "share"
+        nfs:
+          server: "10.0.0.2"

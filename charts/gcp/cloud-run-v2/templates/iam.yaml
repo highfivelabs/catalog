@@ -1,0 +1,41 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-run-v2/service.tf, job.tf
+and workerpool.tf (v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_cloud_run_v2_service_iam_binding.binding (type SERVICE) and
+google_cloud_run_v2_job_iam_binding.binding (type JOB): the roles of iam in
+one IAMPartialPolicy on the RunService or RunJob, authoritative for the
+roles it names (docs/design.md, "IAM").
+google_cloud_run_v2_worker_pool_iam_binding.binding (type WORKERPOOL): one
+IAMBinding (config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per role,
+exact per role as fabric's: Config Connector's IAM kinds cannot reference a
+RunWorkerPool. By the pool's full name, so it can be deleted after the
+pool's object is gone.
+google_iap_web_cloud_run_service_iam_*: service_config.iap_config is
+refused (RunService has no iapEnabled).
+*/ -}}
+{{- $v := .Values }}
+{{- $t := $v.type | default "SERVICE" }}
+{{- if eq $t "WORKERPOOL" }}
+{{- $ref := dict "kind" "RunWorkerPool" "external" (include "cloudRunV2.id" .) }}
+{{- range $role := keys ($v.iam | default dict) | sortAlpha }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam" $role)) "id" (printf "iam:%s" $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := (index $v.iam $role | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- else }}
+{{- $kind := ternary "RunJob" "RunService" (eq $t "JOB") }}
+{{- include "kcc.iam" (dict "root" $ "base" .Release.Name "idPrefix" "" "resourceRef" (dict "apiVersion" "run.cnrm.cloud.google.com/v1beta1" "kind" $kind "name" .Release.Name) "v" (dict "iam" $v.iam)) }}
+{{- end }}

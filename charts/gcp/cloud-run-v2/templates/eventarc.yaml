@@ -1,0 +1,71 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-run-v2/service.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_eventarc_trigger.audit_log_triggers, .pubsub_triggers and
+.storage_triggers: one EventarcTrigger per entry of
+service_config.eventarc_triggers.audit_log, .pubsub and .storage, named
+audit-log-<key>, pubsub-<key> and storage-<key>, delivering to the service
+(type SERVICE only), with the triggers' service account. The service is
+named by its full name, so a trigger can be deleted after the service's
+object is gone.
+*/ -}}
+{{- $v := .Values }}
+{{- $et := ($v.service_config | default dict).eventarc_triggers | default dict }}
+{{- $service := include "cloudRunV2.id" . }}
+{{- $kinds := list (list "audit-log" ($et.audit_log | default dict)) (list "pubsub" ($et.pubsub | default dict)) (list "storage" ($et.storage | default dict)) }}
+{{- range $kind := $kinds }}
+{{- $prefix := index $kind 0 }}{{ $entries := index $kind 1 }}
+{{- range $key := keys $entries | sortAlpha }}
+{{- $e := index $entries $key }}
+---
+apiVersion: eventarc.cnrm.cloud.google.com/v1beta1
+kind: EventarcTrigger
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name $prefix $key)) "id" (printf "trigger:%s:%s" $prefix $key) "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "kcc.cloudName" (list $ "Eventarc trigger" (printf "%s-%s" $prefix $key) 63 "letter") | quote }}
+  matchingCriteria:
+    {{- if eq $prefix "audit-log" }}
+    - attribute: type
+      value: google.cloud.audit.log.v1.written
+    - attribute: serviceName
+      value: {{ $e.service | quote }}
+    - attribute: methodName
+      value: {{ $e.method | quote }}
+    {{- else if eq $prefix "pubsub" }}
+    - attribute: type
+      value: google.cloud.pubsub.topic.v1.messagePublished
+    {{- else }}
+    - attribute: type
+      value: google.cloud.storage.object.v1.finalized
+    - attribute: bucket
+      value: {{ $e.bucket | quote }}
+    {{- end }}
+  {{- if eq $prefix "pubsub" }}
+  transport:
+    pubsub:
+      topicRef:
+        {{- /* fabric's README passes a topic's name; the kind takes
+        projects/<project>/topics/<topic>. */}}
+        external: {{ ternary $e (printf "projects/%s/topics/%s" $v.project_id $e) (contains "/" $e) | quote }}
+  {{- end }}
+  destination:
+    cloudRunService:
+      serviceRef:
+        external: {{ $service | quote }}
+      region: {{ $v.region | quote }}
+      {{- if and (eq $prefix "storage") $e.path }}
+      path: {{ $e.path | quote }}
+      {{- end }}
+  {{- with $et.service_account_email }}
+  serviceAccountRef:
+    external: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

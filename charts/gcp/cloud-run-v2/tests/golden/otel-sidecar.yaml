@@ -1,0 +1,116 @@
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: otel-sidecar-sa-roles-logging-logwriter-5631f677
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "otel-sidecar"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: otel-sidecar-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: otel-sidecar-sa-roles-monitoring-metricwriter-efecd0c6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "otel-sidecar"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: otel-sidecar-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: otel-sidecar-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "otel-sidecar"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "example-hello"
+  displayName: "example-hello"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunService
+metadata:
+  name: otel-sidecar
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "otel-sidecar"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "example-hello"
+  template:
+    executionEnvironment: EXECUTION_ENVIRONMENT_GEN1
+    serviceAccountRef:
+      external: "example-hello@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "collector"
+        image: "us-docker.pkg.dev/cloud-ops-agents-artifacts/google-cloud-opentelemetry-collector/otelcol-google:0.122.1"
+        volumeMounts:
+          - name: "otel-config"
+            mountPath: "/etc/otelcol-google/"
+        livenessProbe:
+          timeoutSeconds: 30
+          periodSeconds: 30
+          httpGet:
+            path: "/"
+            port: 13133
+        startupProbe:
+          timeoutSeconds: 30
+          periodSeconds: 30
+          httpGet:
+            path: "/"
+            port: 13133
+      - name: "hello"
+        image: "us-docker.pkg.dev/cloudrun/container/hello"
+        dependsOn: ["collector"]
+        ports:
+          - {"containerPort":3000}
+    volumes:
+      - name: "otel-config"
+        secret:
+          secretRef:
+            external: "otel-config"
+          items:
+            - path: "config.yaml"
+              versionRef:
+                external: "1"

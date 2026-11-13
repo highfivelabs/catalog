@@ -1,0 +1,58 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-run-v2/vpcconnector.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_vpc_access_connector.connector (vpc_connector_create set): a
+VPCAccessConnector in the region, named vpc_connector_create.name or name.
+The service or job uses it by its full name (fabric's local.connector); a
+worker pool does not (fabric: not supported).
+*/ -}}
+{{- $v := .Values }}
+{{- with $v.vpc_connector_create }}
+{{- $inst := .instances | default dict }}
+{{- $tp := .throughput | default dict }}
+{{- $sub := .subnet | default dict }}
+---
+apiVersion: vpcaccess.cnrm.cloud.google.com/v1beta1
+kind: VPCAccessConnector
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "connector")) "id" "vpc_connector" "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "cloudRunV2.vpcConnector" $ | quote }}
+  {{- with .ip_cidr_range }}
+  ipCidrRange: {{ . | quote }}
+  {{- end }}
+  {{- with .network }}
+  networkRef:
+    external: {{ . | quote }}
+  {{- end }}
+  {{- with .machine_type }}
+  machineType: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $inst.max) }}
+  maxInstances: {{ int $inst.max }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $tp.max) }}
+  maxThroughput: {{ int $tp.max }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $inst.min) }}
+  minInstances: {{ int $inst.min }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $tp.min) }}
+  minThroughput: {{ int $tp.min }}
+  {{- end }}
+  {{- with $sub.name }}
+  subnet:
+    nameRef:
+      external: {{ . | quote }}
+    {{- with $sub.project_id }}
+    projectRef:
+      external: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}

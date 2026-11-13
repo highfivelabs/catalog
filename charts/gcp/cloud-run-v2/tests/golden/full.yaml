@@ -1,0 +1,333 @@
+---
+# Source: cloud-run-v2/templates/eventarc.yaml
+apiVersion: eventarc.cnrm.cloud.google.com/v1beta1
+kind: EventarcTrigger
+metadata:
+  name: full-audit-log-setiam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "trigger:audit-log:setiam"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "audit-log-setiam"
+  matchingCriteria:
+    - attribute: type
+      value: google.cloud.audit.log.v1.written
+    - attribute: serviceName
+      value: "cloudresourcemanager.googleapis.com"
+    - attribute: methodName
+      value: "SetIamPolicy"
+  destination:
+    cloudRunService:
+      serviceRef:
+        external: "projects/my-project/locations/europe-west1/services/full-service"
+      region: "europe-west1"
+  serviceAccountRef:
+    external: "trigger@my-project.iam.gserviceaccount.com"
+---
+# Source: cloud-run-v2/templates/eventarc.yaml
+apiVersion: eventarc.cnrm.cloud.google.com/v1beta1
+kind: EventarcTrigger
+metadata:
+  name: full-pubsub-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "trigger:pubsub:orders"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "pubsub-orders"
+  matchingCriteria:
+    - attribute: type
+      value: google.cloud.pubsub.topic.v1.messagePublished
+  transport:
+    pubsub:
+      topicRef:
+        external: "projects/other-project/topics/orders"
+  destination:
+    cloudRunService:
+      serviceRef:
+        external: "projects/my-project/locations/europe-west1/services/full-service"
+      region: "europe-west1"
+  serviceAccountRef:
+    external: "trigger@my-project.iam.gserviceaccount.com"
+---
+# Source: cloud-run-v2/templates/eventarc.yaml
+apiVersion: eventarc.cnrm.cloud.google.com/v1beta1
+kind: EventarcTrigger
+metadata:
+  name: full-storage-uploads
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "trigger:storage:uploads"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "storage-uploads"
+  matchingCriteria:
+    - attribute: type
+      value: google.cloud.storage.object.v1.finalized
+    - attribute: bucket
+      value: "uploads-bucket"
+  destination:
+    cloudRunService:
+      serviceRef:
+        external: "projects/my-project/locations/europe-west1/services/full-service"
+      region: "europe-west1"
+  serviceAccountRef:
+    external: "trigger@my-project.iam.gserviceaccount.com"
+---
+# Source: cloud-run-v2/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: run.cnrm.cloud.google.com/v1beta1
+    kind: RunService
+    name: full
+  bindings:
+    - role: "roles/run.developer"
+      members:
+        - member: "group:devs@example.com"
+    - role: "roles/run.invoker"
+      members:
+        - member: "group:callers@example.com"
+        - member: "user:a@example.com"
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sa-roles-logging-logwriter-35fbd78d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: full-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: full-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "full-runner"
+  displayName: "Full service runner"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunService
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "full-service"
+  ingress: "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  launchStage: "BETA"
+  customAudiences: ["https://app.example.com"]
+  binaryAuthorization:
+    breakglassJustification: "incident 42"
+    useDefault: true
+  traffic:
+    - {"percent":100,"tag":"latest","type":"TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"}
+  template:
+    labels:
+      "rev": "one"
+    encryptionKeyRef:
+      external: "projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k"
+    revision: "full-service-v1"
+    executionEnvironment: EXECUTION_ENVIRONMENT_GEN2
+    maxInstanceRequestConcurrency: 40
+    scaling:
+      maxInstanceCount: 10
+      minInstanceCount: 1
+    vpcAccess:
+      connectorRef:
+        external: "projects/my-project/locations/europe-west1/connectors/c1"
+      egress: "PRIVATE_RANGES_ONLY"
+    timeout: "120s"
+    serviceAccountRef:
+      external: "full-runner@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "app"
+        image: "europe-docker.pkg.dev/my-project/repo/app:1.0"
+        dependsOn: ["proxy"]
+        command: ["/app"]
+        args: ["--port","8080"]
+        env:
+          - name: "MODE"
+            value: "prod"
+          - name: "TOKEN"
+            valueSource:
+              secretKeyRef:
+                secretRef:
+                  external: "token"
+                versionRef:
+                  external: "latest"
+        resources:
+          limits:
+            "cpu": "2"
+            "memory": "1Gi"
+          cpuIdle: false
+          startupCpuBoost: true
+        ports:
+          - {"containerPort":8080,"name":"h2c"}
+        volumeMounts:
+          - name: "cache"
+            mountPath: "/cache"
+          - name: "creds"
+            mountPath: "/creds"
+          - name: "cloudsql"
+            mountPath: "/cloudsql"
+        livenessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+          periodSeconds: 10
+          failureThreshold: 3
+          grpc:
+            port: 8081
+            service: "health"
+        startupProbe:
+          failureThreshold: 10
+          tcpSocket:
+            port: 8080
+      - name: "proxy"
+        image: "europe-docker.pkg.dev/my-project/repo/proxy:1.0"
+        livenessProbe:
+          httpGet:
+            path: "/healthz"
+            port: 9000
+            httpHeaders:
+              - name: "Accept"
+                value: "text/plain"
+              - name: "X-Probe"
+                value: "1"
+        startupProbe:
+          grpc:
+            port: 9001
+    volumes:
+      - name: "cache"
+        emptyDir:
+          medium: MEMORY
+          sizeLimit: "128Mi"
+      - name: "creds"
+        secret:
+          secretRef:
+            external: "creds"
+          defaultMode: 292
+          items:
+            - path: "creds.json"
+              versionRef:
+                external: "2"
+              mode: 256
+      - name: "cloudsql"
+        cloudSqlInstance:
+          instances:
+            - external: "my-project:europe-west1:db1"
+            - external: "my-project:europe-west1:db2"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  name: full-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c1"
+    env: "test"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "tag:env"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentRef:
+    external: "//run.googleapis.com/projects/my-project/locations/europe-west1/services/full-service"
+  tagValueRef:
+    external: "tagValues/1234"
+  location: "europe-west1"

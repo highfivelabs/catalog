@@ -1,0 +1,30 @@
+# fabric's README, "Deploying OpenTelemetry Collector sidecar".
+project_id: my-project
+region: europe-west1
+name: example-hello
+containers:
+  hello:
+    image: us-docker.pkg.dev/cloudrun/container/hello
+    ports:
+      default:
+        container_port: 3000
+    depends_on: [collector]
+  collector:
+    image: us-docker.pkg.dev/cloud-ops-agents-artifacts/google-cloud-opentelemetry-collector/otelcol-google:0.122.1
+    startup_probe:
+      http_get: {path: /, port: 13133}
+      timeout_seconds: 30
+      period_seconds: 30
+    liveness_probe:
+      http_get: {path: /, port: 13133}
+      timeout_seconds: 30
+      period_seconds: 30
+    volume_mounts:
+      otel-config: /etc/otelcol-google/
+volumes:
+  otel-config:
+    secret:
+      name: otel-config
+      version: "1"
+      path: config.yaml
+deletion_protection: false

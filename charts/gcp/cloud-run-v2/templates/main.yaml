@@ -1,0 +1,244 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-run-v2/service-managed.tf,
+job-managed.tf, workerpool-managed.tf and tags.tf (v60.0.0), Copyright 2025
+Google LLC, Apache-2.0.
+
+google_cloud_run_v2_service.service (type SERVICE): one RunService.
+google_cloud_run_v2_job.job (type JOB): one RunJob.
+google_cloud_run_v2_worker_pool.default_managed (type WORKERPOOL): one
+RunWorkerPool, which is v1alpha1 (allow_alpha).
+The unmanaged variants (managed_revision: false) are refused: Config
+Connector has no ignore_changes.
+google_tags_location_tag_binding.binding: one TagsLocationTagBinding per
+tag binding on the service or job, in its region.
+References to the service account, connector, key, secrets and networks
+are by their full names, so the resource can be deleted after those
+objects are gone.
+*/ -}}
+{{- include "cloudRunV2.validate" . }}
+{{- $v := .Values }}
+{{- $t := $v.type | default "SERVICE" }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $name := include "cloudRunV2.name" . }}
+{{- $sa := include "cloudRunV2.serviceAccountEmail" . }}
+{{- $r := $v.revision | default dict }}
+{{- $sc := $v.service_config | default dict }}
+{{- $ba := $v.binary_authorization }}
+{{- $containers := include "cloudRunV2.containers" . }}
+{{- $volumes := include "cloudRunV2.volumes" . }}
+{{- $vpc := include "cloudRunV2.vpcAccess" . }}
+{{- if eq $t "SERVICE" }}
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunService
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "resource" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $name | quote }}
+  {{- with $sc.ingress }}
+  ingress: {{ . | quote }}
+  {{- end }}
+  {{- with $v.launch_stage }}
+  launchStage: {{ . | quote }}
+  {{- end }}
+  {{- with $sc.custom_audiences }}
+  customAudiences: {{ toJson . }}
+  {{- end }}
+  {{- with $ba }}
+  binaryAuthorization:
+    {{- with .breakglass_justification }}
+    breakglassJustification: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .use_default) }}
+    useDefault: {{ .use_default }}
+    {{- end }}
+  {{- end }}
+  {{- with $sc.traffic }}
+  traffic:
+    {{- range . }}
+    {{- $tt := dict }}
+    {{- if not (kindIs "invalid" .percent) }}{{ $_ := set $tt "percent" (int .percent) }}{{ end }}
+    {{- with .revision }}{{ $_ := set $tt "revision" . }}{{ end }}
+    {{- with .tag }}{{ $_ := set $tt "tag" . }}{{ end }}
+    {{- with .type }}{{ $_ := set $tt "type" . }}{{ end }}
+    - {{ toJson $tt }}
+    {{- end }}
+  {{- end }}
+  template:
+    {{- with $r.labels }}
+    labels:
+      {{- range $k := keys . | sortAlpha }}
+      {{ $k | quote }}: {{ index $r.labels $k | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $v.encryption_key }}
+    encryptionKeyRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $r.name }}
+    revision: {{ printf "%s-%s" $name . | quote }}
+    {{- end }}
+    executionEnvironment: {{ ternary "EXECUTION_ENVIRONMENT_GEN2" "EXECUTION_ENVIRONMENT_GEN1" (eq (toString $sc.gen2_execution_environment) "true") }}
+    {{- if not (kindIs "invalid" $sc.max_concurrency) }}
+    maxInstanceRequestConcurrency: {{ int $sc.max_concurrency }}
+    {{- end }}
+    {{- with $sc.scaling }}
+    scaling:
+      {{- if not (kindIs "invalid" .max_instance_count) }}
+      maxInstanceCount: {{ int .max_instance_count }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .min_instance_count) }}
+      minInstanceCount: {{ int .min_instance_count }}
+      {{- end }}
+    {{- end }}
+    {{- with $vpc }}
+    {{- . | trim | nindent 4 }}
+    {{- end }}
+    {{- with $sc.timeout }}
+    timeout: {{ . | quote }}
+    {{- end }}
+    {{- with $sa }}
+    serviceAccountRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $containers }}
+    containers:
+      {{- . | trim | nindent 6 }}
+    {{- end }}
+    {{- with $volumes }}
+    volumes:
+      {{- . | trim | nindent 6 }}
+    {{- end }}
+{{- else if eq $t "JOB" }}
+{{- $jc := $v.job_config | default dict }}
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunJob
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "resource" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $name | quote }}
+  {{- with $v.launch_stage }}
+  launchStage: {{ . | quote }}
+  {{- end }}
+  {{- with $ba }}
+  binaryAuthorization:
+    {{- with .breakglass_justification }}
+    breakglassJustification: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .use_default) }}
+    useDefault: {{ .use_default }}
+    {{- end }}
+  {{- end }}
+  template:
+    {{- if not (kindIs "invalid" $jc.task_count) }}
+    taskCount: {{ int $jc.task_count }}
+    {{- end }}
+    template:
+      {{- with $v.encryption_key }}
+      encryptionKeyRef:
+        external: {{ . | quote }}
+      {{- end }}
+      {{- with $vpc }}
+      {{- . | trim | nindent 6 }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $jc.max_retries) }}
+      maxRetries: {{ int $jc.max_retries }}
+      {{- end }}
+      {{- with $jc.timeout }}
+      timeout: {{ . | quote }}
+      {{- end }}
+      {{- with $sa }}
+      serviceAccountRef:
+        external: {{ . | quote }}
+      {{- end }}
+      {{- with $containers }}
+      containers:
+        {{- . | trim | nindent 8 }}
+      {{- end }}
+      {{- with $volumes }}
+      volumes:
+        {{- . | trim | nindent 8 }}
+      {{- end }}
+{{- else }}
+{{- $ws := ($v.workerpool_config | default dict).scaling | default dict }}
+{{- $cloudLabels := include "cloudRunV2.cloudLabels" . | fromJson }}
+apiVersion: run.cnrm.cloud.google.com/v1alpha1
+kind: RunWorkerPool
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "resource" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $name | quote }}
+  {{- with $cloudLabels }}
+  labels:
+    {{- range $k := keys . | sortAlpha }}
+    {{ $k | quote }}: {{ index $cloudLabels $k | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.launch_stage }}
+  launchStage: {{ . | quote }}
+  {{- end }}
+  {{- with $ba }}
+  binaryAuthorization:
+    {{- with .breakglass_justification }}
+    breakglassJustification: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .use_default) }}
+    useDefault: {{ .use_default }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ws.manual_instance_count) }}
+  scaling:
+    manualInstanceCount: {{ int $ws.manual_instance_count }}
+  {{- end }}
+  template:
+    {{- with $v.encryption_key }}
+    encryptionKeyRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $r.name }}
+    revision: {{ printf "%s-%s" $name . | quote }}
+    {{- end }}
+    {{- with $r.node_selector }}
+    nodeSelector:
+      accelerator: {{ .accelerator | quote }}
+    {{- end }}
+    {{- with $vpc }}
+    {{- . | trim | nindent 4 }}
+    {{- end }}
+    {{- with $sa }}
+    serviceAccountRef:
+      external: {{ . | quote }}
+    {{- end }}
+    {{- with $containers }}
+    containers:
+      {{- . | trim | nindent 6 }}
+    {{- end }}
+    {{- with $volumes }}
+    volumes:
+      {{- . | trim | nindent 6 }}
+    {{- end }}
+{{- end }}
+{{- $tags := $v.tag_bindings | default dict }}
+{{- range $tk := keys $tags | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsLocationTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tag" $tk)) "id" (printf "tag:%s" $tk) "project" $v.project_id) | nindent 2 }}
+spec:
+  parentRef:
+    external: {{ printf "//run.googleapis.com/%s" (include "cloudRunV2.id" $) | quote }}
+  tagValueRef:
+    external: {{ index $tags $tk | quote }}
+  location: {{ $v.region | quote }}
+{{- end }}

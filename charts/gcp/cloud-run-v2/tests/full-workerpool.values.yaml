@@ -1,0 +1,40 @@
+# Every field the chart carries for a worker pool (v1alpha1, so
+# allow_alpha).
+allow_alpha: true
+project_id: my-project
+region: europe-west1
+name: full-pool
+type: WORKERPOOL
+labels: {env: test}
+tags: {team: shop}
+binary_authorization: {breakglass_justification: urgent}
+encryption_key: projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k
+launch_stage: BETA
+workerpool_config:
+  scaling: {manual_instance_count: 3}
+containers:
+  consumer:
+    image: europe-docker.pkg.dev/my-project/repo/consumer:1.0
+    command: [/consumer]
+    args: [--queue, jobs]
+    env: {MODE: pool}
+    env_from_key:
+      TOKEN: {secret: token, version: latest}
+    ports:
+      ignored: {container_port: 8080}
+    resources:
+      limits: {cpu: "1", memory: 512Mi}
+    volume_mounts:
+      share: /share
+      cache: /cache
+iam:
+  roles/run.developer: ["group:devs@example.com"]
+revision:
+  name: r1
+  node_selector: {accelerator: nvidia-l4}
+  vpc_access:
+    subnet: projects/my-project/regions/europe-west1/subnetworks/pool
+    egress: PRIVATE_RANGES_ONLY
+volumes:
+  share: {nfs: {server: 10.0.0.2}}
+  cache: {empty_dir_size: 1Gi}
