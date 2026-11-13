@@ -340,27 +340,27 @@ gcp,gke-cluster-standard,node_pool_auto_config,"object({cgroup_mode, kubelet_rea
 gcp,gke-cluster-standard,project_id,string,yes,,
 gcp,gke-cluster-standard,release_channel,string,yes,,
 gcp,gke-cluster-standard,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",yes,,
-gcp,gke-cluster-autopilot,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",no,,no-chart
-gcp,gke-cluster-autopilot,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",no,,no-chart
-gcp,gke-cluster-autopilot,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,,no-chart
-gcp,gke-cluster-autopilot,deletion_protection,bool,no,,no-chart
-gcp,gke-cluster-autopilot,description,string,no,,no-chart
-gcp,gke-cluster-autopilot,enable_addons,"object({agent_sandbox, cloudrun, config_connector, istio, kalm})",no,,no-chart
-gcp,gke-cluster-autopilot,enable_features,"object({allow_net_admin, anonymous_authentication, beta_apis, binary_authorization, cilium_clusterwide_network_policy, cost_management, +20})",no,,no-chart
-gcp,gke-cluster-autopilot,fleet_project,string,no,,no-chart
-gcp,gke-cluster-autopilot,issue_client_certificate,bool,no,,no-chart
-gcp,gke-cluster-autopilot,labels,map(string),no,,no-chart
-gcp,gke-cluster-autopilot,location,string,no,,no-chart
-gcp,gke-cluster-autopilot,logging_config,"object({enable_api_server_logs, enable_controller_manager_logs, enable_scheduler_logs})",no,,no-chart
-gcp,gke-cluster-autopilot,maintenance_config,"object({daily_window_start_time, maintenance_exclusions, recurring_window})",no,,no-chart
-gcp,gke-cluster-autopilot,min_master_version,string,no,,no-chart
-gcp,gke-cluster-autopilot,monitoring_config,"object({advanced_datapath_observability, enable_api_server_metrics, enable_cadvisor_metrics, enable_controller_manager_metrics, enable_daemonset_metrics, enable_deployment_metrics, +6})",no,,no-chart
-gcp,gke-cluster-autopilot,name,string,no,,no-chart
-gcp,gke-cluster-autopilot,node_config,"object({boot_disk_kms_key, kubelet_readonly_port_enabled, resource_manager_tags, service_account, tags, workload_metadata_config_mode})",no,,no-chart
-gcp,gke-cluster-autopilot,node_locations,list(string),no,,no-chart
-gcp,gke-cluster-autopilot,project_id,string,no,,no-chart
-gcp,gke-cluster-autopilot,release_channel,string,no,,no-chart
-gcp,gke-cluster-autopilot,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",no,,no-chart
+gcp,gke-cluster-autopilot,access_config,"object({dns_access, ip_access, master_ipv4_cidr_block, private_nodes})",partial,accepted; dns_access.enable_k8s_certs and ip_access.private_endpoint_authorized_ranges_enforcement are refused when true: ContainerCluster has no enableK8sCertsViaDns or privateEndpointEnforcementEnabled,gap
+gcp,gke-cluster-autopilot,backup_configs,"object({backup_channels, backup_plans, enable_backup_agent, restore_channels, restore_plans})",partial,accepted; a channel's deletion_policy PREVENT is refused (no Config Connector equivalent; ABANDON is carried),gap
+gcp,gke-cluster-autopilot,context,"object({bigquery_datasets, cidr_ranges, email_addresses, iam_principals, kms_keys, locations, +5})",no,Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs,by-design
+gcp,gke-cluster-autopilot,deletion_protection,bool,partial,"accepted and has no effect: it is Terraform's own guard against destroy, and Config Connector has none; deletion_policy: ABANDON keeps the cluster, and a Bundt policy can block deleting it",by-design
+gcp,gke-cluster-autopilot,description,string,yes,,
+gcp,gke-cluster-autopilot,enable_addons,"object({agent_sandbox, cloudrun, config_connector, istio, kalm})",partial,accepted; agent_sandbox is refused when true: ContainerCluster's addonsConfig has no agentSandboxConfig,gap
+gcp,gke-cluster-autopilot,enable_features,"object({allow_net_admin, anonymous_authentication, beta_apis, binary_authorization, cilium_clusterwide_network_policy, cost_management, +20})",partial,"accepted; refused when set (or true): anonymous_authentication, dns.additive_vpc_scope_dns_domain, managed_opentelemetry, rbac_binding_config, secret_manager_config, secret_sync_config, which ContainerCluster has no field for",gap
+gcp,gke-cluster-autopilot,fleet_project,string,no,ContainerCluster has no fleet; GKEHubMembership registers a cluster with a fleet,gap
+gcp,gke-cluster-autopilot,issue_client_certificate,bool,yes,,
+gcp,gke-cluster-autopilot,labels,map(string),yes,,
+gcp,gke-cluster-autopilot,location,string,yes,,
+gcp,gke-cluster-autopilot,logging_config,"object({enable_api_server_logs, enable_controller_manager_logs, enable_scheduler_logs})",yes,,
+gcp,gke-cluster-autopilot,maintenance_config,"object({daily_window_start_time, maintenance_exclusions, recurring_window})",yes,,
+gcp,gke-cluster-autopilot,min_master_version,string,yes,,
+gcp,gke-cluster-autopilot,monitoring_config,"object({advanced_datapath_observability, enable_api_server_metrics, enable_cadvisor_metrics, enable_controller_manager_metrics, enable_daemonset_metrics, enable_deployment_metrics, +6})",partial,"accepted; advanced_datapath_observability.enable_relay true is refused: ContainerCluster has only the deprecated relayMode, not enableRelay",gap
+gcp,gke-cluster-autopilot,name,string,yes,,
+gcp,gke-cluster-autopilot,node_config,"object({boot_disk_kms_key, kubelet_readonly_port_enabled, resource_manager_tags, service_account, tags, workload_metadata_config_mode})",partial,accepted; kubelet_readonly_port_enabled is refused: nodePoolAutoConfig has no nodeKubeletConfig,gap
+gcp,gke-cluster-autopilot,node_locations,list(string),yes,,
+gcp,gke-cluster-autopilot,project_id,string,yes,,
+gcp,gke-cluster-autopilot,release_channel,string,yes,,
+gcp,gke-cluster-autopilot,vpc_config,"object({additional_ranges, disable_default_snat, disable_l4_lb_firewall_reconciliation, network, secondary_range_blocks, secondary_range_names, +2})",yes,,
 gcp,gke-nodepool,cluster_id,string,yes,,
 gcp,gke-nodepool,cluster_name,string,yes,,
 gcp,gke-nodepool,gke_version,string,yes,,
