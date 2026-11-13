@@ -20,6 +20,7 @@
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
 # avm-res-network-azurefirewall,
+# avm-ptn-alz-management,
 # avm-ptn-network-private-link-private-dns-zones,
 # avm-res-network-dnsresolver,
 # avm-res-app-containerapp)
@@ -27,7 +28,7 @@
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw pldns dnspr ca)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw alz pldns dnspr ca)
 # applies only those; the default is all but cog, vm and asp (asp: the
 # sandbox has no App Service quota, docs/azure.md). A case may first apply
 # what it needs: another chart (PRE, the networks of the cases that name
@@ -83,7 +84,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw pldns dnspr ca}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw alz pldns dnspr ca}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -150,7 +151,7 @@ sweep() { # sweep PREFIX: delete what this run left in the group
   run_resources "$1" | while read -r id type; do
     ns="${type%%/*}" rtype="${type#*/}"
     v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
-      | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
+      | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | (map(select(test("preview")|not)) + .) | .[0] // empty')"
     echo "   sweep: delete ${type} ${id##*/}: $(api -o /dev/null -w '%{http_code}' -X DELETE "${ARM}${id}?api-version=${v}")"
   done
 }
@@ -223,6 +224,7 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     virtualmachinesextensions.compute.azure.com \
     serverfarms.web.azure.com \
     azurefirewalls.network.azure.com \
+    datacollectionrules.insights.azure.com \
     dnsresolvers.network.azure.com dnsresolversinboundendpoints.network.azure.com dnsresolversoutboundendpoints.network.azure.com \
     dnsforwardingrulesets.network.azure.com dnsforwardingrulesetsforwardingrules.network.azure.com \
     dnsforwardingrulesetsvirtualnetworklinks.network.azure.com \
@@ -643,6 +645,34 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
+# The landing zone's management resources in the sandbox group (the
+# identity cannot make a resource group, so resource_group_creation_enabled
+# is false): a workspace at the smallest retention PerGB2018 takes (30
+# days), a Basic Automation account linked to it (free at this use), the
+# VM insights data collection rule (the other two off) and the AMA
+# identity. No solutions: the sandbox subscription has not registered
+# Microsoft.OperationsManagement, and registering a provider is a
+# subscription-scope action the identity may not take (run
+# cat111308090228, 2026-11-13: 403 AuthorizationFailed on
+# Microsoft.OperationsManagement/register/action). Not Sentinel
+# onboarding: it turns a paid SIEM on for the workspace.
+cat >"${WORK}/alz.yaml" <<EOF
+automation_account_name: ${RUN}-aa
+location: ${LOCATION}
+resource_group_name: ${RG}
+resource_group_creation_enabled: false
+log_analytics_workspace_name: ${RUN}-law
+log_analytics_workspace_retention_in_days: 30
+linked_automation_account_creation_enabled: true
+tags: {catalog-run: ${RUN}}
+log_analytics_solution_plans: []
+data_collection_rules:
+  change_tracking: {name: ${RUN}-dcr-ct, enabled: false}
+  vm_insights: {name: ${RUN}-dcr-vmi}
+  defender_sql: {name: ${RUN}-dcr-sql, enabled: false}
+user_assigned_managed_identities:
+  ama: {name: ${RUN}-ama}
+EOF
 # The Private Link zones pattern, narrowed with the module's own variable
 # to three zones of its list: one with the region's name put in, one with
 # its code, one global. Each is linked to a network of the run that the
@@ -871,6 +901,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
     afw:avm-res-network-azurefirewall \
+    alz:avm-ptn-alz-management \
     pldns:avm-ptn-network-private-link-private-dns-zones \
     dnspr:avm-res-network-dnsresolver \
     ca:avm-res-app-containerapp; do
@@ -959,7 +990,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
       # resource (a diagnostic setting) is its own type, not its parent's.
       tail="${armid[$o]##*/providers/}"; ns="${tail%%/*}"; rest="${tail#*/}"; rtype="${rest%%/*}"
       v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
-        | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
+        | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | (map(select(test("preview")|not)) + .) | .[0] // empty')"
       code="$(api -o /dev/null -w '%{http_code}' "${ARM}${armid[$o]}?api-version=${v}")"
       if [[ "${code}" == 404 ]]; then gone=yes; else gone="no (${code})"; fi
     fi
