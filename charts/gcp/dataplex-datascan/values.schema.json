@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dataplex-datascan values (fabric dataplex-datascan v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["data", "name", "project_id", "region"],
+  "definitions": {
+    "condition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["expression", "title"],
+      "properties": {
+        "expression": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": ["string", "null"]}
+      }
+    },
+    "number": {"type": ["number", "null"]},
+    "sqlExpression": {"type": ["object", "null"], "additionalProperties": false, "required": ["sql_expression"], "properties": {"sql_expression": {"type": "string"}}},
+    "rangeExpectation": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "min_value": {"$ref": "#/definitions/number"},
+        "max_value": {"$ref": "#/definitions/number"},
+        "strict_min_enabled": {"type": ["boolean", "null"]},
+        "strict_max_enabled": {"type": ["boolean", "null"]}
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "datascan": {"type": "string", "minLength": 1, "maxLength": 63, "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"}
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of the scan's derived ID. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Resource labels: Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label on the scan.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on the scan (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "data": {
+      "description": "The data source for DataScan. The source can be either a Dataplex `entity` or a BigQuery `resource`.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity": {"type": ["string", "null"]},
+        "resource": {"type": ["string", "null"]}
+      }
+    },
+    "data_profile_spec": {
+      "description": "DataProfileScan related setting.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "sampling_percent": {"$ref": "#/definitions/number"},
+        "row_filter": {"type": ["string", "null"]}
+      }
+    },
+    "data_quality_spec": {
+      "description": "DataQualityScan related setting.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["rules"],
+      "properties": {
+        "sampling_percent": {"$ref": "#/definitions/number"},
+        "row_filter": {"type": ["string", "null"]},
+        "post_scan_actions": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "bigquery_export": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {"results_table": {"type": ["string", "null"]}}
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dimension"],
+            "properties": {
+              "column": {"type": ["string", "null"]},
+              "ignore_null": {"type": ["boolean", "null"]},
+              "dimension": {"type": "string"},
+              "threshold": {"$ref": "#/definitions/number"},
+              "non_null_expectation": {"type": ["object", "null"], "additionalProperties": false},
+              "range_expectation": {"$ref": "#/definitions/rangeExpectation"},
+              "regex_expectation": {"type": ["object", "null"], "additionalProperties": false, "required": ["regex"], "properties": {"regex": {"type": "string"}}},
+              "set_expectation": {"type": ["object", "null"], "additionalProperties": false, "required": ["values"], "properties": {"values": {"type": "array", "items": {"type": "string"}}}},
+              "uniqueness_expectation": {"type": ["object", "null"], "additionalProperties": false},
+              "statistic_range_expectation": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "required": ["statistic"],
+                "properties": {
+                  "statistic": {"type": "string"},
+                  "min_value": {"$ref": "#/definitions/number"},
+                  "max_value": {"$ref": "#/definitions/number"},
+                  "strict_min_enabled": {"type": ["boolean", "null"]},
+                  "strict_max_enabled": {"type": ["boolean", "null"]}
+                }
+              },
+              "row_condition_expectation": {"$ref": "#/definitions/sqlExpression"},
+              "table_condition_expectation": {"$ref": "#/definitions/sqlExpression"},
+              "sql_assertion": {"type": ["object", "null"], "additionalProperties": false, "required": ["sql_statement"], "properties": {"sql_statement": {"type": "string"}}}
+            }
+          }
+        }
+      }
+    },
+    "description": {"description": "Custom description for DataScan.", "type": ["string", "null"]},
+    "execution_schedule": {"description": "Schedule DataScan to run periodically based on a cron schedule expression.", "type": ["string", "null"]},
+    "factories_config": {
+      "description": "Paths to data files and folders that enable factory functionality. Accepted and ignored; the file's contents go under factories_data.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {"data_quality_spec": {"type": ["string", "null"]}}
+    },
+    "incremental_field": {"description": "The unnested field (of type Date or Timestamp) that contains values which monotonically increase over time.", "type": ["string", "null"]},
+    "name": {"description": "Name of Dataplex Scan.", "type": "string", "minLength": 1},
+    "prefix": {"description": "Optional prefix used to generate Dataplex DataScan ID.", "type": ["string", "null"]},
+    "project_id": {"description": "The ID of the project where the Dataplex DataScan will be created.", "type": "string", "minLength": 1},
+    "region": {"description": "Region for the Dataplex DataScan.", "type": "string", "minLength": 1},
+    "iam_by_principals": {
+      "description": "Authoritative IAM binding in {PRINCIPAL => [ROLES]} format. Merged internally with the `iam` variable.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "iam": {
+      "description": "Dataplex DataScan IAM bindings in {ROLE => [MEMBERS]} format.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "iam_bindings": {
+      "description": "Authoritative IAM bindings in {KEY => {role = ROLE, members = [], condition = {}}}. Keys are arbitrary.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["members", "role"],
+        "properties": {
+          "members": {"type": "array", "items": {"type": "string"}},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "iam_bindings_additive": {
+      "description": "Individual additive IAM bindings. Keys are arbitrary.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["member", "role"],
+        "properties": {
+          "member": {"type": "string"},
+          "role": {"type": "string"},
+          "condition": {"$ref": "#/definitions/condition"}
+        }
+      }
+    },
+    "factories_data": {
+      "description": "The factory's file as data (not a Terraform variable): data_quality_spec is that file's content.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "data_quality_spec": {"type": ["object", "null"]}
+      }
+    },
+    "allow_alpha": {"description": "Accept v1alpha1 kinds (IAMMember, for iam_bindings_additive). Not a Terraform variable.", "type": "boolean"},
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}
