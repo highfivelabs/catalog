@@ -1,0 +1,41 @@
+# Every variable: allowlisted images, a default rule and two cluster rules
+# requiring attestations, an attestor on its own note with PGP and PKIX
+# keys and two roles, and one on a note made elsewhere.
+project_id: my-project
+admission_whitelist_patterns:
+  - gcr.io/google_containers/*
+  - europe-docker.pkg.dev/my-project/images/*
+  - gcr.io/google_containers/*
+default_admission_rule:
+  evaluation_mode: REQUIRE_ATTESTATION
+  enforcement_mode: DRYRUN_AUDIT_LOG_ONLY
+  attestors: [build, security]
+cluster_admission_rules:
+  europe-west1.prod:
+    evaluation_mode: REQUIRE_ATTESTATION
+    enforcement_mode: ENFORCED_BLOCK_AND_AUDIT_LOG
+    attestors: [build]
+  europe-west1-b.dev:
+    evaluation_mode: ALWAYS_ALLOW
+    enforcement_mode: DRYRUN_AUDIT_LOG_ONLY
+    attestors: null
+attestors_config:
+  build:
+    note_reference: null
+    pgp_public_keys: ["-----BEGIN PGP PUBLIC KEY BLOCK-----\nmQENBFtP0doBCADF\n-----END PGP PUBLIC KEY BLOCK-----\n"]
+    pkix_public_keys:
+      - id: null
+        public_key_pem: "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\n-----END PUBLIC KEY-----\n"
+        signature_algorithm: ECDSA_P256_SHA256
+      - id: //cloudkms.googleapis.com/v1/projects/my-project/locations/global/keyRings/kr/cryptoKeys/k/cryptoKeyVersions/1
+        public_key_pem: "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE\n-----END PUBLIC KEY-----\n"
+        signature_algorithm: ECDSA_P384_SHA384
+    iam:
+      roles/binaryauthorization.attestorsViewer: ["group:deployers@example.com", "serviceAccount:cd@my-project.iam.gserviceaccount.com"]
+      roles/containeranalysis.notes.attacher: ["serviceAccount:cd@my-project.iam.gserviceaccount.com"]
+  security:
+    note_reference: projects/security-project/notes/security-note
+    pgp_public_keys: null
+    pkix_public_keys: null
+    iam: null
+deletion_policy: ABANDON

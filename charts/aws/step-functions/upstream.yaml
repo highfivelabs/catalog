@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/step-functions
+repo: https://github.com/terraform-aws-modules/terraform-aws-step-functions
+path: .
+version: v5.1.1
+commit: 16c7a1ffaa72643d714a7b3924216edce9413482
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-step-functions/tree/v5.1.1
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/step-functions/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field), not-ported (ACK has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is not carried.
+refused:
+- variable: encryption_configuration
+  kind: gap
+  reason: "ACK's StateMachine (sfn-controller v1.9.1) has no encryptionConfiguration field"
+- variable: role_force_detach_policies
+  kind: gap
+  reason: "accepted true (the default) only: ACK detaches the role's managed policies before it deletes the role, always"
+  partial: true
+- variable: sfn_state_machine_timeouts
+  kind: by-design
+  reason: "Terraform's create, update and delete timeouts: ACK retries until the state machine is synced, and Bundt waits for it"

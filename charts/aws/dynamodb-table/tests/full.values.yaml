@@ -1,0 +1,40 @@
+# The module's examples/basic and global-tables: a provisioned table with
+# streams, TTL, point-in-time recovery, encryption with a customer managed
+# key, both kinds of secondary index, a replica, and a resource policy
+# naming the table.
+name: full
+region: eu-west-1
+account_id: "111122223333"
+hash_key: id
+range_key: title
+billing_mode: PROVISIONED
+read_capacity: 5
+write_capacity: 5
+stream_enabled: true
+stream_view_type: NEW_AND_OLD_IMAGES
+ttl_enabled: true
+ttl_attribute_name: expires_at
+point_in_time_recovery_enabled: true
+point_in_time_recovery_period_in_days: 7
+server_side_encryption_enabled: true
+server_side_encryption_kms_key_arn: arn:aws:kms:eu-west-1:111122223333:key/abcd
+deletion_protection_enabled: true
+attributes:
+  - {name: id, type: "N"}
+  - {name: title, type: S}
+  - {name: age, type: "N"}
+local_secondary_indexes:
+  - {name: AgeIndex, range_key: age, projection_type: KEYS_ONLY}
+global_secondary_indexes:
+  - name: TitleIndex
+    hash_key: title
+    projection_type: ALL
+    read_capacity: 2
+    write_capacity: 2
+replica_regions:
+  - region_name: eu-west-2
+    kms_key_arn: arn:aws:kms:eu-west-2:111122223333:key/efgh
+resource_policy: '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::111122223333:root"},"Action":"dynamodb:GetItem","Resource":"__DYNAMODB_TABLE_ARN__"}]}'
+timeouts: {create: 20m, update: 60m, delete: 20m}
+deletion_policy: ABANDON
+tags: {Environment: dev}

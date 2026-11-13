@@ -1,0 +1,91 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-containerservice-managedcluster
+repo: https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster
+path: .
+version: v0.9.0
+commit: 1925e0490783695919ab21e4c73ebf1f53d95e2d
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster/tree/v0.9.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-containerservice-managedcluster/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the ARM type when a kind is missing), not-ported
+# (ASO has it, this chart does not map it yet) or by-design (Bundt replaces
+# it). partial: the variable is accepted, the reason says what is refused.
+refused:
+  - variable: default_agent_pool
+    kind: gap
+    reason: "accepted, but enable_os_disk_full_caching and gpu_profile.nvidia are refused: ASO's agent pool (up to API 2025-10-02-preview) has neither"
+    partial: true
+    fields: [enable_os_disk_full_caching, nvidia]
+  - variable: agent_pools
+    kind: gap
+    reason: "accepted, but an entry's enable_os_disk_full_caching and gpu_profile.nvidia are refused (ASO's agent pool, up to API 2025-10-02-preview, has neither), as is delete_options.ignore_pod_disruption_budget (ASO deletes a pool without that option)"
+    partial: true
+    fields: [enable_os_disk_full_caching, nvidia, ignore_pod_disruption_budget]
+  - variable: aad_profile
+    kind: not-ported
+    reason: "accepted, but server_app_secret is refused: a secret value, and how a component supplies one (a Kubernetes Secret ASO reads) is not settled"
+    partial: true
+    fields: [server_app_secret]
+  - variable: service_principal_profile
+    kind: not-ported
+    reason: "accepted, but secret is refused: a secret value, and how a component supplies one (a Kubernetes Secret ASO reads) is not settled"
+    partial: true
+    fields: [secret]
+  - variable: windows_profile_password
+    kind: not-ported
+    reason: "a Windows administrator password is a secret value; how a component supplies one (a Kubernetes Secret ASO reads) is not settled"
+  - variable: windows_profile_password_version
+    kind: not-ported
+    reason: "it versions windows_profile_password, which is refused"
+  - variable: private_endpoints
+    kind: not-ported
+    reason: "ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet"
+  - variable: private_endpoints_manage_dns_zone_group
+    kind: not-ported
+    reason: "accepted; it changes nothing, since private_endpoints is refused"
+    partial: true
+  - variable: onboard_monitoring
+    kind: not-ported
+    reason: "the module's monitoring submodule (data collection rules, endpoints and associations: ASO's insights DataCollectionRule, DataCollectionEndpoint, DataCollectionRuleAssociation) is not mapped yet"
+  - variable: prometheus_workspace_id
+    kind: not-ported
+    reason: "the module's monitoring submodule is not mapped yet"
+  - variable: onboard_alerts
+    kind: not-ported
+    reason: "the module's alerting submodule (Prometheus rule groups, action groups, metric alerts: ASO's alertsmanagement and insights kinds) is not mapped yet"
+  - variable: alert_email
+    kind: not-ported
+    reason: "the module's alerting submodule is not mapped yet"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's kinds fix the API versions (ManagedCluster 2026-05-01, or 2025-10-02-preview for the preview-only settings; agent pools 2025-10-02-preview)"
+  - variable: ignore_body_changes
+    kind: by-design
+    reason: "Azure Service Operator applies the whole spec; it cannot leave a field to another writer"
+  - variable: create_agentpools_before_destroy
+    kind: by-design
+    reason: "Azure Service Operator updates an agent pool in place and never replaces it"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: cluster_timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: agentpool_timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

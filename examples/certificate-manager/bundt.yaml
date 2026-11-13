@@ -1,0 +1,49 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: certificate-manager
+spec:
+  version: "1.0.0"
+  components:
+    - name: certificate-manager
+      package:
+        name: gcp-certificate-manager
+        version: "0.1.0"
+      inputs:
+        project_id: project-1
+        map:
+          description: My certificate map
+          entries:
+            mycertentry:
+              certificates:
+                - mycert
+              hostname: example.com
+          name: my-certificate-map
+        certificates:
+          mycert:
+            managed:
+              dns_authorizations:
+                - example-com
+              domains:
+                - example.com
+        dns_authorizations:
+          example-com:
+            domain: example.com
+            type: PER_PROJECT_RECORD
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: certificate-manager
+  scope: my-team
+spec:
+  template: certificate-manager
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: certificate-manager-dev
+  scope: my-team/dev
+spec:
+  stack: certificate-manager
+  version: "1.0.0"

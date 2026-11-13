@@ -11,7 +11,11 @@ account's blob, queue, table or file service (default) by ARM ID:
 StorageAccountsBlobServicesContainer, StorageAccountsQueueServicesQueue,
 StorageAccountsTableServicesTable, StorageAccountsFileServicesShare
 (storage.azure.com/v20250601). Each entry's role_assignments: one ASO
-RoleAssignment each, owned by the entry's object.
+RoleAssignment each, owned by the entry's object. From main.local_user.tf
+and modules/local_user: one aso-extensions StorageAccountsLocalUser
+(storage.azure.hfl.dev/v20260601) per local_user entry, owned by the
+account, as the module sends it (no shared key; an SSH password stays
+refused).
 */ -}}
 {{- $v := .Values }}
 {{- $abandon := include "aso.abandon" . }}
@@ -114,4 +118,39 @@ spec:
   rootSquash: {{ . }}
   {{- end }}
 {{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" (printf "share:%s/" $key) "owner" (dict "group" "storage.azure.com" "kind" "StorageAccountsFileServicesShare" "name" $obj) "v" $e.role_assignments) }}
+{{- end }}
+{{- range $key, $u := ($v.local_user | default dict) }}
+---
+apiVersion: storage.azure.hfl.dev/v20260601
+kind: StorageAccountsLocalUser
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "localuser" $key)) "id" (printf "local_user:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $u.name | quote }}
+  owner:
+    armId: {{ $id | quote }}
+  {{- with $u.home_directory }}
+  homeDirectory: {{ . | quote }}
+  {{- end }}
+  hasSharedKey: false
+  hasSshKey: {{ eq $u.ssh_key_enabled true }}
+  hasSshPassword: false
+  {{- with $u.permission_scope }}
+  permissionScopes:
+    {{- range . }}
+    {{- $p := .permissions | default dict }}
+    - service: {{ .service | quote }}
+      resourceName: {{ .resource_name | quote }}
+      permissions: {{ printf "%s%s%s%s%s" (ternary "r" "" (eq $p.read true)) (ternary "w" "" (eq $p.write true)) (ternary "d" "" (eq $p.delete true)) (ternary "l" "" (eq $p.list true)) (ternary "c" "" (eq $p.create true)) | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $u.ssh_authorized_key }}
+  sshAuthorizedKeys:
+    {{- range . }}
+    - key: {{ .key | quote }}
+      {{- with .description }}
+      description: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}

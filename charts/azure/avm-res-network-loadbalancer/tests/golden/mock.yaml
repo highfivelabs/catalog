@@ -1,0 +1,102 @@
+---
+# Source: avm-res-network-loadbalancer/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: LoadBalancer
+metadata:
+  name: mock-lb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-loadbalancer
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "load_balancer"
+spec:
+  azureName: "catalog-lb"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  sku:
+    name: Standard
+    tier: Regional
+  frontendIPConfigurations:
+    - name: "fe-public"
+      privateIPAllocationMethod: Dynamic
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: mock-pip-pub
+  backendAddressPools:
+    - name: "be-web"
+  probes:
+    - name: "probe-tcp"
+      intervalInSeconds: 15
+      numberOfProbes: 2
+      port: 80
+      probeThreshold: 1
+      protocol: Tcp
+  loadBalancingRules:
+    - name: "rule-http"
+      backendAddressPool:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/loadBalancers/catalog-lb/backendAddressPools/be-web"
+      backendPort: 80
+      disableOutboundSnat: false
+      enableFloatingIP: false
+      enableTcpReset: false
+      frontendIPConfiguration:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/loadBalancers/catalog-lb/frontendIPConfigurations/fe-public"
+      frontendPort: 80
+      idleTimeoutInMinutes: 4
+      loadDistribution: Default
+      probe:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/loadBalancers/catalog-lb/probes/probe-tcp"
+      protocol: Tcp
+  inboundNatRules:
+    - name: "nat-ssh"
+      backendPort: 22
+      enableFloatingIP: false
+      enableTcpReset: false
+      frontendIPConfiguration:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/loadBalancers/catalog-lb/frontendIPConfigurations/fe-public"
+      frontendPort: 2222
+      idleTimeoutInMinutes: 4
+      protocol: Tcp
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-loadbalancer/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: mock-pip-pub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-loadbalancer
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:pub"
+spec:
+  azureName: "catalog-lb-pip"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "1"
+    - "2"
+    - "3"
+  tags:
+    "catalog": "mock"

@@ -1,0 +1,70 @@
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedCluster
+metadata:
+  name: preview-aks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "preview"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "managed_cluster"
+spec:
+  addonProfiles:
+    azurepolicy:
+      enabled: false
+  agentPoolProfiles:
+  - count: 3
+    mode: System
+    name: systempool
+    osType: Linux
+  azureName: aks-preview
+  disableLocalAccounts: false
+  dnsPrefix: akspreview
+  identity:
+    type: SystemAssigned
+  ingressProfile:
+    applicationLoadBalancer:
+      enabled: true
+  location: eastus2
+  networkProfile:
+    kubeProxyConfig:
+      enabled: true
+      ipvsConfig:
+        scheduler: RoundRobin
+        tcpTimeoutSeconds: 900
+      mode: IPVS
+    networkPlugin: azure
+    networkPluginMode: overlay
+  oidcIssuerProfile:
+    enabled: true
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks
+  securityProfile:
+    imageIntegrity:
+      enabled: true
+    workloadIdentity:
+      enabled: true
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: preview-default-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "preview"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default_agent_pool"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "systempool"
+  owner:
+    name: preview-aks
+  count: 3
+  mode: System
+  osType: Linux
