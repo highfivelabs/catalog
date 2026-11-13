@@ -2,7 +2,8 @@
 
 An Azure Log Analytics workspace with its data exports, linked service
 and storage, tables, Monitor Private Link Scopes, network security
-perimeter association, lock, role assignments and diagnostic settings, as
+perimeter association, private endpoints, lock, role assignments and
+diagnostic settings, as
 Azure Service Operator (ASO) and aso-extensions objects. A port of
 the Azure Verified Module
 [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/b4ffa3ff87ac09ff6de3b7014c44b4d213aa302b)
@@ -40,7 +41,11 @@ as `workspace_resource_id`.
 | `azapi_resource.amplscope`, `azapi_update_resource.amplscope_update`, `azurerm_monitor_private_link_scoped_service.this`, `azurerm_management_lock.amplscope` | one per `monitor_private_link_scope` entry | `PrivateLinkScope` (aso-extensions, `insights.azure.hfl.dev/v20210901`), `monitor_private_link_scope:<key>`, its exclusions in its spec; a `PrivateLinkScopesScopedResource` linking the workspace, `monitor_private_link_scope:<key>:scoped_service`; its `ManagementLock`, `monitor_private_link_scope:<key>:lock` |
 | `azapi_resource.ampls` | one per `monitor_private_link_scoped_resource` entry | `PrivateLinkScopesScopedResource` in the existing scope, `monitor_private_link_scoped_resource:<key>` |
 | `azapi_resource.nsp_association` | `network_security_perimeter_association` set | `NetworkSecurityPerimetersResourceAssociation` (aso-extensions, `network.azure.hfl.dev/v20250501`) `nsp-assoc-<name>`, `network_security_perimeter_association` |
-| an existing scope's exclusions (`azapi_update_resource.amplscope_update_existing`), private endpoints | when set | refused (below) |
+| `azurerm_private_endpoint.this` (or `this_unmanaged`) | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`), `private_endpoint:<key>`: `pep-<name>` unless named, owned by the workspace's resource group or the entry's `resource_group_name`, connected (`azuremonitor`) to its Monitor Private Link Scope by ARM ID |
+| its `private_dns_zone_group` block | an entry with `private_dns_zone_resource_ids`, unless its extension's `manage_dns_zone_group` is false | `PrivateEndpointsPrivateDnsZoneGroup`, `private_endpoint:<key>/dns_zone_group`, one zone configuration per zone, named for it |
+| `azurerm_private_endpoint_application_security_group_association.this` | per association | the endpoint's `applicationSecurityGroups` |
+| the exclusions `azapi_update_resource.amplscope_update` adds for endpoints on a scope the chart makes | an endpoint on such a scope, unless its extension sets `exclude: false` | not sent when they equal the scope's access modes (they change nothing); refused otherwise (below) |
+| an existing scope's exclusions (`azapi_update_resource.amplscope_update_existing`) | when set | refused (below) |
 | telemetry | never | not ported |
 
 ASO's Workspace is at ARM API version 2025-07-01, newer than the module's
@@ -76,6 +81,8 @@ Every module variable is a value of the same name, type and default
 | `monitor_private_link_scope` | `name` (default `law_pl_scope`, with the namePrefix), `resource_id` (the scope's resource group), `ingestion_access_mode`, `query_access_mode`, `exclusions` (the scope's `accessModeSettings`), `lock` (named `<scope>-lock` unless named); location `global` |
 | `monitor_private_link_scoped_service_name` | the workspace's scoped resource's name in each created scope; required with `monitor_private_link_scope`, as azurerm requires it |
 | `monitor_private_link_scoped_resource` | `resource_id` (the existing scope, `owner.armId`), `name` (default the workspace's) |
+| `private_endpoints` | per entry: `subnet.reference.armId`, `customNetworkInterfaceName`, one `privateLinkServiceConnections` entry (`pse-<name>` unless named, `groupIds: [azuremonitor]`, the scope by `armId`: a chart scope's computed ID, or an existing scope's `resource_id`), `ipConfigurations` (group and member `privatelink`, as the module sets them), `applicationSecurityGroups`, `location`, `tags`; the zone group above. An entry's `role_assignments` and `lock` are accepted and ignored, as the module ignores them |
+| `private_endpoint_extensions` | per endpoint: `monitor_private_link_scope_key` (the scope, a key of `monitor_private_link_scope` or `monitor_private_link_scoped_resource`; else the endpoint's own key, else the only scope, as the module picks; none stops the render), `manage_dns_zone_group`, `monitor_private_link_scope_exclusion` (see the refusal) |
 | `network_security_perimeter_association` | `resource_id` (the perimeter, `owner.armId`), `profile_name` (`profile.reference.armId`), `access_mode` |
 | `customer_managed_key` | accepted: the module declares it and uses it nowhere, nor does the chart |
 | `enable_telemetry` | accepted; the chart sends no telemetry |
@@ -95,7 +102,7 @@ Every module variable is a value of the same name, type and default
 | Variable | Why |
 | --- | --- |
 | `monitor_private_link_scoped_resource.<key>.exclusions` | they update an existing scope's access mode settings, which the module reads first; the chart does not own that scope (not ported) |
-| `private_endpoints`, `private_endpoint_extensions` | ASO has `PrivateEndpoint`; the chart does not map private endpoints yet (not ported) |
+| `private_endpoint_extensions.<key>.monitor_private_link_scope_exclusion`, when it changes the access modes of the chart's scope for the endpoint (the default exclusion, `PrivateOnly` for both, on a scope with an `Open` mode) | the module names the exclusion by the scope's private endpoint connection, which Azure names and reads back; a render cannot. Set `exclude: false`, or the scope's own access modes (not ported) |
 | `log_analytics_workspace_timeouts` | ASO has no per-request timeouts; Bundt sets a component's time limit |
 
 The children that point at the workspace from elsewhere (a scoped
@@ -109,9 +116,10 @@ operator's object by name. They retry until the workspace exists.
 | --- | --- |
 | `resource_id` | the workspace's `status.id` |
 | `customer_id` | not a module output: the workspace ID agents and queries take (`status.customerId`), the field consumers read from the module's `resource` |
+| `private_endpoints` | `{<key>: {id, name, location, subnet_id}}`, from each endpoint (the module gives the whole azurerm object) |
 
-Not outputs: `resource` (the module's whole azurerm object, sensitive for
-its shared keys) and `private_endpoints` (refused).
+Not output: `resource` (the module's whole azurerm object, sensitive for
+its shared keys).
 
 ## From Terraform
 
@@ -137,10 +145,15 @@ and the refusals in `tests/*.fail.yaml`. `task test-live-azure`
 applies it to the Azure sandbox with Azure Service Operator, evaluates the
 outputs, deletes it and checks Azure no longer has it: passed on
 2026-11-12. `tests/mock.values.yaml` (a
-table, a table update, a data export, linked storage and a Monitor Private
-Link Scope) is applied to the fake cloud with aso-extensions' manager
+table, a table update, a data export, linked storage, a Monitor Private
+Link Scope and a private endpoint to it) is applied to the fake cloud with aso-extensions' manager
 beside ASO (`docs/azure.md`, "8. Charts").
 
 ## Changes
 
+- **0.2.0** (2026-11-13): `private_endpoints` and
+  `private_endpoint_extensions` render ASO `PrivateEndpoint` and
+  `PrivateEndpointsPrivateDnsZoneGroup`, connected to the module's Monitor
+  Private Link Scope; an exclusion that would change a scope's access
+  modes stays refused. New output `private_endpoints`.
 - **0.1.0** (2026-11-12): the port.

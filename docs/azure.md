@@ -890,7 +890,12 @@ perimeter association map to aso-extensions kinds
 (`operationalinsights.azure.hfl.dev`, `insights.azure.hfl.dev`,
 `network.azure.hfl.dev`; CRDs copied in `crds/aso-extensions`). An existing
 scope's `exclusions` stay refused: the module updates a scope it does not
-own, after reading its access modes.
+own, after reading its access modes. Its private endpoints (0.2.0) are ASO
+`PrivateEndpoint`s connected to the scope by ARM ID; the exclusion the
+module adds for an endpoint on a scope it makes is named by the scope's
+private endpoint connection, which Azure names, so it is refused when it
+would change the scope's access modes (`monitor_private_link_scope_exclusion`)
+and left out when it would not.
 
 The storage account's `local_user` maps to aso-extensions'
 `StorageAccountsLocalUser` (`storage.azure.hfl.dev/v20260601`, its CRD
