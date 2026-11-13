@@ -19,12 +19,13 @@
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
-# avm-res-network-azurefirewall)
+# avm-res-network-azurefirewall,
+# avm-res-app-managedenvironment)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cae)
 # applies only those; the default is all but cog, vm and asp (asp: the
 # sandbox has no App Service quota, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
@@ -79,7 +80,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw cae}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -173,7 +174,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*;app.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -204,7 +205,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
     serverfarms.web.azure.com \
-    azurefirewalls.network.azure.com; do
+    azurefirewalls.network.azure.com \
+    managedenvironments.app.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -621,8 +623,35 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
+# A Consumption-only Container Apps environment (no network, no logs
+# destination, not zone redundant: Azure needs an infrastructure subnet for
+# that) with one Dapr component that names no secret (a blob state store by
+# account and container name; Azure does not reach the account until an app
+# loads the component). The sandbox subscription may hold one environment
+# per region, and the container app case (ca) makes one in the run's
+# LOCATION, so this case makes its own in AZURE_LIVE_CAE_LOCATION
+# (centralus by default). An environment takes several minutes to create
+# and to delete (CASE_TIMEOUT).
+CAE_LOCATION="${AZURE_LIVE_CAE_LOCATION:-centralus}"
+cat >"${WORK}/cae.yaml" <<EOF
+name: ${RUN}-cae
+location: ${CAE_LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+zone_redundant: false
+tags: {catalog-run: ${RUN}}
+dapr_components:
+  state:
+    name: statestore
+    component_type: state.azure.blobstorage
+    dapr_components_version: v1
+    metadata:
+      - {name: accountName, value: ${RUN}}
+      - {name: containerName, value: state}
+    scopes: [none]
+EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cae]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -749,7 +778,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
-    afw:avm-res-network-azurefirewall; do
+    afw:avm-res-network-azurefirewall \
+    cae:avm-res-app-managedenvironment; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -823,7 +853,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))
-    msg="$(cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
+    # A case without objects made first has no pre-live.json (cat would fail
+    # the pipeline and, with errexit, the run).
+    msg="$({ cat "${OUT}/${chart}/live.json"; if [[ -f "${OUT}/${chart}/pre-live.json" ]]; then cat "${OUT}/${chart}/pre-live.json"; fi; } | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then
