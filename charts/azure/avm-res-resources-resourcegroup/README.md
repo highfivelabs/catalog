@@ -104,8 +104,9 @@ as `azure/avm-res-resources-resourcegroup`.
 `full`, `names`, `abandon` and `mock`, each validated against ASO
 v2.22.0's CRD schemas (`hack/aso.sh`) and, for the lock, aso-extensions'
 CRD (`crds/aso-extensions`); the refusals in `tests/*.fail.yaml`. Not applied to Azure yet: the live identity cannot make a resource group
-(a subscription-scope action), and the fake cloud does not run yet
-(`docs/azure.md`, "8. Charts").
+(a subscription-scope action). `task test-mock-azure` applies its
+`tests/mock.values.yaml` to aso-extensions' fake cloud with stock ASO:
+passed on 2026-11-12 (`docs/azure.md`, "8. Charts").
 
 ## Changes
 
