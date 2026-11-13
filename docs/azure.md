@@ -368,8 +368,8 @@ The core works. The VM's ARM version is old.
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
-| root | workspace, tables, data exports, linked service, linked storage account, private endpoint, AMPLS scoped resource, network security perimeter association | `operationalinsights/Workspace` (2025-07-01). **GAP**: `workspaces/tables`, `dataExports`, `linkedServices`, `linkedStorageAccounts`, `Insights/privateLinkScopes/scopedResources`, `networkSecurityPerimeters/resourceAssociations` |
-| `query_packs` | query packs and queries | **GAP** |
+| root | workspace, tables, data exports, linked service, linked storage account, private endpoint, AMPLS scoped resource, network security perimeter association | `operationalinsights/Workspace` (2025-07-01); the children through aso-extensions: `WorkspacesTable`, `WorkspacesDataExport`, `WorkspacesLinkedService`, `WorkspacesLinkedStorageAccount` (2025-07-01), `PrivateLinkScope`, `PrivateLinkScopesScopedResource` (2021-09-01), `NetworkSecurityPerimetersResourceAssociation` (2025-05-01) |
+| `query_packs` | query packs and queries | aso-extensions `QueryPack`, `QueryPacksQuery` |
 | `log_analytics_solution` | `OperationsManagement/solutions` | **GAP** |
 
 ### 9. avm-res-network-routetable (v0.6.0)
@@ -705,12 +705,16 @@ aso-extensions:
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `Microsoft.OperationalInsights/workspaces/linkedServices` (the module links a dedicated cluster with one) |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `Microsoft.OperationalInsights/workspaces/linkedStorageAccounts` |
-| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `Microsoft.OperationalInsights/workspaces/tables` |
-| `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `Microsoft.Insights/privateLinkScopes`, `.../scopedResources` |
-| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `Microsoft.Network/networkSecurityPerimeters/resourceAssociations` |
+
+The Log Analytics workspace's data exports, dedicated cluster link
+(linked service), linked storage accounts, tables and table updates,
+Monitor Private Link Scopes (with the workspace's scoped resource and the
+scope's lock), scoped resources in existing scopes and network security
+perimeter association map to aso-extensions kinds
+(`operationalinsights.azure.hfl.dev`, `insights.azure.hfl.dev`,
+`network.azure.hfl.dev`; CRDs copied in `crds/aso-extensions`). An existing
+scope's `exclusions` stay refused: the module updates a scope it does not
+own, after reading its access modes.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference

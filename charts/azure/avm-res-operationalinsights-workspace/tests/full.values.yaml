@@ -1,8 +1,12 @@
 # Every input the chart carries: the group by ID, retention, quota, a
 # capacity reservation, public access (one SecuredByPerimeter), local
 # authentication off, resource-only permissions, CMK for query, a
-# user-assigned identity, tags, a lock, role assignments and diagnostic
-# settings (one to this workspace, one to storage).
+# user-assigned identity, tags, a lock, role assignments, diagnostic
+# settings (one to this workspace, one to storage), data exports (to
+# storage, to an event hub by its ID), the dedicated cluster's linked
+# service, linked storage, a custom table and a table update, a Monitor
+# Private Link Scope with an exclusion and a lock, an existing scope joined,
+# and a network security perimeter association.
 name: law-platform
 location: westeurope
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops
@@ -32,3 +36,38 @@ diagnostic_settings:
   archive:
     name: to-storage
     storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stdiag
+log_analytics_workspace_data_exports:
+  storage: {name: export-storage, table_names: [Heartbeat, SecurityEvent], destination_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stexport}
+  hub: {name: export-hub, table_names: [Syslog], enabled: false, destination_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.EventHub/namespaces/ehns/eventhubs/logs}
+log_analytics_workspace_dedicated_cluster_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/clusters/la-cluster
+log_analytics_workspace_linked_storage_accounts:
+  query: {data_source_type: Query, storage_account_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Storage/storageAccounts/stquery]}
+log_analytics_workspace_tables:
+  app:
+    name: AppEvents_CL
+    retention_in_days: 30
+    total_retention_in_days: 90
+    plan: Analytics
+    schema:
+      name: AppEvents_CL
+      description: Events from the app
+      columns:
+        - {name: TimeGenerated, type: datetime}
+        - {name: Message, type: string}
+        - {name: Count, type: int}
+log_analytics_workspace_tables_update:
+  heartbeat: {name: Heartbeat, retention_in_days: 60}
+monitor_private_link_scope:
+  ampls:
+    name: ampls-platform
+    resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops
+    ingestion_access_mode: Open
+    exclusions:
+      - {private_endpoint_connection_name: pe-legacy, query_access_mode: Open}
+    lock: {kind: CanNotDelete}
+monitor_private_link_scoped_service_name: law-platform
+monitor_private_link_scoped_resource:
+  shared: {resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/microsoft.insights/privateLinkScopes/ampls-hub}
+network_security_perimeter_association:
+  resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Network/networkSecurityPerimeters/nsp-platform
+  profile_name: default

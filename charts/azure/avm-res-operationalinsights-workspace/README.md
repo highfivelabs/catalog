@@ -1,7 +1,9 @@
 # avm-res-operationalinsights-workspace
 
-An Azure Log Analytics workspace with its lock, role assignments and
-diagnostic settings, as Azure Service Operator (ASO) objects. A port of
+An Azure Log Analytics workspace with its data exports, linked service
+and storage, tables, Monitor Private Link Scopes, network security
+perimeter association, lock, role assignments and diagnostic settings, as
+Azure Service Operator (ASO) and aso-extensions objects. A port of
 the Azure Verified Module
 [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/b4ffa3ff87ac09ff6de3b7014c44b4d213aa302b)
 at v0.5.1 (`b4ffa3ff`), MIT, Copyright (c) Microsoft Corporation
@@ -30,7 +32,15 @@ as `workspace_resource_id`.
 | `azurerm_management_lock.this` | `lock` set | `ManagementLock` (aso-extensions), `lock` |
 | `azurerm_role_assignment.this` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azurerm_monitor_diagnostic_setting.this` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
-| data exports, linked service, linked storage accounts, tables, Monitor Private Link Scope, network security perimeter association, private endpoints | when set | refused (below) |
+| `azapi_resource.data_export` | one per `log_analytics_workspace_data_exports` entry | `WorkspacesDataExport` (aso-extensions, `operationalinsights.azure.hfl.dev/v20250701`), `data_export:<key>` |
+| `azurerm_log_analytics_linked_service.this` | `log_analytics_workspace_dedicated_cluster_resource_id` set | `WorkspacesLinkedService` (aso-extensions) `Cluster`, `linked_service` |
+| `azurerm_log_analytics_linked_storage_account.this` | one per `log_analytics_workspace_linked_storage_accounts` entry | `WorkspacesLinkedStorageAccount` (aso-extensions), named for its data source type, `linked_storage_account:<key>` |
+| `azapi_resource.tables` | one per `log_analytics_workspace_tables` entry | `WorkspacesTable` (aso-extensions), `table:<key>` |
+| `azapi_update_resource.tables` | one per `log_analytics_workspace_tables_update` entry | `WorkspacesTable`, `table_update:<key>`, with `detach-on-delete`: deleting it leaves the table, as removing an update resource does |
+| `azapi_resource.amplscope`, `azapi_update_resource.amplscope_update`, `azurerm_monitor_private_link_scoped_service.this`, `azurerm_management_lock.amplscope` | one per `monitor_private_link_scope` entry | `PrivateLinkScope` (aso-extensions, `insights.azure.hfl.dev/v20210901`), `monitor_private_link_scope:<key>`, its exclusions in its spec; a `PrivateLinkScopesScopedResource` linking the workspace, `monitor_private_link_scope:<key>:scoped_service`; its `ManagementLock`, `monitor_private_link_scope:<key>:lock` |
+| `azapi_resource.ampls` | one per `monitor_private_link_scoped_resource` entry | `PrivateLinkScopesScopedResource` in the existing scope, `monitor_private_link_scoped_resource:<key>` |
+| `azapi_resource.nsp_association` | `network_security_perimeter_association` set | `NetworkSecurityPerimetersResourceAssociation` (aso-extensions, `network.azure.hfl.dev/v20250501`) `nsp-assoc-<name>`, `network_security_perimeter_association` |
+| an existing scope's exclusions (`azapi_update_resource.amplscope_update_existing`), private endpoints | when set | refused (below) |
 | telemetry | never | not ported |
 
 ASO's Workspace is at ARM API version 2025-07-01, newer than the module's
@@ -59,6 +69,14 @@ Every module variable is a value of the same name, type and default
 | `lock` | the AVM lock interface, with the module's notes for the kind |
 | `role_assignments` | the AVM interface; `skip_service_principal_aad_check` without a `principal_type` sends `ServicePrincipal`, as azurerm does |
 | `diagnostic_settings` | the AVM interface; a setting naming no destination goes to this workspace (`workspaceReference` to its object), as the module sends it; `Dedicated` is left to Azure; a setting without a name is `diag-<name>` |
+| `log_analytics_workspace_data_exports` | `name` (`azureName`, the module's pattern checked), `table_names`, `enabled` (`enable`), `destination_resource_id`: an event hub's ID becomes its namespace's with the hub as `eventHubName`, unless `event_hub_name` is given, as the module does |
+| `log_analytics_workspace_dedicated_cluster_resource_id` | the linked service `Cluster`'s `writeAccessResourceReference`, as azurerm sends it |
+| `log_analytics_workspace_linked_storage_accounts` | `data_source_type` (the linked storage account's name), `storage_account_ids` (`storageAccountReferences`) |
+| `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `name`, `retention_in_days`, `total_retention_in_days`, `plan`, `schema` (`name`, `description`, `columns`; a column's type in Azure's spelling, `datetime` as `dateTime`); `resource_id` puts the table in another workspace (its `owner.armId`) |
+| `monitor_private_link_scope` | `name` (default `law_pl_scope`, with the namePrefix), `resource_id` (the scope's resource group), `ingestion_access_mode`, `query_access_mode`, `exclusions` (the scope's `accessModeSettings`), `lock` (named `<scope>-lock` unless named); location `global` |
+| `monitor_private_link_scoped_service_name` | the workspace's scoped resource's name in each created scope; required with `monitor_private_link_scope`, as azurerm requires it |
+| `monitor_private_link_scoped_resource` | `resource_id` (the existing scope, `owner.armId`), `name` (default the workspace's) |
+| `network_security_perimeter_association` | `resource_id` (the perimeter, `owner.armId`), `profile_name` (`profile.reference.armId`), `access_mode` |
 | `customer_managed_key` | accepted: the module declares it and uses it nowhere, nor does the chart |
 | `enable_telemetry` | accepted; the chart sends no telemetry |
 
@@ -76,14 +94,14 @@ Every module variable is a value of the same name, type and default
 
 | Variable | Why |
 | --- | --- |
-| `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` has no ASO or aso-extensions kind (gap) |
-| `log_analytics_workspace_dedicated_cluster_resource_id` | the module links the cluster with `.../workspaces/linkedServices`, which has no kind (gap) |
-| `log_analytics_workspace_linked_storage_accounts` | `.../workspaces/linkedStorageAccounts` has no kind (gap) |
-| `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `.../workspaces/tables` has no kind (gap) |
-| `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `Microsoft.Insights/privateLinkScopes` and their `scopedResources` have no kind (gap) |
-| `network_security_perimeter_association` | `Microsoft.Network/networkSecurityPerimeters/resourceAssociations` has no kind (gap) |
+| `monitor_private_link_scoped_resource.<key>.exclusions` | they update an existing scope's access mode settings, which the module reads first; the chart does not own that scope (not ported) |
 | `private_endpoints`, `private_endpoint_extensions` | ASO has `PrivateEndpoint`; the chart does not map private endpoints yet (not ported) |
 | `log_analytics_workspace_timeouts` | ASO has no per-request timeouts; Bundt sets a component's time limit |
+
+The children that point at the workspace from elsewhere (a scoped
+resource, the perimeter association) name it by the ARM ID it will have,
+computed from the group's ID and its name: ASO cannot reference another
+operator's object by name. They retry until the workspace exists.
 
 ## Outputs
 
@@ -114,9 +132,11 @@ repository, release, commit, licence and the date last synced.
 
 `task test CHART=avm-res-operationalinsights-workspace`: render cases
 `basic`, `full`, `names` and `mock`, each validated against ASO v2.22.0's
-CRD schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
-`tests/*.fail.yaml`. Not yet applied live or to the fake cloud
-(`docs/azure.md`, "8. Charts").
+CRD schemas and the aso-extensions CRDs it renders (`crds/aso-extensions`),
+and the refusals in `tests/*.fail.yaml`. `tests/mock.values.yaml` (a
+table, a table update, a data export, linked storage and a Monitor Private
+Link Scope) is applied to the fake cloud with aso-extensions' manager
+beside ASO (`docs/azure.md`, "8. Charts").
 
 ## Changes
 
