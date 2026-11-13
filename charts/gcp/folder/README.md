@@ -84,6 +84,19 @@ kinds for `google_compute_organization_security_policy_association`,
 `google_scc_v2_folder_mute_config` or `google_folder_service_identity`
 (`docs/coverage/blocked-kinds.md`).
 
+## Config Connector bugs
+
+- **An `OrgPolicyPolicy` on a `Folder` object cannot be deleted once the
+  `Folder` object is gone.** In the fake cloud (2026-11-13, run
+  `off-catalog-1113154153-13593`, config-connector-extensions `d54a2075`),
+  deleting every object at once left the policy stuck with "Update call
+  failed: referenced Folder catalog-folder/mock not found": its controller
+  resolves `folderRef.name` on delete, and the cloud policy goes with the
+  folder anyway. Deleting a component should therefore delete its org
+  policies before the folder (or Config Connector should skip the lookup
+  on delete). The fake-cloud case leaves org policies out for this reason;
+  they are render-tested only.
+
 ## Upstream
 
 Ported from Cloud Foundation Fabric's
