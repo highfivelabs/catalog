@@ -49,7 +49,7 @@ Each entry of `secrets`:
 | `annotations` | `spec.annotations` |
 | `labels` | the secret's own labels, copied to the cloud |
 | `kms_key` | `replication.auto.customerManagedEncryption.kmsKeyRef` |
-| `global_replica_locations` | `replication.userManaged.replicas`, one per location, with its key when one is given; without it, `replication.auto` |
+| `global_replica_locations` | `replication.userManaged.replicas`, one per location, with its key when one is given; without it, automatic replication: `replication.auto` with a `kms_key`, else `replication.automatic: true` (Config Connector v1.160.0 reconciles secrets through Terraform, which drops an empty `auto: {}` and sends no replication, so the API refuses the secret) |
 | `expiration_config` | `expireTime` (`time`) or `ttl`; both is refused, as the module refuses it |
 | `version_config.aliases` | `versionAliases` |
 | `rotation_config`, `topics` | `rotation` and `topics[].topicRef.external`; rotation without a topic is refused, as the module refuses it |
@@ -120,9 +120,19 @@ example), `full` (every field the chart carries), `names` and `mock`, each
 validated against Config Connector v1.160.0's CRD schemas (and `IAMBinding`
 against config-connector-extensions'), and the refusals in
 `tests/*.fail.yaml`. `tests/mock.values.yaml` is for the fake cloud
-(`task test-mock`); it has not run yet.
+(`task test-mock`): an automatic and a user-managed secret, IAM on the
+first. Before 0.1.1 the automatic one never became Ready ("Update in
+progress"): Config Connector's Terraform-based controller sent no
+`replication` for `auto: {}`, and mockgcp refused the create ("Secret.replication
+must be specified"; the API requires a replication too), so its two IAM objects waited on it. With 0.1.1 all four objects become Ready, the
+outputs evaluate and all four are deleted (2026-11-12, offload VM
+`off-catalog-1112235928-22237`, config-connector-extensions `1de95478`).
 
 ## Changes
 
+- **0.1.1** (2026-11-12): automatic replication without a `kms_key` is
+  `replication.automatic: true`, not `auto: {}`, which Config Connector's
+  Terraform-based controller sent as no replication at all (found by the
+  fake-cloud run: the secret was refused and stayed "Update in progress").
 - **0.1.0** (2026-11-12): the port: global secrets, their IAM and tag
   bindings; regional secrets and versions refused.
