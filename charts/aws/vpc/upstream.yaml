@@ -388,10 +388,12 @@ refused:
   reason: VPC.cidrBlocks is required in ACK's VPC, so a VPC cannot take its whole block from an IPAM pool by netmask length; ipv4_ipam_pool_id with cidr is supported
 - variable: vpc_block_public_access_exclusions
   kind: gap
-  reason: VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)
+  reason: "aws_vpc_block_public_access_exclusion takes this chart's VPC's or subnets' IDs, and ack-extensions' VPCBlockPublicAccessExclusion (Cloud Control) has no reference to either (vpcRef, subnetRef)"
 - variable: vpc_block_public_access_options
-  kind: gap
-  reason: VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)
+  kind: alpha
+  reason: "VPCBlockPublicAccessOptions is an ack-extensions kind (Cloud Control, outside ACK's releases): needs allow_alpha: true"
+  partial: true
+  needs_allow_alpha: true
 - variable: vpc_flow_log_iam_policy_name
   kind: gap
   reason: "flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)"

@@ -1,0 +1,204 @@
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: basic-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  bgp:
+    asn: 65000
+    advertiseMode: DEFAULT
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: basic-intf0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "intf_0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-intf0"
+  region: "europe-west1"
+  routerRef:
+    name: basic-router
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/subnet"
+  privateIpAddressRef:
+    external: "10.0.0.14"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: basic-intf1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "intf_1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-intf1"
+  region: "europe-west1"
+  routerRef:
+    name: basic-router
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/subnet"
+  privateIpAddressRef:
+    external: "10.0.0.15"
+  redundantInterfaceRef:
+    name: basic-intf0
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: basic-peer-0-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_0:0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-router-app-a-peer1"
+  region: "europe-west1"
+  routerRef:
+    name: basic-router
+  routerInterfaceRef:
+    name: basic-intf0
+  advertisedRoutePriority: 100
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.3"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-b/instances/router-app-a"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: basic-peer-1-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_1:0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-router-app-a-peer2"
+  region: "europe-west1"
+  routerRef:
+    name: basic-router
+  routerInterfaceRef:
+    name: basic-intf1
+  advertisedRoutePriority: 100
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.3"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-b/instances/router-app-a"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: basic-peer-0-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_0:1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-router-app-b-peer1"
+  region: "europe-west1"
+  routerRef:
+    name: basic-router
+  routerInterfaceRef:
+    name: basic-intf0
+  advertisedRoutePriority: 100
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.4"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-c/instances/router-app-b"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: basic-peer-1-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "peer_1:1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra-cr-router-app-b-peer2"
+  region: "europe-west1"
+  routerRef:
+    name: basic-router
+  routerInterfaceRef:
+    name: basic-intf1
+  advertisedRoutePriority: 100
+  peerAsn: 65001
+  peerIpAddress: "10.0.0.4"
+  routerApplianceInstanceRef:
+    external: "projects/my-project/zones/europe-west1-c/instances/router-app-b"
+---
+# Source: ncc-spoke-ra/templates/main.yaml
+apiVersion: networkconnectivity.cnrm.cloud.google.com/v1beta1
+kind: NetworkConnectivitySpoke
+metadata:
+  name: basic-spoke
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: ncc-spoke-ra
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "spoke_ra"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "spoke-ra"
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  hubRef:
+    external: "projects/my-project/locations/global/hubs/hub"
+  linkedRouterApplianceInstances:
+    instances:
+      - ipAddress: "10.0.0.3"
+        virtualMachineRef:
+          external: "projects/my-project/zones/europe-west1-b/instances/router-app-a"
+      - ipAddress: "10.0.0.4"
+        virtualMachineRef:
+          external: "projects/my-project/zones/europe-west1-c/instances/router-app-b"
+    siteToSiteDataTransfer: false

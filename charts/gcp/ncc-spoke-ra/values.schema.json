@@ -1,0 +1,363 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ncc-spoke-ra values (fabric ncc-spoke-ra v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "hub",
+    "name",
+    "project_id",
+    "region",
+    "router_appliances",
+    "router_config",
+    "vpc_config"
+  ],
+  "properties": {
+    "names": {
+      "description": "The spoke's, router's and new hub's names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "spoke": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "router": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "hub": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "allow_alpha": {
+      "description": "Accept the v1alpha1 kind route policies need (not a fabric variable).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "data_transfer": {
+      "description": "Site-to-site data transfer feature, available only in some regions.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "hub": {
+      "description": "The NCC hub: an existing hub's id, or create and a name.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "name": {
+      "description": "The name of the NCC spoke.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "The ID of the project where the NCC hub and spokes will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region where the spoke is located.",
+      "type": "string",
+      "minLength": 1
+    },
+    "router_appliances": {
+      "description": "Router appliances this spoke is associated with.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "internal_ip",
+          "vm_self_link"
+        ],
+        "properties": {
+          "internal_ip": {
+            "type": "string"
+          },
+          "vm_self_link": {
+            "type": "string",
+            "minLength": 1
+          },
+          "import_policies": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "export_policies": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "router_config": {
+      "description": "Configuration of the Cloud Router.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asn",
+        "ip_interface0",
+        "ip_interface1",
+        "peer_asn"
+      ],
+      "properties": {
+        "asn": {
+          "type": "integer"
+        },
+        "custom_advertise": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "all_subnets",
+            "ip_ranges"
+          ],
+          "properties": {
+            "all_subnets": {
+              "type": "boolean"
+            },
+            "ip_ranges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "ip_interface0": {
+          "type": "string"
+        },
+        "ip_interface1": {
+          "type": "string"
+        },
+        "keepalive": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "peer_asn": {
+          "type": "integer"
+        },
+        "route_policies": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "terms"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "IMPORT",
+                  "EXPORT"
+                ]
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "priority",
+                    "match",
+                    "actions"
+                  ],
+                  "properties": {
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "match": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "expression"
+                      ],
+                      "properties": {
+                        "expression": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "location": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "expression"
+                        ],
+                        "properties": {
+                          "expression": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "location": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "routes_priority": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "vpc_config": {
+      "description": "Network and subnetwork for the CR interfaces.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "network_name",
+        "subnet_self_link"
+      ],
+      "properties": {
+        "network_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subnet_self_link": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}
