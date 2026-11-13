@@ -173,9 +173,9 @@ tasks:
       - sh: test -n "{{.OFFLOAD_BUCKET}}"
         msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     status:
-      - gcloud storage ls {{.CCE_TARBALL}}
+      - hack/snapshot.sh present {{.CCE_TARBALL}}
     cmds:
-      - bash -c 'set -o pipefail; git -C ../config-connector-extensions archive --format=tar.gz {{.CCE_COMMIT}} | gcloud storage cp --quiet - {{.CCE_TARBALL}}'
+      - hack/snapshot.sh upload ../config-connector-extensions {{.CCE_COMMIT}} {{.CCE_TARBALL}}
 
   test-mock:
     desc: Apply each chart's tests/mock.values.yaml to the fake cloud on an offload VM (MOCK_CHARTS="gcs net-vpc" for some)
@@ -189,9 +189,9 @@ tasks:
       - sh: test -n "{{.OFFLOAD_BUCKET}}"
         msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     status:
-      - gcloud storage ls {{.ACKX_TARBALL}}
+      - hack/snapshot.sh present {{.ACKX_TARBALL}}
     cmds:
-      - bash -c 'set -o pipefail; git -C ../ack-extensions archive --format=tar.gz {{.ACKX_COMMIT}} | gcloud storage cp --quiet - {{.ACKX_TARBALL}}'
+      - hack/snapshot.sh upload ../ack-extensions {{.ACKX_COMMIT}} {{.ACKX_TARBALL}}
 
   test-mock-aws:
     desc: Apply each AWS chart's tests/mock.values.yaml to a fake AWS (the pinned ACK controllers and ack-extensions on kind, against AWS Emulator first and moto for what fails there) on an offload VM (MOCK_CHARTS="vpc kms" for some, MOCK_BACKENDS="moto" for one fake)
@@ -205,9 +205,9 @@ tasks:
       - sh: test -n "{{.OFFLOAD_BUCKET}}"
         msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
     status:
-      - gcloud storage ls {{.ASOX_TARBALL}}
+      - hack/snapshot.sh present {{.ASOX_TARBALL}}
     cmds:
-      - bash -c 'set -o pipefail; git -C {{.ASOX_REPO}} archive --format=tar.gz {{.ASOX_COMMIT}} | gcloud storage cp --quiet - {{.ASOX_TARBALL}}'
+      - hack/snapshot.sh upload {{.ASOX_REPO}} {{.ASOX_COMMIT}} {{.ASOX_TARBALL}}
 
   test-mock-azure:
     desc: Apply each Azure chart's tests/mock.values.yaml to aso-extensions' fake cloud (fakearm, fakeentra) with stock Azure Service Operator on an offload VM (MOCK_CHARTS="avm-res-network-routetable ..." for some)
