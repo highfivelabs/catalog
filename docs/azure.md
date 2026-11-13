@@ -342,6 +342,11 @@ The module can also write account keys to a Key Vault as secrets:
 | `secret` | `azurerm_key_vault_secret`, role assignments | `aso-ext` `keyvault.azure.hfl.dev/VaultSecret`. ASO declined secrets (#1894) |
 | `key` | `azurerm_key_vault_key`, role assignments | `keyvault/VaultKey`: **next**, merged in ASO but not in v2.22.0 |
 
+Chart `charts/azure/avm-res-keyvault-vault`: private endpoints mapped from
+0.2.0 (2026-11-13) as `PrivateEndpoint` and
+`PrivateEndpointsPrivateDnsZoneGroup`; secrets stay refused (a secret's
+value, the builder's decision).
+
 ### 5. avm-res-compute-virtualmachine (v0.21.0; mostly azurerm)
 
 | Submodule | Creates | ASO |
