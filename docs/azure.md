@@ -346,11 +346,12 @@ The module can also write account keys to a Key Vault as secrets:
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
-| root | Linux or Windows VM, managed disks and attachments, NICs and their associations (LB, App Gateway, ASG, NSG, NAT rule), public IP, admin password in Key Vault, maintenance configuration assignment, backup protected item, auto-shutdown schedule | `compute/VirtualMachine` (2022-03-01; data disks inline), `compute/Disk`, `network/NetworkInterface` (associations inline), `network/PublicIPAddress`, `aso-ext` `VaultSecret`. **GAP**: `Microsoft.Maintenance/configurationAssignments`, Recovery Services (the whole `RecoveryServices` group is absent from ASO), `Microsoft.DevTestLab/schedules` |
+| root | Linux or Windows VM, managed disks and attachments, NICs and their associations (LB, App Gateway, ASG, NSG, NAT rule), public IP, admin password in Key Vault, maintenance configuration assignment, backup protected item, auto-shutdown schedule | `compute/VirtualMachine` (2022-03-01; data disks inline), `compute/Disk`, `network/NetworkInterface` (associations inline), `network/PublicIPAddress`, `aso-ext` `VaultSecret`; aso-extensions `ConfigurationAssignment` (`maintenance.azure.hfl.dev`, 2023-04-01) and `Schedule` (`devtestlab.azure.hfl.dev`, 2018-09-15). **GAP**: the backup protected item (aso-extensions has Recovery Services vaults and policies, not `vaults/backupFabrics/protectionContainers/protectedItems`) |
 | `extension` | VM extension | `compute/VirtualMachinesExtension` |
-| `run-command` | VM run command | **GAP** |
+| `run-command` | VM run command | aso-extensions `VirtualMachinesRunCommand` (`compute.azure.hfl.dev`, 2022-03-01) |
 
-The core works. The VM's ARM version is old.
+The core works. The VM's ARM version is old. Charted as
+`charts/azure/avm-res-compute-virtualmachine` (section 8).
 
 ### 6. avm-res-resources-resourcegroup (v0.5.0; azapi)
 
@@ -850,6 +851,30 @@ Kubernetes Secret, and `key_vault_secret_id` is Key Vault secret material,
 which waits on how a component supplies a secret (as the Key Vault
 module's `secrets`).
 
+The virtual machine (`avm-res-compute-virtualmachine`) maps 62 of the
+module's 74 variables and 9 of its 13 outputs. Its interfaces, public IPs
+and data disks are ASO objects; the module's association resources are
+fields of the interface in ARM, and the data disk attachments entries of
+the machine's `storageProfile.dataDisks`. Run commands, the shutdown
+schedule and maintenance assignments are aso-extensions kinds
+(`VirtualMachinesRunCommand`, `Schedule`, `ConfigurationAssignment`, CRDs
+copied in `crds/aso-extensions`). It refuses what needs a secret value
+(an admin password, generating an SSH key pair or password, protected run
+command parameters and extension settings; the builder's decision), so a
+Windows machine renders only from an attached OS disk; and the gaps:
+
+| Chart | Variable | Missing |
+| --- | --- | --- |
+| `avm-res-compute-virtualmachine` | `azure_backup_configurations` | `Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems` (aso-extensions has the vault and its policies, not a protected item) |
+| `avm-res-compute-virtualmachine` | `disk_controller_type`, `bypass_platform_safety_checks_on_user_schedule_enabled` | fields after ASO's `VirtualMachine` API version 2022-03-01 |
+| `avm-res-compute-virtualmachine` | an extension's `provision_after_extensions`; a run command's managed identities | fields after the 2022-03-01 API version of ASO's `VirtualMachinesExtension` and aso-extensions' `VirtualMachinesRunCommand` |
+
+Like azurerm, the chart sends `securityProfile.encryptionAtHost` only when
+true: Azure refuses the property, even false, on a subscription without
+the `EncryptionAtHost` feature (found live). It deletes an OS disk made
+from an image with the machine (`osDisk.deleteOption: Delete`), as azurerm
+does by default.
+
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
@@ -957,6 +982,28 @@ address from its DNS configurations), deleted, Azure answering 404. Its
 against aso-extensions' fakearm at `b9beb5b`, with PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
 its zone group Ready and deleted, outputs evaluated).
+
+The virtual machine chart has a live case (`AZURE_LIVE_CASES=vm`: a Linux
+machine with an interface, a public IP it makes, a data disk and a script
+extension, its subnet from the network chart), but it is not in the
+default set: on 2026-11-13 Azure refused the sandbox subscription every
+machine size tried with "Capacity Restrictions" (Standard_B1s and
+Standard_B2s in eastus2 and eastus, Standard_D2s_v3 in eastus2; the
+subscription has no quota for the v2 B families). In those runs
+(`cat11130259f6a3`, `cat111303464b84` and others) the interface, public
+IP, data disk and network became Ready, the outputs that read them evaluated (the
+interface's private address and the public IP's), and were deleted with
+Azure answering 404; the machine and its extension never became Ready.
+Lifting the restriction is a subscription-level request, the builder's.
+The first run found that Azure refuses `encryptionAtHost: false` without
+the subscription feature; the chart now omits it, as azurerm does. The
+chart's `tests/mock.values.yaml` passed against the fake cloud (stock ASO
+against aso-extensions' fakearm at `b9beb5b`, with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113013113-10644`): the machine,
+interface, public IP, data disk and extension Ready and deleted, outputs
+evaluated. The aso-extensions kinds (run commands, shutdown schedules,
+maintenance assignments, locks) are rendered and validated only: neither
+run installs the aso-extensions manager.
 
 The application gateway (Standard_v2,
 capacity 1, the public IP it makes, on a subnet the case first makes with

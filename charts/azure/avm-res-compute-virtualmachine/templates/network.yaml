@@ -1,0 +1,196 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-compute-virtualmachine
+main.networking.tf (v0.21.0), Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_public_ip.virtualmachine_public_ips: one ASO PublicIPAddress per
+IP configuration with create_public_ip_address, configured by
+public_ip_configuration_details. azurerm_network_interface: one ASO
+NetworkInterface per network_interfaces entry, owned by its resource group
+(its own resource_group_name, else the machine's); the module's
+association resources (network security group, application security
+groups, load balancer backend pools and NAT rules, application gateway
+backend pools) are fields of the interface and its IP configurations in
+ARM, so they are set there. azurerm_management_lock this_nic and
+this_public_ip, azurerm_role_assignment.this_network_interface and
+azurerm_monitor_diagnostic_setting.this_nic_diags: the AVM interfaces on
+each interface and public IP.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $rg := include "vm.rgId" (list $ "resource_group_name" $v.resource_group_name) }}
+{{- $pd := $v.public_ip_configuration_details | default dict }}
+{{- $pipDefault := dict "allocation_method" "Static" "ddos_protection_mode" "VirtualNetworkInherited" "idle_timeout_in_minutes" 30 "ip_version" "IPv4" "sku" "Standard" "sku_tier" "Regional" "zones" (list "1" "2" "3") }}
+{{- $c := deepCopy $pd }}
+{{- range $k, $d := $pipDefault }}{{ if kindIs "invalid" (index $c $k) }}{{ $_ := set $c $k $d }}{{ end }}{{ end }}
+{{- range $nk, $n := (include "vm.nics" $ | fromJson) }}
+{{- $nicObj := include "aso.name" (list $.Release.Name "nic" $nk) }}
+{{- $nicRg := $rg }}
+{{- with $n.resource_group_name }}{{ $nicRg = include "vm.rgId" (list $ (printf "network_interfaces.%s.resource_group_name" $nk) .) }}{{ end }}
+{{- $nicOwner := dict "group" "network.azure.com" "kind" "NetworkInterface" "name" $nicObj }}
+{{- range $ik, $ic := $n.ip_configurations }}
+{{- if $ic.create_public_ip_address }}
+{{- $pk := printf "%s-%s" $nk $ik }}
+{{- if not $ic.public_ip_address_name }}
+{{- fail (printf "avm-res-compute-virtualmachine: network_interfaces.%s.ip_configurations.%s needs a public_ip_address_name with create_public_ip_address" $nk $ik) }}
+{{- end }}
+{{- $pipObj := include "aso.name" (list $.Release.Name "pip" $pk) }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- if $c.tags }}{{ $tags = include "vm.owntags" (list $ $c.tags) | fromJson }}{{ end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pipObj "id" (printf "public_ip:%s" $pk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "public IP" $ic.public_ip_address_name 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $rg) | nindent 4 }}
+  ddosSettings:
+    {{- if eq $c.ddos_protection_mode "Enabled" }}
+    {{- with $c.ddos_protection_plan_id }}
+    ddosProtectionPlan:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    protectionMode: {{ $c.ddos_protection_mode }}
+  {{- with $c.domain_name_label }}
+  dnsSettings:
+    domainNameLabel: {{ . | quote }}
+  {{- end }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  idleTimeoutInMinutes: {{ $c.idle_timeout_in_minutes | int }}
+  publicIPAddressVersion: {{ $c.ip_version }}
+  publicIPAllocationMethod: {{ $c.allocation_method }}
+  sku:
+    name: {{ $c.sku }}
+    tier: {{ $c.sku_tier }}
+  {{- with $c.zones }}
+  zones:
+    {{- toYaml (uniq . | sortAlpha) | nindent 4 }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- with $c.lock_level }}
+{{- include "aso.lock" (dict "root" $ "base" $pipObj "idPrefix" (printf "public_ip:%s/" $pk) "owner" (dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" $pipObj) "v" (dict "kind" . "name" (coalesce $ic.public_ip_address_lock_name (printf "%s-lock" $pk)))) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $tags := include "vm.owntags" (list $ $n.tags) | fromJson }}
+{{- $nsgs := list }}
+{{- range $_, $g := ($n.network_security_groups | default dict) }}{{ $nsgs = append $nsgs $g.network_security_group_resource_id }}{{ end }}
+{{- if gt (len (uniq $nsgs)) 1 }}
+{{- fail (printf "avm-res-compute-virtualmachine: network_interfaces.%s.network_security_groups: a network interface takes one network security group" $nk) }}
+{{- end }}
+{{- $asgs := list }}
+{{- range $_, $g := ($n.application_security_groups | default dict) }}{{ $asgs = append $asgs $g.application_security_group_resource_id }}{{ end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $nicObj "id" (printf "network_interface:%s" $nk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "network interface" $n.name 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "network_interfaces.%s.resource_group_name" $nk) $nicRg) | nindent 4 }}
+  {{- if or $n.dns_servers $n.internal_dns_name_label }}
+  dnsSettings:
+    {{- with $n.dns_servers }}
+    dnsServers:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $n.internal_dns_name_label }}
+    internalDnsNameLabel: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  enableAcceleratedNetworking: {{ eq $n.accelerated_networking_enabled true }}
+  enableIPForwarding: {{ eq $n.ip_forwarding_enabled true }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  ipConfigurations:
+    {{- range $ik, $ic := $n.ip_configurations }}
+    - name: {{ $ic.name | quote }}
+      {{- with $asgs }}
+      applicationSecurityGroups:
+        {{- range $id := (uniq . | sortAlpha) }}
+        - reference:
+            armId: {{ $id | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $ic.app_gateway_backend_pools }}
+      applicationGatewayBackendAddressPools:
+        {{- range $_, $p := . }}
+        - reference:
+            armId: {{ $p.app_gateway_backend_pool_resource_id | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $ic.gateway_load_balancer_frontend_ip_configuration_resource_id }}
+      gatewayLoadBalancer:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+      {{- with $ic.load_balancer_backend_pools }}
+      loadBalancerBackendAddressPools:
+        {{- range $_, $p := . }}
+        - reference:
+            armId: {{ $p.load_balancer_backend_pool_resource_id | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $ic.load_balancer_nat_rules }}
+      loadBalancerInboundNatRules:
+        {{- range $_, $p := . }}
+        - reference:
+            armId: {{ $p.load_balancer_nat_rule_resource_id | quote }}
+        {{- end }}
+      {{- end }}
+      primary: {{ ne $ic.is_primary_ipconfiguration false }}
+      {{- with $ic.private_ip_address }}
+      privateIPAddress: {{ . | quote }}
+      {{- end }}
+      privateIPAddressVersion: {{ $ic.private_ip_address_version | default "IPv4" }}
+      privateIPAllocationMethod: {{ $ic.private_ip_address_allocation | default "Dynamic" }}
+      {{- if $ic.create_public_ip_address }}
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: {{ include "aso.name" (list $.Release.Name "pip" (printf "%s-%s" $nk $ik)) }}
+      {{- else if $ic.public_ip_address_resource_id }}
+      publicIPAddress:
+        reference:
+          armId: {{ $ic.public_ip_address_resource_id | quote }}
+      {{- end }}
+      {{- with $ic.private_ip_subnet_resource_id }}
+      subnet:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- with $nsgs }}
+  networkSecurityGroup:
+    reference:
+      armId: {{ first . | quote }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- with $n.lock_level }}
+{{- include "aso.lock" (dict "root" $ "base" $nicObj "idPrefix" (printf "network_interface:%s/" $nk) "owner" $nicOwner "v" (dict "kind" . "name" (coalesce $n.lock_name (printf "%s-lock" $nk)))) }}
+{{- end }}
+{{- include "vm.roleAssignments" (dict "root" $ "base" $nicObj "idPrefix" (printf "network_interface:%s/" $nk) "owner" $nicOwner "v" $n.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $nicObj "idPrefix" (printf "network_interface:%s/" $nk) "owner" $nicOwner "v" $n.diagnostic_settings "dedicatedNull" true "defaultName" (printf "diag-%s" $n.name)) }}
+{{- end }}

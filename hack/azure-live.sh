@@ -16,13 +16,14 @@
 # avm-res-dbforpostgresql-flexibleserver,
 # avm-res-network-privateendpoint,
 # avm-res-network-applicationgateway,
-# avm-res-cognitiveservices-account)
+# avm-res-cognitiveservices-account,
+# avm-res-compute-virtualmachine)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog)
-# applies only those; the default is all. A case may first apply another
+# uai law acr fwp lb bas appi psql pe appgw cog vm)
+# applies only those; the default is all but cog and vm. A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
 # subnet), deleted after the case's own objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
@@ -68,6 +69,8 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
+# vm is opt-in: Azure has refused the sandbox subscription every VM size
+# tried ("Capacity Restrictions", 2026-11-13; docs/azure.md, "8. Charts").
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
@@ -165,7 +168,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -192,7 +195,9 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     flexibleserversfirewallrules.dbforpostgresql.azure.com flexibleserversconfigurations.dbforpostgresql.azure.com \
     flexibleserversadministrators.dbforpostgresql.azure.com \
     privateendpoints.network.azure.com privateendpointsprivatednszonegroups.network.azure.com \
-    accounts.cognitiveservices.azure.com; do
+    accounts.cognitiveservices.azure.com \
+    networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
+    virtualmachinesextensions.compute.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -567,6 +572,63 @@ local_auth_enabled: false
 managed_identities: {system_assigned: true}
 tags: {catalog-run: ${RUN}}
 EOF
+# vm: a Linux machine of a small general-purpose size (Standard_D2s_v3)
+# with an SSH public key made here for the run (the private key never
+# leaves this VM and goes with the work directory), Standard disks, no
+# encryption at host (it needs a subscription feature), one interface with
+# a public IP it makes, a small data disk and a script extension. Its
+# subnet comes from the network chart, rendered beside it (vm-net.yaml):
+# the module takes a subnet ID. AZURE_LIVE_VM_SIZE and
+# AZURE_LIVE_VM_LOCATION pick another size or region. On 2026-11-13 Azure
+# refused the sandbox subscription every size tried with "Capacity
+# Restrictions" (Standard_B1s, Standard_B2s and Standard_D2s_v3, in
+# eastus2 and eastus; it has no quota for the v2 B families), so the
+# machine never became Ready; its interface, public IP, disk and network
+# did, and were deleted.
+VM_LOCATION="${AZURE_LIVE_VM_LOCATION:-${LOCATION}}"
+ssh-keygen -q -t ed25519 -N '' -C "catalog-run-${RUN}" -f "${WORK}/vm-key"
+cat >"${WORK}/vm-net.yaml" <<EOF
+name: ${RUN}-vmnet
+location: ${VM_LOCATION}
+parent_id: ${RG}
+address_space: [10.251.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  a: {name: snet-vm, address_prefix: 10.251.0.0/26}
+EOF
+cat >"${WORK}/vm.yaml" <<EOF
+name: ${RUN}-vm
+location: ${VM_LOCATION}
+resource_group_name: ${RG}
+zone: null
+os_type: Linux
+sku_size: ${AZURE_LIVE_VM_SIZE:-Standard_D2s_v3}
+encryption_at_host_enabled: false
+source_image_reference: {publisher: Canonical, offer: ubuntu-24_04-lts, sku: server, version: latest}
+os_disk: {caching: ReadWrite, storage_account_type: Standard_LRS}
+account_credentials:
+  admin_credentials: {ssh_keys: ["$(cat "${WORK}/vm-key.pub")"], generate_admin_password_or_ssh_key: false}
+tags: {catalog-run: ${RUN}}
+network_interfaces:
+  nic0:
+    name: ${RUN}-vm-nic
+    ip_configurations:
+      ipc0:
+        name: ipconfig1
+        private_ip_subnet_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-vmnet/subnets/snet-vm
+        create_public_ip_address: true
+        public_ip_address_name: ${RUN}-vm-pip
+public_ip_configuration_details: {zones: [], tags: {catalog-run: ${RUN}}}
+data_disk_managed_disks:
+  data: {name: ${RUN}-vm-data, lun: 0, caching: ReadWrite, storage_account_type: Standard_LRS, disk_size_gb: 4, tags: {catalog-run: ${RUN}}}
+extensions:
+  hello:
+    name: hello
+    publisher: Microsoft.Azure.Extensions
+    type: CustomScript
+    type_handler_version: "2.1"
+    settings: '{"commandToExecute":"echo catalog-run-${RUN}"}'
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -589,7 +651,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     psql:avm-res-dbforpostgresql-flexibleserver \
     pe:avm-res-network-privateendpoint \
     appgw:avm-res-network-applicationgateway \
-    cog:avm-res-cognitiveservices-account; do
+    cog:avm-res-cognitiveservices-account \
+    vm:avm-res-compute-virtualmachine; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -626,6 +689,10 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     helm template "${case_}-${wchart#avm-res-}" "charts/azure/${wchart}" --namespace "${NS}" -f "${w}" >>"${OUT}/${chart}/rendered.yaml"
   done
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  # The machine's subnet: the network chart in the same apply.
+  if [[ "${case_}" == vm ]]; then
+    helm template vm-net charts/azure/avm-res-network-virtualnetwork --namespace "${NS}" -f "${WORK}/vm-net.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  fi
   # What a case needs that its chart does not make (appi's workspace).
   if [[ -f "${WORK}/${case_}.pre.yaml" ]]; then cat "${WORK}/${case_}.pre.yaml" >>"${OUT}/${chart}/rendered.yaml"; fi
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
