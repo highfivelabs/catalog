@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "diagnostic-setting-archive"
 spec:
@@ -35,7 +35,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "diagnostic-setting-self"
 spec:
@@ -64,7 +64,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "monitor_private_link_scope:ampls:lock"
 spec:
@@ -84,7 +84,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "lock"
 spec:
@@ -105,7 +105,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "network_security_perimeter_association"
 spec:
@@ -121,6 +121,93 @@ spec:
   accessMode: Learning
 ---
 # Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-law-pe-ampls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:ampls"
+spec:
+  azureName: "pep-law-platform"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe"
+  customNetworkInterfaceName: "nic-pep-law-platform"
+  privateLinkServiceConnections:
+    - name: "pse-law-platform"
+      groupIds: [azuremonitor]
+      privateLinkServiceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Insights/privateLinkScopes/ampls-platform"
+  ipConfigurations:
+    - name: "ipconfig-api"
+      groupId: privatelink
+      memberName: privatelink
+      privateIPAddress: "10.0.1.30"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app"
+  tags:
+    tier: private
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-law-pe-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub"
+spec:
+  azureName: "pep-law-hub"
+  location: "northeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "psc-law-hub"
+      groupIds: [azuremonitor]
+      privateLinkServiceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/microsoft.insights/privateLinkScopes/ampls-hub"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-law-pe-ampls-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:ampls/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-law-pe-ampls
+  privateDnsZoneConfigs:
+    - name: "privatelink.monitor.azure.com"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.monitor.azure.com"
+    - name: "privatelink.oms.opinsights.azure.com"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.oms.opinsights.azure.com"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
 apiVersion: insights.azure.hfl.dev/v20210901
 kind: PrivateLinkScope
 metadata:
@@ -129,7 +216,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "monitor_private_link_scope:ampls"
 spec:
@@ -156,7 +243,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "monitor_private_link_scope:ampls:scoped_service"
 spec:
@@ -175,7 +262,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "monitor_private_link_scoped_resource:shared"
 spec:
@@ -194,7 +281,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "role-assignment-readers"
 spec:
@@ -216,7 +303,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "workspace"
 spec:
@@ -253,7 +340,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "data_export:hub"
 spec:
@@ -277,7 +364,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "data_export:storage"
 spec:
@@ -301,7 +388,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "linked_service"
 spec:
@@ -320,7 +407,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "linked_storage_account:query"
 spec:
@@ -339,7 +426,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "table:app"
 spec:
@@ -369,7 +456,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "table_update:heartbeat"
     serviceoperator.azure.com/reconcile-policy: detach-on-delete

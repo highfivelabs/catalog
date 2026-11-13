@@ -1,5 +1,54 @@
 ---
 # Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: mock-acr-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+spec:
+  azureName: "pe-catalogacr001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-catalogacr001"
+      groupIds: ["registry"]
+      privateLinkServiceReference:
+        group: containerregistry.azure.com
+        kind: Registry
+        name: mock-acr
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: mock-acr-pe-pe-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: mock-acr-pe-pe
+  privateDnsZoneConfigs:
+    - name: "privatelink.azurecr.io"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
 apiVersion: containerregistry.azure.hfl.dev/v20251101
 kind: RegistriesCredentialSet
 metadata:
@@ -8,7 +57,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "credential_set:hub"
 spec:
@@ -32,7 +81,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "scope_map:pull"
 spec:
@@ -51,7 +100,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "scope_map:pull:token:ci"
 spec:
@@ -73,7 +122,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "registry"
 spec:
@@ -113,7 +162,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-containerregistry-registry
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "cache_rule:mcr"
 spec:

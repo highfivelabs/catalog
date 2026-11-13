@@ -1,5 +1,52 @@
 ---
 # Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: mock-law-pe-ampls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:ampls"
+spec:
+  azureName: "pep-catalog-law"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-catalog-law"
+      groupIds: [azuremonitor]
+      privateLinkServiceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Insights/privateLinkScopes/catalog-ampls"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: mock-law-pe-ampls-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-operationalinsights-workspace
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:ampls/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: mock-law-pe-ampls
+  privateDnsZoneConfigs:
+    - name: "privatelink.monitor.azure.com"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.monitor.azure.com"
+---
+# Source: avm-res-operationalinsights-workspace/templates/main.yaml
 apiVersion: insights.azure.hfl.dev/v20210901
 kind: PrivateLinkScope
 metadata:
@@ -8,7 +55,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "monitor_private_link_scope:ampls"
 spec:
@@ -31,7 +78,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "monitor_private_link_scope:ampls:scoped_service"
 spec:
@@ -50,7 +97,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "workspace"
 spec:
@@ -77,7 +124,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "data_export:storage"
 spec:
@@ -100,7 +147,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "linked_storage_account:query"
 spec:
@@ -119,7 +166,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "table:app"
 spec:
@@ -144,7 +191,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-operationalinsights-workspace
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "table_update:heartbeat"
     serviceoperator.azure.com/reconcile-policy: detach-on-delete

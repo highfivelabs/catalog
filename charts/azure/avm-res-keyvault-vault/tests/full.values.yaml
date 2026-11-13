@@ -52,3 +52,24 @@ keys:
     key_opts: [encrypt, decrypt]
     release_policy:
       json: '{"version":"1.0.0","anyOf":[{"authority":"https://sharedeus2.eus2.attest.azure.net","allOf":[{"claim":"x-ms-isolation-tee.x-ms-attestation-type","equals":"sevsnpvm"}]}]}'
+private_endpoints:
+  hub:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net]
+    network_interface_name: nic-pe-kv-platform
+    application_security_group_associations:
+      app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app
+    ip_configurations:
+      one: {name: ipconfig-kv, private_ip_address: 10.0.1.10}
+    lock: {kind: CanNotDelete, notes: keep the endpoint}
+    tags: {tier: private}
+  spoke:
+    name: pe-kv-spoke
+    location: northeurope
+    resource_group_name: rg-spoke
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke/subnets/snet-pe
+    private_service_connection_name: psc-kv-spoke
+    private_dns_zone_group_name: zones
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net]
+    role_assignments:
+      ignored: {role_definition_id_or_name: Reader, principal_id: 7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f}

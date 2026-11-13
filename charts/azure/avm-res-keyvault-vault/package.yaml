@@ -8,14 +8,16 @@
 # status. keys_resource_ids maps each key's entry to its data-plane URIs
 # and ARM IDs, versioned and versionless, as the module does; keys, the
 # module's map of key objects, is the same map here (the public key
-# material is not in ASO's status). Not outputs: secrets,
-# secrets_resource_ids and private_endpoints, which the chart refuses.
+# material is not in ASO's status). private_endpoints is each endpoint's
+# id, name, location and subnet_id, keyed like the value (the module also
+# gives Azure's DNS and network interface details). Not outputs: secrets
+# and secrets_resource_ids, which the chart refuses.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: azure-avm-res-keyvault-vault
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [aso]
   outputs:
@@ -27,3 +29,5 @@ spec:
       resources.transformMapEntry(k, v, k.startsWith('key:') && !k.contains('/'), {k.substring(4): {'id': v.status.keyUriWithVersion, 'name': v.spec.azureName, 'resource_id': v.status.id + '/versions/' + v.status.keyUriWithVersion.split('/')[5], 'resource_versionless_id': v.status.id, 'versionless_id': v.status.keyUri}})
     keys: >-
       resources.transformMapEntry(k, v, k.startsWith('key:') && !k.contains('/'), {k.substring(4): {'id': v.status.keyUriWithVersion, 'name': v.spec.azureName, 'resource_id': v.status.id + '/versions/' + v.status.keyUriWithVersion.split('/')[5], 'resource_versionless_id': v.status.id, 'versionless_id': v.status.keyUri}})
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): {'id': v.status.id, 'name': v.spec.azureName, 'location': v.spec.location, 'subnet_id': v.spec.subnet.reference.armId}})

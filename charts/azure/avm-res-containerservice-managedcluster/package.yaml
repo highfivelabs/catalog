@@ -11,14 +11,15 @@
 # {resource_id, name}}. Not outputs: kube_config, kube_admin_config and
 # cluster_ca_certificate (from the kubeconfig, a secret: ASO can write it
 # to a Kubernetes Secret through operatorSpec.secrets, which is not an
-# output), data_collection_endpoint_id and data_collection_endpoint_name
-# (the monitoring submodule is refused).
+# output). data_collection_endpoint_id and data_collection_endpoint_name
+# are the managed Prometheus data collection endpoint's, null without
+# onboard_monitoring, as the module's try() gives.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: azure-avm-res-containerservice-managedcluster
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [aso]
   outputs:
@@ -62,3 +63,7 @@ spec:
       resources.transformMapEntry(k, v, k.startsWith('agent_pool:'), {k.substring(11): {'resource_id': v.status.id, 'name': v.spec.azureName}})
     namespace_resource_ids: >-
       resources.transformMapEntry(k, v, k.startsWith('namespace:'), {k.substring(10): {'resource_id': v.status.id, 'name': v.spec.azureName}})
+    data_collection_endpoint_id: >-
+      'monitoring:dce_msprom' in resources ? resources['monitoring:dce_msprom'].status.id : null
+    data_collection_endpoint_name: >-
+      'monitoring:dce_msprom' in resources ? resources['monitoring:dce_msprom'].spec.azureName : null

@@ -1,7 +1,7 @@
 # avm-res-containerregistry-registry
 
 An Azure container registry with its geo-replications, cache rules,
-credential sets, scope maps and tokens, and its lock, role assignments and diagnostic settings, as Azure Service
+credential sets, scope maps and tokens, private endpoints, and its lock, role assignments and diagnostic settings, as Azure Service
 Operator (ASO) objects. A port of the Azure Verified Module
 [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/7f2dc78bb5dbfc6e05809963410be844006f9490)
 at v0.9.0 (`7f2dc78b`), MIT, Copyright (c) Microsoft Corporation
@@ -34,7 +34,11 @@ policy on, admin user off (`tests/golden/basic.yaml`).
 | `azurerm_management_lock.this` | `lock` set | `ManagementLock` (aso-extensions), `lock` |
 | `azurerm_role_assignment.this` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azurerm_monitor_diagnostic_setting.this` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
-| a token's passwords (`azurerm_container_registry_token_password`), the customer-managed key, private endpoints | when set | refused (below) |
+| `azurerm_private_endpoint.this` (or `this_unmanaged_dns_zone_groups`) | one per `private_endpoints` entry | `PrivateEndpoint` (`network.azure.com/v20250301`), `private_endpoint:<key>`: `pe-<name>` unless named, owned by the registry's resource group or the entry's `resource_group_name`, its connection to the registry by reference |
+| its `private_dns_zone_group` block | an entry with `private_dns_zone_resource_ids`, when `private_endpoints_manage_dns_zone_group` | `PrivateEndpointsPrivateDnsZoneGroup`, `private_endpoint:<key>/dns_zone_group`, one zone configuration per zone, named for it |
+| `azurerm_private_endpoint_application_security_group_association.this` | per association | the endpoint's `applicationSecurityGroups` (ASO has no association kind; it is the endpoint's property in ARM) |
+| `azurerm_management_lock.private_endpoint` | an entry's `lock`, else the registry's `lock` when `private_endpoints_inherit_lock` | `ManagementLock` (aso-extensions), `private_endpoint:<key>/lock`: `lock-<kind>` unless named, with the module's notes |
+| a token's passwords (`azurerm_container_registry_token_password`), the customer-managed key | when set | refused (below) |
 | telemetry | never | not ported |
 
 ASO v2.22.0 carries the registry at ARM API version 2025-11-01, the
@@ -68,7 +72,8 @@ Every module variable is a value of the same name, type and default
 | `lock` | the AVM lock interface, named `lock-<name>` unless named, with the module's notes |
 | `role_assignments` | the AVM interface; `skip_service_principal_aad_check` without a `principal_type` sends `ServicePrincipal`, as azurerm does |
 | `diagnostic_settings` | the AVM interface, `Dedicated` left to Azure as the module sends it; a setting without a name is `diag-<name>` |
-| `private_endpoints_inherit_lock`, `private_endpoints_manage_dns_zone_group` | accepted: they shape private endpoints, which are refused |
+| `private_endpoints` | per entry: `subnet.reference.armId`, `customNetworkInterfaceName`, one `privateLinkServiceConnections` entry (`pse-<name>` unless named, `groupIds` the `subresource_name`, default `registry`), `ipConfigurations` (member `registry`), `applicationSecurityGroups`, `location`, `tags`; the zone group and lock above. An entry's `role_assignments` are accepted and ignored, as the module ignores them |
+| `private_endpoints_inherit_lock`, `private_endpoints_manage_dns_zone_group` | as the module: the registry's lock on each endpoint without its own; false leaves the zone groups to others (Azure Policy) |
 | `enable_telemetry` | accepted; the chart sends no telemetry |
 
 Azure refuses a cache rule from Docker Hub without credentials ("Cannot
@@ -100,7 +105,6 @@ ignoring case; a `credential_set_key` that is not a key of
 | --- | --- |
 | a token's `passwords` (`scope_maps.<key>.registry_tokens.<key>.passwords`) | secrets Azure generates and returns once (`generateCredentials`); whether a component may hold one is the builder's decision (not ported) |
 | `customer_managed_key` | ASO's `Registry` takes the key's URI and the identity's client ID; the module looks both up from the vault's and the identity's IDs, which a render cannot (not ported) |
-| `private_endpoints` | ASO has `PrivateEndpoint`; the chart does not map private endpoints yet (not ported) |
 | `resource_types`, `retry`, `timeouts` | ASO's kinds fix the API versions; ASO retries itself; Bundt sets a component's time limit |
 
 ## Outputs
@@ -113,10 +117,11 @@ ignoring case; a `credential_set_key` that is not a key of
 | `cache_rules` | `{<key>: {name, resource_id}}`, as the module builds it |
 | `credential_sets` | `{<key>: {name, resource_id, principal_id, tenant_id}}`: the set's system-assigned identity, to grant read on its Key Vault secrets |
 | `scope_maps` | `{<key>: {name, resource_id, id, registry_tokens: {<key>: {name, id}}}}`: the scope-map submodule's outputs without the token passwords |
+| `private_endpoints` | `{<key>: {id, name, location, subnet_id}}`, from each endpoint (the module gives the whole azurerm object) |
 
 Not outputs: `admin_username` and `admin_password` (secrets; ASO can write
-them to a Kubernetes Secret, which is not an output), a token's passwords
-and `private_endpoints` (refused).
+them to a Kubernetes Secret, which is not an output) and a token's
+passwords (refused).
 
 ## From Terraform
 
@@ -138,7 +143,7 @@ licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-containerregistry-registry`: render cases
-`basic`, `basic-sku`, `full`, `names` and `mock`, each validated against
+`basic`, `basic-sku`, `full`, `names`, `pe-unmanaged` and `mock`, each validated against
 ASO v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD, and
 the refusals in `tests/*.fail.yaml`. `task test-live-azure`
 applies it to the Azure sandbox with Azure Service Operator, evaluates the
@@ -146,6 +151,15 @@ outputs, deletes it and checks Azure no longer has it: passed on
 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
 fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113104327-27737` (2026-11-13): the registry, cache rule, credential set, scope map, token, private endpoint and its DNS zone group
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
+- **0.2.0** (2026-11-13): `private_endpoints` (with
+  `private_endpoints_inherit_lock` and
+  `private_endpoints_manage_dns_zone_group`) render ASO `PrivateEndpoint`,
+  `PrivateEndpointsPrivateDnsZoneGroup` and a lock each; new output
+  `private_endpoints`.
 - **0.1.0** (2026-11-12): the port.

@@ -8,7 +8,14 @@ azapi_resource.this (Microsoft.KeyVault/vaults): one ASO Vault, owned by
 the resource group parent_id names. azapi_resource.lock: an aso-extensions
 ManagementLock. azapi_resource.role_assignments: one ASO RoleAssignment
 each. azapi_resource.diagnostic_settings: one ASO DiagnosticSetting each.
-The telemetry deployment is not ported.
+azapi_resource.private_endpoints (either of the module's two) as
+PrivateEndpoint (network.azure.com/v20250301), the application security
+groups and IP configurations in its body as the module sends them;
+azapi_resource.private_dns_zone_groups as
+PrivateEndpointsPrivateDnsZoneGroup when the module manages the zone
+group; azapi_resource.private_endpoint_locks as aso-extensions
+ManagementLock. An endpoint's role_assignments are accepted and ignored,
+as the module ignores them. The telemetry deployment is not ported.
 */ -}}
 {{- $v := .Values }}
 {{- include "aso.unsupported" (list $ "contacts" $v.contacts "certificate contacts are a Key Vault data-plane setting, with no ASO or aso-extensions kind") }}
@@ -16,7 +23,6 @@ The telemetry deployment is not ported.
 {{- include "aso.unsupported" (list $ "secrets_value" $v.secrets_value "this chart does not map secrets yet; a secret's value belongs in a Kubernetes Secret, not in a component's inputs") }}
 {{- include "aso.unsupported" (list $ "secrets_value_wo" $v.secrets_value_wo "this chart does not map secrets yet") }}
 {{- include "aso.unsupported" (list $ "secrets_value_wo_version" $v.secrets_value_wo_version "this chart does not map secrets yet") }}
-{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
 {{- include "aso.unsupported" (list $ "ignore_body_changes" (include "kv.anySet" $v.ignore_body_changes) "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
 {{- include "aso.unsupported" (list $ "resource_types" (include "kv.anySet" $v.resource_types) "ASO's kinds fix the API versions (Vault 2023-07-01)") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
@@ -94,6 +100,78 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- $owner := dict "group" "keyvault.azure.com" "kind" "Vault" "name" $obj }}
+{{- $parentRg := toString $v.parent_id }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- if not $p.subnet_resource_id }}{{ fail (printf "%s: private_endpoints.%s needs a subnet_resource_id" $.Chart.Name $k) }}{{ end }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peParent := $parentRg }}
+{{- if $p.resource_group_name }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" (index (splitList "/" $parentRg) 2) $p.resource_group_name }}
+{{- end }}
+{{- $peName := include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pe-%s" $v.name)) 80 false) }}
+{{- $group := $p.subresource_name | default "vault" }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $peName | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [{{ $group | quote }}]
+      privateLinkServiceReference:
+        group: keyvault.azure.com
+        kind: Vault
+        name: {{ $obj }}
+  ipConfigurations:
+    {{- range $ik, $ic := $p.ip_configurations }}
+    - name: {{ $ic.name | quote }}
+      groupId: {{ $group | quote }}
+      memberName: {{ $ic.member_name | default "default" | quote }}
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- else }} []
+    {{- end }}
+  applicationSecurityGroups:
+    {{- range $id := (values ($p.application_security_group_associations | default dict) | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- else }} []
+    {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- with $p.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" (dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe) "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $peName)) "notes" .notes)) }}
+{{- end }}
+{{- end }}
 {{- with $v.lock }}
 {{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $v.name)))) }}
 {{- end }}

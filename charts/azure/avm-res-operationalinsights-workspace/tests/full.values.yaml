@@ -6,7 +6,10 @@
 # storage, to an event hub by its ID), the dedicated cluster's linked
 # service, linked storage, a custom table and a table update, a Monitor
 # Private Link Scope with an exclusion and a lock, an existing scope joined,
-# and a network security perimeter association.
+# a network security perimeter association, and private endpoints: one to
+# the chart's scope (its exclusion the scope's own access modes, so not
+# sent), one to the existing scope by its key with its zone group left to
+# others.
 name: law-platform
 location: westeurope
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops
@@ -71,3 +74,28 @@ monitor_private_link_scoped_resource:
 network_security_perimeter_association:
   resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Network/networkSecurityPerimeters/nsp-platform
   profile_name: default
+private_endpoints:
+  ampls:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe
+    private_dns_zone_resource_ids:
+      - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.monitor.azure.com
+      - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.oms.opinsights.azure.com
+    network_interface_name: nic-pep-law-platform
+    application_security_group_associations:
+      app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app
+    ip_configurations:
+      api: {name: ipconfig-api, private_ip_address: 10.0.1.30}
+    tags: {tier: private}
+  hub:
+    name: pep-law-hub
+    location: northeurope
+    resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe
+    private_service_connection_name: psc-law-hub
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.monitor.azure.com]
+private_endpoint_extensions:
+  ampls:
+    monitor_private_link_scope_exclusion: {ingestion_access_mode: Open}
+  hub:
+    monitor_private_link_scope_key: shared
+    manage_dns_zone_group: false

@@ -35,3 +35,54 @@ default) and of the services' diagnostic settings.
 {{- define "storage.accountID" -}}
 {{- printf "%s/providers/Microsoft.Storage/storageAccounts/%s" .Values.parent_id (include "storage.accountName" .) -}}
 {{- end -}}
+
+{{/*
+storage.optional: YAML lines for the pairs (a list: key, value, key,
+value ...) whose value is set, as the module merges in only non-null
+properties; numbers as integers. "" when none is set.
+*/}}
+{{- define "storage.optional" -}}
+{{- $l := . -}}
+{{- $lines := list -}}
+{{- range $i := until (div (len $l) 2 | int) -}}
+{{- $val := index $l (add1 (mul $i 2)) -}}
+{{- if not (kindIs "invalid" $val) -}}
+{{- if kindIs "float64" $val }}{{ $val = int64 $val }}{{ end -}}
+{{- $lines = append $lines (printf "%s: %v" (index $l (mul $i 2)) $val) -}}
+{{- end -}}
+{{- end -}}
+{{- join "\n" $lines -}}
+{{- end -}}
+
+{{/*
+storage.block: "<name>:" with the set pairs under it (storage.optional),
+or "<name>: {}" when none is set, as the module sends an empty object.
+*/}}
+{{- define "storage.block" -}}
+{{- $o := include "storage.optional" (index . 1) -}}
+{{- if $o -}}
+{{ index . 0 }}:
+{{ $o | indent 2 }}
+{{- else -}}
+{{ index . 0 }}: {}
+{{- end -}}
+{{- end -}}
+
+{{/*
+storage.cors: a service's cors block from the module's cors_rules ("" when
+null; an empty list sends no rules).
+*/}}
+{{- define "storage.cors" -}}
+{{- if not (kindIs "invalid" .) -}}
+cors:
+  corsRules:
+    {{- range . }}
+    - allowedHeaders: {{ toJson .allowed_headers }}
+      allowedMethods: {{ toJson .allowed_methods }}
+      allowedOrigins: {{ toJson .allowed_origins }}
+      exposedHeaders: {{ toJson .exposed_headers }}
+      maxAgeInSeconds: {{ .max_age_in_seconds | int }}
+    {{- else }} []
+    {{- end }}
+{{- end -}}
+{{- end -}}

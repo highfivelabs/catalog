@@ -1,0 +1,84 @@
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: pe-unmanaged-kv-pe-pe-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/lock"
+spec:
+  azureName: "lock-pe-kv-pe-001"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: pe-unmanaged-kv-pe-pe
+  level: ReadOnly
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: pe-unmanaged-kv-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+spec:
+  azureName: "pe-kv-pe-001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sec"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-kv-pe-001"
+      groupIds: ["vault"]
+      privateLinkServiceReference:
+        group: keyvault.azure.com
+        kind: Vault
+        name: pe-unmanaged-kv
+  ipConfigurations: []
+  applicationSecurityGroups: []
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: keyvault.azure.com/v1api20230701
+kind: Vault
+metadata:
+  name: pe-unmanaged-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "vault"
+spec:
+  azureName: "kv-pe-001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sec"
+  properties:
+    tenantId: "11111111-2222-3333-4444-555555555555"
+    sku:
+      family: A
+      name: premium
+    enabledForDeployment: false
+    enabledForDiskEncryption: false
+    enabledForTemplateDeployment: false
+    enablePurgeProtection: true
+    enableRbacAuthorization: true
+    networkAcls:
+      bypass: None
+      defaultAction: Deny
+      ipRules: []
+      virtualNetworkRules: []
+    publicNetworkAccess: Disabled
