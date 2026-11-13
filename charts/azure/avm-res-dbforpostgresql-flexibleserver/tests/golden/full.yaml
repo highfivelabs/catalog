@@ -1,0 +1,352 @@
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-psql-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-psql-full"
+  owner:
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+    name: full-psql
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServer
+metadata:
+  name: full-psql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "psql-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data"
+  administratorLogin: "psqladmin"
+  authConfig:
+    activeDirectoryAuth: Enabled
+    passwordAuth: Disabled
+    tenantId: "11111111-2222-3333-4444-555555555555"
+  availabilityZone: "1"
+  backup:
+    backupRetentionDays: 14
+    geoRedundantBackup: Disabled
+  createMode: Default
+  dataEncryption:
+    type: AzureKeyVault
+    primaryKeyURI: "https://kv-data.vault.azure.net/keys/psql/0123456789abcdef0123456789abcdef"
+    primaryUserAssignedIdentityReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-psql"
+    geoBackupKeyURI: "https://kv-data-geo.vault.azure.net/keys/psql/fedcba9876543210fedcba9876543210"
+    geoBackupUserAssignedIdentityReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-psql-geo"
+  highAvailability:
+    mode: SameZone
+    standbyAvailabilityZone: "1"
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-psql"
+  maintenanceWindow:
+    customWindow: Enabled
+    dayOfWeek: 3
+    startHour: 2
+    startMinute: 30
+  network:
+    delegatedSubnetResourceReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/psql"
+    privateDnsZoneArmResourceReference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/privateDnsZones/psql-full.private.postgres.database.azure.com"
+    publicNetworkAccess: Disabled
+  sku:
+    name: "Standard_E4s_v3"
+    tier: MemoryOptimized
+  storage:
+    autoGrow: Enabled
+    storageSizeGB: 128
+    tier: P15
+  tags:
+    env: prod
+  version: "17"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersAdministrator
+metadata:
+  name: full-psql-admin-dba
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ad_administrator:dba"
+spec:
+  azureName: "33333333-4444-5555-6666-777777777777"
+  owner:
+    name: full-psql
+  principalName: "dba-group"
+  principalType: Group
+  tenantId: "11111111-2222-3333-4444-555555555555"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersConfiguration
+metadata:
+  name: full-psql-config-slow
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "server_configuration:slow"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "log_min_duration_statement"
+  owner:
+    name: full-psql
+  source: user-override
+  value: "1000"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersDatabase
+metadata:
+  name: full-psql-db-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:app"
+spec:
+  azureName: "app"
+  owner:
+    name: full-psql
+  charset: "UTF8"
+  collation: "en_US.utf8"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersDatabase
+metadata:
+  name: full-psql-db-reports
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:reports"
+spec:
+  azureName: "reports"
+  owner:
+    name: full-psql
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersFirewallRule
+metadata:
+  name: full-psql-fw-office
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_rule:office"
+spec:
+  azureName: "office"
+  owner:
+    name: full-psql
+  startIpAddress: "203.0.113.0"
+  endIpAddress: "203.0.113.255"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersVirtualEndpoint
+metadata:
+  name: full-psql-ve-rw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_endpoint:rw"
+spec:
+  azureName: "psql-full-rw"
+  owner:
+    name: full-psql
+  endpointType: ReadWrite
+  members:
+    - "psql-full-replica"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-psql-pe-hub-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/lock"
+spec:
+  azureName: "lock-ReadOnly"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-psql-pe-hub
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-psql-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+    name: full-psql
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: full-psql-pe-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub"
+spec:
+  azureName: "pe-psql-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/hub/subnets/pe"
+  customNetworkInterfaceName: "nic-pe-psql-full"
+  privateLinkServiceConnections:
+    - name: "pse-psql-full"
+      groupIds: [postgresqlServer]
+      privateLinkServiceReference:
+        group: dbforpostgresql.azure.com
+        kind: FlexibleServer
+        name: full-psql
+  ipConfigurations:
+    - name: "ipc-a"
+      groupId: postgresqlServer
+      memberName: postgresqlServer
+      privateIPAddress: "10.1.0.10"
+  applicationSecurityGroups:
+    - reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-db"
+  tags:
+    endpoint: hub
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: full-psql-pe-hub-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: full-psql-pe-hub
+  privateDnsZoneConfigs:
+    - name: "privatelink.postgres.database.azure.com"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.postgres.database.azure.com"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-psql-pe-hub-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub/role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: full-psql-pe-hub
+  principalId: "55555555-6666-7777-8888-999999999999"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-psql-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+    name: full-psql
+  principalId: "44444444-5555-6666-7777-888888888888"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

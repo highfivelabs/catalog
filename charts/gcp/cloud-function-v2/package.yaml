@@ -1,0 +1,67 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"). Names and IDs from the rendered objects, as fabric's
+# resources compute them; emails from the service accounts' status, else
+# the email given in the inputs. uri is the function's URL from its status
+# (observedState.url): config-connector-extensions' CloudFunctions2Function
+# does not report serviceConfig.uri, the run.app URI fabric's uri reads; both
+# reach the function. Not outputs: fabric's whole objects (bucket, function,
+# service_account, trigger_service_account).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-cloud-function-v2
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    bucket_name: resources.function.spec.buildConfig.source.storageSource.bucket
+    function_name: resources.function.spec.resourceID
+    id: >-
+      'projects/' + resources.function.spec.projectRef.external
+      + '/locations/' + resources.function.spec.location
+      + '/functions/' + resources.function.spec.resourceID
+    invoke_command: >-
+      inputs.trigger_config != null ? null
+      : has(resources.function.status) && has(resources.function.status.observedState)
+        && has(resources.function.status.observedState.url)
+      ? dyn('curl -H "Authorization: bearer $(gcloud auth print-identity-token)" \\\n    '
+        + resources.function.status.observedState.url + ' \\\n    -X POST -d \'data\'\n')
+      : null
+    service_account_email: >-
+      'service_account' in resources
+      ? dyn(has(resources.service_account.status) && has(resources.service_account.status.email)
+        ? resources.service_account.status.email : null)
+      : inputs.service_account_config.email
+    service_account_iam_email: >-
+      'serviceAccount:' + ('service_account' in resources
+        ? (has(resources.service_account.status) && has(resources.service_account.status.email)
+          ? resources.service_account.status.email : '')
+        : (inputs.service_account_config.email != null ? inputs.service_account_config.email : ''))
+    trigger_service_account_email: >-
+      'trigger_service_account' in resources
+      ? dyn(has(resources.trigger_service_account.status) && has(resources.trigger_service_account.status.email)
+        ? resources.trigger_service_account.status.email : null)
+      : has(resources.function.spec.eventTrigger) && has(resources.function.spec.eventTrigger.serviceAccountEmail)
+      ? dyn(resources.function.spec.eventTrigger.serviceAccountEmail)
+      : null
+    trigger_service_account_iam_email: >-
+      'serviceAccount:' + ('trigger_service_account' in resources
+        ? (has(resources.trigger_service_account.status) && has(resources.trigger_service_account.status.email)
+          ? resources.trigger_service_account.status.email : '')
+        : (has(resources.function.spec.eventTrigger) && has(resources.function.spec.eventTrigger.serviceAccountEmail)
+          ? resources.function.spec.eventTrigger.serviceAccountEmail : ''))
+    uri: >-
+      has(resources.function.status) && has(resources.function.status.observedState)
+        && has(resources.function.status.observedState.url)
+      ? dyn(resources.function.status.observedState.url) : null
+    vpc_connector: >-
+      'vpc_connector' in resources
+      ? dyn('projects/' + resources.vpc_connector.spec.projectRef.external
+        + '/locations/' + resources.vpc_connector.spec.location
+        + '/connectors/' + resources.vpc_connector.spec.resourceID)
+      : null

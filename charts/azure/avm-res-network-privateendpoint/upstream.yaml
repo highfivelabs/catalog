@@ -1,0 +1,36 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-network-privateendpoint
+repo: https://github.com/Azure/terraform-azurerm-avm-res-network-privateendpoint
+path: .
+version: v0.3.1
+commit: 84e427dd16ca927f449b7659d8888f3685f38a7d
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-network-privateendpoint/tree/v0.3.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-network-privateendpoint/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field), not-ported (one exists, the chart does not map it yet) or
+# by-design (Bundt replaces it).
+refused:
+  - variable: ignore_body_changes
+    kind: gap
+    reason: "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's kinds fix the API versions (PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup 2025-03-01)"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

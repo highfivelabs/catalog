@@ -1,0 +1,32 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>): name and
+# resource_id are the private endpoint's; network_interface_ids is the
+# network interface Azure made for it (status.networkInterfaces, which the
+# module reads the same way); application_security_group_association_ids
+# are the groups Azure reports; private_ip_addresses are the addresses
+# Azure gives the endpoint's DNS configurations (status.customDnsConfigs),
+# which the module reads from the network interface instead.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-privateendpoint
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.private_endpoint.spec.azureName
+    resource_id: resources.private_endpoint.status.id
+    network_interface_ids: >-
+      'networkInterfaces' in resources.private_endpoint.status
+      ? resources.private_endpoint.status.networkInterfaces.map(i, i.id) : []
+    application_security_group_association_ids: >-
+      'applicationSecurityGroups' in resources.private_endpoint.status
+      ? resources.private_endpoint.status.applicationSecurityGroups.map(a, a.id) : []
+    private_ip_addresses: >-
+      'customDnsConfigs' in resources.private_endpoint.status
+      ? resources.private_endpoint.status.customDnsConfigs.map(c, 'ipAddresses' in c ? c.ipAddresses : []).flatten()
+      : []

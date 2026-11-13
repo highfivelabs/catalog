@@ -34,7 +34,7 @@ record `web` and its link `hub-link` to the network
 | `module.virtual_network_links` | one per entry | `PrivateDnsZonesVirtualNetworkLink`, `virtual_network_link:<key>`, owned by the zone |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock` |
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
-| `azapi_update_resource.private_dns_zone_soa_record` | `soa_record` | refused (below) |
+| `azapi_update_resource.private_dns_zone_soa_record` | `soa_record` | aso-extensions `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev/v20240601`): updates the SOA record set Azure made with the zone; deleting the object leaves it |
 | `time_sleep`, telemetry | never | not ported |
 
 ASO and the module are both at ARM API version 2024-06-01.
@@ -60,7 +60,7 @@ whose module defaults are the module's own settings (null here).
 | `role_assignments` | the AVM interface |
 | `role_assignment_name_use_random_uuid` | `true` (the default) accepted: ASO gives each assignment a stable UUID of its own. `false` is refused |
 | `location`, `enable_telemetry` | accepted: they serve only the module's telemetry, which the chart does not send |
-| `soa_record`, `retry`, `timeouts` | refused (below) |
+| `retry`, `timeouts` | refused (below) |
 
 The module's validations stop the render with the module's messages: an
 A, AAAA or PTR record's addresses or names, a CNAME's target, a link's
@@ -78,7 +78,6 @@ name, network and name length, and `parent_id`.
 
 | Variable | Why |
 | --- | --- |
-| `soa_record` | the zone's SOA record (`Microsoft.Network/privateDnsZones/SOA`) exists with the zone and is only updated; ASO has a kind for every other record type, none for SOA (gap) |
 | `retry`, `timeouts` | ASO retries every failed request itself; Bundt sets a component's time limit |
 | `role_assignment_name_use_random_uuid: false` | ASO names each assignment with its own stable UUID; the module's legacy deterministic names cannot be given |
 
@@ -90,7 +89,7 @@ name, network and name length, and `parent_id`.
 | `resource_id` | the zone's `status.id` |
 | `a_record_outputs` ... `txt_record_outputs` | `{<key>: {id, fqdn}}` from each record's status, as the module builds them |
 | `virtual_network_link_outputs` | `{<key>: {id}}` |
-| `soa_record_outputs` | `{}`, as the module's without `soa_record` |
+| `soa_record_outputs` | `{default: {id}}` from the SOA object's status when `soa_record` is set, else `{}`, as the module's |
 
 Not an output: `resource`, the module's whole azapi object.
 
@@ -117,8 +116,8 @@ aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure`
 applies it to the Azure sandbox with Azure Service Operator, evaluates the
 outputs, deletes it and checks Azure no longer has it: passed on
-2026-11-12. Not yet applied to the fake cloud (`docs/azure.md`, "8.
-Charts").
+2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
+fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
 ## Changes
 

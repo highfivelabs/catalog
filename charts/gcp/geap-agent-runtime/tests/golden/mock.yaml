@@ -1,0 +1,117 @@
+---
+# Source: geap-agent-runtime/templates/agent-managed.yaml
+apiVersion: aiplatform.gcp.hfl.dev/v1beta1
+kind: AIPlatformReasoningEngine
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "agent"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  displayName: "catalog-mock-agent"
+  description: "Terraform managed."
+  labels:
+    env: "test"
+  spec:
+    agentFramework: "google-adk"
+    serviceAccountRef:
+      name: mock-sa
+    packageSpec:
+      pythonVersion: "3.13"
+      dependencyFilesGCSURI: "gs://catalog-mock-src/dependencies.tar.gz"
+      requirementsGCSURI: "gs://catalog-mock-src/requirements.txt"
+      pickleObjectGCSURI: "gs://catalog-mock-src/pickle.pkl"
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-sa-roles-aiplatform-user-b8f5bda5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-member-sa:roles/aiplatform.user"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/mock-project"
+  role: "roles/aiplatform.user"
+  memberFrom:
+    serviceAccountRef:
+      name: mock-sa
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-sa-roles-storage-objectviewer-f60eb1c4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam-member-sa:roles/storage.objectViewer"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/mock-project"
+  role: "roles/storage.objectViewer"
+  memberFrom:
+    serviceAccountRef:
+      name: mock-sa
+---
+# Source: geap-agent-runtime/templates/identity.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: mock-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: catalog-mock-agent
+  displayName: "catalog-mock-agent"
+---
+# Source: geap-agent-runtime/templates/main.yaml
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  name: mock-bucket
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-runtime
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-agent"
+  location: "us-central1"
+  uniformBucketLevelAccess: true

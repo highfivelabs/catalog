@@ -1,0 +1,27 @@
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+  name: existing-state-machine
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "state-machine"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "reuse"
+  definition: "{\"StartAt\": \"Done\", \"States\": {\"Done\": {\"Type\": \"Succeed\"}}}"
+  roleARN: "arn:aws:iam::111122223333:role/existing"
+  type_: "STANDARD"
+  loggingConfiguration:
+    destinations:
+      - cloudWatchLogsLogGroup:
+          logGroupARN: "arn:aws:logs:us-east-1:111122223333:log-group:/existing/logs:*"
+    level: "ERROR"
+  tags:
+    - key: "Name"
+      value: "reuse"

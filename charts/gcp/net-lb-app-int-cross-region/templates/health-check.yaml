@@ -1,0 +1,52 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric
+modules/net-lb-app-int-cross-region/health-check.tf (v60.0.0), Copyright
+2026 Google LLC, Apache-2.0.
+
+google_compute_health_check.default: one global ComputeHealthCheck per
+health_check_configs key (fabric's default: key default, HTTP on the
+serving port), named <name>-<key> unless it has a name, in the entry's
+project or the chart's.
+*/ -}}
+{{- $v := .Values }}
+{{- $hcs := .Values.health_check_configs }}
+{{- if kindIs "invalid" $hcs }}{{ $hcs = dict "default" (dict "http" (dict "port_specification" "USE_SERVING_PORT")) }}{{ end }}
+{{- range $k := keys $hcs | sortAlpha }}
+{{- $hc := index $hcs $k }}
+{{- $types := list }}
+{{- range $t := list "grpc" "http" "http2" "https" "tcp" "ssl" }}{{ if not (kindIs "invalid" (index $hc $t)) }}{{ $types = append $types $t }}{{ end }}{{ end }}
+{{- if gt (len $types) 1 }}
+{{- fail "net-lb-app-int-cross-region: Only one health check type can be configured at a time." }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "hc" $k)) "id" (printf "health_check:%s" $k) "project" (include "netlbaxr.project" (list $ $hc)) "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "health check" ($hc.name | default (printf "%s-%s" $v.name $k)) 63 "letter") | quote }}
+  location: global
+  description: {{ ternary "Terraform managed." $hc.description (kindIs "invalid" $hc.description) | quote }}
+  {{- range $f := list (list "check_interval_sec" "checkIntervalSec") (list "healthy_threshold" "healthyThreshold") (list "timeout_sec" "timeoutSec") (list "unhealthy_threshold" "unhealthyThreshold") }}
+  {{- if not (kindIs "invalid" (index $hc (index $f 0))) }}
+  {{ index $f 1 }}: {{ index $hc (index $f 0) }}
+  {{- end }}
+  {{- end }}
+  {{- range $t := $types }}
+  {{- $c := index $hc $t | default dict }}
+  {{ get (dict "grpc" "grpcHealthCheck" "http" "httpHealthCheck" "http2" "http2HealthCheck" "https" "httpsHealthCheck" "tcp" "tcpHealthCheck" "ssl" "sslHealthCheck") $t }}:
+    {{- $fields := dict "port" "port" "port_name" "portName" "port_specification" "portSpecification" "service_name" "grpcServiceName" "host" "host" "proxy_header" "proxyHeader" "request_path" "requestPath" "request" "request" "response" "response" }}
+    {{- $out := dict }}
+    {{- range $from, $to := $fields }}{{ if not (kindIs "invalid" (index $c $from)) }}{{ $_ := set $out $to (index $c $from) }}{{ end }}{{ end }}
+    {{- if $out }}
+    {{- toYaml $out | nindent 4 }}
+    {{- else }} {}
+    {{- end }}
+  {{- end }}
+  {{- if eq (toString $hc.enable_logging) "true" }}
+  logConfig:
+    enable: true
+  {{- end }}
+{{- end }}

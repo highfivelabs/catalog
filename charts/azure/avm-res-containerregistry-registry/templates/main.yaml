@@ -13,12 +13,18 @@ location as azurerm names it. module.cache_rule: one ASO RegistryCacheRule
 per entry. azurerm_management_lock.this: an aso-extensions ManagementLock
 (lock-<name>, the module's notes). azurerm_role_assignment.this: one ASO
 RoleAssignment each. azurerm_monitor_diagnostic_setting.this: one ASO
-DiagnosticSetting each. Credential sets, scope maps, the customer-managed
-key and private endpoints are refused; the telemetry is not ported.
+DiagnosticSetting each. module.credential_set: one aso-extensions
+RegistriesCredentialSet (containerregistry.azure.hfl.dev/v20251101) per
+entry, with the system-assigned identity the module gives it; a cache
+rule's credential_set_key becomes the set's ARM ID, computed from the
+registry's (ASO cannot reference an aso-extensions object by name).
+module.scope_maps: one aso-extensions RegistriesScopeMap per entry and one
+RegistriesToken per registry_tokens entry, referencing its scope map. A
+token's passwords (azurerm_container_registry_token_password, secrets
+Azure returns once), the customer-managed key and private endpoints are
+refused; the telemetry is not ported.
 */ -}}
 {{- $v := .Values }}
-{{- include "aso.unsupported" (list $ "credential_sets" $v.credential_sets "Microsoft.ContainerRegistry/registries/credentialSets has no ASO or aso-extensions kind") }}
-{{- include "aso.unsupported" (list $ "scope_maps" $v.scope_maps "Microsoft.ContainerRegistry/registries/scopeMaps and tokens have no ASO or aso-extensions kind") }}
 {{- include "aso.unsupported" (list $ "customer_managed_key" $v.customer_managed_key "ASO's Registry takes the key's URI and the identity's client ID, which the module looks up from the vault and identity IDs and a render cannot") }}
 {{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
 {{- include "aso.unsupported" (list $ "resource_types" (ternary "" "set" (empty (compact (values ($v.resource_types | default dict))))) "ASO's kinds fix the API versions (RegistryCacheRule 2025-11-01)") }}
@@ -29,8 +35,19 @@ key and private endpoints are refused; the telemetry is not ported.
 {{- $premium := eq $v.sku "Premium" }}
 {{- if and $v.zone_redundancy_enabled (not $premium) }}{{ fail "avm-res-containerregistry-registry: The Premium SKU is required if zone redundancy is enabled." }}{{ end }}
 {{- if and $v.network_rule_set (not $premium) }}{{ fail "avm-res-containerregistry-registry: The Premium SKU is required if a network rule set is defined." }}{{ end }}
-{{- range $_, $c := ($v.cache_rules | default dict) }}
+{{- $csNames := list }}
+{{- range $_, $cs := ($v.credential_sets | default dict) }}
+{{- $csNames = append $csNames (lower (toString $cs.name)) }}
+{{- end }}
+{{- if ne (len $csNames) (len (uniq $csNames)) }}{{ fail "avm-res-containerregistry-registry: Each entry in `credential_sets` must have a unique `name` (case-insensitive)." }}{{ end }}
+{{- range $key, $c := ($v.cache_rules | default dict) }}
 {{- if and $c.credential_set_key $c.credential_set_resource_id }}{{ fail "avm-res-containerregistry-registry: Each cache rule may set only one of `credential_set_key` or `credential_set_resource_id`." }}{{ end }}
+{{- if and $c.credential_set_key (not (hasKey ($v.credential_sets | default dict) $c.credential_set_key)) }}{{ fail (printf "avm-res-containerregistry-registry: cache_rules.%s.credential_set_key %q is not a key of credential_sets" $key $c.credential_set_key) }}{{ end }}
+{{- end }}
+{{- range $key, $sm := ($v.scope_maps | default dict) }}
+{{- range $tk, $t := ($sm.registry_tokens | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "scope_maps.%s.registry_tokens.%s.passwords" $key $tk) $t.passwords "a token's passwords are secrets Azure generates and returns once (generateCredentials); whether a component may hold one is the builder's decision") }}
+{{- end }}
 {{- end }}
 {{- $rg := toString $v.resource_group_name }}
 {{- $parent := "" }}
@@ -43,6 +60,8 @@ key and private endpoints are refused; the telemetry is not ported.
 {{- end }}
 {{- $abandon := include "aso.abandon" . }}
 {{- $obj := include "aso.name" (list .Release.Name "acr") }}
+{{- $azName := include "aso.resourceName" (list $ "registry" "container registry" $v.name 50 "^[a-zA-Z0-9]{5,50}$" "compact") }}
+{{- $registryID := printf "%s/providers/Microsoft.ContainerRegistry/registries/%s" $parent $azName }}
 {{- $tags := include "aso.tags" (list $ dict) | fromJson }}
 {{- $mi := $v.managed_identities | default dict }}
 {{- $uai := uniq ($mi.user_assigned_resource_ids | default list) | sortAlpha }}
@@ -53,7 +72,7 @@ kind: Registry
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "registry" "abandon" $abandon) | nindent 2 }}
 spec:
-  azureName: {{ include "aso.resourceName" (list $ "registry" "container registry" $v.name 50 "^[a-zA-Z0-9]{5,50}$" "compact") | quote }}
+  azureName: {{ $azName | quote }}
   location: {{ $v.location | quote }}
   owner:
     {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
@@ -130,8 +149,27 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
+{{- range $key, $cs := ($v.credential_sets | default dict) }}
+---
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesCredentialSet
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "credset" $key)) "id" (printf "credential_set:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $cs.name | quote }}
+  owner:
+    name: {{ $obj }}
+  identity:
+    type: SystemAssigned
+  loginServer: {{ $cs.login_server | quote }}
+  authCredentials:
+    {{- range $cs.auth_credentials }}
+    - name: {{ .name | default "Credential1" | quote }}
+      usernameSecretIdentifier: {{ .username_secret_identifier | quote }}
+      passwordSecretIdentifier: {{ .password_secret_identifier | quote }}
+    {{- end }}
+{{- end }}
 {{- range $key, $c := ($v.cache_rules | default dict) }}
-{{- include "aso.unsupported" (list $ (printf "cache_rules.%s.credential_set_key" $key) $c.credential_set_key "it names one of credential_sets, which have no ASO kind; give credential_set_resource_id") }}
 ---
 apiVersion: containerregistry.azure.com/v20251101
 kind: RegistryCacheRule
@@ -143,10 +181,46 @@ spec:
     name: {{ $obj }}
   sourceRepository: {{ $c.source_repository | quote }}
   targetRepository: {{ $c.target_repository | quote }}
-  {{- with $c.credential_set_resource_id }}
+  {{- if $c.credential_set_key }}
   credentialSetResourceReference:
-    armId: {{ . | quote }}
+    armId: {{ printf "%s/credentialSets/%s" $registryID (get $v.credential_sets $c.credential_set_key).name | quote }}
+  {{- else if $c.credential_set_resource_id }}
+  credentialSetResourceReference:
+    armId: {{ $c.credential_set_resource_id | quote }}
   {{- end }}
+{{- end }}
+{{- range $key, $sm := ($v.scope_maps | default dict) }}
+{{- $smObj := include "aso.name" (list $.Release.Name "scopemap" $key) }}
+---
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesScopeMap
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $smObj "id" (printf "scope_map:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $sm.name | quote }}
+  owner:
+    name: {{ $obj }}
+  actions:
+    {{- toYaml $sm.actions | nindent 4 }}
+  {{- with $sm.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- range $tk, $t := ($sm.registry_tokens | default dict) }}
+---
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesToken
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "token" $key $tk)) "id" (printf "scope_map:%s:token:%s" $key $tk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $t.name | quote }}
+  owner:
+    name: {{ $obj }}
+  scopeMapReference:
+    group: containerregistry.azure.hfl.dev
+    kind: RegistriesScopeMap
+    name: {{ $smObj }}
+  status: {{ ternary "enabled" "disabled" (ne $t.enabled false) }}
+{{- end }}
 {{- end }}
 {{- $owner := dict "group" "containerregistry.azure.com" "kind" "Registry" "name" $obj }}
 {{- with $v.lock }}

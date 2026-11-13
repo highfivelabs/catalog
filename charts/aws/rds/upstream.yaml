@@ -1,0 +1,128 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: aws/rds
+repo: https://github.com/terraform-aws-modules/terraform-aws-rds
+path: .
+version: v7.2.2
+commit: 175da043429cbbe41c512f976105719f6d0e538c
+license: Apache-2.0
+copyright: null
+module_url: https://github.com/terraform-aws-modules/terraform-aws-rds/tree/v7.2.2
+registry_url: https://registry.terraform.io/modules/terraform-aws-modules/rds/aws
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set (to anything but the module's default), or
+# accepts only in part. Read by `task coverage`; `task coverage-verify`
+# renders the chart to check that each one is refused. kind: gap (no ACK or
+# ack-extensions kind or field), not-ported (ACK has it, the chart does not
+# map it yet), alpha (only an ack-extensions kind, behind allow_alpha) or
+# by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is not carried.
+refused:
+- variable: allow_major_version_upgrade
+  kind: gap
+  reason: "ACK's DBInstance has no field for it (AllowMajorVersionUpgrade)"
+- variable: apply_immediately
+  kind: gap
+  reason: "accepted: ACK applies a DB instance's changes immediately, as true does; false (the default: wait for the maintenance window) is not carried"
+  partial: true
+- variable: blue_green_update
+  kind: gap
+  reason: "ACK's DBInstance has no blue/green update"
+- variable: create_db_option_group
+  kind: alpha
+  reason: "OptionGroup is an ack-extensions kind (outside ACK's releases): an engine other than postgres with create_db_option_group true (the default) needs allow_alpha: true, or create_db_option_group: false"
+  partial: true
+  needs_allow_alpha: true
+- variable: db_instance_role_associations
+  kind: alpha
+  reason: "DBRoleAssociation is an ack-extensions kind (outside ACK's releases): needs allow_alpha: true"
+  partial: true
+  needs_allow_alpha: true
+- variable: db_subnet_group_use_name_prefix
+  kind: gap
+  reason: "accepted: true (the default) names the subnet group db_subnet_group_name (or identifier) as given, without Terraform's random suffix, since a render must not change between plans; the namePrefix value keeps two Instances' groups apart"
+  partial: true
+- variable: dedicated_log_volume
+  kind: gap
+  reason: "ACK's DBInstance has no field for it"
+- variable: domain_auth_secret_arn
+  kind: gap
+  reason: "ACK's DBInstance has no field for it (it takes domain and domainIAMRoleName only)"
+- variable: domain_dns_ips
+  kind: gap
+  reason: "ACK's DBInstance has no field for it (it takes domain and domainIAMRoleName only)"
+- variable: domain_fqdn
+  kind: gap
+  reason: "ACK's DBInstance has no field for it (it takes domain and domainIAMRoleName only)"
+- variable: domain_ou
+  kind: gap
+  reason: "ACK's DBInstance has no field for it (it takes domain and domainIAMRoleName only)"
+- variable: engine_lifecycle_support
+  kind: gap
+  reason: "ACK's DBInstance has no field for it"
+- variable: instance_use_identifier_prefix
+  kind: gap
+  reason: "an identifier with Terraform's random suffix would change between renders"
+- variable: manage_master_user_password_rotation
+  kind: gap
+  reason: "rotation of the managed master user secret (aws_secretsmanager_secret_rotation) has no kind: secretsmanager-controller PR #69"
+- variable: master_user_password_rotate_immediately
+  kind: gap
+  reason: "rotation of the managed master user secret (aws_secretsmanager_secret_rotation) has no kind: secretsmanager-controller PR #69"
+- variable: master_user_password_rotation_automatically_after_days
+  kind: gap
+  reason: "rotation of the managed master user secret (aws_secretsmanager_secret_rotation) has no kind: secretsmanager-controller PR #69"
+- variable: master_user_password_rotation_duration
+  kind: gap
+  reason: "rotation of the managed master user secret (aws_secretsmanager_secret_rotation) has no kind: secretsmanager-controller PR #69"
+- variable: master_user_password_rotation_schedule_expression
+  kind: gap
+  reason: "rotation of the managed master user secret (aws_secretsmanager_secret_rotation) has no kind: secretsmanager-controller PR #69"
+- variable: monitoring_role_use_name_prefix
+  kind: gap
+  reason: "a name with Terraform's random suffix (name_prefix) would change between renders"
+- variable: option_group_timeouts
+  kind: by-design
+  reason: "Terraform's delete timeout: ACK retries until the option group is deleted"
+- variable: option_group_use_name_prefix
+  kind: gap
+  reason: "accepted: true (the default) names the option group option_group_name (or identifier) as given, without Terraform's random suffix"
+  partial: true
+- variable: parameter_group_use_name_prefix
+  kind: gap
+  reason: "accepted: true (the default) names the parameter group parameter_group_name (or identifier) as given, without Terraform's random suffix"
+  partial: true
+- variable: parameters
+  kind: gap
+  reason: "accepted, except each parameter's apply_method: ACK's DBParameterGroup takes names and values only and RDS applies each by its type"
+  partial: true
+  fields:
+  - apply_method
+- variable: password_wo
+  kind: gap
+  reason: "a password in values would be written into the render; ACK takes a Kubernetes Secret (masterUserPassword), which the chart does not make: use manage_master_user_password (the default), and RDS keeps the password in Secrets Manager"
+- variable: password_wo_version
+  kind: gap
+  reason: "a password in values would be written into the render; ACK takes a Kubernetes Secret (masterUserPassword), which the chart does not make: use manage_master_user_password (the default), and RDS keeps the password in Secrets Manager"
+- variable: restore_to_point_in_time
+  kind: gap
+  reason: "ACK's DBInstance has no point-in-time restore (RestoreDBInstanceToPointInTime)"
+- variable: s3_import
+  kind: gap
+  reason: "ACK's DBInstance has no restore from S3 (RestoreDBInstanceFromS3)"
+- variable: skip_final_snapshot
+  kind: gap
+  reason: "accepted: false (the default) takes a final snapshot named <final_snapshot_identifier_prefix>-<identifier>-<8 hex characters>, as Terraform does, but the 8 characters are a hash of identifier and snapshot_identifier, not random, so a render does not change between plans"
+  partial: true
+- variable: timeouts
+  kind: by-design
+  reason: "Terraform's create, update and delete timeouts: ACK retries until the instance is synced, and Bundt waits for it"
+- variable: upgrade_storage_config
+  kind: gap
+  reason: "ACK's DBInstance has no field for it"

@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), each a map keyed by the aspect type's key: ids is fabric's
+# resource ID, projects/<project>/locations/<location>/aspectTypes/<id>,
+# from the rendered objects; names, timestamps and uids are what the API
+# reports (the object's status.externalRef and status.observedState), null
+# until it does.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-dataplex-aspect-types
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'DataplexAspectType',
+        {k.substring(12): 'projects/' + v.spec.projectRef.external + '/locations/' + v.spec.location + '/aspectTypes/' + v.spec.resourceID})
+    names: >-
+      resources.transformMapEntry(k, v, v.kind == 'DataplexAspectType',
+        {k.substring(12): has(v.status) && has(v.status.externalRef) ? dyn(v.status.externalRef) : null})
+    timestamps: >-
+      resources.transformMapEntry(k, v, v.kind == 'DataplexAspectType',
+        {k.substring(12): {
+          'create': has(v.status) && has(v.status.observedState) && has(v.status.observedState.createTime) ? dyn(v.status.observedState.createTime) : null,
+          'update': has(v.status) && has(v.status.observedState) && has(v.status.observedState.updateTime) ? dyn(v.status.observedState.updateTime) : null}})
+    uids: >-
+      resources.transformMapEntry(k, v, v.kind == 'DataplexAspectType',
+        {k.substring(12): has(v.status) && has(v.status.observedState) && has(v.status.observedState.uid) ? dyn(v.status.observedState.uid) : null})

@@ -1,0 +1,187 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dataplex-datascan/main.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_dataplex_datascan.datascan: one DataplexDataScan
+(config-connector-extensions, dataplex.gcp.hfl.dev/v1beta1), named
+<prefix>-<name>, a data profile scan or a data quality scan whose spec is
+data_quality_spec or the factory's file (factory.tf). fabric's three
+preconditions are template checks with fabric's messages. IAM is in
+iam.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "datascan")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $data := $v.data | default dict }}
+{{- if ne (len (without (list $data.resource $data.entity) nil "")) 1 }}
+{{- fail "dataplex-datascan: Datascan data must specify one of 'entity', 'resource'." }}
+{{- end }}
+{{- $fc := $v.factories_config | default dict }}
+{{- $fd := ($v.factories_data | default dict).data_quality_spec }}
+{{- if and $fc.data_quality_spec (kindIs "invalid" $fd) }}
+{{- fail "dataplex-datascan: factories_config.data_quality_spec is set: a chart cannot read the file; put its contents under factories_data.data_quality_spec (docs/design.md, \"Submodules and factories\")" }}
+{{- end }}
+{{- if and (not $fc.data_quality_spec) (not (kindIs "invalid" $fd)) }}
+{{- fail "dataplex-datascan: factories_data.data_quality_spec is set without factories_config.data_quality_spec, which fabric reads it from: set both" }}
+{{- end }}
+{{- if ne (len (without (list (not (kindIs "invalid" $v.data_profile_spec)) (not (kindIs "invalid" $v.data_quality_spec)) (not (empty $fc.data_quality_spec))) false)) 1 }}
+{{- fail "dataplex-datascan: DataScan can only contain one of 'data_profile_spec', 'data_quality_spec', 'factories_config.data_quality_spec'." }}
+{{- end }}
+{{- $useQuality := or (not (kindIs "invalid" $v.data_quality_spec)) (not (empty $fc.data_quality_spec)) }}
+{{- $q := $v.data_quality_spec }}
+{{- if kindIs "invalid" $q }}{{ $q = include "dataplexDatascan.factory" $fd | fromJson }}{{ end }}
+{{- $expectations := list "non_null_expectation" "range_expectation" "regex_expectation" "set_expectation" "uniqueness_expectation" "statistic_range_expectation" "row_condition_expectation" "table_condition_expectation" "sql_assertion" }}
+{{- range $r := ($q.rules | default list) }}
+{{- if not (has $r.dimension (list "COMPLETENESS" "ACCURACY" "CONSISTENCY" "VALIDITY" "UNIQUENESS" "INTEGRITY")) }}
+{{- fail "dataplex-datascan: Datascan 'dimension' field in 'data_quality_spec' must be one of ['COMPLETENESS', 'ACCURACY', 'CONSISTENCY', 'VALIDITY', 'UNIQUENESS', 'INTEGRITY']." }}
+{{- end }}
+{{- $n := 0 }}
+{{- range $e := $expectations }}{{ if not (kindIs "invalid" (index $r $e)) }}{{ $n = add1 $n }}{{ end }}{{ end }}
+{{- if ne $n 1 }}
+{{- fail "dataplex-datascan: Datascan rule must contain a key that is one of ['non_null_expectation', 'range_expectation', 'regex_expectation', 'set_expectation', 'uniqueness_expectation', 'statistic_range_expectation', 'row_condition_expectation', 'table_condition_expectation', 'sql_assertion']." }}
+{{- end }}
+{{- end }}
+{{- $base := $v.name }}
+{{- if $v.prefix }}{{ $base = printf "%s-%s" $v.prefix $v.name }}{{ end }}
+{{- $id := include "kcc.resourceName" (list $ "datascan" "data scan" $base 63 "letter") }}
+{{- $labels := include "kcc.labels" (list $ dict) | fromJson }}
+---
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexDataScan
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "datascan" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ $id | quote }}
+  displayName: {{ $id | quote }}
+  description: {{ ternary "Terraform Managed." (printf "Terraform Managed. %s" (toString $v.description)) (kindIs "invalid" $v.description) | quote }}
+  {{- /* Dataplex kinds take their cloud labels from spec.labels: the
+  unprefixed ones of the chart's tags and labels (fabric's labels). */}}
+  {{- $cloud := dict }}
+  {{- range $k, $l := $labels }}{{ if not (contains "/" $k) }}{{ $_ := set $cloud $k $l }}{{ end }}{{ end }}
+  {{- with $cloud }}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+  data:
+    {{- with $data.resource }}
+    resource: {{ . | quote }}
+    {{- end }}
+    {{- with $data.entity }}
+    entity: {{ . | quote }}
+    {{- end }}
+  executionSpec:
+    {{- with $v.incremental_field }}
+    field: {{ . | quote }}
+    {{- end }}
+    trigger:
+      {{- if kindIs "invalid" $v.execution_schedule }}
+      onDemand: {}
+      {{- else }}
+      schedule:
+        cron: {{ $v.execution_schedule | quote }}
+      {{- end }}
+  {{- $dp := $v.data_profile_spec }}
+  {{- if kindIs "map" $dp }}
+  {{- if or (not (kindIs "invalid" $dp.sampling_percent)) $dp.row_filter }}
+  dataProfileSpec:
+    {{- if not (kindIs "invalid" $dp.sampling_percent) }}
+    samplingPercent: {{ $dp.sampling_percent }}
+    {{- end }}
+    {{- with $dp.row_filter }}
+    rowFilter: {{ . | quote }}
+    {{- end }}
+  {{- else }}
+  dataProfileSpec: {}
+  {{- end }}
+  {{- end }}
+  {{- if $useQuality }}
+  dataQualitySpec:
+    {{- if not (kindIs "invalid" $q.sampling_percent) }}
+    samplingPercent: {{ $q.sampling_percent }}
+    {{- end }}
+    {{- with $q.row_filter }}
+    rowFilter: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $q.post_scan_actions) }}
+    {{- $rt := include "dataplexDatascan.resultsTable" $q.post_scan_actions | fromJson }}
+    postScanActions:
+      {{- if $rt.set }}
+      bigqueryExport:
+        {{- with $rt.v }}
+        resultsTable: {{ . | quote }}
+        {{- else }} {}
+        {{- end }}
+      {{- else }} {}
+      {{- end }}
+    {{- end }}
+    rules:
+    {{- range $r := ($q.rules | default list) }}
+      - dimension: {{ $r.dimension | quote }}
+        {{- with $r.column }}
+        column: {{ . | quote }}
+        {{- end }}
+        {{- if not (kindIs "invalid" $r.ignore_null) }}
+        ignoreNull: {{ $r.ignore_null }}
+        {{- end }}
+        {{- if not (kindIs "invalid" $r.threshold) }}
+        threshold: {{ $r.threshold }}
+        {{- end }}
+        {{- if not (kindIs "invalid" $r.non_null_expectation) }}
+        nonNullExpectation: {}
+        {{- end }}
+        {{- if not (kindIs "invalid" $r.uniqueness_expectation) }}
+        uniquenessExpectation: {}
+        {{- end }}
+        {{- range $e := list (list "range_expectation" "rangeExpectation") (list "statistic_range_expectation" "statisticRangeExpectation") }}
+        {{- $x := index $r (index $e 0) }}
+        {{- if not (kindIs "invalid" $x) }}
+        {{ index $e 1 }}:
+          {{- with $x.statistic }}
+          statistic: {{ . | quote }}
+          {{- end }}
+          {{- if not (kindIs "invalid" $x.min_value) }}
+          minValue: {{ $x.min_value | toString | quote }}
+          {{- end }}
+          {{- if not (kindIs "invalid" $x.max_value) }}
+          maxValue: {{ $x.max_value | toString | quote }}
+          {{- end }}
+          {{- if not (kindIs "invalid" $x.strict_min_enabled) }}
+          strictMinEnabled: {{ $x.strict_min_enabled }}
+          {{- end }}
+          {{- if not (kindIs "invalid" $x.strict_max_enabled) }}
+          strictMaxEnabled: {{ $x.strict_max_enabled }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- with $r.regex_expectation }}
+        regexExpectation:
+          regex: {{ .regex | quote }}
+        {{- end }}
+        {{- with $r.set_expectation }}
+        setExpectation:
+          values:
+          {{- range .values }}
+            - {{ . | quote }}
+          {{- end }}
+        {{- end }}
+        {{- with $r.row_condition_expectation }}
+        rowConditionExpectation:
+          sqlExpression: {{ .sql_expression | quote }}
+        {{- end }}
+        {{- with $r.table_condition_expectation }}
+        tableConditionExpectation:
+          sqlExpression: {{ .sql_expression | quote }}
+        {{- end }}
+        {{- with $r.sql_assertion }}
+        sqlAssertion:
+          sqlStatement: {{ .sql_statement | quote }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
