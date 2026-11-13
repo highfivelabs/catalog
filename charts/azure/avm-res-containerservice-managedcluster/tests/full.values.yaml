@@ -1,8 +1,9 @@
 # Every input the chart maps that a stable (2026-05-01) cluster takes: a
 # private cluster on Azure CNI overlay with a user-assigned identity and a
 # kubelet identity, its add-ons and profiles, a second agent pool with the
-# preview-only pool settings, a maintenance window, a managed namespace and
-# the AVM interfaces.
+# preview-only pool settings, a maintenance window, a managed namespace,
+# the AVM interfaces, a private endpoint, and the monitoring and alerting
+# submodules.
 name: aks-full
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks
@@ -252,3 +253,17 @@ diagnostic_settings:
     log_groups: []
     metric_categories: []
     storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Storage/storageAccounts/logs
+onboard_monitoring: true
+prometheus_workspace_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Monitor/accounts/amw-aks
+onboard_alerts: true
+alert_email: ops@example.com
+private_endpoints:
+  mgmt:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.eastus2.azmk8s.io]
+    network_interface_name: nic-pe-aks-full
+    application_security_group_associations:
+      app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app
+    ip_configurations:
+      one: {name: ipconfig-aks, private_ip_address: 10.0.1.40}
+    tags: {tier: private}

@@ -462,7 +462,12 @@ submodule as the chart value `rule_collection_groups`.
 | `monitoring` | data collection rules, endpoints and associations | `insights/DataCollectionRule`, `DataCollectionEndpoint`, `DataCollectionRuleAssociation` (2024-03-11) |
 | `alerting` | Prometheus rule groups, action groups, metric alerts | `alertsmanagement/PrometheusRuleGroup`, `insights/ActionGroup`, `insights/MetricAlert` |
 
-Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8).
+Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8). From
+0.2.0 (2026-11-13) the chart maps private endpoints and the monitoring and
+alerting submodules too (`alertsmanagement` joins the ASO groups the
+charts validate against and the fake cloud installs); what stays refused
+is a secret value (the builder's decision), three agent pool field gaps
+and ASO's own mechanics.
 
 ### 17. avm-res-dbforpostgresql-flexibleserver (v0.2.3; azurerm)
 
