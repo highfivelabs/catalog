@@ -525,7 +525,7 @@ real gap.
 | avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links. Covered |
 | avm-res-cache-redis (38) | `cache/Redis`, access policies, assignments, firewall rules, linked servers (2024-11-01). Covered |
 | avm-res-app-managedenvironment (40) | `app/ManagedEnvironment`. **GAP**: all nine child types (Dapr components and subscriptions, storages, certificates, managed certificates, Java and .NET components, HTTP route configs, maintenance configurations) |
-| avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old) |
+| avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old). Chart `charts/azure/avm-res-network-applicationgateway` (2026-11-12): 41 of 50 variables, everything 2022-07-01 carries; what later versions added is refused by name (section 8) |
 
 ## 5. Gaps ranked for aso-extensions
 
@@ -706,6 +706,26 @@ aso-extensions:
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
 
+**The application gateway's ARM version.** ASO v2.22.0's
+`ApplicationGateway` is at ARM 2022-07-01 only (gap 18 in section 5), where
+the module sends 2025-03-01. `avm-res-network-applicationgateway` maps
+everything 2022-07-01 carries and refuses each later field by name when set:
+`entra_jwt_validation_configs` (and a rule's `entra_jwt_validation_config`);
+HTTP settings' `dedicated_backend_connection`, `sni_name`,
+`validate_cert_chain_and_expiry` and `validate_sni`; backend settings'
+`enable_l4_client_ip_preservation`; a TLS listener's `host_names`; a probe's
+`enable_probe_proxy_protocol_header`; a rewrite header's
+`header_value_matcher`; an SSL profile's `verify_client_auth_mode`; `sku.family`
+and the Basic SKU; the `default_predefined_ssl_policy` output. ASO's
+2022-07-01 type also takes a load distribution target only by reference (no
+name, pool or weight) and has no `id` on a Private Link IP configuration or
+a path rule. A new ASO version of the kind (upstream, a `$supportedFrom`
+entry) closes all of them. Its certificates stay refused: ASO takes a
+certificate's `data` and an SSL certificate's `password` only from a
+Kubernetes Secret, and `key_vault_secret_id` is Key Vault secret material,
+which waits on how a component supplies a secret (as the Key Vault
+module's `secrets`).
+
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
@@ -746,7 +766,7 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP and application gateway charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -759,7 +779,18 @@ security group (two rules), route table (two routes, the group by name
 and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
-Azure answering 404, nothing left.
+Azure answering 404, nothing left. The application gateway (Standard_v2,
+capacity 1, the public IP it makes, on a subnet the case first makes with
+the virtual network chart, a pool, HTTP settings with a probe, a listener
+and a basic rule, every reference by key) passed in run `cat111303093fb2`
+on 2026-11-13: 4 objects Ready, outputs evaluated (operational state
+Running, the allocated address), deleted, Azure answering 404. Neither cost
+nor time forbids it: Standard_v2 at capacity 1 is about 0.25 USD an hour,
+and the whole case (network, gateway, deletes) took about 20 minutes, most
+of it the gateway's create and delete, so the case has a 40-minute limit.
+Its `tests/mock.values.yaml` passed against the fake cloud too (PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113030418-6345`: 2 objects Ready
+and deleted, outputs evaluated).
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO

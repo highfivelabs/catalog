@@ -175,8 +175,10 @@ schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
 network and subnet with the virtual network chart, applies a Standard_v2
 gateway of capacity 1 with the public IP it makes on that subnet to the
 Azure sandbox, evaluates the outputs, deletes it and checks Azure no longer
-has it. `task test-mock-azure` applies `tests/mock.values.yaml` to
-aso-extensions' fake cloud.
+has it: passed on 2026-11-13 (run `cat111303093fb2`), 4 objects Ready,
+the outputs evaluated, nothing left. `task test-mock-azure` applies
+`tests/mock.values.yaml` to aso-extensions' fake cloud: passed on
+2026-11-13, both objects Ready and deleted, the outputs evaluated.
 
 ## Changes
 
