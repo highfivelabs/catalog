@@ -1,0 +1,88 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's geap-agent-runtime
+# module (v60.0.0): same names, types and defaults, so a module block's
+# arguments become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.agent sets the engine's display name in full, names.serviceAccount
+# the service account ID and names.bucket the bucket's name (else fabric's:
+# name, or service_account_config.name and bucket_config.name).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name not set
+# under names. Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object; an unprefixed key also becomes a
+# Google Cloud label on the engine and the bucket.
+labels: {}
+# Cloud labels on the engine and the bucket (Google Cloud labels).
+tags: {}
+
+# The agent configuration. identity_type AGENT_IDENTITY (fabric's default)
+# and class_methods are refused (README.md, "Values").
+agent_runtime_config:
+  agent_framework: null
+  class_methods: null
+  container_concurrency: null
+  environment_variables: {}
+  identity_type: AGENT_IDENTITY
+  max_instances: null
+  min_instances: null
+  python_version: "3.13"
+  resource_limits: null
+  secret_environment_variables: {}
+# The GCS bucket configuration.
+bucket_config:
+  create: true
+  name: null
+  uniform_bucket_level_access: true
+# Context-specific interpolations. Refused when set: Bundt expressions
+# (${...}) and valueFrom replace fabric's $context lookups.
+context: {}
+# The deployment configuration: at most one of container_config,
+# package_config and source_files_config. Only package_config with
+# are_paths_local: false is accepted.
+deployment_config: {}
+# The GEAP Agent Runtime description.
+description: Terraform managed.
+# Whether deletion protection should be enabled. false is refused.
+enable_deletion_protection: true
+# The full resource name of the Cloud KMS CryptoKey.
+encryption_key: null
+# Whether the Terraform module should control the code updates. false is
+# refused.
+managed: true
+# Configuration for the memory bank. Refused when set.
+memory_bank_config: null
+# The name of the agent.
+name: ""
+# Networking configuration. agent_gateways is refused.
+networking_config:
+  agent_gateways:
+    egress: null
+    ingress: null
+  dns_peering_configs: {}
+  network_attachment_id: null
+# The id of the project where to deploy the agent.
+project_id: ""
+# The region where to deploy the agent.
+region: ""
+# Service account configurations.
+service_account_config:
+  create: true
+  display_name: null
+  email: null
+  name: null
+  roles:
+    - roles/aiplatform.user
+    - roles/storage.objectViewer
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# engine, the service account and the bucket when the component is
+# deleted. PREVENT has no Config Connector equivalent.
+deletion_policy: null

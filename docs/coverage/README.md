@@ -116,6 +116,66 @@ So `blocked` is strict: a module whose only gap is one alpha side resource is
 blocked, though the pilot charts show such a module can be ported with the
 gap refused. The `notes` column names the types.
 
+## Live proof of the extension kinds (Google Cloud)
+
+Not generated: kept by hand, for the live-test permissions item. The live
+runs (`task test-live`, `hack/live-apply.sh`; `task test-live-gke`,
+`hack/live-gke.sh`) run config-connector-extensions' manager at
+`CCE_COMMIT` beside Config Connector's (`hack/cce-manager.sh`), acting as
+the same service account, so a chart's `*.gcp.hfl.dev` kinds are applied
+to Google Cloud, not only rendered and run in the fake cloud. Whether a
+chart can run live now depends only on the runner's roles and the
+project's APIs. The two runners in the live project (`hfl-dev-514205`)
+hold:
+
+- `catalog-live-tests` (`task test-live`): `compute.networkAdmin`,
+  `compute.instanceAdmin.v1`, `iam.serviceAccountAdmin`, `storage.admin`,
+  `logging.logWriter`.
+- `cce-live-tests` (`task test-live-gke`, the offramp): those compute and
+  storage roles, plus `compute.securityAdmin`,
+  `compute.loadBalancerAdmin`, `artifactregistry.admin`,
+  `cloudsql.admin`, `container.clusterAdmin`, `gkehub.admin`,
+  `run.admin`, `secretmanager.admin`, `logging.admin`,
+  `iam.serviceAccountUser`, `iam.workloadIdentityPoolAdmin`,
+  `iam.oauthClientAdmin`, `cloudasset.viewer`.
+
+Charts with an extension kind (`IAMBinding`, which every chart renders
+for `iam_bindings`, follows its resource's row), as of 2026-11-12:
+
+| Chart | Extension kinds | Live now? | What blocks it |
+| --- | --- | --- | --- |
+| `net-address` | `ComputeNetworkAttachment` | **proven** 2026-11-12 (run `cat-11130337-4e46`, offload VM `off-catalog-1113033335-11323` as `catalog-live-tests`, config-connector-extensions `11baa460`): the attachment, its network and subnet, and both addresses Ready, deleted and gone from Google Cloud, 0 failures, nothing left | nothing |
+| `net-firewall-policy` | `ComputeRegionNetworkFirewallPolicy`, its rules and association; `ComputeNetworkFirewallPolicyRule` | capable, as `cce-live-tests` (`compute.securityAdmin`); no case in `hack/live-apply.sh` yet | hierarchical policies need a folder-level role; `ComputeNetworkFirewallPolicyPacketMirroringRule` needs an organization's security profile group |
+| `net-lb-proxy-int-cross-region` (PR #119) | `ComputeNetworkEndpoint` (proven live by config-connector-extensions) | capable, as `cce-live-tests` (`compute.loadBalancerAdmin`) once merged | nothing beyond a case |
+| `gke-cluster-standard`, `gke-cluster-autopilot` (PR #90) | `GKEBackupBackupPlan`, `GKEBackupRestorePlan` | blocked by a role | `roles/gkebackup.admin` (the API is on) |
+| `dns-response-policy` (PR #131) | `DNSResponsePolicy`, `DNSResponsePolicyRule` | blocked by a role | `roles/dns.admin` (the API is on); the rule's CRD needs config-connector-extensions `0ee17dd` (PR #126) |
+| `dataplex`, `dataplex-aspect-types`, `dataplex-datascan` (PRs #107, #110) | `DataplexLake`, `DataplexZone`, `DataplexAsset`, `DataplexAspectType`, `DataplexDataScan` | blocked by a role | `roles/dataplex.admin` (the API is on) |
+| `backup-dr` (PR #106) | `BackupDRManagementServer` | blocked by a role | `roles/backupdr.admin` (the API is on) |
+| `ncc-spoke-ra` | `ComputeRouterRoutePolicy` | blocked by a role | the hub and spoke need `roles/networkconnectivity.hubAdmin` and `spokeAdmin` (the API is on) |
+| `cloud-function-v2` (PR #128) | `CloudFunctions2Function` | blocked by APIs and a role | Cloud Functions and Cloud Build APIs; `roles/cloudfunctions.admin` |
+| `spanner-instance` (PR #127) | `SpannerInstanceConfig` | blocked by an API and a role; needs `0ee17dd` (PR #126) | Spanner API; `roles/spanner.admin` |
+| `data-catalog-tag` (PR #129) | `DataCatalogTag` | blocked by an API and a role; needs `0ee17dd` | Data Catalog API; `roles/datacatalog.admin` |
+| `geap-agent-runtime` (PR #130) | `AIPlatformReasoningEngine` | blocked by an API and a role; needs `0ee17dd` | Vertex AI API; `roles/aiplatform.admin` |
+| `api-gateway` (PRs #105, #124) | `APIGatewayAPIConfig`, `APIGatewayGateway` | blocked by an API and a role | API Gateway API; `roles/apigateway.admin` |
+| `biglake-catalog` (PR #104) | `BigLakeCatalog`, `BigLakeDatabase` | blocked by an API and a role | BigLake API; `roles/biglake.admin` |
+| `certificate-manager` (PR #95) | `CertificateManagerCertificateIssuanceConfig` | blocked by APIs and a role | Certificate Manager and CA Service APIs; `roles/certificatemanager.owner`, `roles/privateca.admin` |
+
+## Factories without a chart
+
+Two Google Cloud modules are composite factories: they read a tree of
+YAML files and call other modules once per file. `docs/design.md`
+("Submodules and factories", "Factories, worked") decides they are not one
+chart: Bundt renders from inputs alone, a Template has no loops, and one
+chart making fifty projects would be one component, one plan line and one
+blast radius. A generator that writes one Instance per file of the tree,
+from the charts below, is accepted in principle and not built. Their rows
+stay `not started` or `blocked` and are not ported:
+
+| Module | What it composes | Its own resource types | Judged |
+| --- | --- | --- | --- |
+| `net-vpc-factory` | `net-vpc` and `net-vpc-firewall`, per file | none | a factory wrapper: every resource it makes belongs to `net-vpc` or `net-vpc-firewall`, which have charts. A chart would add no variable or resource the catalog lacks |
+| `project-factory` (2026-11-12) | `project` (and its IAM), `folder` (four levels, and their IAM), `gcs`, `iam-service-account`, `bigquery-dataset`, `billing-account` (budgets), `data-catalog-policy-tag`, `dataplex-aspect-types`, `kms`, `logging-bucket`, `pubsub` | `google_network_security_dns_threat_detector` (config-connector-extensions' `NetworkSecurityDNSThreatDetector`) and two `terraform_data` preconditions | a factory wrapper, like `net-vpc-factory`. Its eight variables (`folders`, `projects`, `data_defaults`, `data_merges`, `data_overrides`, `factories_config`, `context`, `notification_channels`) are the tree and its defaults, whose values are the composed modules' variables: a chart would re-expose those charts' values under one object per project and add no coverage of its own. The one resource it makes itself, a project's DNS threat detector, is a candidate for the `project` chart (a `dns_threat_detector` value, as the factory's file has it) rather than a reason for a factory chart. Its row stays `blocked` on that kind |
+
 ## Limits
 
 - AWS and Azure modules are tracked at their repository root: variables and

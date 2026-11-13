@@ -1,0 +1,26 @@
+# fabric's README example (modules/dataplex/README.md, v60.0.0): a lake
+# with a RAW zone holding one bucket asset and a CURATED zone with none,
+# and IAM on the lake and the RAW zone.
+name: terraform-lake
+prefix: test
+project_id: myproject
+region: europe-west2
+iam:
+  roles/dataplex.viewer: ["group:analysts@example.com", "group:analysts_sensitive@example.com"]
+zones:
+  landing:
+    type: RAW
+    discovery: true
+    assets:
+      gcs_1:
+        resource_name: gcs_bucket
+        cron_schedule: "15 15 * * *"
+        discovery_spec_enabled: true
+        resource_spec_type: STORAGE_BUCKET
+  curated:
+    type: CURATED
+    discovery: false
+    iam:
+      roles/viewer: ["group:analysts@example.com", "group:analysts_sensitive@example.com"]
+      roles/dataplex.dataReader: ["group:analysts@example.com", "group:analysts_sensitive@example.com"]
+    assets: {}

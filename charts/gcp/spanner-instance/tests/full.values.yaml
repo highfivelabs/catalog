@@ -1,0 +1,31 @@
+# Every rendered field.
+project_id: my-project
+labels: {hfl.dev/team: data, env: prod}
+tags: {cost-center: cc1}
+deletion_policy: ABANDON
+instance:
+  name: orders
+  display_name: Orders
+  config:
+    name: custom-orders
+    auto_create:
+      base_config: projects/my-project/instanceConfigs/nam3
+      labels: {tier: gold}
+      replicas:
+        - {location: us-east1, type: READ_WRITE, default_leader_location: true}
+        - {location: us-east4, type: READ_ONLY, default_leader_location: false}
+  processing_units: 100
+  edition: ENTERPRISE
+  default_backup_schedule_type: AUTOMATIC
+  labels: {app: orders}
+  force_destroy: false
+databases:
+  orders:
+    database_dialect: GOOGLE_STANDARD_SQL
+    ddl:
+      - CREATE TABLE t (id INT64) PRIMARY KEY (id)
+    deletion_protection: true
+    enable_drop_protection: true
+    kms_key_name: projects/my-project/locations/us-east1/keyRings/r/cryptoKeys/k
+    version_retention_period: 3d
+  audit: {}

@@ -1,0 +1,90 @@
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationAttestor
+metadata:
+  name: basic-attestor-test
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attestor:test"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  resourceID: "test"
+  userOwnedDrydockNote:
+    noteRef:
+      name: basic-note-test
+    publicKeys:
+      - asciiArmoredPgpPublicKey: "mQENBFtP0doBCADF+joTiXWKVuP8kJt3fgpBSjT9h8ezMfKA4aXZctYLx5wslWQl\nbB7Iu2ezkECNzoEeU7WxUe8a61pMCh9cisS9H5mB2K2uM4Jnf8tgFeXn3akJDVo0\n=6Bvm\n"
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationPolicy
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  defaultAdmissionRule:
+    evaluationMode: "ALWAYS_DENY"
+    enforcementMode: "ENFORCED_BLOCK_AND_AUDIT_LOG"
+  clusterAdmissionRules:
+    "europe-west1-c.cluster":
+      evaluationMode: "REQUIRE_ATTESTATION"
+      enforcementMode: "ENFORCED_BLOCK_AND_AUDIT_LOG"
+      requireAttestationsBy:
+        - name: basic-attestor-test
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: containeranalysis.cnrm.cloud.google.com/v1beta1
+kind: ContainerAnalysisNote
+metadata:
+  name: basic-note-test
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "note:test"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "test-note"
+  attestation:
+    hint:
+      humanReadableName: "Attestor test note"
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: basic-attestor-test-iam-roles-viewer-3df57117
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attestor-iam:test/roles/viewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+    kind: BinaryAuthorizationAttestor
+    name: basic-attestor-test
+  role: "roles/viewer"
+  members:
+    - "user:user1@example.com"

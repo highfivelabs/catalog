@@ -1,0 +1,87 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-compute-virtualmachine
+repo: https://github.com/Azure/terraform-azurerm-avm-res-compute-virtualmachine
+path: .
+version: v0.21.0
+commit: a6e951bdebcf50656a1fa29881fcc5a4c87e7a77
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-compute-virtualmachine/tree/v0.21.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-compute-virtualmachine/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  # Secret values: the builder decides how a component supplies one.
+  - variable: admin_password
+    kind: not-ported
+    reason: "a secret value (ASO's osProfile.adminPassword is a SecretReference); how a component supplies one is the builder's decision"
+  - variable: generated_secrets_key_vault_secret_config
+    kind: not-ported
+    reason: "writes a generated password or SSH private key to Key Vault (a secret value; aso-extensions' VaultSecret takes one from a Kubernetes Secret)"
+  - variable: run_commands_secrets
+    kind: not-ported
+    reason: "protected parameters and run-as passwords are secret values"
+  - variable: account_credentials
+    kind: not-ported
+    partial: true
+    reason: "admin_credentials.username and ssh_keys are mapped; admin_credentials.password and key_vault_configuration (secret values), password_authentication_disabled false (needs a password) and generating a key or password are refused"
+  - variable: generate_admin_password_or_ssh_key
+    kind: not-ported
+    partial: true
+    reason: "accepted when public keys are given; generating an SSH key pair or a password makes a secret value"
+  - variable: disable_password_authentication
+    kind: not-ported
+    partial: true
+    reason: "true (the default) is mapped; false needs a password, a secret value"
+  - variable: os_type
+    kind: not-ported
+    partial: true
+    reason: "Linux is mapped; Windows only with an attached OS disk (os_disk_attach_mode), since a Windows OS profile needs an admin password, a secret value"
+  - variable: additional_unattend_contents
+    kind: not-ported
+    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
+  - variable: enable_automatic_updates
+    kind: not-ported
+    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
+  - variable: hotpatching_enabled
+    kind: not-ported
+    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
+  - variable: timezone
+    kind: not-ported
+    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
+  - variable: winrm_listeners
+    kind: not-ported
+    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
+  # Kinds and fields ASO and aso-extensions lack.
+  - variable: azure_backup_configurations
+    kind: gap
+    reason: "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems (a protected VM) has no Azure Service Operator or aso-extensions kind"
+  - variable: disk_controller_type
+    kind: gap
+    reason: "ASO's VirtualMachine is at ARM API 2022-03-01, before storageProfile.diskControllerType"
+  - variable: bypass_platform_safety_checks_on_user_schedule_enabled
+    kind: gap
+    reason: "ASO's VirtualMachine is at ARM API 2022-03-01, before patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule"
+  - variable: extensions
+    kind: gap
+    partial: true
+    reason: "mapped, except an entry's protected_settings (a secret value; protected_settings_from_key_vault is mapped), provision_after_extensions (ASO's VirtualMachinesExtension is at ARM API 2022-03-01, before it) and timeouts; deploy_sequence is accepted and has no effect (ASO reconciles every child once the machine is Ready)"
+  - variable: run_commands
+    kind: gap
+    partial: true
+    reason: "mapped, except the managed identities of script_source, error_blob and output_blob (aso-extensions' VirtualMachinesRunCommand is at ARM API 2022-03-01, before them) and timeouts; deploy_sequence is accepted and has no effect"
+  # By design.
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

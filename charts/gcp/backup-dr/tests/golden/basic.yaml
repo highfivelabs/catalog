@@ -1,0 +1,64 @@
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupPlan
+metadata:
+  name: basic-plan-my-backup-plan
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_plan:my-backup-plan"
+    cnrm.cloud.google.com/project-id: "your-gcp-project-id"
+spec:
+  projectRef:
+    external: "projects/your-gcp-project-id"
+  location: "us-central1"
+  resourceID: "my-backup-plan"
+  description: "Backup Plan for GCE Instances."
+  resourceType: "compute.googleapis.com/Instance"
+  backupVaultRef:
+    name: basic-vault
+  backupRules:
+    - ruleID: "daily-backup-rule"
+      backupRetentionDays: 30
+      standardSchedule:
+        recurrenceType: "HOURLY"
+        hourlyFrequency: 6
+        timeZone: "America/Los_Angeles"
+        backupWindow:
+          startHourOfDay: 1
+          endHourOfDay: 5
+    - ruleID: "monthly-backup-rule"
+      backupRetentionDays: 30
+      standardSchedule:
+        recurrenceType: "MONTHLY"
+        weekDayOfMonth:
+          weekOfMonth: "FIRST"
+          dayOfWeek: "MONDAY"
+        timeZone: "America/Los_Angeles"
+        backupWindow:
+          startHourOfDay: 1
+          endHourOfDay: 5
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupVault
+metadata:
+  name: basic-vault
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_vault"
+    cnrm.cloud.google.com/project-id: "your-gcp-project-id"
+spec:
+  projectRef:
+    external: "projects/your-gcp-project-id"
+  location: "us-central1"
+  resourceID: "backup-vault"
+  backupMinimumEnforcedRetentionDuration: "100000s"

@@ -1,0 +1,98 @@
+# Every input the chart maps: a public frontend with a public IP the chart
+# makes (its lock, role assignment and diagnostic setting), a private
+# frontend, pools with addresses and a tunnel interface, probes, rules, NAT
+# rules (one to a pool, a port range), a NAT pool, an outbound rule, and the
+# load balancer's lock, role assignments and diagnostic settings.
+name: lb-full
+location: eastus2
+resource_group_name: rg-example
+subscription_id: 00000000-0000-0000-0000-000000000000
+edge_zone: null
+sku: Standard
+sku_tier: Regional
+tags: {env: dev, owner: net}
+labels: {hfl.dev/team: net}
+enable_telemetry: false
+backend_address_pool_configuration: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet
+frontend_ip_configurations:
+  public:
+    name: fe-public
+    create_public_ip_address: true
+    public_ip_address_resource_name: pip-lb-full
+    new_public_ip_location: eastus2
+    inherit_tags: true
+    tags: {role: ingress}
+    zones: ["1", "2", "3"]
+    edge_zone: null
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 11111111-1111-1111-1111-111111111111, skip_service_principal_aad_check: true}
+    diagnostic_settings:
+      law: {name: diag-pip, workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law}
+  private:
+    name: fe-private
+    frontend_private_ip_address: 10.0.1.10
+    frontend_private_ip_address_allocation: Static
+    frontend_private_ip_address_version: IPv4
+    frontend_private_ip_subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-lb
+    zones: ["1"]
+  existing:
+    name: fe-existing
+    public_ip_address_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-existing
+    public_ip_prefix_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPPrefixes/prefix
+public_ip_address_configuration:
+  allocation_method: Static
+  ddos_protection_mode: VirtualNetworkInherited
+  domain_name_label: lb-full-example
+  idle_timeout_in_minutes: 10
+  ip_tags: {RoutingPreference: Internet}
+  ip_version: IPv4
+  reverse_fqdn: null
+  sku: Standard
+  sku_tier: Regional
+  tags: {source: lb}
+backend_address_pools:
+  web: {name: be-web}
+  ip:
+    name: be-ip
+    virtual_network_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet2
+  default: {}
+backend_address_pool_addresses:
+  a1: {name: addr-1, backend_address_pool_object_name: ip, ip_address: 10.1.0.4}
+  a2: {name: addr-2, backend_address_pool_object_name: web, ip_address: 10.0.2.5}
+lb_probes:
+  tcp: {name: probe-tcp, protocol: Tcp, port: 443, interval_in_seconds: 5, number_of_probes_before_removal: 3, probe_threshold: 2}
+  http: {name: probe-http, protocol: Http, port: 80, request_path: /healthz}
+lb_rules:
+  https:
+    name: rule-https
+    frontend_ip_configuration_name: fe-public
+    backend_address_pool_object_names: [web]
+    protocol: Tcp
+    frontend_port: 443
+    backend_port: 8443
+    probe_object_name: tcp
+    enable_floating_ip: false
+    idle_timeout_in_minutes: 15
+    load_distribution: SourceIP
+    disable_outbound_snat: true
+    enable_tcp_reset: true
+  internal:
+    name: rule-internal
+    frontend_ip_configuration_name: fe-private
+    backend_address_pool_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/loadBalancers/lb-full/backendAddressPools/be-ip]
+    probe_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/loadBalancers/lb-full/probes/probe-http
+    frontend_port: 80
+    backend_port: 80
+lb_nat_rules:
+  ssh: {name: nat-ssh, frontend_ip_configuration_name: fe-public, protocol: Tcp, frontend_port: 2222, backend_port: 22, enable_tcp_reset: true, idle_timeout_in_minutes: 10}
+  range: {name: nat-range, frontend_ip_configuration_name: fe-public, protocol: Tcp, frontend_port_start: 50000, frontend_port_end: 50100, backend_port: 3389, backend_address_pool_object_name: web}
+lb_nat_pools:
+  rdp: {name: nat-pool-rdp, frontend_ip_configuration_name: fe-existing, protocol: Tcp, frontend_port_start: 3000, frontend_port_end: 3100, backend_port: 3389}
+lb_outbound_rules:
+  out: {name: outbound-web, frontend_ip_configurations: [{name: fe-public}], backend_address_pool_object_name: web, protocol: All, number_of_allocated_outbound_ports: 2048, idle_timeout_in_minutes: 10, enable_tcp_reset: true}
+lock: {kind: CanNotDelete}
+role_assignments:
+  net: {role_definition_id_or_name: Network Contributor, principal_id: 22222222-2222-2222-2222-222222222222, principal_type: Group}
+  id: {role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7, principal_id: 33333333-3333-3333-3333-333333333333}
+diagnostic_settings:
+  law: {workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law, metric_categories: [AllMetrics]}

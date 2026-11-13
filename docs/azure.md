@@ -276,7 +276,7 @@ version than ASO has released:
 | VirtualMachine | 2022-03-01 | azurerm's current resource |
 | ApplicationGateway | 2022-07-01 | 2025-03-01 |
 | KeyVault Vault | 2023-07-01 | 2026-02-01 |
-| ContainerRegistry Registry | 2023-07-01 (2025-11-01 next) | 2025-11-01 |
+| ContainerRegistry Registry | 2025-11-01 (released in v2.22.0 as `v20251101`; found when the chart was built) | 2025-11-01 |
 | ManagedCluster | 2025-08-01 (2026-05-01 next) | 2026-03-01 and 2026-03-02-preview |
 | ContainerApp | 2025-01-01 | 2025-07-01 and 2025-02-02-preview |
 | ResourceGroup | 2020-06-01 | 2025-04-01 |
@@ -346,11 +346,12 @@ The module can also write account keys to a Key Vault as secrets:
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
-| root | Linux or Windows VM, managed disks and attachments, NICs and their associations (LB, App Gateway, ASG, NSG, NAT rule), public IP, admin password in Key Vault, maintenance configuration assignment, backup protected item, auto-shutdown schedule | `compute/VirtualMachine` (2022-03-01; data disks inline), `compute/Disk`, `network/NetworkInterface` (associations inline), `network/PublicIPAddress`, `aso-ext` `VaultSecret`. **GAP**: `Microsoft.Maintenance/configurationAssignments`, Recovery Services (the whole `RecoveryServices` group is absent from ASO), `Microsoft.DevTestLab/schedules` |
+| root | Linux or Windows VM, managed disks and attachments, NICs and their associations (LB, App Gateway, ASG, NSG, NAT rule), public IP, admin password in Key Vault, maintenance configuration assignment, backup protected item, auto-shutdown schedule | `compute/VirtualMachine` (2022-03-01; data disks inline), `compute/Disk`, `network/NetworkInterface` (associations inline), `network/PublicIPAddress`, `aso-ext` `VaultSecret`; aso-extensions `ConfigurationAssignment` (`maintenance.azure.hfl.dev`, 2023-04-01) and `Schedule` (`devtestlab.azure.hfl.dev`, 2018-09-15). **GAP**: the backup protected item (aso-extensions has Recovery Services vaults and policies, not `vaults/backupFabrics/protectionContainers/protectedItems`) |
 | `extension` | VM extension | `compute/VirtualMachinesExtension` |
-| `run-command` | VM run command | **GAP** |
+| `run-command` | VM run command | aso-extensions `VirtualMachinesRunCommand` (`compute.azure.hfl.dev`, 2022-03-01) |
 
-The core works. The VM's ARM version is old.
+The core works. The VM's ARM version is old. Charted as
+`charts/azure/avm-res-compute-virtualmachine` (section 8).
 
 ### 6. avm-res-resources-resourcegroup (v0.5.0; azapi)
 
@@ -368,8 +369,8 @@ The core works. The VM's ARM version is old.
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
-| root | workspace, tables, data exports, linked service, linked storage account, private endpoint, AMPLS scoped resource, network security perimeter association | `operationalinsights/Workspace` (2025-07-01). **GAP**: `workspaces/tables`, `dataExports`, `linkedServices`, `linkedStorageAccounts`, `Insights/privateLinkScopes/scopedResources`, `networkSecurityPerimeters/resourceAssociations` |
-| `query_packs` | query packs and queries | **GAP** |
+| root | workspace, tables, data exports, linked service, linked storage account, private endpoint, AMPLS scoped resource, network security perimeter association | `operationalinsights/Workspace` (2025-07-01); the children through aso-extensions: `WorkspacesTable`, `WorkspacesDataExport`, `WorkspacesLinkedService`, `WorkspacesLinkedStorageAccount` (2025-07-01), `PrivateLinkScope`, `PrivateLinkScopesScopedResource` (2021-09-01), `NetworkSecurityPerimetersResourceAssociation` (2025-05-01) |
+| `query_packs` | query packs and queries | aso-extensions `QueryPack`, `QueryPacksQuery` |
 | `log_analytics_solution` | `OperationsManagement/solutions` | **GAP** |
 
 ### 9. avm-res-network-routetable (v0.6.0)
@@ -405,14 +406,21 @@ The core works. The VM's ARM version is old.
 | --- | --- |
 | LB, backend pools and addresses, probes, rules, NAT rules and pools, outbound rules, public IPs, NIC associations | `network/LoadBalancer` (pools, probes, rules and outbound rules are inline ARM properties), `LoadBalancersInboundNatRule`, `PublicIPAddress`. NIC association is a `NetworkInterface` property. Covered |
 
+Covered, except the NIC association. Chart
+`charts/azure/avm-res-network-loadbalancer` (2026-11-12): 22 of 23
+variables, every child inline in the `LoadBalancer` (NAT rules too, not
+`LoadBalancersInboundNatRule`, so one object owns them all), the public IPs
+it makes as `PublicIPAddress` objects; `backend_address_pool_network_interfaces`
+is refused (section 8).
+
 ### 14. avm-res-containerregistry-registry (v0.9.0)
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
 | root | registry, replications, private endpoint | `containerregistry/Registry` (2023-07-01; 2025-11-01 next), `RegistryReplication` |
 | `cache-rule` | `registries/cacheRules@2025-11-01` | `RegistryCacheRule` (2025-11-01) |
-| `credential-set` | `registries/credentialSets@2025-11-01` | **GAP** |
-| `scope-map` | scope map, token, token password | **GAP** |
+| `credential-set` | `registries/credentialSets@2025-11-01` | aso-extensions `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`, 2025-11-01) |
+| `scope-map` | scope map, token, token password | aso-extensions `RegistriesScopeMap`, `RegistriesToken` (2025-11-01); a token's password is a secret returned once (refused) |
 
 ### 15. avm-res-network-firewallpolicy (v0.3.4; azurerm)
 
@@ -421,7 +429,9 @@ The core works. The VM's ARM version is old.
 | root | `network/FirewallPolicy` |
 | `rule_collection_groups` | `FirewallPoliciesRuleCollectionGroup` |
 
-Covered.
+Covered. Chart `charts/azure/avm-res-network-firewallpolicy` (2026-11-12):
+21 of 22 variables (`firewall_policy_timeouts` refused by design), the
+submodule as the chart value `rule_collection_groups`.
 
 ### 16. avm-res-containerservice-managedcluster (v0.9.0; azapi)
 
@@ -430,11 +440,11 @@ Covered.
 | root | `managedClusters@2026-03-01` (and `2026-03-02-preview`), credential actions | `containerservice/ManagedCluster` (2025-08-01). The kubeconfig is exported to a Secret through `operatorSpec.secrets` |
 | `agentpool` | `managedClusters/agentPools@2026-01-02-preview` | `ManagedClustersAgentPool` (2025-08-01) |
 | `maintenanceconfiguration` | `maintenanceConfigurations@2026-03-01` | `MaintenanceConfiguration` |
-| `namespace` | `managedNamespaces@2026-03-01` | **GAP** |
+| `namespace` | `managedNamespaces@2026-03-01` | aso-extensions `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`, 2026-05-01) |
 | `monitoring` | data collection rules, endpoints and associations | `insights/DataCollectionRule`, `DataCollectionEndpoint`, `DataCollectionRuleAssociation` (2024-03-11) |
 | `alerting` | Prometheus rule groups, action groups, metric alerts | `alertsmanagement/PrometheusRuleGroup`, `insights/ActionGroup`, `insights/MetricAlert` |
 
-Covered, except managed namespaces and preview-only properties.
+Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8).
 
 ### 17. avm-res-dbforpostgresql-flexibleserver (v0.2.3; azurerm)
 
@@ -447,13 +457,40 @@ The ARM side is covered. Database users are the data plane: `aso-ext`
 `dbforpostgresql.azure.hfl.dev/User` (Entra principals, privileges, schema
 and default privileges, ownership).
 
+Charted as `charts/azure/avm-res-dbforpostgresql-flexibleserver`
+(2026-11-12): 36 of 40 variables and 6 of 6 outputs, private endpoints
+included. The administrator password (`administrator_password` and its
+write-only pair) is refused: a secret value does not belong in a
+component's inputs, so a server the chart creates uses Entra
+authentication only (section 8).
+
 ### 18. avm-res-cognitiveservices-account (v0.11.1)
 
 | Submodule | ARM types | ASO (2025-06-01) |
 | --- | --- | --- |
 | root | `CognitiveServices/accounts@2025-06-01`, customer-managed key | `cognitiveservices/Account` (the key is inline) |
 | `deployment` | `accounts/deployments` | `cognitiveservices/Deployment` |
-| `rai_policy` | `accounts/raiPolicies@2024-10-01` | **GAP** |
+| `rai_policy` | `accounts/raiPolicies@2024-10-01` | **GAP** in ASO; `aso-ext` `cognitiveservices.azure.hfl.dev/AccountsRaiPolicy` |
+
+Chart `charts/azure/avm-res-cognitiveservices-account` (2026-11-13): 38 of
+41 variables (`retry`, `timeouts` by design; the search service key, a
+secret value, not ported; a user-assigned identity for the customer
+managed key and a deployment's dynamic throttling refused: field gaps), 7
+of 11 outputs (not the access keys, the sensitive object or the whole
+account). Private endpoints, deployments and RAI policies are mapped.
+Not applied live yet: the sandbox subscription has not registered the
+`Microsoft.CognitiveServices` provider, and ASO's attempt to register it
+(`POST /subscriptions/<id>/providers/Microsoft.CognitiveServices/register`)
+is a subscription-scope action the live identity is refused (403
+`AuthorizationFailed`, run `cat11130328999c`; nothing was created). The
+`cog` case of `hack/azure-live.sh` (a free Language account, no
+deployments) is ready and out of the default cases until someone with
+subscription rights registers the provider (`az provider register
+--namespace Microsoft.CognitiveServices --subscription <sandbox>`). Its
+`tests/mock.values.yaml` passed against the fake cloud (stock ASO and
+aso-extensions' manager against fakearm at `b9beb5b`, with PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113030744-29467`: the account, a
+deployment and its RAI policy Ready and deleted, outputs evaluated).
 
 ### 19. avm-ptn-alz-sub-vending (v0.3.4; azapi; a pattern)
 
@@ -472,7 +509,16 @@ application stack. It is low priority for a team catalog.
 
 | ARM types | ASO |
 | --- | --- |
-| `Insights/components@2020-02-02`, `privateLinkScopes/scopedResources` | `insights/Component` (2020-02-02). **GAP**: AMPLS scoped resource |
+| `Insights/components@2020-02-02`, `components/pricingPlans`, `privateLinkScopes/scopedResources`, `components/linkedStorageAccounts` | `insights/Component` (2020-02-02), `insights/PricingPlan` (2017-10-01); the scoped resource through aso-extensions' `PrivateLinkScopesScopedResource` (2021-09-01). **GAP**: the profiler's linked storage account |
+
+Charted as `charts/azure/avm-res-insights-component` (2026-11-12): 20 of
+25 variables and 5 of 6 outputs (the deprecated `resource` is not one).
+Refused: `linked_storage_account` (no kind), `ignore_body_changes`,
+`resource_types`, `retry` and `timeouts` (section 8); accepted in part:
+`application_type` (ASO's `Component` enumerates `web` and `other` only)
+and `monitor_private_link_scope` (kind `Resource` only: the
+aso-extensions kind's 2021-09-01 API has no `kind` or
+`subscriptionLocation`).
 
 ### 21. avm-res-app-containerapp (v0.9.0; azapi)
 
@@ -500,6 +546,11 @@ real gap.
 | --- | --- |
 | `privateEndpoints@2025-07-01`, `privateDnsZoneGroups` | `network/PrivateEndpoint`, `PrivateEndpointsPrivateDnsZoneGroup`. Covered |
 
+Chart `charts/azure/avm-res-network-privateendpoint` (2026-11-13): 17 of
+21 variables (`ignore_body_changes` a gap; `retry`, `timeouts` and
+`resource_types` by design), 5 of 5 outputs (`private_ip_addresses` from
+the endpoint's DNS configurations, not from its network interface).
+
 ### 24. avm-res-authorization-roleassignment (v0.3.1; azurerm and azuread)
 
 | Creates | ASO |
@@ -513,6 +564,10 @@ real gap.
 | --- | --- |
 | Bastion host | `network/BastionHost` (2025-03-01). Covered |
 
+Covered. Chart `charts/azure/avm-res-network-bastionhost` (2026-11-12):
+21 of 21 variables, every SKU (Developer as the network-only host), the
+public IP it makes as a `PublicIPAddress`.
+
 ### Just below the top 25
 
 | Module | ASO coverage |
@@ -525,7 +580,7 @@ real gap.
 | avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links. Covered |
 | avm-res-cache-redis (38) | `cache/Redis`, access policies, assignments, firewall rules, linked servers (2024-11-01). Covered |
 | avm-res-app-managedenvironment (40) | `app/ManagedEnvironment`. **GAP**: all nine child types (Dapr components and subscriptions, storages, certificates, managed certificates, Java and .NET components, HTTP route configs, maintenance configurations) |
-| avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old) |
+| avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old). Chart `charts/azure/avm-res-network-applicationgateway` (2026-11-12): 41 of 50 variables, everything 2022-07-01 carries; what later versions added is refused by name (section 8) |
 
 ## 5. Gaps ranked for aso-extensions
 
@@ -558,6 +613,20 @@ in section 4 need it, then by downloads.
 | 16 | Azure SQL Entra users | 1 (sql-server) | data plane | PR #5104 open | aso-extensions candidate a1 (open question 5) |
 | 17 | Key Vault certificate import and certificate contacts | 1 (keyvault); App Service certificates from Key Vault | data plane | n/a | aso-extensions b6, after `VaultSecret`'s shape |
 | 18 | Stale ARM versions (VirtualMachine 2022-03-01, ApplicationGateway 2022-07-01, DNS zones 2018-05-01) | 3 (virtual machine, application gateway, dnszone) | ARM version | n/a | upstream (a new `$supportedFrom` version) |
+
+**Where these stand at aso-extensions `b9beb5b` (2026-11-12, 232
+CRDs).** Built there, as kinds the charts can render: 1 (`ManagementLock`),
+2 (`VaultSecret`), 3 (`ManagedEnvironments*` and `ConnectedEnvironments*`:
+Dapr components, storages, certificates, managed certificates and more),
+4 in part (slots, hostname bindings, certificates; not config sections or
+publishing policies), 5 (tables, data exports, linked services, linked
+storage, query packs, solutions), 6, 8 (management groups, Azure Policy,
+budgets, vWAN hub connections, tags), 9, 10 (run commands, DevTest Labs
+schedules, maintenance assignments, Recovery Services vaults and backup
+policies), 11, 12, 13 (Gremlin, dedicated gateway services), 14, 15, 16
+and the certificate import of 17. Still open: 7 (ASO's own `VaultKey`),
+Key Vault certificate contacts (17), App Service config sections and
+publishing policies (4) and the stale ARM versions (18).
 
 Already built in aso-extensions and needed by the top modules:
 
@@ -700,19 +769,128 @@ aso-extensions:
 
 | Chart | Variable | ARM type with no kind |
 | --- | --- | --- |
-| `avm-res-storage-storageaccount` | `local_user` | `Microsoft.Storage/storageAccounts/localUsers` (SFTP and NFSv3 local users) |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
-| `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
+| `avm-res-network-loadbalancer` | `backend_address_pool_network_interfaces` | none: a NIC joins a pool through its own `ipConfigurations[].loadBalancerBackendAddressPools`; ASO has no association kind and sets a NIC's IP configurations only by owning the whole `NetworkInterface` |
+
+The private DNS zone's `soa_record` maps to aso-extensions'
+`PrivateDnsZonesSOARecord` (`network.azure.hfl.dev/v20240601`, its CRD
+copied in `crds/aso-extensions`), which updates the SOA record set Azure
+makes with the zone and leaves it when deleted.
+
+The rest of what the charts refused for want of a kind now has one in
+aso-extensions (at `b9beb5b`, the commit `ASOX_COMMIT` pins; 232 CRDs).
+Each is a mapping still to land or landing, not a gap:
+
+| Chart | Variable | aso-extensions kind | Mapped in |
+| --- | --- | --- | --- |
+| `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | not yet (its SSH keys are public keys; a password Azure generates would stay refused) |
+| `avm-res-network-privatednszone` | `soa_record` | `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev`) | #97 |
+| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | #120 |
+| `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | #120 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `WorkspacesDataExport` (`operationalinsights.azure.hfl.dev`) | #121 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `WorkspacesLinkedService` (the module links a dedicated cluster with one) | #121 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `WorkspacesLinkedStorageAccount` | #121 |
+| `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `WorkspacesTable` | #121 |
+| `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `PrivateLinkScope`, `PrivateLinkScopesScopedResource` (`insights.azure.hfl.dev`) | the workspace follow-up to #88 (an existing scope's `exclusions` stay refused: the module updates a scope it does not own) |
+| `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `NetworkSecurityPerimetersResourceAssociation` (`network.azure.hfl.dev`) | #121 |
+| `avm-res-containerservice-managedcluster` | `namespace` | `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`) | #102 |
+
+The fake-cloud and live runs install aso-extensions' manager beside ASO
+(`hack/asox-manager.sh`, below), so these kinds are applied and
+reconciled, not only rendered.
+
+Field gaps in ASO's agent pool (up to API 2025-10-02-preview), which
+`avm-res-containerservice-managedcluster` refuses: `enableOSDiskFullCaching`
+and `gpuProfile.nvidia` (`default_agent_pool` and `agent_pools`), and the
+`ignore-pod-disruption-budget` option of a pool's delete
+(`delete_options`).
+
+The container registry's `credential_sets` (with a cache rule's
+`credential_set_key`) and `scope_maps` with their tokens map to
+aso-extensions' `RegistriesCredentialSet`, `RegistriesScopeMap` and
+`RegistriesToken` (`containerregistry.azure.hfl.dev/v20251101`, CRDs copied
+in `crds/aso-extensions`). A token's `passwords` stay refused: secrets
+Azure generates and returns once, and whether a component may hold one is
+the builder's decision.
+
+The Log Analytics workspace's data exports, dedicated cluster link
+(linked service), linked storage accounts, tables and table updates,
+Monitor Private Link Scopes (with the workspace's scoped resource and the
+scope's lock), scoped resources in existing scopes and network security
+perimeter association map to aso-extensions kinds
+(`operationalinsights.azure.hfl.dev`, `insights.azure.hfl.dev`,
+`network.azure.hfl.dev`; CRDs copied in `crds/aso-extensions`). An existing
+scope's `exclusions` stay refused: the module updates a scope it does not
+own, after reading its access modes.
+
+The storage account's `local_user` maps to aso-extensions'
+`StorageAccountsLocalUser` (`storage.azure.hfl.dev/v20260601`, its CRD
+copied in `crds/aso-extensions`); a local user's `ssh_password_enabled`
+stays refused (Azure generates the password and returns it once, the
+builder's decision).
+
+**The application gateway's ARM version.** ASO v2.22.0's
+`ApplicationGateway` is at ARM 2022-07-01 only (gap 18 in section 5), where
+the module sends 2025-03-01. `avm-res-network-applicationgateway` maps
+everything 2022-07-01 carries and refuses each later field by name when set:
+`entra_jwt_validation_configs` (and a rule's `entra_jwt_validation_config`);
+HTTP settings' `dedicated_backend_connection`, `sni_name`,
+`validate_cert_chain_and_expiry` and `validate_sni`; backend settings'
+`enable_l4_client_ip_preservation`; a TLS listener's `host_names`; a probe's
+`enable_probe_proxy_protocol_header`; a rewrite header's
+`header_value_matcher`; an SSL profile's `verify_client_auth_mode`; `sku.family`
+and the Basic SKU; the `default_predefined_ssl_policy` output. ASO's
+2022-07-01 type also takes a load distribution target only by reference (no
+name, pool or weight) and has no `id` on a Private Link IP configuration or
+a path rule. A new ASO version of the kind (upstream, a `$supportedFrom`
+entry) closes all of them. Its certificates stay refused: ASO takes a
+certificate's `data` and an SSL certificate's `password` only from a
+Kubernetes Secret, and `key_vault_secret_id` is Key Vault secret material,
+which waits on how a component supplies a secret (as the Key Vault
+module's `secrets`).
+
+The virtual machine (`avm-res-compute-virtualmachine`) maps 62 of the
+module's 74 variables and 9 of its 13 outputs. Its interfaces, public IPs
+and data disks are ASO objects; the module's association resources are
+fields of the interface in ARM, and the data disk attachments entries of
+the machine's `storageProfile.dataDisks`. Run commands, the shutdown
+schedule and maintenance assignments are aso-extensions kinds
+(`VirtualMachinesRunCommand`, `Schedule`, `ConfigurationAssignment`, CRDs
+copied in `crds/aso-extensions`). It refuses what needs a secret value
+(an admin password, generating an SSH key pair or password, protected run
+command parameters and extension settings; the builder's decision), so a
+Windows machine renders only from an attached OS disk; and the gaps:
+
+| Chart | Variable | Missing |
+| --- | --- | --- |
+| `avm-res-compute-virtualmachine` | `azure_backup_configurations` | `Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems` (aso-extensions has the vault and its policies, not a protected item) |
+| `avm-res-compute-virtualmachine` | `disk_controller_type`, `bypass_platform_safety_checks_on_user_schedule_enabled` | fields after ASO's `VirtualMachine` API version 2022-03-01 |
+| `avm-res-compute-virtualmachine` | an extension's `provision_after_extensions`; a run command's managed identities | fields after the 2022-03-01 API version of ASO's `VirtualMachinesExtension` and aso-extensions' `VirtualMachinesRunCommand` |
+
+Like azurerm, the chart sends `securityProfile.encryptionAtHost` only when
+true: Azure refuses the property, even false, on a subscription without
+the `EncryptionAtHost` feature (found live). It deletes an OS disk made
+from an image with the machine (`osDisk.deleteOption: Delete`), as azurerm
+does by default.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
 (`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
-flag (`avm-res-keyvault-vault`'s `keys`). And ASO's `UserAssignedIdentity`
+flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` has no
+`dynamicThrottlingEnabled` (`avm-res-cognitiveservices-account`'s
+`cognitive_deployments`), and its `Account` takes the customer managed
+key's `identityClientId` only as a literal, with no `FromConfig` form, so
+a user-assigned identity's client ID, which the module reads from Azure,
+cannot be given (`customer_managed_key.user_assigned_identity`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+
+`lib/_aso.tpl`'s `aso.diagnosticSettings` takes `selfWorkspace` for a Log
+Analytics workspace, whose module sends a setting with no destination to
+the workspace itself.
 
 The network security group (`avm-res-network-networksecuritygroup`)
 needs no gap: ASO's `NetworkSecurityGroup` has no `securityRules` field at
@@ -746,20 +924,64 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP, private DNS zone, managed
+identity, Log Analytics workspace, container registry, firewall policy, load
+balancer, bastion host, private endpoint and application gateway charts
+are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
 deleted and Azure must answer 404 for it; anything of the run left is
 swept. The resource group chart (subscription scope) and the
-aso-extensions lock (its manager is not installed) are not applied. A
+aso-extensions lock (Contributor cannot write locks) are not applied. A
 deleted key vault stays soft-deleted for 7 days (purging needs a
 subscription-scope right). First passed on 2026-11-12; the network
 security group (two rules), route table (two routes, the group by name
 and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
-Azure answering 404, nothing left.
+Azure answering 404, nothing left. The private DNS zone (an A and a TXT
+record), the managed identity (a federated credential; no outbound role
+assignment, which the live identity may not make) and the Log Analytics
+workspace (a diagnostic setting to itself) passed the same way (run
+`cat1112191727ea`, 7 objects), and the container registry (Basic, a
+cache rule from MCR) in run `cat11121946e404`. The first registry run
+found that Azure refuses a Docker Hub cache rule without credentials.
+The firewall policy (Basic, one rule
+collection group with a network and an application rule collection)
+passed in run `cat111223417a80`: 2 objects, outputs evaluated, nothing
+left. Its `tests/mock.values.yaml` passed against the fake cloud too
+(stock ASO against aso-extensions' fakearm at `e3b4177`, run
+`off-catalog-1112233431-23161`: 2 objects Ready and deleted, outputs
+evaluated).
+The load balancer (public Standard,
+with the public IP it makes, a pool, a TCP probe, a rule, a NAT rule and
+an outbound rule) passed in run `cat11130126a761` on 2026-11-13: 2
+objects, outputs evaluated (the address Azure allocated among them),
+nothing left. Its `tests/mock.values.yaml` passed against the fake cloud
+too (stock ASO against aso-extensions' fakearm at `b9beb5b`, with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113012254-13575`: 2 objects Ready
+and deleted, outputs evaluated).
+The bastion host (Basic, with the
+public IP it makes, in the AzureBastionSubnet of a network the case
+applies with it) passed in run `cat1113013124a2` on 2026-11-13: 4 objects
+(the network and subnet among them), outputs evaluated (Azure's
+`dnsName`), deleted, Azure answering 404, nothing left. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO
+against aso-extensions' fakearm at `b9beb5b`, with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113012705-23006`: 2 objects Ready
+and deleted, outputs evaluated).
+The private endpoint (to a storage
+account's blob service, with a DNS zone group in the blob service's
+private DNS zone and a custom network interface name, in a subnet of a
+network the case applies with it, the zone and the account applied with
+it too) passed in run `cat11130308507d` on 2026-11-13: 6 objects Ready,
+outputs evaluated (the network interface's ID and the endpoint's private
+address from its DNS configurations), deleted, Azure answering 404. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO
+against aso-extensions' fakearm at `b9beb5b`, with PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
+its zone group Ready and deleted, outputs evaluated).
 
 The App Service plan chart (`avm-res-web-serverfarm`) is not applied live:
 the sandbox subscription's App Service quota is 0 in eastus2, for B1 and
@@ -773,9 +995,139 @@ change the live rules forbid, so the case waits on the builder. Its
 `off-catalog-1113031322-10940`: the plan Ready and deleted, outputs
 evaluated).
 
-Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
-Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO
-gets its token from Entra over HTTP (`AZURE_AUTHORITY_HOST`), and
-aso-extensions' fake Entra is an in-process `http.RoundTripper` only: a
-fake Entra server (and ASO trusting the fake cloud's CA) is what is
-missing. Each chart's `tests/mock.values.yaml` is ready for it.
+The virtual machine chart has a live case (`AZURE_LIVE_CASES=vm`: a Linux
+machine with an interface, a public IP it makes, a data disk and a script
+extension, its subnet from the network chart), but it is not in the
+default set: on 2026-11-13 Azure refused the sandbox subscription every
+machine size tried with "Capacity Restrictions" (Standard_B1s and
+Standard_B2s in eastus2 and eastus, Standard_D2s_v3 in eastus2; the
+subscription has no quota for the v2 B families). In those runs
+(`cat11130259f6a3`, `cat111303464b84` and others) the interface, public
+IP, data disk and network became Ready, the outputs that read them evaluated (the
+interface's private address and the public IP's), and were deleted with
+Azure answering 404; the machine and its extension never became Ready.
+Lifting the restriction is a subscription-level request, the builder's.
+The first run found that Azure refuses `encryptionAtHost: false` without
+the subscription feature; the chart now omits it, as azurerm does. The
+chart's `tests/mock.values.yaml` passed against the fake cloud (stock ASO
+against aso-extensions' fakearm at `b9beb5b`, with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113013113-10644`): the machine,
+interface, public IP, data disk and extension Ready and deleted, outputs
+evaluated. The aso-extensions kinds (run commands, shutdown schedules,
+maintenance assignments, locks) are rendered and validated only: neither
+run installs the aso-extensions manager.
+
+The application gateway (Standard_v2,
+capacity 1, the public IP it makes, on a subnet the case first makes with
+the virtual network chart, a pool, HTTP settings with a probe, a listener
+and a basic rule, every reference by key) passed in run `cat111303093fb2`
+on 2026-11-13: 4 objects Ready, outputs evaluated (operational state
+Running, the allocated address), deleted, Azure answering 404. Neither cost
+nor time forbids it: Standard_v2 at capacity 1 is about 0.25 USD an hour,
+and the whole case (network, gateway, deletes) took about 20 minutes, most
+of it the gateway's create and delete, so the case has a 40-minute limit.
+Its `tests/mock.values.yaml` passed against the fake cloud too (PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113030418-6345`: 2 objects Ready
+and deleted, outputs evaluated).
+
+The Application Insights component (`avm-res-insights-component`, case
+`appi`: workspace-based, a 1 GB daily cap, with a workspace the case makes
+beside it) passed in run `cat111302020b65`: 3 objects Ready, outputs
+evaluated (the app ID and connection string among them), deleted, Azure
+answering 404. Its first run found that Azure cannot delete a component's
+pricing plan (it goes with the component; ASO answers
+`DeletionNotSupportedInAzure`), so the chart's `PricingPlan` is always
+detached on delete, as the module's `azapi_update_resource` leaves it. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO
+against aso-extensions' fakearm at `b9beb5b` with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113013709-32534`: 2 objects Ready
+and deleted, outputs evaluated).
+
+The PostgreSQL flexible server (`avm-res-dbforpostgresql-flexibleserver`,
+case `psql`: Burstable B1ms, 32 GiB, Entra authentication only, a
+database, a firewall rule for one documentation address, a server
+parameter, and the live identity itself as its Entra administrator, a
+PostgreSQL role on the server and not an Azure role assignment) passed in
+run `cat11130237573e` in centralus: 5 objects Ready, outputs evaluated
+(the FQDN among them), deleted, Azure answering 404. eastus2, the runs'
+default region, refuses the SKU for this subscription ("Specified SKU is
+not supported in this region"), so the case takes
+`AZURE_LIVE_PSQL_LOCATION` (`centralus`). Run `cat11130155a5d6` found that
+Azure cannot delete a server parameter (it goes with the server), so the
+chart's `FlexibleServersConfiguration` is always detached on delete.
+Against the fake cloud (PR #98's `hack/azure-mock.sh`, aso-extensions
+`b9beb5b`, `dbforpostgresql.azure.com/*` added to its CRD pattern, as it now is; run
+`off-catalog-1113011910-13823`) all 5 objects became Ready and were
+deleted, but the outputs did not evaluate: the fake Resource Manager does
+not compute a server's `fullyQualifiedDomainName` (a gap for
+aso-extensions' `pkg/fakecloud/arm/computed.go`).
+
+
+The AKS chart (`avm-res-containerservice-managedcluster`) is not applied
+live: AKS makes the cluster's node resource group (`MC_<group>_<name>_<region>`,
+or `node_resource_group`) beside the sandbox's one resource group, at
+subscription scope, where the live identity has no rights and the live
+rules allow no change. Its renders and the fake cloud are its tests.
+
+Layer 2 (the fake cloud, `task test-mock-azure`, `hack/azure-mock.sh`): on
+an offload VM, kind runs aso-extensions' fake Resource Manager
+(`cmd/fakearm`, a store of resources by ARM ID) and fake Entra
+(`cmd/fakeentra`, answering as `login.microsoftonline.com` through a
+CoreDNS rewrite), built from aso-extensions at `ASOX_COMMIT` (Taskfile),
+both over TLS from a throwaway CA; stock ASO v2.22.0 from its own chart
+talks to them (`azureResourceManagerEndpoint`, workload identity, the CA
+through `SSL_CERT_FILE`; the fakes listen on 443 in their pods, the only
+egress ASO's network policies allow). Each chart's `tests/mock.values.yaml`
+is applied, every object must become Ready and be deleted, and the
+Package's outputs must evaluate against the live objects. First run on
+2026-11-12 (run `off-catalog-1112211443-12213`): 23 of 26 objects Ready
+and deleted across the twelve charts; the three that were not were the
+fake's gaps (a vault's `vaultUri`, a storage account's default blob and
+queue services). aso-extensions `b9beb5b` closed them: its fake Resource
+Manager computes what Azure computes and the charts read (addresses,
+principal IDs, a login server, a vault's URI, FQDNs, endpoints), makes a
+storage account's default services and a DNS zone's SOA record set, and
+serves Key Vault keys in the vault's data plane, which ASO's `VaultKey`
+reads (`<vault>.vault.azure.net` is `fakearm` inside the cluster, through
+a second CoreDNS rewrite; `fakearm` is given ASO's tenant, which Key
+Vault's challenge names). Run `off-catalog-1112232041-31702`: 26 of 26
+objects Ready and deleted, every chart's outputs evaluated.
+
+**aso-extensions' manager in both runs** (`hack/asox-manager.sh`, sourced
+by `hack/azure-mock.sh` and `hack/azure-live.sh`). aso-extensions at
+`ASOX_COMMIT` is built once per run: its manager from `cmd/manager` (the
+stock build: it reads ASO's `aso-controller-settings`, so it talks to the
+Resource Manager ASO talks to) into a scratch image with the host's CA
+bundle, loaded into kind and installed from its `config/default` (its 232
+CRDs, its RBAC, the manager under its own service account
+`aso-extensions-manager` in ASO's namespace). The manager starts an
+informer for every ASO kind its kinds name as owners and exits when one's
+CRD is missing, so ASO's `crdPattern` takes those groups too
+(`ASOX_OWNER_GROUPS`). Its token is ASO's: against
+the fake, a projected service account token for Entra's audience
+(`fakearm` trusts that subject too) and the fake cloud's CA through
+`SSL_CERT_FILE`; live, the node's directory holding the VM's Google ID
+token. So the charts' aso-extensions kinds (a lock, an SOA record, an AKS
+managed namespace, a registry's scope maps and tokens, a workspace's
+tables ...) are applied and reconciled in both runs, not only rendered.
+The identity chart's `tests/mock.values.yaml` carries a `CanNotDelete`
+lock, which the fake honours: the identity's delete is refused with 409
+`ScopeLocked` until the lock is gone. Live, a lock is still not applied:
+writing `Microsoft.Authorization/locks` needs Owner or User Access
+Administrator, and the live identity is Contributor on its group. First
+run on 2026-11-13, with this branch merged with the charts that map
+aso-extensions kinds (the registry and workspace follow-ups, the storage
+account's local users, #97's SOA record, #102's AKS managed namespace):
+fake cloud `off-catalog-1113015422-30541`, 43 of 43 objects Ready and
+deleted and every chart's outputs evaluated, the aso-extensions objects
+among them (the lock, which held the identity's delete until it went; the
+SOA record; the managed namespace; a credential set, scope map and token;
+a table, a table update, a data export, linked storage, a Monitor Private
+Link Scope and its scoped resource; a local user). Live run
+`cat1113015728ca` (storage, DNS, workspace and registry cases): 17 of 18
+objects Ready, deleted and gone from Azure, nothing left; the SOA record,
+the SFTP local user, the custom table, the Monitor Private Link Scope with
+the workspace's scoped resource, the scope map and the token passed. The
+credential set did not: Azure resolves its Key Vault secret URIs' host
+when it is created ("Cannot resolve host"), so a live credential set needs
+a real vault and secrets, which the case did not make.

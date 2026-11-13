@@ -1,0 +1,136 @@
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: iam-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    kind: SpannerInstance
+    name: iam
+  bindings:
+    - role: "roles/spanner.viewer"
+      members:
+        - member: "group:viewers@myorg.com"
+    - role: "roles/spanner.admin"
+      members:
+        - member: "group:admins@myorg.com"
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: iam-db-my-database-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:my-database/iam"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    kind: SpannerDatabase
+    name: iam-db-my-database
+  bindings:
+    - role: "roles/spanner.databaseReader"
+      members:
+        - member: "group:group1@myorg.com"
+    - role: "roles/spanner.databaseRoleUser"
+      members:
+        - member: "group:group2@myorg.com"
+      condition:
+        title: "role-my_role"
+        expression: "(resource.type == \"spanner.googleapis.com/DatabaseRole\" && (resource.name.endsWith(\"/my_role\")))"
+        description: "Grant permissions on my_role"
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: iam-iam-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-additive-reader"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    kind: SpannerInstance
+    name: iam
+  role: "roles/spanner.databaseReader"
+  member: "serviceAccount:reader@my-project.iam.gserviceaccount.com"
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: iam-db-my-database-iam-my-database-spanner-database-ad-5967792e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:my-database/iam-additive-my-database.spanner-database-admin"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    kind: SpannerDatabase
+    name: iam-db-my-database
+  role: "roles/spanner.databaseAdmin"
+  member: "group:group3@myorg.com"
+  condition:
+    title: "delegated-role-grants"
+    expression: "api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly(['roles/storage.databaseReader'])"
+    description: "Delegated role grants."
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerDatabase
+metadata:
+  name: iam-db-my-database
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:my-database"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-database"
+  instanceRef:
+    name: iam
+  versionRetentionPeriod: "1d"
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerInstance
+metadata:
+  name: iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iam"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-instance"
+  config: "regional-us-central1"
+  displayName: "Regional instance"
+  numNodes: 1

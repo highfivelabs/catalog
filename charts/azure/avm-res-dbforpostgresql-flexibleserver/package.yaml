@@ -1,0 +1,31 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). resource_id and fqdn are the server's ARM ID
+# and fully qualified domain name from ASO's status; name is the server's
+# Azure name as the chart computes it. database_name and
+# database_resource_ids are keyed like the databases value (the module
+# gives each database's ID twice, as id and resource_id).
+# private_endpoints is each endpoint's ID and name, keyed like the value
+# (the module gives the whole azurerm object).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-dbforpostgresql-flexibleserver
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: >-
+      ('flexibleServer' in inputs.names && inputs.names.flexibleServer != '' ? inputs.names.flexibleServer : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    resource_id: resources.server.status.id
+    fqdn: resources.server.status.fullyQualifiedDomainName
+    database_name: >-
+      resources.transformMapEntry(k, v, k.startsWith('database:'), {k.substring(9): {'name': v.spec.azureName}})
+    database_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('database:'), {k.substring(9): {'id': v.status.id, 'resource_id': v.status.id}})
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): {'id': v.status.id, 'name': v.spec.azureName}})

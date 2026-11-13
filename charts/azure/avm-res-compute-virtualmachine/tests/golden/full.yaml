@@ -1,0 +1,716 @@
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: maintenance.azure.hfl.dev/v20230401
+kind: ConfigurationAssignment
+metadata:
+  name: full-vm-maint-weekly
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "maintenance_configuration_assignment:weekly"
+spec:
+  azureName: "vm-full-maintenance-configuration-weekly"
+  location: "eastus2"
+  owner:
+    group: compute.azure.com
+    kind: VirtualMachine
+    name: full-vm
+  maintenanceConfigurationReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-app/providers/microsoft.maintenance/maintenanceconfigurations/weekly"
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-vm-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "vm-diag"
+  owner:
+    group: compute.azure.com
+    kind: VirtualMachine
+    name: full-vm
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-nic-a-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:a/diagnostic-setting-law"
+spec:
+  azureName: "diag-vm-full-nic-a"
+  owner:
+    group: network.azure.com
+    kind: NetworkInterface
+    name: full-nic-a
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-compute-virtualmachine/templates/disks.yaml
+apiVersion: compute.azure.com/v20240302
+kind: Disk
+metadata:
+  name: full-disk-data
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_disk:data"
+spec:
+  azureName: "vm-full-data"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
+  burstingEnabled: true
+  creationData:
+    createOption: Empty
+  diskSizeGB: 256
+  networkAccessPolicy: DenyAll
+  publicNetworkAccess: Disabled
+  sku:
+    name: Premium_LRS
+  tags:
+    disk: data
+  zones:
+    - "2"
+---
+# Source: avm-res-compute-virtualmachine/templates/disks.yaml
+apiVersion: compute.azure.com/v20240302
+kind: Disk
+metadata:
+  name: full-disk-zrs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_disk:zrs"
+spec:
+  azureName: "vm-full-zrs"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
+  creationData:
+    createOption: Empty
+  diskSizeGB: 128
+  maxShares: 2
+  sku:
+    name: Premium_ZRS
+  tags:
+    env: prod
+---
+# Source: avm-res-compute-virtualmachine/templates/disks.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-disk-data-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_disk:data/lock"
+spec:
+  azureName: "keep-data"
+  owner:
+    group: compute.azure.com
+    kind: Disk
+    name: full-disk-data
+  level: CanNotDelete
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-vm-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: compute.azure.com
+    kind: VirtualMachine
+    name: full-vm
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-pip-a-v4-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:a-v4/lock"
+spec:
+  azureName: "keep-pip"
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip-a-v4
+  level: CanNotDelete
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-nic-a-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:a/lock"
+spec:
+  azureName: "a-lock"
+  owner:
+    group: network.azure.com
+    kind: NetworkInterface
+    name: full-nic-a
+  level: CanNotDelete
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: full-nic-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:a"
+spec:
+  azureName: "vm-full-nic-a"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
+  dnsSettings:
+    dnsServers:
+      - 10.0.0.4
+    internalDnsNameLabel: "full"
+  enableAcceleratedNetworking: true
+  enableIPForwarding: true
+  ipConfigurations:
+    - name: "ipv4"
+      applicationSecurityGroups:
+        - reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/applicationSecurityGroups/web"
+      applicationGatewayBackendAddressPools:
+        - reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/applicationGateways/agw/backendAddressPools/be"
+      loadBalancerBackendAddressPools:
+        - reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/loadBalancers/lb/backendAddressPools/be"
+      loadBalancerInboundNatRules:
+        - reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/loadBalancers/lb/inboundNatRules/ssh"
+      primary: true
+      privateIPAddress: "10.0.1.10"
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Static
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: full-pip-a-v4
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet/subnets/app"
+  networkSecurityGroup:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/networkSecurityGroups/nsg"
+  tags:
+    nic: a
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: full-nic-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:b"
+spec:
+  azureName: "vm-full-nic-b"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  enableAcceleratedNetworking: false
+  enableIPForwarding: false
+  ipConfigurations:
+    - name: "ipv4"
+      gatewayLoadBalancer:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/loadBalancers/glb/frontendIPConfigurations/fe"
+      primary: true
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Dynamic
+      publicIPAddress:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/existing"
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet/subnets/data"
+  tags:
+    env: prod
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: full-pip-a-v4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:a-v4"
+spec:
+  azureName: "vm-full-pip"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  dnsSettings:
+    domainNameLabel: "vm-full"
+  idleTimeoutInMinutes: 10
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "2"
+  tags:
+    pip: "yes"
+---
+# Source: avm-res-compute-virtualmachine/templates/disks.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-disk-data-role-backup
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_disk:data/role-assignment-backup"
+spec:
+  owner:
+    group: compute.azure.com
+    kind: Disk
+    name: full-disk-data
+  principalId: "22222222-2222-2222-2222-222222222222"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb"
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-vm-role-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-owner"
+spec:
+  owner:
+    group: compute.azure.com
+    kind: VirtualMachine
+    name: full-vm
+  principalId: "33333333-3333-3333-3333-333333333333"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Virtual Machine Contributor"
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-vm-mi-role-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "system_managed_identity_role_assignment:kv"
+spec:
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.KeyVault/vaults/kv"
+  principalIdFromConfig:
+    name: full-vm-identity
+    key: principalId
+  roleDefinitionReference:
+    wellKnownName: "Key Vault Secrets User"
+  description: "read secrets"
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-nic-a-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:a/role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: NetworkInterface
+    name: full-nic-a
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: devtestlab.azure.hfl.dev/v20180915
+kind: Schedule
+metadata:
+  name: full-vm-shutdown-nightly
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "shutdown_schedule:nightly"
+spec:
+  azureName: "shutdown-computevm-vm-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
+  dailyRecurrence:
+    time: "1900"
+  notificationSettings:
+    emailRecipient: "ops@example.com"
+    status: Enabled
+    timeInMinutes: 15
+    webhookUrl: "https://hooks.example.com/x"
+  status: Enabled
+  tags:
+    schedule: nightly
+  targetResourceReference:
+    group: compute.azure.com
+    kind: VirtualMachine
+    name: full-vm
+  taskType: ComputeVmShutdownTask
+  timeZoneId: "Pacific Standard Time"
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachine
+metadata:
+  name: full-vm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_machine"
+spec:
+  azureName: "vm-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
+  additionalCapabilities:
+    hibernationEnabled: false
+    ultraSSDEnabled: false
+  applicationProfile:
+    galleryApplications:
+      - packageReferenceReference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Compute/galleries/g/applications/a/versions/1.0.0"
+        configurationReference: "https://sa.blob.core.windows.net/c/cfg.json"
+        order: 1
+        tags: "blue"
+  billingProfile:
+    maxPrice: 0.5
+  capacityReservation:
+    capacityReservationGroup:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Compute/capacityReservationGroups/crg"
+  diagnosticsProfile:
+    bootDiagnostics:
+      enabled: true
+      storageUri: "https://diagsa.blob.core.windows.net/"
+  evictionPolicy: Deallocate
+  extensionsTimeBudget: "PT1H"
+  hardwareProfile:
+    vmSize: "Standard_D4ds_v5"
+  identity:
+    type: SystemAssigned, UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai"
+  networkProfile:
+    networkInterfaces:
+      - reference:
+          group: network.azure.com
+          kind: NetworkInterface
+          name: full-nic-a
+        primary: true
+      - reference:
+          group: network.azure.com
+          kind: NetworkInterface
+          name: full-nic-b
+        primary: false
+  operatorSpec:
+    configMapExpressions:
+      - name: full-vm-identity
+        key: principalId
+        value: self.status.identity.principalId
+  osProfile:
+    adminUsername: "opsuser"
+    allowExtensionOperations: true
+    computerName: "full01"
+    customData: "IyEvYmluL3NoCmVjaG8gaGk="
+    linuxConfiguration:
+      disablePasswordAuthentication: true
+      patchSettings:
+        assessmentMode: AutomaticByPlatform
+        automaticByPlatformSettings:
+          rebootSetting: IfRequired
+        patchMode: AutomaticByPlatform
+      provisionVMAgent: true
+      ssh:
+        publicKeys:
+          - keyData: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK0wmN/Cr3JXqmLW7u+g9pTh+wyqDHpSQEQQ5ZJYHjqh catalog-test"
+            path: "/home/opsuser/.ssh/authorized_keys"
+    secrets:
+      - sourceVault:
+          reference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.KeyVault/vaults/kv"
+        vaultCertificates:
+          - certificateUrl: "https://kv.vault.azure.net/secrets/cert/0123456789abcdef"
+  plan:
+    name: "plan"
+    product: "product"
+    publisher: "publisher"
+  platformFaultDomain: 1
+  priority: Spot
+  proximityPlacementGroup:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Compute/proximityPlacementGroups/ppg"
+  scheduledEventsProfile:
+    terminateNotificationProfile:
+      enable: true
+      notBeforeTimeout: "PT10M"
+  securityProfile:
+    encryptionAtHost: true
+    securityType: TrustedLaunch
+    uefiSettings:
+      secureBootEnabled: true
+      vTpmEnabled: true
+  storageProfile:
+    dataDisks:
+      - caching: ReadWrite
+        createOption: Attach
+        lun: 0
+        managedDisk:
+          reference:
+            group: compute.azure.com
+            kind: Disk
+            name: full-disk-data
+        writeAcceleratorEnabled: false
+      - caching: None
+        createOption: Attach
+        lun: 1
+        managedDisk:
+          reference:
+            group: compute.azure.com
+            kind: Disk
+            name: full-disk-zrs
+        writeAcceleratorEnabled: false
+      - caching: ReadOnly
+        createOption: Attach
+        lun: 5
+        managedDisk:
+          reference:
+            armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.Compute/disks/old
+        writeAcceleratorEnabled: false
+    imageReference:
+      offer: "ubuntu-24_04-lts"
+      publisher: "Canonical"
+      sku: "server"
+      version: "latest"
+    osDisk:
+      caching: ReadOnly
+      createOption: FromImage
+      deleteOption: Delete
+      diffDiskSettings:
+        option: Local
+        placement: ResourceDisk
+      diskSizeGB: 64
+      managedDisk:
+        storageAccountType: Standard_LRS
+      name: "vm-full-osdisk"
+      osType: Linux
+      writeAcceleratorEnabled: false
+  tags:
+    env: prod
+  userData: "aGVsbG8="
+  zones:
+    - "2"
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachinesExtension
+metadata:
+  name: full-vm-ext-ama
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "extension:ama"
+spec:
+  azureName: "AzureMonitorLinuxAgent"
+  location: "eastus2"
+  owner:
+    name: full-vm
+  autoUpgradeMinorVersion: true
+  enableAutomaticUpgrade: true
+  publisher: "Microsoft.Azure.Monitor"
+  suppressFailures: false
+  tags:
+    env: prod
+  type: "AzureMonitorLinuxAgent"
+  typeHandlerVersion: "1.0"
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachinesExtension
+metadata:
+  name: full-vm-ext-script
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "extension:script"
+spec:
+  azureName: "custom"
+  location: "eastus2"
+  owner:
+    name: full-vm
+  protectedSettingsFromKeyVault:
+    secretUrl: "https://kv.vault.azure.net/secrets/script/1"
+    sourceVault:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.KeyVault/vaults/kv"
+  publisher: "Microsoft.Azure.Extensions"
+  settings:
+    commandToExecute: echo hi
+  suppressFailures: true
+  tags:
+    ext: script
+  type: "CustomScript"
+  typeHandlerVersion: "2.1"
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: compute.azure.hfl.dev/v20220301
+kind: VirtualMachinesRunCommand
+metadata:
+  name: full-vm-run-builtin
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "run_command:builtin"
+spec:
+  azureName: "ifconfig"
+  location: "eastus2"
+  owner:
+    name: full-vm
+  source:
+    commandId: "ifconfig"
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: compute.azure.hfl.dev/v20220301
+kind: VirtualMachinesRunCommand
+metadata:
+  name: full-vm-run-hello
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "run_command:hello"
+spec:
+  azureName: "hello"
+  location: "eastus2"
+  owner:
+    name: full-vm
+  outputBlobUri: "https://sa.blob.core.windows.net/out/hello.txt"
+  parameters:
+    - name: "who"
+      value: "world"
+  source:
+    script: "echo hello"
+  tags:
+    run: hello

@@ -1,0 +1,44 @@
+---
+# Source: eks-pod-identity/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: mock-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: eks-pod-identity
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "catalog-pod-identity"
+  path: "/"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\",\"sts:TagSession\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"pods.eks.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::000000000000:policy/catalog-pod-identity"
+    - "arn:aws:iam::aws:policy/ReadOnlyAccess"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: eks-pod-identity/templates/role.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: mock-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: eks-pod-identity
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+spec:
+  name: "catalog-pod-identity"
+  path: "/"
+  description: "Custom IAM Policy"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"s3:GetObject\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::catalog-test/*\"],\"Sid\":\"Read\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"
