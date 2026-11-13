@@ -1,0 +1,51 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: gke-nodepool
+spec:
+  version: "1.0.0"
+  components:
+    - name: cluster-1-nodepool-1
+      package:
+        name: gcp-gke-nodepool
+        version: "0.1.0"
+      inputs:
+        cluster_name: cluster-1
+        location: europe-west1-b
+        name: nodepool-1
+        service_account:
+          create: true
+        node_config:
+          machine_type: n2-standard-2
+          spot: true
+        nodepool_config:
+          autoscaling:
+            max_node_count: 3
+            min_node_count: 0
+        k8s_labels:
+          environment: dev
+        taints:
+          dedicated:
+            effect: NO_SCHEDULE
+            value: batch
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: gke-nodepool
+  scope: my-team
+spec:
+  template: gke-nodepool
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: gke-nodepool-dev
+  scope: my-team/dev
+spec:
+  stack: gke-nodepool
+  version: "1.0.0"
+  components:
+    cluster-1-nodepool-1:
+      values:
+        project_id: myproject

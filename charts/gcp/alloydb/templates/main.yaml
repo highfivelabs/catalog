@@ -1,0 +1,232 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/alloydb/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_alloydb_cluster.primary and google_alloydb_instance.primary: the
+AlloyDBCluster "cluster" and its AlloyDBInstance "instance";
+google_alloydb_instance.read_pool_primary: one READ_POOL AlloyDBInstance
+per entry of read_pool; with cross_region_replication.enabled,
+google_alloydb_cluster.secondary, google_alloydb_instance.secondary and
+.read_pool_secondary in its region; google_alloydb_user.users: one
+AlloyDBUser per IAM user.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- /* fabric's validations JSON Schema cannot say. */ -}}
+{{- $nc := $v.network_config | default dict }}
+{{- if eq (kindIs "invalid" $nc.psa_config) (kindIs "invalid" $nc.psc_config) }}
+{{- fail (printf "%s: network_config: Please specify either psa_config or psc_config." $chart) }}
+{{- end }}
+{{- with $nc.psa_config }}
+{{- if and .authorized_external_networks (not .enable_public_ip) }}
+{{- fail (printf "%s: network_config: A list of external network authorized to access this instance is required only in case public IP is enabled for the instance." $chart) }}
+{{- end }}
+{{- end }}
+{{- $b := $v.automated_backup_configuration | default dict }}
+{{- if and $b.enabled $b.retention_period }}
+{{- fail (printf "%s: automated_backup_configuration: Days of week must contains one or more days with the following format 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'. Backup window hour must be between 0 and 23. You can only specify retention_count or retention_period." $chart) }}
+{{- end }}
+{{- $m := $v.maintenance_config | default dict }}
+{{- if and $m.enabled (not (has ($m.day | default "SUNDAY") (list "MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY" "SUNDAY"))) }}
+{{- fail (printf "%s: maintenance_config: Maintenance window day must one of 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'. Maintenance window hour must be between 0 and 23." $chart) }}
+{{- end }}
+{{- with ($m.start_time | default dict).hours }}
+{{- if and $m.enabled (or (lt (int .) 0) (gt (int .) 23)) }}
+{{- fail (printf "%s: maintenance_config: Maintenance window day must one of 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'. Maintenance window hour must be between 0 and 23." $chart) }}
+{{- end }}
+{{- end }}
+{{- range $k, $_ := ($v.connection_pool_flags | default dict) }}
+{{- if contains "-" $k }}
+{{- fail (printf "%s: connection_pool_flags: Remove the \"connection-pooling-\" prefix and use underscores instead of dashes in the name. For example, \"connection-pooling-pool-mode\" would be \"pool_mode\"." $chart) }}
+{{- end }}
+{{- end }}
+{{- $x := $v.cross_region_replication | default dict }}
+{{- if and $x.enabled (not $x.region) }}
+{{- fail (printf "%s: cross_region_replication: Region must be available when cross region replication is enabled." $chart) }}
+{{- end }}
+{{- if and $x.switchover_mode $x.promote_secondary }}
+{{- fail (printf "%s: cross_region_replication: Please choose to either promote secondary cluster or align an existing cluster after switchover." $chart) }}
+{{- end }}
+{{- range $k, $p := $v.read_pool }}
+{{- with $p.network_config }}
+{{- if and .authorized_external_networks (not .enable_public_ip) }}
+{{- fail (printf "%s: read_pool: A list of external network authorized to access this replica pool instance is required only in case public IP is enabled for the replica pool instance." $chart) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- /* What Config Connector v1.160.0 cannot carry. */ -}}
+{{- include "kcc.unsupported" (list $ "client_connection_config" $v.client_connection_config "AlloyDBInstance has no clientConnectionConfig (connectors, SSL mode)") }}
+{{- range $k, $p := $v.read_pool }}
+{{- include "kcc.unsupported" (list $ (printf "read_pool.%s.client_connection_config" $k) $p.client_connection_config "AlloyDBInstance has no clientConnectionConfig (connectors, SSL mode)") }}
+{{- end }}
+{{- range $k, $p := ($x.read_pool | default dict) }}
+{{- include "kcc.unsupported" (list $ (printf "cross_region_replication.read_pool.%s.client_connection_config" $k) $p.client_connection_config "AlloyDBInstance has no clientConnectionConfig (connectors, SSL mode)") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ "network_config.psc_config" $nc.psc_config "AlloyDBCluster has no pscConfig and AlloyDBInstance no pscInstanceConfig, so Private Service Connect cannot be set up") }}
+{{- $iu := dict }}
+{{- range $k, $u := ($v.initial_user | default dict) }}{{ if $u }}{{ $_ := set $iu $k $u }}{{ end }}{{ end }}
+{{- include "kcc.unsupported" (list $ "initial_user" $iu "a password given here would be in the rendered manifest; AlloyDBCluster takes the initial user's password from a Kubernetes Secret (initialUser.password.valueFrom), which the chart does not take yet (README.md, \"Values\")") }}
+{{- if eq (toString $v.subscription_type) "TRIAL" }}
+{{- include "kcc.unsupported" (list $ "subscription_type" "TRIAL" "AlloyDBCluster has no subscriptionType field; clusters are STANDARD") }}
+{{- end }}
+{{- range $k, $u := $v.users }}
+{{- if eq ($u.type | default "ALLOYDB_BUILT_IN") "ALLOYDB_BUILT_IN" }}
+{{- include "kcc.unsupported" (list $ (printf "users.%s (type ALLOYDB_BUILT_IN)" $k) true "a built-in user's password would be in the rendered manifest or made by Terraform's random_password; AlloyDBUser takes it from a Kubernetes Secret, which the chart does not take yet (README.md, \"Values\")") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "users.%s.password" $k) $u.password "an IAM user has no password") }}
+{{- end }}
+{{- include "kcc.names" (list $ (list "cluster" "instance" "secondaryCluster" "secondaryInstance")) }}
+{{- $dp := upper (toString ($v.deletion_policy | default "")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $clusterID := include "alloydb.clusterID" . }}
+{{- $instanceID := include "alloydb.instanceID" . }}
+{{- $secClusterID := "" }}{{ $secInstanceID := "" }}
+{{- if $x.enabled }}
+{{- $secClusterID = include "alloydb.secondaryClusterID" . }}
+{{- $secInstanceID = include "alloydb.secondaryInstanceID" . }}
+{{- end }}
+{{- $prefix := include "alloydb.prefix" . }}
+{{- $zonal := ne (toString $v.availability_type) "REGIONAL" }}
+{{- $psa := $nc.psa_config | default dict }}
+{{- $secName := printf "%s-secondary" .Release.Name }}
+{{- /* The instances, users and the secondary cluster name their cluster by
+its cloud name (external), not by the object's name: Config Connector
+deletes an AlloyDBInstance only while the object its clusterRef names
+exists, and a component's objects are deleted together, so a cluster that
+goes first (FORCE, or a cloud that removes its instances with it) would
+leave the instances' objects undeletable (README.md, "Tests"). */}}
+{{- $clusterExt := printf "projects/%s/locations/%s/clusters/%s" $v.project_id $v.location $clusterID }}
+{{- $secClusterExt := printf "projects/%s/locations/%s/clusters/%s" $v.project_id ($x.region | default "") $secClusterID }}
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "cluster" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $clusterID }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.location | quote }}
+  clusterType: {{ ternary "SECONDARY" "PRIMARY" ($x.switchover_mode | default false) }}
+  databaseVersion: {{ $v.database_version | quote }}
+  {{- if has $dp (list "DEFAULT" "FORCE") }}
+  deletionPolicy: {{ $dp }}
+  {{- end }}
+  displayName: {{ $v.cluster_display_name | default $clusterID | quote }}
+  {{- include "alloydb.clusterSpec" (list $ "primary") | trim | nindent 2 }}
+  {{- if $x.switchover_mode }}
+  secondaryConfig:
+    primaryClusterNameRef:
+      external: {{ printf "projects/%s/locations/%s/clusters/%s" $v.project_id $x.region (include "alloydb.secondaryClusterID" .) | quote }}
+  {{- end }}
+---
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "instance" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $instanceID }}
+  clusterRef:
+    external: {{ $clusterExt | quote }}
+  instanceType: {{ ternary "SECONDARY" "PRIMARY" ($x.switchover_mode | default false) }}
+  availabilityType: {{ $v.availability_type | quote }}
+  displayName: {{ $v.display_name | default $instanceID | quote }}
+  {{- if and $zonal $v.gce_zone }}
+  gceZone: {{ $v.gce_zone | quote }}
+  {{- end }}
+  {{- include "alloydb.instanceSpec" (dict "root" $ "flags" $v.flags "machine" $v.machine_config "network" $psa "insights" $v.query_insights_config "observability" $v.observability_config) | trim | nindent 2 }}
+{{- range $key := keys $v.read_pool | sortAlpha }}
+{{- $p := index $v.read_pool $key }}
+{{- $id := include "alloydb.readPoolID" (list $ $key) }}
+---
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "read-pool" $key)) "id" (printf "read-pool:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $id }}
+  clusterRef:
+    external: {{ $clusterExt | quote }}
+  instanceType: READ_POOL
+  displayName: {{ $p.display_name | default $id | quote }}
+  {{- include "alloydb.instanceSpec" (dict "root" $ "flags" $p.flags "machine" $p.machine_config "network" $p.network_config "insights" $p.query_insights_config "observability" $p.observability_config) | trim | nindent 2 }}
+  readPoolConfig:
+    nodeCount: {{ ternary 1 $p.node_count (kindIs "invalid" $p.node_count) | int }}
+{{- end }}
+{{- if $x.enabled }}
+{{- $secType := ternary "PRIMARY" "SECONDARY" (or ($x.promote_secondary | default false) ($x.switchover_mode | default false)) }}
+{{- $sm := $x.secondary_machine_config | default dict }}
+{{- $secMachine := dict "cpu_count" ($sm.cpu_count | default ($v.machine_config | default dict).cpu_count) "machine_type" ($sm.machine_type | default ($v.machine_config | default dict).machine_type) }}
+---
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $secName "id" "secondary_cluster" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $secClusterID }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $x.region | quote }}
+  clusterType: {{ $secType }}
+  databaseVersion: {{ $v.database_version | quote }}
+  deletionPolicy: FORCE
+  displayName: {{ $x.secondary_cluster_display_name | default $secClusterID | quote }}
+  {{- include "alloydb.clusterSpec" (list $ "secondary") | trim | nindent 2 }}
+  {{- if eq $secType "SECONDARY" }}
+  secondaryConfig:
+    primaryClusterNameRef:
+      external: {{ $clusterExt | quote }}
+  {{- end }}
+---
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $secName "id" "secondary_instance" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $secInstanceID }}
+  clusterRef:
+    external: {{ $secClusterExt | quote }}
+  instanceType: {{ $secType }}
+  availabilityType: {{ $v.availability_type | quote }}
+  {{- /* fabric names the secondary's display name after its ID
+  (coalesce(secondary_instance_name, ...)); secondary_instance_display_name
+  is not read, here as there. */}}
+  displayName: {{ $x.secondary_instance_name | default $secInstanceID | quote }}
+  {{- if and $zonal $v.gce_zone }}
+  gceZone: {{ $v.gce_zone | quote }}
+  {{- end }}
+  {{- include "alloydb.instanceSpec" (dict "root" $ "flags" (ternary $v.flags dict (eq $secType "PRIMARY")) "machine" $secMachine "network" $psa "insights" $v.query_insights_config) | trim | nindent 2 }}
+{{- range $key := keys ($x.read_pool | default dict) | sortAlpha }}
+{{- $p := index $x.read_pool $key }}
+{{- $id := include "alloydb.readPoolID" (list $ $key) }}
+---
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $secName "read-pool" $key)) "id" (printf "secondary-read-pool:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $id }}
+  clusterRef:
+    external: {{ $secClusterExt | quote }}
+  instanceType: READ_POOL
+  displayName: {{ $p.display_name | default $id | quote }}
+  {{- include "alloydb.instanceSpec" (dict "root" $ "flags" $p.flags "machine" $p.machine_config "network" $p.network_config "insights" $p.query_insights_config) | trim | nindent 2 }}
+  readPoolConfig:
+    nodeCount: {{ ternary 1 $p.node_count (kindIs "invalid" $p.node_count) | int }}
+{{- end }}
+{{- end }}
+{{- range $key := keys $v.users | sortAlpha }}
+{{- $u := index $v.users $key }}
+---
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBUser
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "user" $key)) "id" (printf "user:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $key | quote }}
+  clusterRef:
+    external: {{ $clusterExt | quote }}
+  userType: {{ $u.type }}
+  databaseRoles: {{ toJson (ternary (list "alloydbsuperuser") $u.roles (kindIs "invalid" $u.roles)) }}
+{{- end }}

@@ -1,0 +1,15 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+The module variables this chart keeps in its values but cannot carry
+(upstream.yaml, "refused"): each stops the render, naming the gap, when it
+is set to anything but its Terraform default. Renders nothing.
+*/ -}}
+{{- include "ack.unsupported" (list $ "use_name_prefix" .Values.use_name_prefix "a topic name with Terraform's random suffix (name_prefix) would change between renders; set name (the namePrefix value keeps two Instances' topics apart)") }}
+{{- include "ack.unsupported" (list $ "archive_policy" .Values.archive_policy "ACK's Topic (sns-controller v1.13.0) has no archive policy field (a FIFO topic's message archive)") }}
+{{- range $k, $s := (.Values.subscriptions | default dict) }}
+{{- include "ack.unsupported" (list $ (printf "subscriptions.%s.replay_policy" $k) $s.replay_policy "ACK's Subscription (sns-controller v1.13.0) has no replay policy field") }}
+{{- include "ack.unsupported" (list $ (printf "subscriptions.%s.confirmation_timeout_in_minutes" $k) $s.confirmation_timeout_in_minutes "Terraform waits for an HTTP(S) endpoint to confirm; ACK does not wait (a Subscription stays pending, status.pendingConfirmation)") }}
+{{- include "ack.unsupported" (list $ (printf "subscriptions.%s.endpoint_auto_confirms" $k) $s.endpoint_auto_confirms "Terraform waits for an HTTP(S) endpoint to confirm; ACK does not wait (a Subscription stays pending, status.pendingConfirmation)") }}
+{{- end }}

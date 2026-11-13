@@ -1,0 +1,74 @@
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.com/v1api20200202
+kind: Component
+metadata:
+  name: names-appi
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "component"
+spec:
+  azureName: "appi-shop-dev-eus2"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  kind: "web"
+  Application_Type: web
+  DisableIpMasking: false
+  DisableLocalAuth: false
+  ForceCustomerStorageForProfiler: false
+  RetentionInDays: 90
+  SamplingPercentage: 100
+  publicNetworkAccessForIngestion: Enabled
+  publicNetworkAccessForQuery: Enabled
+  workspaceResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.OperationalInsights/workspaces/law-shop"
+  tags:
+    team: shop
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-appi-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-shop"
+  owner:
+    group: insights.azure.com
+    kind: Component
+    name: names-appi
+  level: ReadOnly
+---
+# Source: avm-res-insights-component/templates/main.yaml
+apiVersion: insights.azure.com/v1api20171001
+kind: PricingPlan
+metadata:
+  name: names-appi-pricing
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-insights-component
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "pricing_plan"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: names-appi
+  planType: Basic
+  cap: 100
+  stopSendNotificationWhenHitCap: false

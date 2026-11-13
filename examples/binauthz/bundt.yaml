@@ -1,0 +1,57 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: binauthz
+spec:
+  version: "1.0.0"
+  components:
+    - name: binauthz
+      package:
+        name: gcp-binauthz
+        version: "0.1.0"
+      inputs:
+        default_admission_rule:
+          attestors: null
+          enforcement_mode: ENFORCED_BLOCK_AND_AUDIT_LOG
+          evaluation_mode: ALWAYS_DENY
+        cluster_admission_rules:
+          europe-west1-c.cluster:
+            attestors:
+              - test
+            enforcement_mode: ENFORCED_BLOCK_AND_AUDIT_LOG
+            evaluation_mode: REQUIRE_ATTESTATION
+        attestors_config:
+          test:
+            iam:
+              roles/viewer:
+                - user:user1@example.com
+            note_reference: null
+            pgp_public_keys: null
+            pkix_public_keys:
+              - id: null
+                public_key_pem: |
+                  -----BEGIN PUBLIC KEY-----
+                  MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+                  -----END PUBLIC KEY-----
+                signature_algorithm: ECDSA_P256_SHA256
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: binauthz
+  scope: my-team
+spec:
+  template: binauthz
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: binauthz-dev
+  scope: my-team/dev
+spec:
+  stack: binauthz
+  version: "1.0.0"
+  components:
+    binauthz:
+      values:
+        project_id: myproject

@@ -1,0 +1,11 @@
+# The fake-cloud case (hack/mock-apply.sh): a global policy with an IP rule
+# and a rate limit.
+name: catalog-mock-armor
+parent_id: {project_id: mock-project}
+rules:
+  deny-ip: {priority: 1000, action: deny(403), match: {src_ip_ranges: [10.0.0.0/8]}}
+  throttle:
+    priority: 2000
+    action: throttle
+    match: {src_ip_ranges: ["*"]}
+    rate_limit_options: {exceed_action: deny(429), rate_limit_threshold: {count: 100, interval_sec: 60}, enforce_on_key: IP}

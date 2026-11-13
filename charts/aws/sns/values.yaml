@@ -1,0 +1,113 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules' sns module
+# (v7.2.0): same names, types and defaults, so a module block's arguments
+# become a values file one to one. values.schema.json carries the types. A
+# variable the chart cannot carry stays here and stops the render when set
+# (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# The topic's name in full, {topic} (with ".fifo" for a FIFO topic). A name
+# set here takes no namePrefix. Unset, the topic is named name.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the topic's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# The AWS account and partition the topic is in, which the module reads
+# from the provider (aws_caller_identity) and from the topic's ARN. A chart
+# cannot read them, so Bundt fills account_id from the Environment. Needed
+# (with region) where the chart writes the topic's ARN itself: the default
+# topic policy (create_topic_policy and enable_default_topic_policy, both
+# on by default: its statement names the topic's ARN and the account) and
+# a topic policy statement without resources.
+account_id: null
+partition: aws
+# DELETE (default): deleting the component deletes the topic and its
+# subscriptions. ABANDON keeps them (services.k8s.aws/deletion-policy:
+# retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# Map of IAM role ARNs and sample rate for success and failure feedback
+application_feedback: {}
+# The message archive policy for FIFO topics
+# Not supported (gap): ACK's Topic has no archive policy field.
+archive_policy: null
+# Boolean indicating whether or not to enable content-based deduplication
+# for FIFO topics
+content_based_deduplication: false
+# Determines whether resources will be created (affects all resources)
+create: true
+# Determines whether an SNS subscription is created
+create_subscription: true
+# Determines whether an SNS topic policy is created
+create_topic_policy: true
+# A map of data protection policy statements
+data_protection_policy: null
+# The SNS delivery policy
+delivery_policy: null
+# The display name for the SNS topic
+display_name: null
+# Specifies whether to enable the default topic policy. Defaults to `true`
+enable_default_topic_policy: true
+# Enables higher throughput for FIFO topics by adjusting the scope of
+# deduplication. This attribute has two possible values, Topic and
+# MessageGroup
+fifo_throughput_scope: null
+# Boolean indicating whether or not to create a FIFO (first-in-first-out)
+# topic
+fifo_topic: false
+# Map of IAM role ARNs and sample rate for success and failure feedback
+firehose_feedback: {}
+# Map of IAM role ARNs and sample rate for success and failure feedback
+http_feedback: {}
+# The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a
+# custom CMK
+kms_master_key_id: null
+# Map of IAM role ARNs and sample rate for success and failure feedback
+lambda_feedback: {}
+# The maximum size, in bytes, of a message that can be published to the
+# topic. Valid values are 1024 to 1048576 (1 MiB)
+maximum_message_size: null
+# The name of the SNS topic to create (required, or names.topic:
+# Terraform's random name would change between renders)
+name: null
+# List of IAM policy documents that are merged together into the exported
+# document. In merging, statements with non-blank `sid`s will override
+# statements with the same `sid`
+override_topic_policy_documents: []
+# Region where the resource(s) will be managed. Defaults to the Region set in
+# the provider configuration (on ACK: the namespace's or the controller's)
+region: null
+# If SignatureVersion should be `1` (`SHA1`) or `2` (`SHA256`)
+signature_version: null
+# List of IAM policy documents that are merged together into the exported
+# document. Statements must have unique `sid`s
+source_topic_policy_documents: []
+# Map of IAM role ARNs and sample rate for success and failure feedback
+sqs_feedback: {}
+# A map of subscription definitions to create. replay_policy,
+# confirmation_timeout_in_minutes and endpoint_auto_confirms are refused
+# (README.md).
+subscriptions: {}
+# A map of tags to add to all resources
+tags: {}
+# An externally created fully-formed AWS policy as JSON (used when
+# create_topic_policy is false)
+topic_policy: null
+# A map of IAM policy statements for custom permission usage
+topic_policy_statements: null
+# Tracing mode of an Amazon SNS topic. Valid values: `PassThrough`, `Active`
+tracing_config: null
+# Determines whether `name` is used as a prefix
+# Not supported (gap): a topic name with Terraform's random suffix
+# (name_prefix) would change between renders; set name (the namePrefix
+# value keeps two Instances' topics apart).
+use_name_prefix: false

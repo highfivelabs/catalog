@@ -607,14 +607,94 @@ Config Connector. What differs:
 | Refusals | a variable whose Terraform default is not empty (a suffix, a flag that defaults to `true`) is refused when it differs from that default (`ack.unchanged`); the others when set (`ack.unsupported`) |
 | References | ACK references by Kubernetes name (`vpcRef: {from: {name: ...}}`) inside a chart. A field that takes another resource's ID and has no reference (`FlowLog.resourceID`, ack-extensions' `VPNGateway.vpc`) cannot be wired in one render: the variable is refused as a gap, and the missing reference is a gap for ack-extensions |
 | Coverage | `upstream/aws-kinds.yaml` maps Terraform resource types to ACK and ack-extensions kinds; a tracked module whose every type is listed is classified in `docs/coverage` |
-| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. A fake-AWS layer (ACK's controllers against moto, as ack-extensions tests its kinds) and live runs in the AWS sandbox account are not built yet: each chart's `tests/mock.values.yaml` is the case they will apply |
+| Tests | the render layer (`task test`): golden files, `kubeconform -strict` against the pinned controllers' CRDs, refusals. The fake-AWS layer (`task test-mock-aws`, `hack/mock-apply-aws.sh`, on an offload VM): each chart's `tests/mock.values.yaml` rendered and applied to a kind cluster running every ACK controller `UPSTREAM.md` pins (from its own Helm chart at the pinned commit) and ack-extensions (its operator, built by ko, managers beside the ACK controllers), against two fakes: **AWS Emulator** first (the release ack-extensions pins, its Debian package's signature checked, on the VM's loopback behind `tools/emuproxy`, which re-signs each request with the emulator's keys and trusts only its certificate), then **moto** (ack-extensions' `config/fake-aws`, image pinned by digest) for a chart that fails on the emulator; every AWS client is checked to reach only the fakes, and the summary records the fake each chart passed on; every object must be Ready, the Package's outputs evaluate against the live objects, and every object must be deleted. `tests/mock.needs.yaml` holds what a case needs and the chart does not make, `tests/mock.set.yaml` the values read from it or the fake's own account (the emulator answers as `000000000000`, moto as `123456789012`). Live runs in the AWS sandbox account are not built yet |
 
 | Chart | Module | Notes |
 | --- | --- | --- |
-| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, Block Public Access and the default resources are refused (the chart's README) |
+| `charts/aws/vpc` | `terraform-aws-vpc` v6.7.3 | partial: IPv6, flow logs, the VPN gateway, redshift and outpost subnets, the default resources are refused; Block Public Access options through ack-extensions (Cloud Control, `allow_alpha`), its exclusions refused (no reference from the exclusion kind to the VPC or subnet) (the chart's README) |
 | `charts/aws/security-group` | `terraform-aws-security-group` v6.0.0 | partial: rules inline (no per-rule tags), no random name suffix; VPC associations, `revoke_rules_on_delete` and non-exclusive rules are refused |
 | `charts/aws/kms` | `terraform-aws-kms` v4.2.2 | partial: the key policy built as the module builds it (with `account_id`), aliases, grants, replicas through ack-extensions; external keys, deletion window, rotation period and disabling a key are refused |
 | `charts/aws/s3-bucket` | `terraform-aws-s3-bucket` v5.17.0 | partial: one `Bucket` with ownership, public access block, ACL, versioning, encryption, CORS, logging, website, acceleration, request payment, object lock and policy; lifecycle, replication, inventory, analytics, metrics, Intelligent-Tiering, grants and the log-delivery policies not ported yet; directory buckets, metadata and `force_destroy` are gaps |
+| `charts/aws/iam-role` | `terraform-aws-iam` v6.8.2, `modules/iam-role` | partial: every variable carried; the trust policy and inline policy built as the submodule builds them (generic, GitHub and Bitbucket OIDC, SAML, statements, source and override documents merged by `Sid`, with `account_id`), policy attachments, instance profile; `use_name_prefix` names the role without Terraform's random suffix |
+| `charts/aws/iam-policy` | `terraform-aws-iam` v6.8.2, `modules/iam-policy` | partial: one `Policy`; `name_prefix` (a random suffix) is refused |
+| `charts/aws/acm` | `terraform-aws-acm` v6.3.1 | partial: the certificate, or (`create_route53_records_only`) its DNS validation records from a certificate component's outputs: DNS validation with Route 53 is two components, since the records exist only in the certificate's status; EMAIL validation and the wait for `ISSUED` are gaps |
+| `charts/aws/ec2-instance` | `terraform-aws-ec2-instance` v6.4.1 | partial: the instance (AMI by ID or by SSM parameter, resolved by EC2 at launch) with most launch options, and its IAM role and instance profile; the security group the module makes by default is refused (no reference from `Instance`), as are extra EBS volumes, the Elastic IP, the Spot request and the root block device |
+| `charts/aws/sqs` | `terraform-aws-sqs` v5.2.2 | partial: the queue, with the queue policy (built as the module builds it, merged by `Sid`), the redrive and redrive allow policies inline on ACK's `Queue`; `account_id` and `region` are needed for a policy statement without resources; the dead-letter queue (`create_dlq`, every `dlq_` variable) is refused, as no reference lets the queue wait for it (make it its own component), and `use_name_prefix` (a random suffix) |
+| `charts/aws/sns` | `terraform-aws-sns` v7.2.0 | partial: the topic with every attribute ACK's `Topic` has (feedback roles, delivery, data protection, KMS, tracing), the topic policy (the default statement, statements, source and override documents merged by `Sid`) inline, and the subscriptions (`topicRef`); `account_id` and `region` are needed for the default topic policy; the archive policy, subscriptions' replay policy and Terraform's confirmation wait, and `use_name_prefix` are refused |
+| `charts/aws/ssm-parameter` | `terraform-aws-ssm-parameter` v2.1.2 | partial: one `Parameter`, its type and value derived as the module derives them (a SecureString's value is in the spec, as ACK takes it); `ignore_value_changes` and `overwrite` are refused (no ACK field), `value_wo_version` has no effect |
+| `charts/aws/dynamodb-table` | `terraform-aws-dynamodb-table` v5.5.2 | partial: one `Table` with keys, attributes, billing and throughput, streams, TTL, point-in-time recovery, encryption, both kinds of secondary index, on-demand limits, replicas (region and KMS key) and the resource policy inline; autoscaling not ported yet (applicationautoscaling-controller); import, restore, warm throughput, the witness region, replicas' other settings and ignoring GSI changes are gaps |
+| `charts/aws/rds` | `terraform-aws-rds` v7.2.2 | partial: the DB instance with its subnet and parameter groups (by reference), log groups, enhanced monitoring role, managed master password and final snapshot (ACK's annotations); the option group and role associations through ack-extensions (`allow_alpha`); secret rotation, a password in values, point-in-time and S3 restores, blue/green updates and fields ACK's `DBInstance` lacks are refused |
+
+The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
+and `aws/iam-policy`, ranked after the 40), since its root declares no
+variables. Its user and account submodules, gaps in section 3, map to
+ack-extensions kinds at the commit `crds/ack-extensions` is copied from:
+`UserGroupMembership`, `AccessKey`, `LoginProfile`, `SSHPublicKey`,
+`AccountAlias` and `AccountPasswordPolicy` (`upstream/aws-kinds.yaml`).
+
+What the fake-AWS layer found on its first runs (2026-11-12, offload VMs
+`off-catalog-1112173426-19153` and `off-catalog-1112180857-14840`):
+
+- **security-group** left its group unresolved without `vpc_id` ("resource
+  reference wrapper or ID required: VPCID,VPCRef"): ACK's `SecurityGroup`
+  needs its VPC, where Terraform falls back to the account's default VPC.
+  The chart now requires `vpc_id` and says why.
+- **s3-bucket** never synced: ACK's s3-controller addresses a bucket by
+  host (`<bucket>.<endpoint>`), which the cluster could not resolve; and
+  moto reads a bucket from the host only off `.svc.cluster.local`. The fake
+  now addresses moto as `moto.fake-aws.svc`, answers `<bucket>.` names
+  with moto (CoreDNS), and tells moto its own endpoint
+  (`MOTO_S3_CUSTOM_ENDPOINTS`).
+- **iam-role** could not attach `arn:aws:iam::aws:policy/ReadOnlyAccess`:
+  moto loads AWS's managed policies only when asked
+  (`MOTO_IAM_LOAD_MANAGED_POLICIES`).
+- **vpc**'s route tables, and so its VPC, were never deleted: moto keeps a
+  deleted subnet's route table associations, which AWS removes with the
+  subnet. The script removes them in moto (`moto_fixups`), as AWS would.
+- **s3-bucket** then made ACK's s3-controller v1.15.0 panic reading the
+  bucket: it dereferences a nil `GetBucketEncryption` response when a
+  bucket has no encryption configuration (`pkg/resource/bucket/hook.go:487`;
+  an upstream bug, latent on AWS, where every bucket has SSE-S3 by default
+  since 2023). The fake gives each new bucket that default, as AWS does.
+- **rds**: moto answers `DescribeEngineDefaultParameters`, which ACK's
+  `DBParameterGroup` calls, with an error, so the fake-AWS case uses the
+  engine's default parameter group (`create_db_parameter_group: false`).
+- Every other object synced, evaluated its outputs and was deleted.
+
+With those, the run over every AWS chart then on main or in review (acm,
+ec2-instance, iam-policy, iam-role, kms, rds, s3-bucket, security-group,
+vpc) passed: 29 objects synced in moto, every Package's outputs evaluated,
+every object deleted (offload VM `off-catalog-1112191931-32354`,
+2026-11-12, 12 minutes after a 9-minute setup).
+
+`upstream/aws-kinds.yaml` classifies every resource type of the tracked
+modules (321), taking the types it did not list from ack-extensions'
+`docs/catalog-aws-types.csv` at `74d322f` (2026-11-12): 1,378 kinds, Cloud
+Control's among them (`*.cloudcontrol.aws.hfl.dev`, class extensions).
+Where the two disagree the catalog's entry stays, for these reasons:
+`aws_default_vpc`, `aws_default_security_group`, `aws_default_network_acl`
+and `aws_default_route_table` (no kind adopts a VPC's default object by
+its VPC), `aws_kms_external_key` (nothing imports the key material) and
+`aws_s3_bucket_metadata_configuration` (ACK's `Bucket` has no metadata
+field at s3-controller v1.15.0). Every module is now classified: with
+every type stable a module without a chart is "not started" (8), with any
+type ack-extensions-only or uncovered "blocked" (26).
+
+**AWS Emulator first** (2026-11-12, the builder's direction; as
+ack-extensions' emulator sweep, `docs/aws-emulator.md` there). On
+release 1.0.322 (offload VM `off-catalog-1112204517-19713`), six of the
+eight charts on main passed on the emulator outright: acm, iam-policy,
+iam-role, s3-bucket (no moto workaround needed: the emulator encrypts new
+buckets, as AWS does), security-group and vpc (its route tables deleted
+without help). Two passed only on moto, and both failures were the fake
+cases', not the charts': ec2-instance used moto's own AMI ID
+(`InvalidAMIID.Malformed` on the emulator; the case now launches from the
+module's default SSM parameter, `resolve:ssm:`), and kms wrote moto's
+account into the key policy (`MalformedPolicyDocumentException`: the
+emulator, as AWS, refuses a policy that locks the caller's account out;
+the case now takes the fake's account from `tests/mock.set.yaml`). With
+those two cases fixed, both pass on the emulator (`off-catalog-1112210701-7084`): all
+eight charts on main pass on AWS Emulator, moto unused.
 
 Gaps the charts found, for ack-extensions (beyond section 5):
 
@@ -625,9 +705,17 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | `egressOnlyInternetGatewayRef` on a route; a subnet's IPv6 block from its VPC's (`ipv6CIDRBlock` derived from the VPC's Amazon-provided block) | vpc (IPv6) | reference fields on ACK's `RouteTable` and `Subnet` (upstream) |
 | Adopting a VPC's default security group, network ACL and main route table by their VPC | vpc (`default_security_group_*`, `default_network_acl_*`, `default_route_table_*`) | kinds that take a `vpcRef` and manage the VPC's default object |
 | Redshift `ClusterSubnetGroup` | vpc (redshift subnets) | generated, or ACK's redshift-controller released |
-| VPC Block Public Access options and exclusions | vpc | generated |
+| References on ack-extensions' `VPCBlockPublicAccessExclusion` (`vpcRef`, `subnetRef`) and `SecurityGroupVpcAssociation` (`groupRef`): the kinds exist (Cloud Control) but take IDs a chart cannot know in one render | vpc (`vpc_block_public_access_exclusions`), security-group (`vpc_associations`) | reference fields on ack-extensions' Cloud Control kinds |
 | `SecurityGroupVPCAssociation` (`AssociateSecurityGroupVpc`) | security-group (`vpc_associations`) | generated |
 | Standalone security group rules with tags (section 5, gap 6) | security-group (each rule's `name` and `tags`) | design question, as in section 5 |
 | KMS `ExternalKey` and `ReplicaExternalKey` (`ImportKeyMaterial`, with the material from a Secret) | kms (`create_external`, `create_replica_external`) | hand-written |
 | `Key` fields: `pendingWindowInDays` (on delete), `rotationPeriodInDays`, `enabled` | kms (`deletion_window_in_days`, `rotation_period_in_days`, `is_enabled`) | fields on ACK's `Key` (upstream) or a patch |
 | S3 directory buckets, bucket metadata configurations; emptying a bucket on delete (`force_destroy`) | s3-bucket | generated (directory bucket, metadata); a field and hook on ACK's `Bucket` |
+| A certificate that is synced only once `ISSUED` (a `synced.when` on `Status.status`, or a `CertificateValidation` kind that waits), and `validationMethod` on `Certificate` (ACK always requests DNS validation) | acm (`wait_for_validation`, `validation_method: EMAIL`) | generator config on ACK's `Certificate` (upstream), or a hand-written kind |
+| A `RecordSet` that may overwrite a record already there (Route 53's `UPSERT` on create) | acm (`validation_allow_overwrite_records`) | a field on ACK's `RecordSet` (upstream) |
+| `securityGroupRefs` on ACK's `Instance` (it takes IDs only) | ec2-instance (`create_security_group`, the default) | a reference field on ACK's `Instance` (upstream) |
+| `instanceRef` on ack-extensions' `VolumeAttachment`, and a `Volume` that takes its Availability Zone from an instance | ec2-instance (`ebs_volumes`) | reference fields on ack-extensions' kinds |
+| An Elastic IP association with an instance (`AssociateAddress`, with `instanceRef` and `allocationRef`), and `domain` on `ElasticIPAddress` | ec2-instance (`create_eip`) | a new kind (ack-extensions) |
+| A reference from a `Queue`'s redrive policy to its dead-letter queue (`deadLetterTargetRef`), so the queue waits for it; or "Dead letter target does not exist" treated as retryable, not terminal | sqs (`create_dlq`) | a reference field on ACK's `Queue` (upstream), or an ack-extensions patch |
+| `groups` on `Instance.networkInterfaces` (so a public IP or secondary IPs can be asked for with the instance's groups), `enablePrimaryIPv6`, `placement.groupID`, `cpuOptions.amdSevSnp` | ec2-instance | fields on ACK's `Instance` (upstream) |
+| `DBInstance` fields: `domainAuthSecretARN`, `domainDNSIPs`, `domainFQDN`, `domainOU`, `engineLifecycleSupport`, `dedicatedLogVolume`, `upgradeStorageConfig`, `allowMajorVersionUpgrade`, `blueGreenUpdate`; restores to a point in time and from S3; an `optionGroupRef` (ack-extensions' `OptionGroup` is taken by name) | rds | fields on ACK's `DBInstance` (upstream) and restore kinds |

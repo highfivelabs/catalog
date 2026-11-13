@@ -1,0 +1,130 @@
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: full-iam-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-role"
+spec:
+  name: "app"
+  path: "/ec2/"
+  description: "the app's role"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"ec2.amazonaws.com\"]},\"Sid\":\"EC2AssumeRole\"}],\"Version\":\"2012-10-17\"}"
+  permissionsBoundary: "arn:aws:iam::111122223333:policy/boundary"
+  policies:
+    - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  tags:
+    - key: "role"
+      value: "app"
+    - key: "team"
+      value: "shop"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Instance
+metadata:
+  name: full-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+    services.k8s.aws/region: "eu-west-1"
+spec:
+  imageID: "resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
+  instanceType: "t4g.small"
+  minCount: 1
+  maxCount: 1
+  subnetID: "subnet-0123456789abcdef0"
+  securityGroupIDs:
+    - "sg-0123456789abcdef0"
+    - "sg-0fedcba9876543210"
+  keyName: "deployer"
+  iamInstanceProfile:
+    name: "app"
+  placement:
+    availabilityZone: eu-west-1a
+    groupName: app-spread
+    partitionNumber: 2
+    tenancy: default
+  privateIPAddress: "10.0.1.10"
+  ipv6AddressCount: 1
+  blockDeviceMappings:
+    - deviceName: "/dev/sdb"
+      virtualName: "ephemeral0"
+    - deviceName: "/dev/sdc"
+      noDevice: ""
+  capacityReservationSpecification:
+    capacityReservationPreference: "open"
+  cpuOptions:
+    coreCount: 1
+    threadsPerCore: 2
+  creditSpecification:
+    cpuCredits: "unlimited"
+  disableAPIStop: false
+  disableAPITermination: true
+  ebsOptimized: true
+  enclaveOptions:
+    enabled: false
+  hibernationOptions:
+    configured: false
+  instanceInitiatedShutdownBehavior: "stop"
+  instanceMarketOptions:
+    marketType: "spot"
+    spotOptions:
+      instanceInterruptionBehavior: "stop"
+      maxPrice: "0.01"
+      spotInstanceType: "persistent"
+  maintenanceOptions:
+    autoRecovery: "default"
+  metadataOptions:
+    httpEndpoint: "enabled"
+    httpPutResponseHopLimit: 1
+    httpTokens: "required"
+    instanceMetadataTags: "enabled"
+  monitoring:
+    enabled: true
+  privateDNSNameOptions:
+    enableResourceNameDNSARecord: true
+    hostnameType: "resource-name"
+  sourceDestCheckEnabled: false
+  userData: "IyEvYmluL2Jhc2gKZWNobyBoZWxsbwo="
+  tags:
+    - key: "Backup"
+      value: "daily"
+    - key: "Name"
+      value: "app"
+    - key: "team"
+      value: "shop"
+---
+# Source: ec2-instance/templates/instance.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: InstanceProfile
+metadata:
+  name: full-instance-profile
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: ec2-instance
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam-instance-profile"
+spec:
+  name: "app"
+  path: "/ec2/"
+  roleRef:
+    from:
+      name: full-iam-role
+  tags:
+    - key: "role"
+      value: "app"
+    - key: "team"
+      value: "shop"

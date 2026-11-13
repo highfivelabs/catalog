@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric's resources compute them: id
+# is the policy's Terraform ID (projects/<project>); attestors and notes,
+# maps of whole Terraform objects in fabric, are maps of each attestor's
+# and note's ID by the attestor's key (projects/<project>/attestors/<name>,
+# projects/<project>/notes/<name>), the field a consumer takes.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-binauthz
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id
+    attestors: >-
+      inputs.attestors_config == null ? {} :
+      inputs.attestors_config.transformMapEntry(k, v,
+        {k: 'projects/' + inputs.project_id + '/attestors/' + (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + k})
+    notes: >-
+      inputs.attestors_config == null ? {} :
+      inputs.attestors_config.transformMapEntry(k, v, v.note_reference == null,
+        {k: 'projects/' + inputs.project_id + '/notes/' + (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + k + '-note'})

@@ -1,0 +1,59 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-lb-ext/health-check.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_compute_region_health_check.default: one ComputeHealthCheck in the
+region, made unless health_check names an existing one.
+*/ -}}
+{{- $v := .Values }}
+{{- $hc := $v.health_check_config }}
+{{- if and (kindIs "invalid" $v.health_check) (not (kindIs "invalid" $hc)) }}
+{{- $types := list }}
+{{- range $t := list "grpc" "http" "http2" "https" "tcp" "ssl" }}{{ if not (kindIs "invalid" (index $hc $t)) }}{{ $types = append $types $t }}{{ end }}{{ end }}
+{{- /* Helm merges a values file's health_check_config into the default
+(tcp on the serving port) where Terraform replaces it: a type set beside the
+untouched default tcp drops the default. */ -}}
+{{- if and (gt (len $types) 1) (has "tcp" $types) (eq (toJson $hc.tcp) (toJson (dict "port_specification" "USE_SERVING_PORT"))) }}
+{{- $types = without $types "tcp" }}
+{{- end }}
+{{- if gt (len $types) 1 }}
+{{- fail "net-lb-ext: Only one health check type can be configured at a time." }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "health_check" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "healthCheck" "health check" ($hc.name | default $v.name) 63 "letter") | quote }}
+  location: {{ $v.region | quote }}
+  description: {{ $hc.description | default "Terraform managed." | quote }}
+  {{- range $f := list (list "check_interval_sec" "checkIntervalSec") (list "healthy_threshold" "healthyThreshold") (list "timeout_sec" "timeoutSec") (list "unhealthy_threshold" "unhealthyThreshold") }}
+  {{- if not (kindIs "invalid" (index $hc (index $f 0))) }}
+  {{ index $f 1 }}: {{ index $hc (index $f 0) }}
+  {{- end }}
+  {{- end }}
+  {{- range $t := $types }}
+  {{- $c := index $hc $t | default dict }}
+  {{- /* The default's port_specification (USE_SERVING_PORT) merged into a
+  check that sets its own port: Terraform would have replaced the default,
+  and the API refuses a port with USE_SERVING_PORT, so it is dropped. */ -}}
+  {{- if and (eq $t "tcp") (eq (toString $c.port_specification) "USE_SERVING_PORT") (or (not (kindIs "invalid" $c.port)) (not (kindIs "invalid" $c.port_name))) }}
+  {{- $c = omit $c "port_specification" }}
+  {{- end }}
+  {{ get (dict "grpc" "grpcHealthCheck" "http" "httpHealthCheck" "http2" "http2HealthCheck" "https" "httpsHealthCheck" "tcp" "tcpHealthCheck" "ssl" "sslHealthCheck") $t }}:
+    {{- $fields := dict "port" "port" "port_name" "portName" "port_specification" "portSpecification" "service_name" "grpcServiceName" "host" "host" "proxy_header" "proxyHeader" "request_path" "requestPath" "request" "request" "response" "response" }}
+    {{- $out := dict }}
+    {{- range $from, $to := $fields }}{{ if not (kindIs "invalid" (index $c $from)) }}{{ $_ := set $out $to (index $c $from) }}{{ end }}{{ end }}
+    {{- if $out }}
+    {{- toYaml $out | nindent 4 }}
+    {{- else }} {}
+    {{- end }}
+  {{- end }}
+  {{- if eq (toString $hc.enable_logging) "true" }}
+  logConfig:
+    enable: true
+  {{- end }}
+{{- end }}

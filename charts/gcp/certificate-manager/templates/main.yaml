@@ -1,0 +1,178 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/certificate-manager/main.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_certificate_manager_certificate_map.map and .._map_entry.entries:
+a CertificateManagerCertificateMap and one
+CertificateManagerCertificateMapEntry per entry, referring to the chart's
+certificates by name. google_certificate_manager_certificate.certificates:
+a CertificateManagerCertificate each (managed; self_managed is refused,
+README.md). google_certificate_manager_dns_authorization.dns_authorizations:
+a CertificateManagerDNSAuthorization each.
+google_certificate_manager_certificate_issuance_config.default: a
+CertificateManagerCertificateIssuanceConfig each, config-connector-extensions'
+v1beta1 kind (Config Connector's own is v1alpha1).
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "map")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $p := $v.project_id }}
+{{- /* fabric's validations of certificates and map, with its messages. */ -}}
+{{- range $key, $c := $v.certificates }}
+{{- if eq (add (ternary 0 1 (kindIs "invalid" $c.self_managed)) (ternary 0 1 (kindIs "invalid" $c.managed))) 1 | not }}
+{{- fail "certificate-manager: Either a self-managed or a managed configuration must be specified for a certificate." }}
+{{- end }}
+{{- if and $c.managed (not (kindIs "invalid" $c.managed.issuance_config)) (not (kindIs "invalid" $c.managed.dns_authorizations)) }}
+{{- fail "certificate-manager: Both DNS authorizations and issuance cannot be specified." }}
+{{- end }}
+{{- end }}
+{{- if $v.map }}
+{{- range $key, $e := ($v.map.entries | default dict) }}
+{{- if not (or (and (kindIs "invalid" $e.hostname) (not (kindIs "invalid" $e.matcher))) (and (not (kindIs "invalid" $e.hostname)) (kindIs "invalid" $e.matcher))) }}
+{{- fail "certificate-manager: Either hostname or matcher must be specified for an entry." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $key, $c := $v.certificates }}
+{{- include "kcc.unsupported" (list $ (printf "certificates.%s.self_managed" $key) $c.self_managed "its private key would be in the rendered manifest; CertificateManagerCertificate takes it from a Kubernetes Secret (pemPrivateKey.valueFrom), which the chart does not take yet") }}
+{{- end }}
+{{- $cert := dict }}
+{{- range $key, $c := $v.certificates }}
+{{- $_ := set $cert $key (include "kcc.name" (list $.Release.Name "certificate" $key)) }}
+{{- end }}
+{{- $dns := dict }}
+{{- range $key, $d := $v.dns_authorizations }}
+{{- $_ := set $dns $key (include "kcc.name" (list $.Release.Name "dns-authorization" $key)) }}
+{{- end }}
+{{- if $v.map }}
+{{- $mapObj := include "kcc.name" (list $.Release.Name "map") }}
+---
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificateMap
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $mapObj "id" "map" "project" $p "labels" $v.map.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "map" "certificate map" $v.map.name 63 "letter") | quote }}
+  projectRef:
+    external: {{ $p | quote }}
+  {{- with $v.map.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- range $key, $e := ($v.map.entries | default dict) }}
+---
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificateMapEntry
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "entry" $key)) "id" (printf "entry:%s" $key) "project" $p "labels" $e.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "map entry" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $p | quote }}
+  mapRef:
+    name: {{ $mapObj }}
+  {{- with $e.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  certificatesRefs:
+    {{- range $c := $e.certificates }}
+    {{- if not (hasKey $cert $c) }}
+    {{- fail (printf "certificate-manager: map entry %s names certificate %q, which certificates does not have" $key $c) }}
+    {{- end }}
+    - name: {{ index $cert $c }}
+    {{- end }}
+  {{- with $e.hostname }}
+  hostname: {{ . | quote }}
+  {{- end }}
+  {{- with $e.matcher }}
+  matcher: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- range $key, $c := $v.certificates }}
+---
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerCertificate
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (index $cert $key) "id" (printf "certificate:%s" $key) "project" $p "labels" $c.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "certificate" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $p | quote }}
+  location: {{ $c.location | default "global" | quote }}
+  {{- with $c.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $c.scope }}
+  scope: {{ . | quote }}
+  {{- end }}
+  managed:
+    domains:
+      {{- toYaml $c.managed.domains | nindent 6 }}
+    {{- if not (kindIs "invalid" $c.managed.dns_authorizations) }}
+    dnsAuthorizationsRefs:
+      {{- range $d := $c.managed.dns_authorizations }}
+      {{- if not (hasKey $dns $d) }}
+      {{- fail (printf "certificate-manager: certificate %s names DNS authorization %q, which dns_authorizations does not have" $key $d) }}
+      {{- end }}
+      - name: {{ index $dns $d }}
+      {{- end }}
+    {{- end }}
+    {{- with $c.managed.issuance_config }}
+    {{- if hasKey $v.issuance_configs . }}
+    {{- $ic := index $v.issuance_configs . }}
+    issuanceConfigRef:
+      external: {{ printf "projects/%s/locations/%s/certificateIssuanceConfigs/%s" $p ($ic.location | default "global") (include "kcc.cloudName" (list $ "issuance config" . 63 "letter")) | quote }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- range $key, $d := $v.dns_authorizations }}
+---
+apiVersion: certificatemanager.cnrm.cloud.google.com/v1beta1
+kind: CertificateManagerDNSAuthorization
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (index $dns $key) "id" (printf "dns_authorization:%s" $key) "project" $p "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "DNS authorization" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $p | quote }}
+  domain: {{ $d.domain | quote }}
+  {{- with $d.location }}
+  location: {{ . | quote }}
+  {{- end }}
+  {{- with $d.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $d.type }}
+  type: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $i := $v.issuance_configs }}
+{{- $cloudLabels := dict }}
+{{- range $k, $val := ($v.tags | default dict) }}{{ $_ := set $cloudLabels $k (toString $val) }}{{ end }}
+{{- range $k, $val := ($i.labels | default dict) }}{{ $_ := set $cloudLabels $k (toString $val) }}{{ end }}
+---
+apiVersion: certificatemanager.gcp.hfl.dev/v1beta1
+kind: CertificateManagerCertificateIssuanceConfig
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "issuance-config" $key)) "id" (printf "issuance_config:%s" $key) "project" $p "labels" $i.labels "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "issuance config" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $p | quote }}
+  location: {{ $i.location | default "global" | quote }}
+  {{- with $i.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  certificateAuthorityConfig:
+    certificateAuthorityServiceConfig:
+      caPool: {{ $i.ca_pool | quote }}
+  lifetime: {{ $i.lifetime | quote }}
+  rotationWindowPercentage: {{ $i.rotation_window_percentage }}
+  keyAlgorithm: {{ $i.key_algorithm | quote }}
+  {{- with $cloudLabels }}
+  labels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

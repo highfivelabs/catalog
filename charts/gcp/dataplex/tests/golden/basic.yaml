@@ -1,0 +1,165 @@
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAsset
+metadata:
+  name: basic-asset-landing-gcs-1-1f0eb9f0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "asset:landing-gcs_1"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west2"
+  lake: "test-terraform-lake"
+  zone: "landing"
+  resourceID: "gcs_1"
+  discoverySpec:
+    enabled: true
+    schedule: "15 15 * * *"
+  resourceSpec:
+    name: "projects/myproject/buckets/gcs_bucket"
+    type: "STORAGE_BUCKET"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexLake
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lake"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west2"
+  resourceID: "test-terraform-lake"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexZone
+metadata:
+  name: basic-zone-curated
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone:curated"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west2"
+  lake: "test-terraform-lake"
+  resourceID: "curated"
+  type: "CURATED"
+  discoverySpec:
+    enabled: false
+  resourceSpec:
+    locationType: "SINGLE_REGION"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexZone
+metadata:
+  name: basic-zone-landing
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone:landing"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west2"
+  lake: "test-terraform-lake"
+  resourceID: "landing"
+  type: "RAW"
+  discoverySpec:
+    enabled: true
+  resourceSpec:
+    locationType: "SINGLE_REGION"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: basic-iam-roles-dataplex-viewer-a07e90b5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam:roles/dataplex.viewer"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexLake
+    name: basic
+  role: "roles/dataplex.viewer"
+  members:
+    - "group:analysts@example.com"
+    - "group:analysts_sensitive@example.com"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: basic-zone-curated-iam-roles-dataplex-datareader-d697ddd5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone-iam:curated-roles/dataplex.dataReader"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexZone
+    name: basic-zone-curated
+  role: "roles/dataplex.dataReader"
+  members:
+    - "group:analysts@example.com"
+    - "group:analysts_sensitive@example.com"
+---
+# Source: dataplex/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: basic-zone-curated-iam-roles-viewer-24c4c851
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: dataplex
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "zone-iam:curated-roles/viewer"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexZone
+    name: basic-zone-curated
+  role: "roles/viewer"
+  members:
+    - "group:analysts@example.com"
+    - "group:analysts_sensitive@example.com"

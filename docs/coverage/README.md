@@ -89,7 +89,7 @@ v1.160.0:
 | --- | --- |
 | `stable` | a `v1beta1` Config Connector kind |
 | `alpha` | only a `v1alpha1` kind |
-| `extensions` | a gap kind that config-connector-extensions provides |
+| `extensions` | a kind config-connector-extensions provides at the commit `UPSTREAM.md` pins ("Gap kinds commit"), for a type Config Connector has no kind for or only an alpha one; `kind` names its group and version (`v1alpha1` ones need `allow_alpha`). `task inventory` reads that commit's CRDs, the Terraform types its generated kinds port and its IAM resource table |
 | `none` | no kind |
 | `unclassified` | an AWS or Azure module with a type not listed in `upstream/aws-kinds.yaml` (or `azure-kinds.yaml`): its types are not mapped to kinds yet, so its `resource_types_with_stable_kind` and `resource_types_missing` are empty |
 
@@ -115,6 +115,22 @@ types.
 So `blocked` is strict: a module whose only gap is one alpha side resource is
 blocked, though the pilot charts show such a module can be ported with the
 gap refused. The `notes` column names the types.
+
+## Factories without a chart
+
+Two Google Cloud modules are composite factories: they read a tree of
+YAML files and call other modules once per file. `docs/design.md`
+("Submodules and factories", "Factories, worked") decides they are not one
+chart: Bundt renders from inputs alone, a Template has no loops, and one
+chart making fifty projects would be one component, one plan line and one
+blast radius. A generator that writes one Instance per file of the tree,
+from the charts below, is accepted in principle and not built. Their rows
+stay `not started` or `blocked` and are not ported:
+
+| Module | What it composes | Its own resource types | Judged |
+| --- | --- | --- | --- |
+| `net-vpc-factory` | `net-vpc` and `net-vpc-firewall`, per file | none | a factory wrapper: every resource it makes belongs to `net-vpc` or `net-vpc-firewall`, which have charts. A chart would add no variable or resource the catalog lacks |
+| `project-factory` (2026-11-12) | `project` (and its IAM), `folder` (four levels, and their IAM), `gcs`, `iam-service-account`, `bigquery-dataset`, `billing-account` (budgets), `data-catalog-policy-tag`, `dataplex-aspect-types`, `kms`, `logging-bucket`, `pubsub` | `google_network_security_dns_threat_detector` (config-connector-extensions' `NetworkSecurityDNSThreatDetector`) and two `terraform_data` preconditions | a factory wrapper, like `net-vpc-factory`. Its eight variables (`folders`, `projects`, `data_defaults`, `data_merges`, `data_overrides`, `factories_config`, `context`, `notification_channels`) are the tree and its defaults, whose values are the composed modules' variables: a chart would re-expose those charts' values under one object per project and add no coverage of its own. The one resource it makes itself, a project's DNS threat detector, is a candidate for the `project` chart (a `dns_threat_detector` value, as the factory's file has it) rather than a reason for a factory chart. Its row stays `blocked` on that kind |
 
 ## Limits
 
