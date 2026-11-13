@@ -1,0 +1,68 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vpn-static/main.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_compute_vpn_gateway.gateway: a ComputeTargetVPNGateway;
+google_compute_address.gateway (gateway_address_create): its external
+ComputeAddress, vpn-<name>; google_compute_forwarding_rule.esp, .udp_500
+and .udp_4500: the three ComputeForwardingRules that send ESP, UDP 500 and
+UDP 4500 on that address to the gateway. google_compute_vpn_tunnel.tunnels
+and google_compute_route.route (one per tunnel and remote range) are not
+rendered: tunnels is refused (README.md), so there are no tunnels to route
+through, as in fabric with tunnels empty.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "gateway" "address")) }}
+{{- include "kcc.unsupported" (list $ "tunnels" $v.tunnels "a tunnel's shared secret would be in the rendered manifest, and the chart does not take one from a Kubernetes Secret yet (README.md, \"Values\"); ComputeVPNTunnel has no cipherSuite field") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $network := trimPrefix "https://www.googleapis.com/compute/beta/" (trimPrefix "https://www.googleapis.com/compute/v1/" $v.network) }}
+{{- $gwName := include "kcc.resourceName" (list $ "gateway" "VPN gateway" $v.name 63 "letter") }}
+{{- $create := ne (toString $v.gateway_address_create) "false" }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetVPNGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "gateway" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $gwName | quote }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+{{- if $create }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "address" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "address" "address" (printf "vpn-%s" $v.name) 63 "letter") | quote }}
+  location: {{ $v.region | quote }}
+{{- end }}
+{{- range $r := list (list "esp" "ESP" "") (list "udp_500" "UDP" "500") (list "udp_4500" "UDP" "4500") }}
+{{- $key := index $r 0 }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name (replace "_" "-" $key))) "id" $key "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "forwarding rule" (printf "vpn-%s-%s" $v.name (replace "_" "-" $key)) 63 "letter") | quote }}
+  location: {{ $v.region | quote }}
+  ipProtocol: {{ index $r 1 }}
+  {{- with index $r 2 }}
+  portRange: {{ . | quote }}
+  {{- end }}
+  {{- if $create }}
+  ipAddress:
+    addressRef:
+      name: {{ include "kcc.name" (list $.Release.Name) }}
+  {{- else if $v.gateway_address }}
+  ipAddress:
+    ip: {{ $v.gateway_address | quote }}
+  {{- end }}
+  target:
+    targetVPNGatewayRef:
+      name: {{ include "kcc.name" (list $.Release.Name) }}
+{{- end }}

@@ -20,6 +20,7 @@ var special = map[string]func(*TFResource, *KCC) ([]*Object, []Finding){
 	"google_project_default_service_accounts": func(r *TFResource, _ *KCC) ([]*Object, []Finding) {
 		return nil, []Finding{{r.Address, r.Type, "gap", "an action on the project's default service accounts (deprivilege, disable or delete), not a resource: nothing to adopt; record the outcome in the platform project's baseline (IAM on the default account), or leave it done"}}
 	},
+	"google_secret_manager_secret":       convertSecret,
 	"google_project_organization_policy": legacyOrgPolicy,
 	"google_folder_organization_policy":  legacyOrgPolicy,
 	"google_organization_policy":         legacyOrgPolicy,
@@ -139,4 +140,41 @@ func convertNetworkFirewallPolicyRule(r *TFResource, k *KCC) ([]*Object, []Findi
 
 func legacyOrgPolicy(r *TFResource, _ *KCC) ([]*Object, []Finding) {
 	return nil, []Finding{{r.Address, r.Type, "gap", "the v1 organization policy resource (ResourceManagerPolicy) is not converted: move it to google_org_policy_policy (OrgPolicyPolicy) in Terraform first, or convert it by hand"}}
+}
+
+// convertSecret: Terraform's automatic replication is an empty auto block
+// (auto {}). Config Connector v1.160.0 reconciles SecretManagerSecret
+// through its Terraform fork, which drops an empty auto and sends no
+// replication, so the API refuses the secret; its own form for the same
+// policy is automatic: true, which the secret-manager chart renders too.
+// An auto block with a customer-managed key is kept as it is.
+func convertSecret(r *TFResource, k *KCC) ([]*Object, []Finding) {
+	crd := k.CRDs["SecretManagerSecret"]
+	if crd == nil {
+		return nil, []Finding{{r.Address, r.Type, "gap", "no SecretManagerSecret kind loaded"}}
+	}
+	o, f := generic(r, k, k.SM[r.Type], crd)
+	spec := o.Obj["spec"].(map[string]any)
+	rep, _ := spec["replication"].(map[string]any)
+	if rep == nil {
+		rep = map[string]any{}
+	}
+	if auto, ok := rep["auto"].(map[string]any); (ok && zero(auto["customerManagedEncryption"])) || (rep["auto"] == nil && autoInState(r.Attrs)) {
+		delete(rep, "auto")
+		rep["automatic"] = true
+		spec["replication"] = rep
+	}
+	return []*Object{o}, f
+}
+
+// autoInState says the state's replication is an auto block, which the
+// generic conversion leaves out when it is empty.
+func autoInState(attrs map[string]any) bool {
+	reps, _ := attrs["replication"].([]any)
+	if len(reps) == 0 {
+		return false
+	}
+	rep, _ := reps[0].(map[string]any)
+	auto, _ := rep["auto"].([]any)
+	return len(auto) > 0
 }

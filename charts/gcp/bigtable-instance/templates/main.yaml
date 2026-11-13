@@ -1,0 +1,112 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/bigtable-instance/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_bigtable_instance.default: one BigtableInstance with a cluster per
+clusters entry (num_nodes only without autoscaling, the default
+autoscaling where a cluster sets none, the instance's encryption_key on
+every cluster); google_bigtable_table.default: a BigtableTable per table;
+google_bigtable_gc_policy.default: a BigtableGCPolicy per column family
+whose policy (its own, else default_gc_policy) is set. The IAM is in
+iam.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "instance")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $id := include "kcc.resourceName" (list $ "instance" "instance" $v.name 33 "letter") }}
+---
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "instance" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $id | quote }}
+  displayName: {{ coalesce $v.display_name $v.name | quote }}
+  deletionProtection: {{ $v.deletion_protection }}
+  cluster:
+  {{- range $cid, $c := $v.clusters }}
+  {{- if not $c.zone }}
+  {{- fail (printf "bigtable-instance: clusters.%s.zone is not supported unset: BigtableInstance requires each cluster's zone, where Terraform takes the provider's default zone (docs/gcp-inventory.md, \"Gaps\")" $cid) }}
+  {{- end }}
+  {{- $auto := $c.autoscaling | default $v.default_autoscaling }}
+    - clusterId: {{ $cid | quote }}
+      zone: {{ $c.zone | quote }}
+      {{- with $c.storage_type }}
+      storageType: {{ . | quote }}
+      {{- end }}
+      {{- if and (not $auto) (not (kindIs "invalid" $c.num_nodes)) }}
+      numNodes: {{ $c.num_nodes }}
+      {{- end }}
+      {{- with $v.encryption_key }}
+      kmsKeyRef:
+        external: {{ . | quote }}
+      {{- end }}
+      {{- with $auto }}
+      autoscalingConfig:
+        minNodes: {{ .min_nodes }}
+        maxNodes: {{ .max_nodes }}
+        cpuTarget: {{ .cpu_target }}
+        {{- if not (kindIs "invalid" .storage_target) }}
+        storageTarget: {{ .storage_target }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+{{- range $t, $table := $v.tables }}
+{{- $table = $table | default dict }}
+---
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableTable
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "table" $t)) "id" (printf "table:%s" $t) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $t | quote }}
+  instanceRef:
+    name: {{ $.Release.Name }}
+  {{- with $table.column_families }}
+  columnFamily:
+  {{- range $cf, $_ := . }}
+    - family: {{ $cf | quote }}
+  {{- end }}
+  {{- end }}
+  {{- with $table.split_keys }}
+  splitKeys:
+  {{- range . }}
+    - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+{{- range $cf, $cfo := ($table.column_families | default dict) }}
+{{- $p := ($cfo | default dict).gc_policy | default $v.default_gc_policy }}
+{{- if $p }}
+---
+apiVersion: bigtable.cnrm.cloud.google.com/v1beta1
+kind: BigtableGCPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "gc" $t $cf)) "id" (printf "gc-policy:%s/%s" $t $cf) "project" $v.project_id) | nindent 2 }}
+spec:
+  instanceRef:
+    name: {{ $.Release.Name }}
+  tableRef:
+    name: {{ include "kcc.name" (list $.Release.Name "table" $t) }}
+  columnFamily: {{ $cf | quote }}
+  {{- with $p.gc_rules }}
+  gcRules: {{ . | quote }}
+  {{- end }}
+  {{- with $p.mode }}
+  mode: {{ . | quote }}
+  {{- end }}
+  {{- with $p.deletion_policy }}
+  deletionPolicy: {{ . | quote }}
+  {{- end }}
+  {{- with $p.max_age }}
+  maxAge:
+    - duration: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $p.max_version) }}
+  maxVersion:
+    - number: {{ int $p.max_version }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

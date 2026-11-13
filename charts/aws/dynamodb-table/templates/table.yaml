@@ -1,0 +1,170 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the table (aws_dynamodb_table.this, dynamodb/Table), with the
+module's standalone resource policy (aws_dynamodb_resource_policy ->
+resourcePolicy) inline. The autoscaled variants (autoscaling_enabled) are
+not ported yet.
+*/ -}}
+{{- include "ack.names" (list $ (list "table")) -}}
+{{- $v := .Values -}}
+{{- if $v.create_table }}
+{{- $name := "" }}
+{{- if index ($v.names | default dict) "table" }}
+{{- $name = include "ack.resourceName" (list $ "table" "table" "" 255) }}
+{{- else if $v.name }}
+{{- $name = include "ack.cloudName" (list $ "table" $v.name 255) }}
+{{- else }}
+{{- fail "dynamodb-table: name is required: the table's name (or names.table)" }}
+{{- end }}
+{{- if not $v.hash_key }}
+{{- fail "dynamodb-table: hash_key is required: a table's partition key" }}
+{{- end }}
+{{- $proj := dict }}
+{{- $tags := include "ack.tags" (list $ $v.tags (dict "Name" $name)) | fromJson }}
+---
+apiVersion: dynamodb.services.k8s.aws/v1alpha1
+kind: Table
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "table")) "id" "table" "region" ($v.region | default "")) | nindent 2 }}
+spec:
+  tableName: {{ $name | quote }}
+  billingMode: {{ $v.billing_mode | quote }}
+  attributeDefinitions:
+{{- range $a := $v.attributes }}
+    - attributeName: {{ $a.name | quote }}
+      attributeType: {{ $a.type | quote }}
+{{- end }}
+  keySchema:
+    - attributeName: {{ $v.hash_key | quote }}
+      keyType: HASH
+{{- with $v.range_key }}
+    - attributeName: {{ . | quote }}
+      keyType: RANGE
+{{- end }}
+{{- if or (not (kindIs "invalid" $v.read_capacity)) (not (kindIs "invalid" $v.write_capacity)) }}
+  provisionedThroughput:
+{{- if not (kindIs "invalid" $v.read_capacity) }}
+    readCapacityUnits: {{ $v.read_capacity | int64 }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.write_capacity) }}
+    writeCapacityUnits: {{ $v.write_capacity | int64 }}
+{{- end }}
+{{- end }}
+{{- if or $v.stream_enabled $v.stream_view_type }}
+  streamSpecification:
+    streamEnabled: {{ $v.stream_enabled }}
+{{- with $v.stream_view_type }}
+    streamViewType: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.table_class }}
+  tableClass: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.deletion_protection_enabled) }}
+  deletionProtectionEnabled: {{ $v.deletion_protection_enabled }}
+{{- end }}
+{{- if $v.ttl_enabled }}
+  timeToLive:
+    enabled: true
+    attributeName: {{ $v.ttl_attribute_name | quote }}
+{{- end }}
+{{- if $v.point_in_time_recovery_enabled }}
+  continuousBackups:
+    pointInTimeRecoveryEnabled: true
+{{- if not (kindIs "invalid" $v.point_in_time_recovery_period_in_days) }}
+    recoveryPeriodInDays: {{ $v.point_in_time_recovery_period_in_days | int64 }}
+{{- end }}
+{{- end }}
+{{- with $v.local_secondary_indexes }}
+  localSecondaryIndexes:
+{{- range $i := . }}
+    - indexName: {{ $i.name | quote }}
+      keySchema:
+        - attributeName: {{ $v.hash_key | quote }}
+          keyType: HASH
+        - attributeName: {{ $i.range_key | quote }}
+          keyType: RANGE
+      projection:
+        projectionType: {{ $i.projection_type | quote }}
+{{- with $i.non_key_attributes }}
+        nonKeyAttributes: {{ toJson . }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.global_secondary_indexes }}
+  globalSecondaryIndexes:
+{{- range $i := . }}
+    - indexName: {{ $i.name | quote }}
+      keySchema:
+        - attributeName: {{ $i.hash_key | quote }}
+          keyType: HASH
+{{- with $i.range_key }}
+        - attributeName: {{ . | quote }}
+          keyType: RANGE
+{{- end }}
+      projection:
+        projectionType: {{ $i.projection_type | quote }}
+{{- with $i.non_key_attributes }}
+        nonKeyAttributes: {{ toJson . }}
+{{- end }}
+{{- if or $i.read_capacity $i.write_capacity }}
+      provisionedThroughput:
+{{- with $i.read_capacity }}
+        readCapacityUnits: {{ . | int64 }}
+{{- end }}
+{{- with $i.write_capacity }}
+        writeCapacityUnits: {{ . | int64 }}
+{{- end }}
+{{- end }}
+{{- with $i.on_demand_throughput }}
+      onDemandThroughput:
+{{- with .max_read_request_units }}
+        maxReadRequestUnits: {{ . | int64 }}
+{{- end }}
+{{- with .max_write_request_units }}
+        maxWriteRequestUnits: {{ . | int64 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with $v.on_demand_throughput }}
+  onDemandThroughput:
+{{- with .max_read_request_units }}
+    maxReadRequestUnits: {{ . | int64 }}
+{{- end }}
+{{- with .max_write_request_units }}
+    maxWriteRequestUnits: {{ . | int64 }}
+{{- end }}
+{{- end }}
+{{- with $v.replica_regions }}
+  tableReplicas:
+{{- range $r := . }}
+    - regionName: {{ $r.region_name | quote }}
+{{- with $r.kms_key_arn }}
+      kmsMasterKeyID: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $v.server_side_encryption_enabled }}
+  sseSpecification:
+    enabled: true
+    sseType: KMS
+{{- with $v.server_side_encryption_kms_key_arn }}
+    kmsMasterKeyID: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.resource_policy }}
+{{- $p := . }}
+{{- if contains "__DYNAMODB_TABLE_ARN__" $p }}
+{{- if not (and $v.account_id $v.region) }}
+{{- fail "dynamodb-table: account_id and region are required for resource_policy's __DYNAMODB_TABLE_ARN__: the chart writes the table's ARN itself, and cannot look the account or region up (values.yaml, account_id)" }}
+{{- end }}
+{{- $p = replace "__DYNAMODB_TABLE_ARN__" (printf "arn:%s:dynamodb:%s:%s:table/%s" $v.partition $v.region $v.account_id $name) $p }}
+{{- end }}
+  resourcePolicy: {{ $p | quote }}
+{{- end }}
+  tags:
+{{- include "ack.tagList" (list $tags) | nindent 4 }}
+{{- end }}

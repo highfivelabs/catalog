@@ -1,0 +1,185 @@
+---
+# Source: gke-cluster/templates/firewall.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  name: autopilot-firewall-fw-webhooks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-firewall"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall:master_webhooks"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "gke-gke-ap-webhooks"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc"
+  description: "Managed by terraform gke module: Allow master to hit pods for admission controllers/webhooks"
+  direction: INGRESS
+  priority: 1000
+  sourceRanges: ["10.0.0.0/24"]
+  targetTags: ["gke-gke-ap"]
+  allow:
+    - protocol: "tcp"
+      ports: ["8443","9443","15017"]
+---
+# Source: gke-cluster/templates/cluster.yaml
+apiVersion: container.cnrm.cloud.google.com/v1beta1
+kind: ContainerCluster
+metadata:
+  name: autopilot-firewall
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-firewall"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "cluster"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: gke-ap
+  location: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gke"
+  networkingMode: VPC_NATIVE
+  enableAutopilot: true
+  releaseChannel:
+    channel: "REGULAR"
+  defaultSnatStatus:
+    disabled: false
+  clusterAutoscaling:
+    autoProvisioningDefaults:
+      serviceAccountRef: {"name":"autopilot-firewall-nodes"}
+  verticalPodAutoscaling:
+    enabled: true
+  enableL4IlbSubsetting: false
+  enableCiliumClusterwideNetworkPolicy: false
+  nodePoolAutoConfig:
+    networkTags:
+      tags: ["gke-gke-ap"]
+  masterAuth:
+    clientCertificateConfig:
+      issueClientCertificate: false
+  addonsConfig:
+    httpLoadBalancing:
+      disabled: false
+    horizontalPodAutoscaling:
+      disabled: false
+    gcpFilestoreCsiDriverConfig:
+      enabled: false
+    gkeBackupAgentConfig:
+      enabled: false
+  protectConfig:
+    workloadConfig:
+      auditMode: "DISABLED"
+  securityPostureConfig:
+    mode: "DISABLED"
+    vulnerabilityMode: "VULNERABILITY_DISABLED"
+  ipAllocationPolicy:
+    clusterSecondaryRangeName: "pods"
+    servicesSecondaryRangeName: "services"
+    stackType: "IPV4"
+  maintenancePolicy:
+    dailyMaintenanceWindow:
+      startTime: "05:00"
+  privateClusterConfig:
+    enablePrivateNodes: true
+    enablePrivateEndpoint: false
+  databaseEncryption:
+    state: "DECRYPTED"
+  workloadIdentityConfig:
+    workloadPool: "my-project.svc.id.goog"
+  notificationConfig:
+    pubsub:
+      enabled: false
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: autopilot-firewall-grant-my-project-roles-container-de-67fabb42
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-firewall"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/container.defaultNodeServiceAccount"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/container.defaultNodeServiceAccount"
+  memberFrom:
+    serviceAccountRef:
+      name: autopilot-firewall-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: autopilot-firewall-grant-my-project-roles-monitoring-m-60600910
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-firewall"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/monitoring.metricWriter"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: autopilot-firewall-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: autopilot-firewall-grant-my-project-roles-stackdriver-1a9fcf0b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-firewall"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "grant-my-project|roles/stackdriver.resourceMetadata.writer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/stackdriver.resourceMetadata.writer"
+  memberFrom:
+    serviceAccountRef:
+      name: autopilot-firewall-nodes
+---
+# Source: gke-cluster/templates/service-account.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: autopilot-firewall-nodes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "autopilot-firewall"
+    app.kubernetes.io/name: gke-cluster
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: tf-gke-gke-ap-3966
+  displayName: "tf-gke-gke-ap-3966"
+  description: "Terraform-managed service account for cluster gke-ap"
