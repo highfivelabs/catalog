@@ -17,7 +17,7 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
-| Gap kinds commit | `d54a2075f611ec13c22fd77d52aa35d0e55cef53` (config-connector-extensions main, 2026-11-13, round 5: NetworkServicesGateway (OPEN_MESH and SECURE_WEB_GATEWAY), EndpointsService, IAMPolicyBinding, ChronicleRuleDeployment; IAMBinding and IAMMember deleted without a call when their parent is being deleted): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
+| Gap kinds commit | `3de8de68304dd1be11757e786692db235139df7a` (config-connector-extensions main, 2026-11-13, round 6: ChronicleRule and ChronicleReferenceList, NetworkServicesAuthzExtension with `service`, IAMAccessPolicy, IAMPolicyBinding on a resource, ComputeInterconnectAttachment, LoggingBillingAccountSink with every bucket form; every generated kind deleted without resolving its parent again): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
 | Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
 | Azure Service Operator release | `v2.22.0` (2026-10-30) |
 | Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |
