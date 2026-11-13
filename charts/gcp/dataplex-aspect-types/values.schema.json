@@ -1,0 +1,249 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dataplex-aspect-types values (fabric dataplex-aspect-types v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_id"
+  ],
+  "definitions": {
+    "condition": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "expression",
+        "title"
+      ],
+      "properties": {
+        "expression": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "aspectType": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "metadata_template": {
+          "description": "The aspect type's metadata template, as JSON text (the API's MetadataTemplate).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "iam": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "iam_bindings": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "members",
+              "role"
+            ],
+            "properties": {
+              "members": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "role": {
+                "type": "string"
+              },
+              "condition": {
+                "$ref": "#/definitions/condition"
+              }
+            }
+          }
+        },
+        "iam_bindings_additive": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "member",
+              "role"
+            ],
+            "properties": {
+              "member": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "condition": {
+                "$ref": "#/definitions/condition"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Aspect type IDs in full, by key (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 63,
+        "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every aspect type ID not set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label on every aspect type.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every aspect type (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "aspect_types": {
+      "description": "Aspect templates. Merged with those defined via the factory.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/aspectType"
+      }
+    },
+    "context": {
+      "description": "Context-specific interpolations (condition_vars, custom_roles, iam_principals, locations, project_ids). Refused when set (use Bundt expressions).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "factories_config": {
+      "description": "Paths to folders for the optional factories. Accepted and ignored; the files' contents go under factories_data.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "aspect_types": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "location": {
+      "description": "Location for aspect types.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project id where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "factories_data": {
+      "description": "The factory's files as data (not a Terraform variable): aspect_types.<file name> is that file's content.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "aspect_types": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/definitions/aspectType"
+          }
+        }
+      }
+    },
+    "allow_alpha": {
+      "description": "Accept v1alpha1 kinds (IAMMember, for iam_bindings_additive). Not a Terraform variable.",
+      "type": "boolean"
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

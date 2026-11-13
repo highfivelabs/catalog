@@ -1,0 +1,57 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/datafusion/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_data_fusion_instance.default: the DataFusionInstance "instance";
+google_compute_firewall.default (firewall_create): the ComputeFirewall
+"firewall", SSH from the instance's range. google_compute_global_address
+(ip_allocation_create) and google_compute_network_peering
+(network_peering) are refused: README.md, "Values".
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "ip_allocation_create" $v.ip_allocation_create "the instance's networkConfig.ipAllocation takes the range as a string, and the range Google allocates is known only after apply (no reference field carries it, gap 8): set ip_allocation_create: false and give the range in ip_allocation (net-vpc's psa_configs can reserve it)") }}
+{{- include "kcc.unsupported" (list $ "network_peering" $v.network_peering "the peer network is in the instance's tenant project (status.tenantProjectId), known only after apply, and ComputeNetworkPeering's peerNetworkRef takes it as a string (gap 8): set network_peering: false and peer to projects/<tenant project>/global/networks/<region>-<name> with the net-vpc-peering chart once the instance exists") }}
+{{- include "kcc.names" (list $ (list "instance" "firewall")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $name := include "kcc.resourceName" (list . "instance" "instance" $v.name 63 "letter") }}
+apiVersion: datafusion.cnrm.cloud.google.com/v1beta1
+kind: DataFusionInstance
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "instance" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name }}
+  location: {{ $v.region | quote }}
+  type: {{ $v.type }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  privateInstance: {{ $v.private_instance }}
+  enableStackdriverLogging: {{ $v.enable_stackdriver_logging }}
+  enableStackdriverMonitoring: {{ $v.enable_stackdriver_monitoring }}
+  networkConfig:
+    networkRef:
+      external: {{ $v.network | quote }}
+    {{- with $v.ip_allocation }}
+    ipAllocation: {{ . | quote }}
+    {{- end }}
+{{- if $v.firewall_create }}
+{{- $range := required "datafusion: firewall_create needs ip_allocation: the rule admits SSH from the instance's range" $v.ip_allocation }}
+{{- $fw := include "kcc.resourceName" (list . "firewall" "firewall" (printf "%s-allow-ssh" $v.name) 63 "letter") }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewall
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "allow-ssh")) "id" "firewall" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $fw }}
+  networkRef:
+    external: {{ $v.network | quote }}
+  direction: INGRESS
+  sourceRanges: [{{ $range | quote }}]
+  targetTags: [{{ printf "%s-allow-ssh" $v.name | quote }}]
+  allow:
+    - protocol: tcp
+      ports: ["22"]
+{{- end }}

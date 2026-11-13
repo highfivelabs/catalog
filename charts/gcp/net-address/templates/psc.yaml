@@ -1,0 +1,128 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-address/psc.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_compute_network_attachment.default: a ComputeNetworkAttachment of
+config-connector-extensions (compute.gcp.hfl.dev/v1beta1; Config
+Connector's own kind is v1alpha1), in the subnet's region.
+google_compute_global_address.psc and google_compute_address.psc: a
+ComputeAddress (global when the entry has no region), and, with a
+service_attachment, google_compute_global_forwarding_rule.psc_consumer or
+google_compute_forwarding_rule.psc_consumer: a ComputeForwardingRule on
+that address (a Google APIs bundle, all-apis or vpc-sc, as its
+googleAPIsBundle).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $api := "https://www.googleapis.com/compute/v1/" }}
+{{- range $key, $a := $v.network_attachments }}
+{{- $region := regexFind "regions/[^/]+" $a.subnet_self_link | trimPrefix "regions/" }}
+---
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkAttachment
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "attachment" $key)) "id" (printf "network_attachment:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "network attachment" $key 63 "letter") | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  region: {{ $region | quote }}
+  description: {{ ternary "Terraform-managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  connectionPreference: {{ ternary "ACCEPT_AUTOMATIC" "ACCEPT_MANUAL" (eq $a.automatic_connection true) }}
+  subnetworks:
+    - {{ ternary $a.subnet_self_link (printf "%s%s" $api $a.subnet_self_link) (hasPrefix "https://" $a.subnet_self_link) | quote }}
+  {{- with $a.producer_accept_lists }}
+  producerAcceptLists:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $a.producer_reject_lists }}
+  producerRejectLists:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- range $key, $a := $v.psc_addresses }}
+{{- /* fabric's validations of psc_addresses, with its messages. */ -}}
+{{- if and (kindIs "invalid" $a.address) (kindIs "invalid" $a.subnet_self_link) }}
+{{- fail "net-address: Provide address if creating a global PSC addresses / endpoints." }}
+{{- end }}
+{{- if and (kindIs "invalid" $a.region) (kindIs "invalid" $a.network) }}
+{{- fail "net-address: Provide network if creating global PSC addresses / endpoints." }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $a.region)) (kindIs "invalid" $a.subnet_self_link) }}
+{{- fail "net-address: Provide subnet_self_link if creating regional PSC addresses / endpoints." }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $a.subnet_self_link)) (not (kindIs "invalid" $a.network)) }}
+{{- fail "net-address: Do not provide network and subnet_self_link at the same time" }}
+{{- end }}
+{{- $global := kindIs "invalid" $a.region }}
+{{- $addr := include "kcc.name" (list $.Release.Name "psc" $key) }}
+{{- $name := include "kcc.cloudName" (list $ "PSC address" ($a.name | default $key) 63 "letter") }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $addr "id" (printf "psc:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  location: {{ ternary "global" $a.region $global | quote }}
+  {{- with $a.address }}
+  address: {{ . | quote }}
+  {{- end }}
+  addressType: INTERNAL
+  {{- if $global }}
+  purpose: PRIVATE_SERVICE_CONNECT
+  {{- end }}
+  description: {{ ternary "Terraform managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  {{- with $a.network }}
+  networkRef:
+    external: {{ trimPrefix $api . | quote }}
+  {{- end }}
+  {{- with $a.subnet_self_link }}
+  subnetworkRef:
+    external: {{ trimPrefix $api . | quote }}
+  {{- end }}
+{{- with $a.service_attachment }}
+{{- $sd := .service_directory_registration }}
+{{- if and $sd $sd.region }}
+{{- fail (printf "net-address: psc_addresses %s service_attachment.service_directory_registration.region is not supported: ComputeForwardingRule's serviceDirectoryRegistrations have no region (docs/gcp-inventory.md, \"Gaps\")" $key) }}
+{{- end }}
+{{- $target := .psc_service_attachment_link }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psc-consumer" $key)) "id" (printf "psc_consumer:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  location: {{ ternary "global" $a.region $global | quote }}
+  ipAddress:
+    addressRef:
+      name: {{ $addr }}
+  loadBalancingScheme: ""
+  target:
+    {{- if has $target (list "all-apis" "vpc-sc") }}
+    googleAPIsBundle: {{ $target | quote }}
+    {{- else }}
+    serviceAttachmentRef:
+      external: {{ trimPrefix $api $target | quote }}
+    {{- end }}
+  {{- if not (kindIs "invalid" .global_access) }}
+  allowPscGlobalAccess: {{ .global_access }}
+  {{- end }}
+  {{- if $global }}
+  networkRef:
+    external: {{ trimPrefix $api $a.network | quote }}
+  {{- else }}
+  subnetworkRef:
+    external: {{ trimPrefix $api $a.subnet_self_link | quote }}
+  {{- end }}
+  {{- with $sd }}
+  {{- with .namespace }}
+  serviceDirectoryRegistrations:
+    - namespace: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

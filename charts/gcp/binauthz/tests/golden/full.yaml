@@ -1,0 +1,154 @@
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationAttestor
+metadata:
+  name: full-attestor-build
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attestor:build"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  resourceID: "build"
+  userOwnedDrydockNote:
+    noteRef:
+      name: full-note-build
+    publicKeys:
+      - asciiArmoredPgpPublicKey: "-----BEGIN PGP PUBLIC KEY BLOCK-----\nmQENBFtP0doBCADF\n-----END PGP PUBLIC KEY BLOCK-----\n"
+      - pkixPublicKey:
+          publicKeyPem: "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\n-----END PUBLIC KEY-----\n"
+          signatureAlgorithm: "ECDSA_P256_SHA256"
+      - pkixPublicKey:
+          publicKeyPem: "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE\n-----END PUBLIC KEY-----\n"
+          signatureAlgorithm: "ECDSA_P384_SHA384"
+        id: "//cloudkms.googleapis.com/v1/projects/my-project/locations/global/keyRings/kr/cryptoKeys/k/cryptoKeyVersions/1"
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationAttestor
+metadata:
+  name: full-attestor-security
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attestor:security"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  resourceID: "security"
+  userOwnedDrydockNote:
+    noteRef:
+      external: "projects/security-project/notes/security-note"
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationPolicy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "projects/my-project"
+  admissionWhitelistPatterns:
+    - namePattern: "europe-docker.pkg.dev/my-project/images/*"
+    - namePattern: "gcr.io/google_containers/*"
+  defaultAdmissionRule:
+    evaluationMode: "REQUIRE_ATTESTATION"
+    enforcementMode: "DRYRUN_AUDIT_LOG_ONLY"
+    requireAttestationsBy:
+      - name: full-attestor-build
+      - name: full-attestor-security
+  clusterAdmissionRules:
+    "europe-west1-b.dev":
+      evaluationMode: "ALWAYS_ALLOW"
+      enforcementMode: "DRYRUN_AUDIT_LOG_ONLY"
+    "europe-west1.prod":
+      evaluationMode: "REQUIRE_ATTESTATION"
+      enforcementMode: "ENFORCED_BLOCK_AND_AUDIT_LOG"
+      requireAttestationsBy:
+        - name: full-attestor-build
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: containeranalysis.cnrm.cloud.google.com/v1beta1
+kind: ContainerAnalysisNote
+metadata:
+  name: full-note-build
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "note:build"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "build-note"
+  attestation:
+    hint:
+      humanReadableName: "Attestor build note"
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-attestor-build-iam-roles-binaryauthorization-atte-527ff494
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attestor-iam:build/roles/binaryauthorization.attestorsViewer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+    kind: BinaryAuthorizationAttestor
+    name: full-attestor-build
+  role: "roles/binaryauthorization.attestorsViewer"
+  members:
+    - "group:deployers@example.com"
+    - "serviceAccount:cd@my-project.iam.gserviceaccount.com"
+---
+# Source: binauthz/templates/main.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-attestor-build-iam-roles-containeranalysis-notes-42f87f32
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: binauthz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attestor-iam:build/roles/containeranalysis.notes.attacher"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+    kind: BinaryAuthorizationAttestor
+    name: full-attestor-build
+  role: "roles/containeranalysis.notes.attacher"
+  members:
+    - "serviceAccount:cd@my-project.iam.gserviceaccount.com"

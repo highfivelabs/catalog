@@ -39,6 +39,12 @@ spec:
   {{- end }}
   {{- range $t := $types }}
   {{- $c := index $hc $t | default dict }}
+  {{- /* The default's port_specification (USE_SERVING_PORT) merged into a
+  check that sets its own port: Terraform would have replaced the default,
+  and the API refuses a port with USE_SERVING_PORT, so it is dropped. */ -}}
+  {{- if and (eq $t "tcp") (eq (toString $c.port_specification) "USE_SERVING_PORT") (or (not (kindIs "invalid" $c.port)) (not (kindIs "invalid" $c.port_name))) }}
+  {{- $c = omit $c "port_specification" }}
+  {{- end }}
   {{ get (dict "grpc" "grpcHealthCheck" "http" "httpHealthCheck" "http2" "http2HealthCheck" "https" "httpsHealthCheck" "tcp" "tcpHealthCheck" "ssl" "sslHealthCheck") $t }}:
     {{- $fields := dict "port" "port" "port_name" "portName" "port_specification" "portSpecification" "service_name" "grpcServiceName" "host" "host" "proxy_header" "proxyHeader" "request_path" "requestPath" "request" "request" "response" "response" }}
     {{- $out := dict }}

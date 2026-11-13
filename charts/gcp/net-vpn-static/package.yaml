@@ -1,0 +1,31 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.gateway, resources.address when the chart makes it) and the
+# component's values (inputs). id is built from the spec as Terraform's is.
+# Not outputs: random_secret (the chart makes no secret), tunnel_names and
+# tunnel_self_links (tunnels is refused, so there are none), and fabric's
+# whole objects (gateway, tunnels).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-vpn-static
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    address: >-
+      'address' in resources
+      ? (has(resources.address.status.observedState) && has(resources.address.status.observedState.address)
+        ? dyn(resources.address.status.observedState.address)
+        : (has(resources.address.spec.address) ? dyn(resources.address.spec.address) : null))
+      : inputs.gateway_address
+    id: >-
+      'projects/' + resources.gateway.metadata.annotations['cnrm.cloud.google.com/project-id']
+      + '/regions/' + resources.gateway.spec.region
+      + '/targetVpnGateways/' + resources.gateway.spec.resourceID
+    name: resources.gateway.spec.resourceID
+    self_link: resources.gateway.status.selfLink

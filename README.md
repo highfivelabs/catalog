@@ -26,6 +26,7 @@ those modules keeps its variables, its names and its outputs.
 | `hack/test.sh`, `hack/ack.sh` | render tests (offline, seconds), behind `task test`; `hack/ack.sh` fetches the CRDs of the ACK controllers `UPSTREAM.md` pins |
 | `hack/mock-apply.sh`, `hack/mock-apply-aws.sh`, `hack/live-apply.sh` | the fake-cloud (Google Cloud, AWS) and real-project applies (an offload VM, never a laptop), behind `task test-mock`, `task test-mock-aws` and `task test-live` |
 | `hack/azure-live.sh` | the Azure charts applied to the Azure sandbox with Azure Service Operator on kind (an offload VM, keyless federation), behind `task test-live-azure` |
+| `hack/azure-mock.sh` | each Azure chart's `tests/mock.values.yaml` applied to aso-extensions' fake cloud (fakearm, fakeentra) with stock Azure Service Operator on kind (an offload VM), behind `task test-mock-azure` |
 | `hack/inventory/run.sh` | regenerates the inventory's tables, behind `task inventory` |
 | `UPSTREAM.md` | the fabric and Config Connector commits everything is pinned to, the tracked modules' licences, and how to move a pin |
 
@@ -127,24 +128,24 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 5 ported, 42 partial, 62 blocked, 68 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 10 ported, 69 partial, 71 blocked, 27 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 500 of 1478 (33.8%) |
-| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 378 of 2348 (16.1%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 180 of 1170 (15.4%) |
-| **All** | **177** | | **1058 of 4996 (21.2%)** |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 717 of 1478 (48.5%) |
+| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 469 of 2348 (20.0%) |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 371 of 1170 (31.7%) |
+| **All** | **177** | | **1557 of 4996 (31.2%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-4 ported, 24 partial, 61 blocked, 9 not started.
+8 ported, 41 partial, 46 blocked, 3 not started.
 
 **Ported and partial**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
-| [`project`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project) ([chart](charts/gcp/project)) | ![project](docs/coverage/bars/gcp-project.svg) 33 of 58 | 9 of 27 | 41 of 49 | partial |
+| [`project`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project) ([chart](charts/gcp/project)) | ![project](docs/coverage/bars/gcp-project.svg) 41 of 58 | 14 of 27 | 41 of 49 | partial |
 | [`iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account) ([chart](charts/gcp/iam-service-account)) | ![iam-service-account](docs/coverage/bars/gcp-iam-service-account.svg) 24 of 28 | 5 of 6 | 9 of 9 | partial |
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`net-vpc-firewall`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-firewall) ([chart](charts/gcp/net-vpc-firewall)) | ![net-vpc-firewall](docs/coverage/bars/gcp-net-vpc-firewall.svg) 7 of 8 | 0 of 2 | 1 of 1 | partial |
@@ -155,16 +156,37 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`artifact-registry`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/artifact-registry) ([chart](charts/gcp/artifact-registry)) | ![artifact-registry](docs/coverage/bars/gcp-artifact-registry.svg) 15 of 17 | 3 of 4 | 4 of 4 | partial |
 | [`secret-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secret-manager) ([chart](charts/gcp/secret-manager)) | ![secret-manager](docs/coverage/bars/gcp-secret-manager.svg) 3 of 4 | 1 of 5 | 6 of 10 | partial |
 | [`cloudsql-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance) ([chart](charts/gcp/cloudsql-instance)) | ![cloudsql-instance](docs/coverage/bars/gcp-cloudsql-instance.svg) 31 of 35 | 14 of 17 | 4 of 4 | partial |
+| [`gke-cluster-standard`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-cluster-standard) ([chart](charts/gcp/gke-cluster-standard)) | ![gke-cluster-standard](docs/coverage/bars/gcp-gke-cluster-standard.svg) 23 of 25 | 14 of 15 | 2 of 6 | partial |
+| [`gke-cluster-autopilot`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-cluster-autopilot) ([chart](charts/gcp/gke-cluster-autopilot)) | ![gke-cluster-autopilot](docs/coverage/bars/gcp-gke-cluster-autopilot.svg) 19 of 21 | 14 of 15 | 2 of 6 | partial |
 | [`gke-nodepool`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool) ([chart](charts/gcp/gke-nodepool)) | ![gke-nodepool](docs/coverage/bars/gcp-gke-nodepool.svg) 20 of 20 | 4 of 4 | 2 of 2 | partial |
 | [`pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub) ([chart](charts/gcp/pubsub)) | ![pubsub](docs/coverage/bars/gcp-pubsub.svg) 13 of 14 | 3 of 6 | 7 of 7 | partial |
+| [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) ([chart](charts/gcp/net-firewall-policy)) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 11 of 13 | 1 of 1 | 6 of 11 | partial |
 | [`vpc-sc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/vpc-sc) ([chart](charts/gcp/vpc-sc)) | ![vpc-sc](docs/coverage/bars/gcp-vpc-sc.svg) 10 of 12 | 3 of 6 | 5 of 5 | partial |
 | [`net-vpc-peering`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-peering) ([chart](charts/gcp/net-vpc-peering)) | ![net-vpc-peering](docs/coverage/bars/gcp-net-vpc-peering.svg) 7 of 7 | 0 of 2 | 1 of 1 | ported |
+| [`net-address`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-address) ([chart](charts/gcp/net-address)) | ![net-address](docs/coverage/bars/gcp-net-address.svg) 8 of 9 | 8 of 8 | 4 of 5 | partial |
 | [`cloud-identity-group`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-identity-group) ([chart](charts/gcp/cloud-identity-group)) | ![cloud-identity-group](docs/coverage/bars/gcp-cloud-identity-group.svg) 6 of 6 | 2 of 2 | 2 of 2 | ported |
+| [`certificate-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/certificate-manager) ([chart](charts/gcp/certificate-manager)) | ![certificate-manager](docs/coverage/bars/gcp-certificate-manager.svg) 5 of 5 | 2 of 5 | 4 of 5 | partial |
 | [`net-lb-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-int) ([chart](charts/gcp/net-lb-int)) | ![net-lb-int](docs/coverage/bars/gcp-net-lb-int.svg) 14 of 15 | 8 of 13 | 6 of 6 | partial |
+| [`net-lb-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-ext) ([chart](charts/gcp/net-lb-ext)) | ![net-lb-ext](docs/coverage/bars/gcp-net-lb-ext.svg) 10 of 11 | 7 of 12 | 4 of 4 | partial |
 | [`service-directory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/service-directory) ([chart](charts/gcp/service-directory)) | ![service-directory](docs/coverage/bars/gcp-service-directory.svg) 8 of 8 | 4 of 7 | 5 of 5 | partial |
 | [`alloydb`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/alloydb) ([chart](charts/gcp/alloydb)) | ![alloydb](docs/coverage/bars/gcp-alloydb.svg) 31 of 33 | 20 of 30 | 4 of 4 | partial |
 | [`bigtable-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigtable-instance) ([chart](charts/gcp/bigtable-instance)) | ![bigtable-instance](docs/coverage/bars/gcp-bigtable-instance.svg) 11 of 11 | 2 of 4 | 4 of 4 | partial |
+| [`net-cloud-armor`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloud-armor) ([chart](charts/gcp/net-cloud-armor)) | ![net-cloud-armor](docs/coverage/bars/gcp-net-cloud-armor.svg) 12 of 16 | 3 of 3 | 4 of 7 | partial |
+| [`net-lb-proxy-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int-cross-region) ([chart](charts/gcp/net-lb-proxy-int-cross-region)) | ![net-lb-proxy-int-cross-region](docs/coverage/bars/gcp-net-lb-proxy-int-cross-region.svg) 13 of 14 | 10 of 15 | 7 of 8 | partial |
+| [`net-vpn-static`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-static) ([chart](charts/gcp/net-vpn-static)) | ![net-vpn-static](docs/coverage/bars/gcp-net-vpn-static.svg) 8 of 9 | 4 of 9 | 5 of 5 | partial |
+| [`ncc-spoke-ra`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/ncc-spoke-ra) ([chart](charts/gcp/ncc-spoke-ra)) | ![ncc-spoke-ra](docs/coverage/bars/gcp-ncc-spoke-ra.svg) 8 of 8 | 2 of 5 | 5 of 6 | partial |
 | [`gke-hub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-hub) ([chart](charts/gcp/gke-hub)) | ![gke-hub](docs/coverage/bars/gcp-gke-hub.svg) 7 of 8 | 1 of 1 | 3 of 3 | partial |
+| [`binauthz`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/binauthz) ([chart](charts/gcp/binauthz)) | ![binauthz](docs/coverage/bars/gcp-binauthz.svg) 5 of 5 | 3 of 3 | 3 of 4 | ported |
+| [`backup-dr`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/backup-dr) ([chart](charts/gcp/backup-dr)) | ![backup-dr](docs/coverage/bars/gcp-backup-dr.svg) 7 of 7 | 4 of 4 | 2 of 3 | partial |
+| [`source-repository`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/source-repository) ([chart](charts/gcp/source-repository)) | ![source-repository](docs/coverage/bars/gcp-source-repository.svg) 7 of 7 | 3 of 3 | 4 of 4 | partial |
+| [`biglake-catalog`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/biglake-catalog) ([chart](charts/gcp/biglake-catalog)) | ![biglake-catalog](docs/coverage/bars/gcp-biglake-catalog.svg) 4 of 4 | 6 of 6 | 1 of 3 | ported |
+| [`dataproc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataproc) ([chart](charts/gcp/dataproc)) | ![dataproc](docs/coverage/bars/gcp-dataproc.svg) 9 of 9 | 2 of 2 | 3 of 3 | partial |
+| [`datafusion`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/datafusion) ([chart](charts/gcp/datafusion)) | ![datafusion](docs/coverage/bars/gcp-datafusion.svg) 14 of 14 | 5 of 6 | 4 of 4 | partial |
+| [`dataplex`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex) ([chart](charts/gcp/dataplex)) | ![dataplex](docs/coverage/bars/gcp-dataplex.svg) 7 of 7 | 4 of 4 | 0 of 5 | ported |
+| [`dataplex-datascan`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-datascan) ([chart](charts/gcp/dataplex-datascan)) | ![dataplex-datascan](docs/coverage/bars/gcp-dataplex-datascan.svg) 16 of 16 | 4 of 4 | 0 of 3 | partial |
+| [`dataplex-aspect-types`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-aspect-types) ([chart](charts/gcp/dataplex-aspect-types)) | ![dataplex-aspect-types](docs/coverage/bars/gcp-dataplex-aspect-types.svg) 4 of 5 | 4 of 4 | 0 of 3 | partial |
+| [`data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag) ([chart](charts/gcp/data-catalog-policy-tag)) | ![data-catalog-policy-tag](docs/coverage/bars/gcp-data-catalog-policy-tag.svg) 11 of 12 | 2 of 2 | 6 of 6 | partial |
+| [`api-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/api-gateway) ([chart](charts/gcp/api-gateway)) | ![api-gateway](docs/coverage/bars/gcp-api-gateway.svg) 8 of 8 | 10 of 10 | 4 of 9 | ported |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 137 of 162 | 30 of 36 | 0 of 0 | partial |
 | [`network-firewall-rules`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/firewall-rules) ([chart](charts/gcp/firewall-rules)) | ![network-firewall-rules](docs/coverage/bars/gcp-network-firewall-rules.svg) 5 of 5 | 2 of 2 | 0 of 0 | ported |
 | [`network-network-firewall-policy`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/network-firewall-policy) ([chart](charts/gcp/network-firewall-policy)) | ![network-network-firewall-policy](docs/coverage/bars/gcp-network-network-firewall-policy.svg) 6 of 8 | 3 of 3 | 0 of 0 | partial |
@@ -173,77 +195,78 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 61, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 46, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`folder`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/folder) | ![folder](docs/coverage/bars/gcp-folder.svg) 0 of 31 | 0 of 9 | 16 of 24 | blocked |
 | [`organization`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/organization) | ![organization](docs/coverage/bars/gcp-organization.svg) 0 of 35 | 0 of 23 | 25 of 35 | blocked |
-| [`gke-cluster-standard`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-cluster-standard) | ![gke-cluster-standard](docs/coverage/bars/gcp-gke-cluster-standard.svg) 0 of 25 | 0 of 15 | 2 of 6 | blocked |
-| [`gke-cluster-autopilot`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-cluster-autopilot) | ![gke-cluster-autopilot](docs/coverage/bars/gcp-gke-cluster-autopilot.svg) 0 of 21 | 0 of 15 | 2 of 6 | blocked |
 | [`bigquery-dataset`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/bigquery-dataset) | ![bigquery-dataset](docs/coverage/bars/gcp-bigquery-dataset.svg) 0 of 24 | 0 of 12 | 4 of 7 | blocked |
 | [`cloud-run-v2`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-run-v2) | ![cloud-run-v2](docs/coverage/bars/gcp-cloud-run-v2.svg) 0 of 21 | 0 of 12 | 9 of 13 | blocked |
 | [`billing-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/billing-account) | ![billing-account](docs/coverage/bars/gcp-billing-account.svg) 0 of 11 | 0 of 2 | 8 of 10 | blocked |
 | [`logging-bucket`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/logging-bucket) | ![logging-bucket](docs/coverage/bars/gcp-logging-bucket.svg) 0 of 12 | 0 of 2 | 7 of 9 | blocked |
-| [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 0 of 13 | 0 of 1 | 6 of 11 | blocked |
 | [`project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory) | ![project-factory](docs/coverage/bars/gcp-project-factory.svg) 0 of 8 | 0 of 16 | 0 of 1 | blocked |
+| [`net-vpn-ha`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-ha) | ![net-vpn-ha](docs/coverage/bars/gcp-net-vpn-ha.svg) 0 of 10 | 0 of 15 | 6 of 7 | blocked |
+| [`dns-response-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dns-response-policy) | ![dns-response-policy](docs/coverage/bars/gcp-dns-response-policy.svg) 0 of 9 | 0 of 3 | 0 of 2 | blocked |
+| [`net-lb-app-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-ext) | ![net-lb-app-ext](docs/coverage/bars/gcp-net-lb-app-ext.svg) 0 of 17 | 0 of 13 | 12 of 15 | blocked |
 
 **Not started**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`net-vpc-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-factory) | ![net-vpc-factory](docs/coverage/bars/gcp-net-vpc-factory.svg) 0 of 4 | 0 of 3 | 0 of 0 | not started |
-| [`net-lb-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-ext) | ![net-lb-ext](docs/coverage/bars/gcp-net-lb-ext.svg) 0 of 11 | 0 of 12 | 4 of 4 | not started |
-| [`net-vpn-static`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-static) | ![net-vpn-static](docs/coverage/bars/gcp-net-vpn-static.svg) 0 of 9 | 0 of 9 | 5 of 5 | not started |
-| [`source-repository`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/source-repository) | ![source-repository](docs/coverage/bars/gcp-source-repository.svg) 0 of 7 | 0 of 3 | 4 of 4 | not started |
-| [`dataproc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataproc) | ![dataproc](docs/coverage/bars/gcp-dataproc.svg) 0 of 9 | 0 of 2 | 3 of 3 | not started |
-| [`datafusion`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/datafusion) | ![datafusion](docs/coverage/bars/gcp-datafusion.svg) 0 of 14 | 0 of 6 | 4 of 4 | not started |
-| [`data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag) | ![data-catalog-policy-tag](docs/coverage/bars/gcp-data-catalog-policy-tag.svg) 0 of 12 | 0 of 2 | 6 of 6 | not started |
 | [`projects-data-source`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/projects-data-source) | ![projects-data-source](docs/coverage/bars/gcp-projects-data-source.svg) 0 of 5 | 0 of 2 | 0 of 0 | not started |
 | [`cloud-config-container`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-config-container) | ![cloud-config-container](docs/coverage/bars/gcp-cloud-config-container.svg) 0 of 0 | 0 of 0 | 0 of 0 | not started |
 
 ### AWS: terraform-aws-modules
 
-0 ported, 9 partial, 1 blocked, 32 not started.
+0 ported, 13 partial, 25 blocked, 4 not started.
 
 **Ported and partial**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`s3-bucket`](https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/tree/v5.17.0) ([chart](charts/aws/s3-bucket)) | ![s3-bucket](docs/coverage/bars/aws-s3-bucket.svg) 27 of 78 | 8 of 21 | 38 of 45 | partial |
-| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 109 of 236 | 53 of 119 | 24 of 35 | partial |
+| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 110 of 236 | 53 of 119 | 24 of 35 | partial |
 | [`kms`](https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2) ([chart](charts/aws/kms)) | ![kms](docs/coverage/bars/aws-kms.svg) 30 of 41 | 4 of 9 | 3 of 6 | partial |
 | [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) ([chart](charts/aws/security-group)) | ![security-group](docs/coverage/bars/aws-security-group.svg) 10 of 14 | 5 of 5 | 4 of 5 | partial |
-| [`rds`](https://github.com/terraform-aws-modules/terraform-aws-rds/tree/v7.2.2) ([chart](charts/aws/rds)) | ![rds](docs/coverage/bars/aws-rds.svg) 89 of 111 | 27 of 34 | 6 of 10 | partial |
+| [`rds`](https://github.com/terraform-aws-modules/terraform-aws-rds/tree/v7.2.2) ([chart](charts/aws/rds)) | ![rds](docs/coverage/bars/aws-rds.svg) 89 of 111 | 27 of 34 | 7 of 10 | partial |
 | [`acm`](https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1) ([chart](charts/aws/acm)) | ![acm](docs/coverage/bars/aws-acm.svg) 23 of 24 | 7 of 7 | 2 of 3 | partial |
 | [`ec2-instance`](https://github.com/terraform-aws-modules/terraform-aws-ec2-instance/tree/v6.4.1) ([chart](charts/aws/ec2-instance)) | ![ec2-instance](docs/coverage/bars/aws-ec2-instance.svg) 53 of 83 | 20 of 30 | 8 of 12 | partial |
+| [`sqs`](https://github.com/terraform-aws-modules/terraform-aws-sqs/tree/v5.2.2) ([chart](charts/aws/sqs)) | ![sqs](docs/coverage/bars/aws-sqs.svg) 22 of 42 | 5 of 10 | 4 of 4 | partial |
+| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) ([chart](charts/aws/dynamodb-table)) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 27 of 39 | 4 of 8 | 4 of 4 | partial |
+| [`sns`](https://github.com/terraform-aws-modules/terraform-aws-sns/tree/v7.2.0) ([chart](charts/aws/sns)) | ![sns](docs/coverage/bars/aws-sns.svg) 27 of 29 | 4 of 6 | 4 of 4 | partial |
+| [`ssm-parameter`](https://github.com/terraform-aws-modules/terraform-aws-ssm-parameter/tree/v2.1.2) ([chart](charts/aws/ssm-parameter)) | ![ssm-parameter](docs/coverage/bars/aws-ssm-parameter.svg) 14 of 16 | 8 of 9 | 1 of 1 | partial |
 | [`iam-role`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-role) ([chart](charts/aws/iam-role)) | ![iam-role](docs/coverage/bars/aws-iam-role.svg) 31 of 31 | 7 of 7 | 4 of 4 | partial |
 | [`iam-policy`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-policy) ([chart](charts/aws/iam-policy)) | ![iam-policy](docs/coverage/bars/aws-iam-policy.svg) 6 of 7 | 4 of 4 | 1 of 1 | partial |
 
-**Blocked: a resource type has no stable kind**
+**Blocked: a resource type has no stable kind (first 10 of 25, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`iam`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2) | ![iam](docs/coverage/bars/aws-iam.svg) 0 of 0 | 0 of 0 | 11 of 17 | blocked |
+| [`eks`](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/v21.29.0) | ![eks](docs/coverage/bars/aws-eks.svg) 0 of 108 | 0 of 41 | 26 of 30 | blocked |
+| [`rds-aurora`](https://github.com/terraform-aws-modules/terraform-aws-rds-aurora/tree/v10.4.2) | ![rds-aurora](docs/coverage/bars/aws-rds-aurora.svg) 0 of 114 | 0 of 33 | 17 of 21 | blocked |
+| [`route53`](https://github.com/terraform-aws-modules/terraform-aws-route53/tree/v6.5.1) | ![route53](docs/coverage/bars/aws-route53.svg) 0 of 22 | 0 of 16 | 9 of 16 | blocked |
+| [`ecs`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/v7.6.1) | ![ecs](docs/coverage/bars/aws-ecs.svg) 0 of 60 | 0 of 20 | 15 of 18 | blocked |
+| [`alb`](https://github.com/terraform-aws-modules/terraform-aws-alb/tree/v10.5.1) | ![alb](docs/coverage/bars/aws-alb.svg) 0 of 50 | 0 of 11 | 10 of 14 | blocked |
+| [`eventbridge`](https://github.com/terraform-aws-modules/terraform-aws-eventbridge/tree/v4.3.3) | ![eventbridge](docs/coverage/bars/aws-eventbridge.svg) 0 of 83 | 0 of 34 | 13 of 18 | blocked |
+| [`cloudwatch`](https://github.com/terraform-aws-modules/terraform-aws-cloudwatch/tree/v6.0.0) | ![cloudwatch](docs/coverage/bars/aws-cloudwatch.svg) 0 of 0 | 0 of 0 | 5 of 11 | blocked |
+| [`autoscaling`](https://github.com/terraform-aws-modules/terraform-aws-autoscaling/tree/v9.3.2) | ![autoscaling](docs/coverage/bars/aws-autoscaling.svg) 0 of 96 | 0 of 27 | 6 of 8 | blocked |
+| [`secrets-manager`](https://github.com/terraform-aws-modules/terraform-aws-secrets-manager/tree/v2.2.0) | ![secrets-manager](docs/coverage/bars/aws-secrets-manager.svg) 0 of 29 | 0 of 7 | 3 of 4 | blocked |
 
-**Not started (first 10 of 32, by rank)**
+**Not started**
 
-| Module | Variables covered | Outputs | Resource types | Status |
+| Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
-| [`eks`](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/v21.29.0) | ![eks](docs/coverage/bars/aws-eks.svg) 0 of 108 | 0 of 41 | 30 | not started |
 | [`lambda`](https://github.com/terraform-aws-modules/terraform-aws-lambda/tree/v8.13.0) | ![lambda](docs/coverage/bars/aws-lambda.svg) 0 of 141 | 0 of 36 | 21 | not started |
-| [`rds-aurora`](https://github.com/terraform-aws-modules/terraform-aws-rds-aurora/tree/v10.4.2) | ![rds-aurora](docs/coverage/bars/aws-rds-aurora.svg) 0 of 114 | 0 of 33 | 21 | not started |
-| [`sqs`](https://github.com/terraform-aws-modules/terraform-aws-sqs/tree/v5.2.2) | ![sqs](docs/coverage/bars/aws-sqs.svg) 0 of 42 | 0 of 10 | 4 | not started |
-| [`route53`](https://github.com/terraform-aws-modules/terraform-aws-route53/tree/v6.5.1) | ![route53](docs/coverage/bars/aws-route53.svg) 0 of 22 | 0 of 16 | 16 | not started |
-| [`ecs`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/v7.6.1) | ![ecs](docs/coverage/bars/aws-ecs.svg) 0 of 60 | 0 of 20 | 18 | not started |
-| [`alb`](https://github.com/terraform-aws-modules/terraform-aws-alb/tree/v10.5.1) | ![alb](docs/coverage/bars/aws-alb.svg) 0 of 50 | 0 of 11 | 14 | not started |
-| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 0 of 39 | 0 of 8 | 4 | not started |
-| [`eventbridge`](https://github.com/terraform-aws-modules/terraform-aws-eventbridge/tree/v4.3.3) | ![eventbridge](docs/coverage/bars/aws-eventbridge.svg) 0 of 83 | 0 of 34 | 18 | not started |
-| [`cloudwatch`](https://github.com/terraform-aws-modules/terraform-aws-cloudwatch/tree/v6.0.0) | ![cloudwatch](docs/coverage/bars/aws-cloudwatch.svg) 0 of 0 | 0 of 0 | 11 | not started |
+| [`eks-pod-identity`](https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/tree/v2.10.0) | ![eks-pod-identity](docs/coverage/bars/aws-eks-pod-identity.svg) 0 of 82 | 0 of 8 | 4 of 4 | not started |
+| [`step-functions`](https://github.com/terraform-aws-modules/terraform-aws-step-functions/tree/v5.1.1) | ![step-functions](docs/coverage/bars/aws-step-functions.svg) 0 of 42 | 0 of 10 | 6 of 6 | not started |
+| [`notify-slack`](https://github.com/terraform-aws-modules/terraform-aws-notify-slack/tree/v7.5.2) | ![notify-slack](docs/coverage/bars/aws-notify-slack.svg) 0 of 51 | 0 of 11 | 4 of 4 | not started |
 
 ### Azure: Azure Verified Modules
 
-1 ported, 9 partial, 0 blocked, 27 not started.
+2 ported, 15 partial, 0 blocked, 20 not started.
 
 **Ported and partial**
 
@@ -255,25 +278,32 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-keyvault-vault`](https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/tree/v0.13.0) ([chart](charts/azure/avm-res-keyvault-vault)) | ![avm-res-keyvault-vault](docs/coverage/bars/azure-avm-res-keyvault-vault.svg) 24 of 34 | 5 of 8 | 5 | partial |
 | [`avm-res-resources-resourcegroup`](https://github.com/Azure/terraform-azurerm-avm-res-resources-resourcegroup/tree/v0.5.0) ([chart](charts/azure/avm-res-resources-resourcegroup)) | ![avm-res-resources-resourcegroup](docs/coverage/bars/azure-avm-res-resources-resourcegroup.svg) 7 of 10 | 3 of 4 | 2 | partial |
 | [`avm-res-managedidentity-userassignedidentity`](https://github.com/Azure/terraform-azurerm-avm-res-managedidentity-userassignedidentity/tree/v0.6.0) ([chart](charts/azure/avm-res-managedidentity-userassignedidentity)) | ![avm-res-managedidentity-userassignedidentity](docs/coverage/bars/azure-avm-res-managedidentity-userassignedidentity.svg) 8 of 9 | 5 of 6 | 4 | partial |
+| [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1) ([chart](charts/azure/avm-res-operationalinsights-workspace)) | ![avm-res-operationalinsights-workspace](docs/coverage/bars/azure-avm-res-operationalinsights-workspace.svg) 19 of 31 | 1 of 3 | 20 | partial |
 | [`avm-res-network-routetable`](https://github.com/Azure/terraform-azurerm-avm-res-network-routetable/tree/v0.6.0) ([chart](charts/azure/avm-res-network-routetable)) | ![avm-res-network-routetable](docs/coverage/bars/azure-avm-res-network-routetable.svg) 10 of 11 | 3 of 4 | 6 | partial |
 | [`avm-res-network-natgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-natgateway/tree/v0.3.2) ([chart](charts/azure/avm-res-network-natgateway)) | ![avm-res-network-natgateway](docs/coverage/bars/azure-avm-res-network-natgateway.svg) 17 of 18 | 2 of 3 | 4 | partial |
-| [`avm-res-network-privatednszone`](https://github.com/Azure/terraform-azurerm-avm-res-network-privatednszone/tree/v0.6.0) ([chart](charts/azure/avm-res-network-privatednszone)) | ![avm-res-network-privatednszone](docs/coverage/bars/azure-avm-res-network-privatednszone.svg) 16 of 19 | 11 of 12 | 12 | partial |
+| [`avm-res-network-privatednszone`](https://github.com/Azure/terraform-azurerm-avm-res-network-privatednszone/tree/v0.6.0) ([chart](charts/azure/avm-res-network-privatednszone)) | ![avm-res-network-privatednszone](docs/coverage/bars/azure-avm-res-network-privatednszone.svg) 17 of 19 | 11 of 12 | 12 | partial |
 | [`avm-res-network-publicipaddress`](https://github.com/Azure/terraform-azurerm-avm-res-network-publicipaddress/tree/v0.2.1) ([chart](charts/azure/avm-res-network-publicipaddress)) | ![avm-res-network-publicipaddress](docs/coverage/bars/azure-avm-res-network-publicipaddress.svg) 21 of 21 | 4 of 4 | 4 | ported |
+| [`avm-res-network-loadbalancer`](https://github.com/Azure/terraform-azurerm-avm-res-network-loadbalancer/tree/v0.5.0) ([chart](charts/azure/avm-res-network-loadbalancer)) | ![avm-res-network-loadbalancer](docs/coverage/bars/azure-avm-res-network-loadbalancer.svg) 22 of 23 | 5 of 7 | 13 | partial |
+| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) ([chart](charts/azure/avm-res-containerregistry-registry)) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 28 of 35 | 7 of 12 | 10 | partial |
+| [`avm-res-network-firewallpolicy`](https://github.com/Azure/terraform-azurerm-avm-res-network-firewallpolicy/tree/v0.3.4) ([chart](charts/azure/avm-res-network-firewallpolicy)) | ![avm-res-network-firewallpolicy](docs/coverage/bars/azure-avm-res-network-firewallpolicy.svg) 21 of 22 | 1 of 2 | 5 | partial |
+| [`avm-res-containerservice-managedcluster`](https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster/tree/v0.9.0) ([chart](charts/azure/avm-res-containerservice-managedcluster)) | ![avm-res-containerservice-managedcluster](docs/coverage/bars/azure-avm-res-containerservice-managedcluster.svg) 59 of 73 | 21 of 26 | 3 | partial |
+| [`avm-res-insights-component`](https://github.com/Azure/terraform-azurerm-avm-res-insights-component/tree/v0.5.0) ([chart](charts/azure/avm-res-insights-component)) | ![avm-res-insights-component](docs/coverage/bars/azure-avm-res-insights-component.svg) 20 of 25 | 5 of 6 | 2 | partial |
+| [`avm-res-network-bastionhost`](https://github.com/Azure/terraform-azurerm-avm-res-network-bastionhost/tree/v0.9.0) ([chart](charts/azure/avm-res-network-bastionhost)) | ![avm-res-network-bastionhost](docs/coverage/bars/azure-avm-res-network-bastionhost.svg) 21 of 21 | 3 of 4 | 4 | ported |
 
-**Not started (first 10 of 27, by rank)**
+**Not started (first 10 of 20, by rank)**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
 | [`avm-res-compute-virtualmachine`](https://github.com/Azure/terraform-azurerm-avm-res-compute-virtualmachine/tree/v0.21.0) | ![avm-res-compute-virtualmachine](docs/coverage/bars/azure-avm-res-compute-virtualmachine.svg) 0 of 74 | 0 of 13 | 20 | not started |
-| [`avm-res-operationalinsights-workspace`](https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1) | ![avm-res-operationalinsights-workspace](docs/coverage/bars/azure-avm-res-operationalinsights-workspace.svg) 0 of 31 | 0 of 3 | 20 | not started |
-| [`avm-res-network-loadbalancer`](https://github.com/Azure/terraform-azurerm-avm-res-network-loadbalancer/tree/v0.5.0) | ![avm-res-network-loadbalancer](docs/coverage/bars/azure-avm-res-network-loadbalancer.svg) 0 of 23 | 0 of 7 | 13 | not started |
-| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 0 of 35 | 0 of 12 | 10 | not started |
-| [`avm-res-network-firewallpolicy`](https://github.com/Azure/terraform-azurerm-avm-res-network-firewallpolicy/tree/v0.3.4) | ![avm-res-network-firewallpolicy](docs/coverage/bars/azure-avm-res-network-firewallpolicy.svg) 0 of 22 | 0 of 2 | 5 | not started |
-| [`avm-res-containerservice-managedcluster`](https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster/tree/v0.9.0) | ![avm-res-containerservice-managedcluster](docs/coverage/bars/azure-avm-res-containerservice-managedcluster.svg) 0 of 73 | 0 of 26 | 3 | not started |
 | [`avm-res-dbforpostgresql-flexibleserver`](https://github.com/Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver/tree/v0.2.3) | ![avm-res-dbforpostgresql-flexibleserver](docs/coverage/bars/azure-avm-res-dbforpostgresql-flexibleserver.svg) 0 of 40 | 0 of 6 | 11 | not started |
 | [`avm-res-cognitiveservices-account`](https://github.com/Azure/terraform-azurerm-avm-res-cognitiveservices-account/tree/v0.11.1) | ![avm-res-cognitiveservices-account](docs/coverage/bars/azure-avm-res-cognitiveservices-account.svg) 0 of 41 | 0 of 11 | 9 | not started |
 | [`avm-ptn-alz-sub-vending`](https://github.com/Azure/terraform-azure-avm-ptn-alz-sub-vending/tree/v0.3.4) | ![avm-ptn-alz-sub-vending](docs/coverage/bars/azure-avm-ptn-alz-sub-vending.svg) 0 of 29 | 0 of 14 | 13 | not started |
-| [`avm-res-insights-component`](https://github.com/Azure/terraform-azurerm-avm-res-insights-component/tree/v0.5.0) | ![avm-res-insights-component](docs/coverage/bars/azure-avm-res-insights-component.svg) 0 of 25 | 0 of 6 | 2 | not started |
+| [`avm-res-app-containerapp`](https://github.com/Azure/terraform-azurerm-avm-res-app-containerapp/tree/v0.9.0) | ![avm-res-app-containerapp](docs/coverage/bars/azure-avm-res-app-containerapp.svg) 0 of 24 | 0 of 12 | 4 | not started |
+| [`avm-res-web-site`](https://github.com/Azure/terraform-azurerm-avm-res-web-site/tree/v0.24.1) | ![avm-res-web-site](docs/coverage/bars/azure-avm-res-web-site.svg) 0 of 99 | 0 of 14 | 3 | not started |
+| [`avm-res-network-privateendpoint`](https://github.com/Azure/terraform-azurerm-avm-res-network-privateendpoint/tree/v0.3.1) | ![avm-res-network-privateendpoint](docs/coverage/bars/azure-avm-res-network-privateendpoint.svg) 0 of 21 | 0 of 5 | 1 | not started |
+| [`avm-res-authorization-roleassignment`](https://github.com/Azure/terraform-azurerm-avm-res-authorization-roleassignment/tree/v0.3.1) | ![avm-res-authorization-roleassignment](docs/coverage/bars/azure-avm-res-authorization-roleassignment.svg) 0 of 31 | 0 of 11 | 3 | not started |
+| [`avm-res-sql-server`](https://github.com/Azure/terraform-azurerm-avm-res-sql-server/tree/v0.2.1) | ![avm-res-sql-server](docs/coverage/bars/azure-avm-res-sql-server.svg) 0 of 28 | 0 of 8 | 10 | not started |
+| [`avm-res-network-azurefirewall`](https://github.com/Azure/terraform-azurerm-avm-res-network-azurefirewall/tree/v0.5.0) | ![avm-res-network-azurefirewall](docs/coverage/bars/azure-avm-res-network-azurefirewall.svg) 0 of 23 | 0 of 4 | 1 | not started |
 
 Every module, variable and output: [`modules.csv`](docs/coverage/modules.csv), [`variables.csv`](docs/coverage/variables.csv), [`outputs.csv`](docs/coverage/outputs.csv), [`resource-types.csv`](docs/coverage/resource-types.csv). `task coverage` regenerates this section and those files; `task coverage-check` fails when they are out of date.
 <!-- coverage:end -->

@@ -1,0 +1,61 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/net-cloud-armor
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/net-cloud-armor
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-cloud-armor
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. Hierarchical policies (an organization_id or folder_id
+# parent, and their attachments) are a gap: config-connector-extensions'
+# ComputeOrganizationSecurityPolicyRule is the firewall shape of the API.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: attachments
+    kind: gap
+    reason: "attachments are of hierarchical policies, which are refused (see parent_id)"
+  - variable: ddos_protection
+    kind: gap
+    reason: "ComputeSecurityPolicy has no ddosProtectionConfig"
+  - variable: user_defined_fields
+    kind: gap
+    reason: "ComputeSecurityPolicy has no userDefinedFields"
+  - variable: parent_id
+    kind: gap
+    reason: "organization_id and folder_id (a hierarchical policy) are refused: config-connector-extensions' ComputeOrganizationSecurityPolicyRule requires a layer-4 match and has no expression match, header action, WAF configuration or redirect, so Cloud Armor rules cannot be expressed; a project policy is ported"
+    partial: true
+    fields: [organization_id, folder_id]
+  - variable: adaptive_protection_config
+    kind: gap
+    reason: "layer_7_ddos_defense.threshold_configs is refused: ComputeSecurityPolicy's layer7DdosDefenseConfig has only enable and ruleVisibility"
+    partial: true
+    fields: [layer_7_ddos_defense.threshold_configs]
+  - variable: advanced_options_config
+    kind: gap
+    reason: "request_body_inspection_size is refused: ComputeSecurityPolicy's advancedOptionsConfig has no such field"
+    partial: true
+    fields: [request_body_inspection_size]
+  - variable: rules
+    kind: gap
+    reason: "network_match (CLOUD_ARMOR_NETWORK policies) and match.recaptcha_options are refused: ComputeSecurityPolicy's rules have no networkMatch and no exprOptions"
+    partial: true
+    fields: [network_match, match.recaptcha_options]
+  - variable: factories_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: accepted and ignored; the rules file's contents go under factories_data.rules"
+    partial: true
+    fields: [rules_file_path]
