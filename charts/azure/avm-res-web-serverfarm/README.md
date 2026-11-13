@@ -105,10 +105,13 @@ repository, release, commit, licence and the date last synced.
 `flex`, `elastic`, `workflow`, `full`, `names` and `mock`, each validated
 against ASO v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD,
 and the refusals in `tests/*.fail.yaml`. `task test-live-azure` (case
-`asp`) applies a Linux B1 plan with one worker to the Azure sandbox,
-evaluates the outputs, deletes it and checks Azure no longer has it.
-`task test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions'
-fake cloud.
+`asp`, only when named) applies a Linux B1 plan with one worker to the
+Azure sandbox, evaluates the outputs, deletes it and checks Azure no longer
+has it. It has not passed: the sandbox's App Service quota is 0 (B1 and F1),
+and Azure refused the plan (docs/azure.md, "8. Charts"). `task
+test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions' fake
+cloud: passed on 2026-11-13, the plan Ready and deleted, the outputs
+evaluated.
 
 ## Changes
 

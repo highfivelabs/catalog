@@ -9,7 +9,8 @@
 # avm-res-web-serverfarm) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip asp)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip asp;
+# asp only when named: the sandbox has no App Service quota, docs/azure.md)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -46,7 +47,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip asp}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -230,7 +231,9 @@ resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
 # The smallest Linux App Service plan: B1 (about 0.02 USD an hour), one
-# worker, not zone balanced (B1 has no zone redundancy).
+# worker, not zone balanced (B1 has no zone redundancy). Not in the default
+# cases: the sandbox subscription's App Service quota is 0 (B1 and F1 alike),
+# and raising it is a subscription-scope change (docs/azure.md, "8. Charts").
 cat >"${WORK}/asp.yaml" <<EOF
 name: ${RUN}-asp
 location: ${LOCATION}
