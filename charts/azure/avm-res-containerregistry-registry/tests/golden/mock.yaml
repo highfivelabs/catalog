@@ -1,5 +1,70 @@
 ---
 # Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesCredentialSet
+metadata:
+  name: mock-credset-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "credential_set:hub"
+spec:
+  azureName: "dockerhub"
+  owner:
+    name: mock-acr
+  identity:
+    type: SystemAssigned
+  loginServer: "docker.io"
+  authCredentials:
+    - name: "Credential1"
+      usernameSecretIdentifier: "https://catalog-kv.vault.azure.net/secrets/hub-user"
+      passwordSecretIdentifier: "https://catalog-kv.vault.azure.net/secrets/hub-token"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesScopeMap
+metadata:
+  name: mock-scopemap-pull
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull"
+spec:
+  azureName: "app-pull"
+  owner:
+    name: mock-acr
+  actions:
+    - repositories/app/content/read
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesToken
+metadata:
+  name: mock-token-pull-ci
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull:token:ci"
+spec:
+  azureName: "ci-pull"
+  owner:
+    name: mock-acr
+  scopeMapReference:
+    group: containerregistry.azure.hfl.dev
+    kind: RegistriesScopeMap
+    name: mock-scopemap-pull
+  status: enabled
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
 apiVersion: containerregistry.azure.com/v20251101
 kind: Registry
 metadata:

@@ -1,0 +1,115 @@
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupPlan
+metadata:
+  name: full-plan-disks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_plan:disks"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "disks"
+  description: "Disks."
+  resourceType: "compute.googleapis.com/Disk"
+  backupVaultRef:
+    name: full-vault
+  backupRules:
+    - ruleID: "yearly"
+      backupRetentionDays: 400
+      standardSchedule:
+        recurrenceType: "YEARLY"
+        daysOfMonth: [1,15]
+        months: ["JANUARY","JULY"]
+        timeZone: "Europe/Berlin"
+        backupWindow:
+          startHourOfDay: 2
+          endHourOfDay: 8
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupPlan
+metadata:
+  name: full-plan-instances
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backup_plan:instances"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "instances"
+  resourceType: "compute.googleapis.com/Instance"
+  backupVaultRef:
+    name: full-vault
+  backupRules:
+    - ruleID: "weekly"
+      backupRetentionDays: 14
+      standardSchedule:
+        recurrenceType: "WEEKLY"
+        daysOfWeek: ["MONDAY","THURSDAY"]
+        timeZone: "UTC"
+        backupWindow:
+          startHourOfDay: 0
+          endHourOfDay: 6
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupVault
+metadata:
+  name: full-vault
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+    key: "value"
+  annotations:
+    hfl.dev/id: "backup_vault"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "backup-vault"
+  description: "Backup Vault managed by Terraform IAC."
+  backupMinimumEnforcedRetentionDuration: "200000s"
+  annotations:
+    "key": "value"
+  accessRestriction: "WITHIN_ORGANIZATION"
+  ignoreInactiveDatasources: true
+---
+# Source: backup-dr/templates/main.yaml
+apiVersion: backupdr.gcp.hfl.dev/v1beta1
+kind: BackupDRManagementServer
+metadata:
+  name: full-management-server
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: backup-dr
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_server"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "backup-ms"
+  type: "BACKUP_RESTORE"
+  networks:
+    - network: "projects/my-project/global/networks/default"
+      peeringMode: "PRIVATE_SERVICE_ACCESS"

@@ -9,28 +9,42 @@
 # avm-res-network-privatednszone,
 # avm-res-managedidentity-userassignedidentity,
 # avm-res-operationalinsights-workspace, avm-res-containerregistry-registry,
+# avm-res-network-firewallpolicy,
+# avm-res-network-loadbalancer,
+# avm-res-network-bastionhost,
+# avm-res-insights-component,
+# avm-res-dbforpostgresql-flexibleserver,
+# avm-res-network-privateendpoint,
+# avm-res-network-applicationgateway,
 # avm-res-cognitiveservices-account)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr cog)
-# applies only those; the default is all. Only on
+# uai law acr fwp lb bas appi psql pe appgw cog)
+# applies only those; the default is all. A case may first apply another
+# chart it needs (PRE: the application gateway's virtual network and
+# subnet), deleted after the case's own objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
 # `task test-live-azure` runs it:
 #
 #   ../scripts/offload/offload run --sa "$AZURE_LIVE_SA" --hours 2 -- \
 #     env AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... AZURE_CLIENT_ID=... \
-#     AZURE_LIVE_RESOURCE_GROUP=... hack/azure-live.sh
+#     AZURE_LIVE_RESOURCE_GROUP=... ASOX_TARBALL=gs://.../asox-<commit>.tar.gz \
+#     hack/azure-live.sh
 #
 # How: a kind cluster runs Azure Service Operator v2.22.0 from its own Helm
 # chart (with cert-manager for its webhooks, which convert between CRD
 # versions), its credential the Google ID token of the VM's service
 # account, which Entra exchanges for the sandbox identity (workload
 # identity: the token file, refreshed every 20 minutes, is mounted where
-# ASO reads it). The identity is Contributor on one resource group, so the
-# resource group chart and the aso-extensions lock are not applied here.
+# ASO reads it). Beside ASO, aso-extensions' manager (hack/asox-manager.sh,
+# from ASOX_TARBALL or ASOX_DIR) reconciles the charts' aso-extensions kinds
+# with the same token. The identity is Contributor on one resource group,
+# so the resource group chart (subscription scope) and the lock (writing
+# Microsoft.Authorization/locks needs Owner or User Access Administrator)
+# are not applied here.
 #
 # Rules: one resource group (AZURE_LIVE_RESOURCE_GROUP); every name starts
 # with this run's ID (cat<month day hour minute><4 hex>) and every resource
@@ -57,7 +71,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -122,6 +136,10 @@ cleanup() {
   rm -rf "${WORK}"
 }
 trap cleanup EXIT
+# shellcheck source=hack/asox-manager.sh
+source "${ROOT}/hack/asox-manager.sh"
+asox_fetch "${WORK}"
+asox_build_manager "${WORK}"
 arm_token >/dev/null || { echo "azure-live: Entra refused the federated token" >&2; exit 1; }
 echo "== Entra issued a Resource Manager token for ${AZURE_CLIENT_ID}"
 
@@ -147,7 +165,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;cognitiveservices.azure.com/*' \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -166,10 +184,26 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     privatednszonesvirtualnetworklinks.network.azure.com userassignedidentities.managedidentity.azure.com \
     federatedidentitycredentials.managedidentity.azure.com workspaces.operationalinsights.azure.com \
     registries.containerregistry.azure.com registrycacherules.containerregistry.azure.com \
+    firewallpolicies.network.azure.com firewallpoliciesrulecollectiongroups.network.azure.com \
+    loadbalancers.network.azure.com \
+    bastionhosts.network.azure.com \
+    components.insights.azure.com pricingplans.insights.azure.com \
+    flexibleservers.dbforpostgresql.azure.com flexibleserversdatabases.dbforpostgresql.azure.com \
+    flexibleserversfirewallrules.dbforpostgresql.azure.com flexibleserversconfigurations.dbforpostgresql.azure.com \
+    flexibleserversadministrators.dbforpostgresql.azure.com \
+    privateendpoints.network.azure.com privateendpointsprivatednszonegroups.network.azure.com \
     accounts.cognitiveservices.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
+echo "== aso-extensions' manager beside ASO, from ${ASOX_TARBALL:-${ASOX_DIR}}"
+# Its token where ASO's credential reads it: the node's directory holding
+# the Google ID token, as ASO's.
+asox_install_manager "${CLUSTER}" '{
+  "spec": {"template": {"spec": {
+    "volumes": [{"name": "azure-identity", "hostPath": {"path": "/azure-tokens", "type": "Directory"}}],
+    "containers": [{"name": "manager",
+      "volumeMounts": [{"name": "azure-identity", "mountPath": "/var/run/secrets/tokens", "readOnly": true}]}]}}}}'
 kubectl create namespace "${NS}" >/dev/null
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
@@ -290,6 +324,234 @@ tags: {catalog-run: ${RUN}}
 cache_rules:
   mcr: {name: mcr-busybox, source_repository: mcr.microsoft.com/azurelinux/busybox, target_repository: cache/busybox}
 EOF
+# A Basic policy (the cheapest tier) with one rule collection group: a
+# network rule collection and an application rule collection.
+cat >"${WORK}/fwp.yaml" <<EOF
+name: ${RUN}-fwp
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+firewall_policy_sku: Basic
+firewall_policy_threat_intelligence_mode: Alert
+tags: {catalog-run: ${RUN}}
+rule_collection_groups:
+  core:
+    name: rcg-core
+    priority: 200
+    network_rule_collection:
+      - name: dns
+        priority: 400
+        action: Allow
+        rule:
+          - {name: dns, protocols: [UDP, TCP], source_addresses: [10.250.0.0/24], destination_addresses: [168.63.129.16], destination_ports: ["53"]}
+    application_rule_collection:
+      - name: web
+        priority: 500
+        action: Allow
+        rule:
+          - {name: microsoft, source_addresses: [10.250.0.0/24], destination_fqdns: ["*.microsoft.com"], protocols: [{type: Https, port: 443}]}
+EOF
+# A public Standard load balancer with a regional (zoneless) public IP the
+# chart makes: a pool, a TCP probe, a rule, a NAT rule and an outbound rule
+# on the one frontend (the rule leaves outbound SNAT to the outbound rule).
+# No backends: nothing is reachable, and an empty pool costs nothing more.
+cat >"${WORK}/lb.yaml" <<EOF
+name: ${RUN}-lb
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+tags: {catalog-run: ${RUN}}
+frontend_ip_configurations:
+  pub: {name: fe-public, create_public_ip_address: true, public_ip_address_resource_name: ${RUN}-lb-pip, zones: [None]}
+backend_address_pools:
+  web: {name: be-web}
+lb_probes:
+  tcp: {name: probe-tcp, protocol: Tcp, port: 80}
+lb_rules:
+  http: {name: rule-http, frontend_ip_configuration_name: fe-public, backend_address_pool_object_names: [web], frontend_port: 80, backend_port: 80, probe_object_name: tcp, disable_outbound_snat: true}
+lb_nat_rules:
+  ssh: {name: nat-ssh, frontend_ip_configuration_name: fe-public, protocol: Tcp, frontend_port: 2222, backend_port: 22}
+lb_outbound_rules:
+  out: {name: outbound-web, frontend_ip_configurations: [{name: fe-public}], backend_address_pool_object_name: web}
+EOF
+# A Basic bastion host with the zoneless public IP it makes, in an
+# AzureBastionSubnet (/26, Azure's smallest for it) of a network of the run
+# that the case also applies (CASE.network.yaml: the network chart's
+# values, rendered into the case, so it is made first, waited for, deleted
+# and checked gone with it).
+cat >"${WORK}/bas.yaml" <<EOF
+name: ${RUN}-bas
+location: ${LOCATION}
+parent_id: ${RG}
+sku: Basic
+zones: []
+tags: {catalog-run: ${RUN}}
+ip_configuration:
+  subnet_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-bas-vnet/subnets/AzureBastionSubnet
+  public_ip_address_name: ${RUN}-bas-pip
+EOF
+cat >"${WORK}/bas.network.yaml" <<EOF
+name: ${RUN}-bas-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.251.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  bastion: {name: AzureBastionSubnet, address_prefix: 10.251.0.0/26}
+EOF
+# A workspace-based component (classic ones are retired) with a 1 GB daily
+# cap; the case makes its workspace first (appi.pre.yaml, an ASO Workspace
+# applied and deleted with the chart's objects; hfl.dev/id live-workspace).
+cat >"${WORK}/appi.yaml" <<EOF
+name: ${RUN}-appi
+location: ${LOCATION}
+parent_id: ${RG}
+workspace_id: ${RG}/providers/Microsoft.OperationalInsights/workspaces/${RUN}-appi-law
+daily_data_cap_in_gb: 1
+retention_in_days: 30
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/appi.pre.yaml" <<EOF
+---
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  name: appi-live-law
+  annotations: {hfl.dev/id: live-workspace}
+spec:
+  azureName: ${RUN}-appi-law
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  retentionInDays: 30
+  sku: {name: PerGB2018}
+  tags: {catalog-run: ${RUN}}
+EOF
+# The smallest server (Burstable B1ms, 32 GiB, no high availability), Entra
+# authentication only (the chart takes no password), with a database, a
+# firewall rule for one documentation address (TEST-NET-3), a server
+# parameter and the live identity itself as its Entra administrator (a
+# PostgreSQL role on this server, not an Azure role assignment; its object
+# ID is the oid of the identity's own token). AZURE_LIVE_PSQL_LOCATION
+# overrides the region (PostgreSQL is offered per region per subscription).
+SP_OID="$(arm_token | cut -d. -f2 | tr '_-' '/+' | awk '{ n = length($0) % 4; if (n) $0 = $0 substr("===", 1, 4 - n); print }' | base64 -d | jq -er .oid)"
+cat >"${WORK}/psql.yaml" <<EOF
+name: ${RUN}-psql
+location: ${AZURE_LIVE_PSQL_LOCATION:-${LOCATION}}
+resource_group_name: ${RG}
+sku_name: B_Standard_B1ms
+server_version: "16"
+storage_mb: 32768
+high_availability: null
+maintenance_window: null
+public_network_access_enabled: true
+authentication: {active_directory_auth_enabled: true, password_auth_enabled: false, tenant_id: ${AZURE_TENANT_ID}}
+tags: {catalog-run: ${RUN}}
+databases:
+  app: {name: app}
+firewall_rules:
+  doc: {name: doc-net, start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.10}
+server_configuration:
+  slow: {name: log_min_duration_statement, config: "1000"}
+ad_administrator:
+  live: {tenant_id: ${AZURE_TENANT_ID}, object_id: ${SP_OID}, principal_name: aso-extensions-live-tests, principal_type: ServicePrincipal}
+EOF
+# A private endpoint to the blob service of a storage account of the run,
+# in a subnet of a network of the run, with a DNS zone group in the blob
+# service's private DNS zone: the case applies those with it
+# (CASE.with.CHART.yaml: that chart's values, rendered into the case, so
+# they are made, waited for, deleted and checked gone with it). The zone's
+# name is Azure's, not the run's: the case stops if the group has one.
+cat >"${WORK}/pe.yaml" <<EOF
+name: ${RUN}-pe
+location: ${LOCATION}
+parent_id: ${RG}
+network_interface_name: ${RUN}-pe-nic
+private_connection_resource_id: ${RG}/providers/Microsoft.Storage/storageAccounts/${RUN}pe
+subnet_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-pe-vnet/subnets/snet-pe
+subresource_names: [blob]
+private_dns_zone_resource_ids: [${RG}/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net]
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/pe.with.avm-res-network-virtualnetwork.yaml" <<EOF
+name: ${RUN}-pe-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.252.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  pe: {name: snet-pe, address_prefix: 10.252.0.0/27}
+EOF
+cat >"${WORK}/pe.with.avm-res-storage-storageaccount.yaml" <<EOF
+name: ${RUN}pe
+location: ${LOCATION}
+parent_id: ${RG}
+account_sku_name: Standard_LRS
+account_replication_type: LRS
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/pe.with.avm-res-network-privatednszone.yaml" <<EOF
+domain_name: privatelink.blob.core.windows.net
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+EOF
+# A Standard_v2 application gateway of capacity 1 (the smallest v2 shape:
+# about 0.25 USD an hour) on a subnet of its own, which the case makes first
+# with the virtual network chart (PRE), and a regional Standard public IP
+# the chart makes: a pool, HTTP settings with a probe, a listener on port
+# 80 and a basic rule, every reference by key. No backends: nothing is
+# reachable. A v2 gateway takes several minutes to create and to delete,
+# hence its longer time limit (CASE_TIMEOUT).
+cat >"${WORK}/appgw-pre.yaml" <<EOF
+name: ${RUN}-agw-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.251.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  agw: {name: snet-appgw, address_prefix: 10.251.0.0/26}
+EOF
+cat >"${WORK}/appgw.yaml" <<EOF
+name: ${RUN}-agw
+location: ${LOCATION}
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+sku: {name: Standard_v2, tier: Standard_v2, capacity: 1}
+public_ip_addresses:
+  pub: {name: ${RUN}-agw-pip, zones: []}
+gateway_ip_configurations:
+  - {name: gw-ip, subnet: {id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-agw-vnet/subnets/snet-appgw}}
+frontend_ip_configurations:
+  - {name: fe-public, public_ip_address_key: pub}
+frontend_ports:
+  - {name: port-80, port: 80}
+backend_address_pools:
+  - {name: pool-web}
+probes:
+  - {name: probe-http, protocol: Http, host: 127.0.0.1, path: /, interval: 30, timeout: 30, unhealthy_threshold: 3}
+backend_http_settings_collection:
+  - {name: http-80, port: 80, protocol: Http, cookie_based_affinity: Disabled, request_timeout: 30, probe: {probe_key: probe-http}}
+http_listeners:
+  - {name: listener-80, protocol: Http, frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}, frontend_port: {frontend_port_key: port-80}}
+request_routing_rules:
+  - {name: rule-basic, rule_type: Basic, priority: 100, http_listener: {http_listener_key: listener-80}, backend_address_pool: {backend_address_pool_key: pool-web}, backend_http_settings: {backend_http_settings_key: http-80}}
+EOF
+declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
+declare -A CASE_TIMEOUT=([appgw]=2400)
+# object_list FILE: kind.version.group/name of each object in a render.
+object_list() {
+  kubectl get -n "${NS}" -f "$1" -o json \
+    | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"'
+}
+# wait_gone LIMIT OBJECT...: until no object is left, or LIMIT seconds.
+wait_gone() {
+  local deadline=$(( $(date +%s) + $1 )) left o; shift
+  while (( $(date +%s) < deadline )); do
+    left=0
+    for o in "$@"; do kubectl get -n "${NS}" "${o}" >/dev/null 2>&1 && left=$((left + 1)); done
+    (( left == 0 )) && break
+    sleep 10
+  done
+}
 # The smallest Cognitive Services account: a Language (TextAnalytics)
 # account on the free tier (AZURE_LIVE_COG_SKU=S for the paid one when the
 # subscription's one free account of the kind is taken), local keys off,
@@ -309,7 +571,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); run ${RUN}; Azure Service Operator v${ASO_VERSION} on kind; one resource group of the sandbox subscription."
+  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); run ${RUN}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager (${ASOX_TARBALL:-${ASOX_DIR}}) on kind; one resource group of the sandbox subscription."
   echo
   echo "| Chart | Object | Ready | Deleted | Gone from Azure | Message |"
   echo "| --- | --- | --- | --- | --- | --- |"
@@ -320,17 +582,55 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
     pip:avm-res-network-publicipaddress dns:avm-res-network-privatednszone \
     uai:avm-res-managedidentity-userassignedidentity law:avm-res-operationalinsights-workspace \
-    acr:avm-res-containerregistry-registry cog:avm-res-cognitiveservices-account; do
+    acr:avm-res-containerregistry-registry fwp:avm-res-network-firewallpolicy \
+    lb:avm-res-network-loadbalancer \
+    bas:avm-res-network-bastionhost \
+    appi:avm-res-insights-component \
+    psql:avm-res-dbforpostgresql-flexibleserver \
+    pe:avm-res-network-privateendpoint \
+    appgw:avm-res-network-applicationgateway \
+    cog:avm-res-cognitiveservices-account; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
-  helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >"${OUT}/${chart}/rendered.yaml"
-  kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
-  mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
-    | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
+  limit="${CASE_TIMEOUT[${case_}]:-${TIMEOUT}}"
   declare -A ready=() armid=()
-  deadline=$(( $(date +%s) + TIMEOUT ))
+  pre_objects=()
+  if [[ -n "${PRE[${case_}]:-}" ]]; then
+    # What the case needs first, from its own chart, Ready before the case.
+    helm template "${case_}-pre" "charts/azure/${PRE[${case_}]}" --namespace "${NS}" -f "${WORK}/${case_}-pre.yaml" >"${OUT}/${chart}/pre.yaml"
+    kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/pre.yaml" >"${OUT}/${chart}/pre-apply.log"
+    mapfile -t pre_objects < <(object_list "${OUT}/${chart}/pre.yaml")
+    deadline=$(( $(date +%s) + TIMEOUT ))
+    for o in "${pre_objects[@]}"; do
+      left=$(( deadline - $(date +%s) )); (( left < 5 )) && left=5
+      if kubectl wait -n "${NS}" --for=condition=Ready "${o}" --timeout="${left}s" >/dev/null 2>&1; then ready["$o"]=yes; else ready["$o"]=no; fi
+      armid["$o"]="$(kubectl get -n "${NS}" "${o}" -o jsonpath='{.status.id}' 2>/dev/null || true)"
+    done
+    kubectl get -n "${NS}" -f "${OUT}/${chart}/pre.yaml" -o json \
+      | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${chart}/pre-live.json"
+  fi
+  : >"${OUT}/${chart}/rendered.yaml"
+  if [[ -f "${WORK}/${case_}.network.yaml" ]]; then
+    helm template "${case_}-net" charts/azure/avm-res-network-virtualnetwork --namespace "${NS}" -f "${WORK}/${case_}.network.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  fi
+  for w in "${WORK}/${case_}".with.*.yaml; do
+    [[ -f "${w}" ]] || continue
+    wchart="${w#"${WORK}/${case_}".with.}" wchart="${wchart%.yaml}"
+    if [[ "${wchart}" == avm-res-network-privatednszone ]]; then
+      zone="$(sed -n 's/^domain_name: //p' "${w}")"
+      code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
+      [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
+    fi
+    helm template "${case_}-${wchart#avm-res-}" "charts/azure/${wchart}" --namespace "${NS}" -f "${w}" >>"${OUT}/${chart}/rendered.yaml"
+  done
+  helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  # What a case needs that its chart does not make (appi's workspace).
+  if [[ -f "${WORK}/${case_}.pre.yaml" ]]; then cat "${WORK}/${case_}.pre.yaml" >>"${OUT}/${chart}/rendered.yaml"; fi
+  kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
+  mapfile -t objects < <(object_list "${OUT}/${chart}/rendered.yaml")
+  deadline=$(( $(date +%s) + limit ))
   for o in "${objects[@]}"; do
     left=$(( deadline - $(date +%s) )); (( left < 5 )) && left=5
     if kubectl wait -n "${NS}" --for=condition=Ready "${o}" --timeout="${left}s" >/dev/null 2>&1; then ready["$o"]=yes; else ready["$o"]=no; fi
@@ -345,17 +645,16 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   fi
   echo "-- outputs (${outputs_ok})"; cat "${OUT}/${chart}/outputs.json" "${OUT}/${chart}/outputs.err"
   kubectl delete -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" --wait=false >/dev/null
-  deadline=$(( $(date +%s) + TIMEOUT ))
-  # Until every object is gone (kubectl get -f fails as soon as one is).
-  while (( $(date +%s) < deadline )); do
-    left=0
-    for o in "${objects[@]}"; do kubectl get -n "${NS}" "${o}" >/dev/null 2>&1 && left=$((left + 1)); done
-    (( left == 0 )) && break
-    sleep 10
-  done
-  for o in "${objects[@]}"; do
+  # Until every object is gone (kubectl get -f fails as soon as one is),
+  # then what the case needed first.
+  wait_gone "${limit}" "${objects[@]}"
+  if (( ${#pre_objects[@]} > 0 )); then
+    kubectl delete -n "${NS}" -f "${OUT}/${chart}/pre.yaml" --wait=false >/dev/null
+    wait_gone "${TIMEOUT}" "${pre_objects[@]}"
+  fi
+  for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))
-    msg="$(jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' "${OUT}/${chart}/live.json" | tr '\n|' '  ' | cut -c1-160)"
+    msg="$(cat "${OUT}/${chart}/live.json" "${OUT}/${chart}/pre-live.json" 2>/dev/null | jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' | tr '\n|' '  ' | cut -c1-160)"
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then
@@ -383,6 +682,7 @@ if [[ " ${CASES} " == *" cog "* ]]; then
     "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/Microsoft.CognitiveServices/locations/${LOCATION}/resourceGroups/${AZURE_LIVE_RESOURCE_GROUP}/deletedAccounts/${RUN}-cog?api-version=2025-06-01")" | tee -a "${OUT}/purge.log"
 fi
 kubectl -n azureserviceoperator-system logs deployment/azureserviceoperator-controller-manager --tail=-1 >"${OUT}/aso.log" 2>&1 || true
+asox_manager_logs "${OUT}/asox-manager.log"
 {
   echo
   echo "${total} objects; ${failed} failures (an object not Ready, not deleted or still in Azure, or a chart's outputs not evaluated)."

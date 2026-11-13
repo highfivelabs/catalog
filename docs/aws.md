@@ -623,6 +623,24 @@ Config Connector. What differs:
 | `charts/aws/sns` | `terraform-aws-sns` v7.2.0 | partial: the topic with every attribute ACK's `Topic` has (feedback roles, delivery, data protection, KMS, tracing), the topic policy (the default statement, statements, source and override documents merged by `Sid`) inline, and the subscriptions (`topicRef`); `account_id` and `region` are needed for the default topic policy; the archive policy, subscriptions' replay policy and Terraform's confirmation wait, and `use_name_prefix` are refused |
 | `charts/aws/ssm-parameter` | `terraform-aws-ssm-parameter` v2.1.2 | partial: one `Parameter`, its type and value derived as the module derives them (a SecureString's value is in the spec, as ACK takes it); `ignore_value_changes` and `overwrite` are refused (no ACK field), `value_wo_version` has no effect |
 | `charts/aws/dynamodb-table` | `terraform-aws-dynamodb-table` v5.5.2 | partial: one `Table` with keys, attributes, billing and throughput, streams, TTL, point-in-time recovery, encryption, both kinds of secondary index, on-demand limits, replicas (region and KMS key) and the resource policy inline; autoscaling not ported yet (applicationautoscaling-controller); import, restore, warm throughput, the witness region, replicas' other settings and ignoring GSI changes are gaps |
+| `charts/aws/rds` | `terraform-aws-rds` v7.2.2 | partial: the DB instance with its subnet and parameter groups (by reference), log groups, enhanced monitoring role, managed master password and final snapshot (ACK's annotations); the option group and role associations through ack-extensions (`allow_alpha`); secret rotation, a password in values, point-in-time and S3 restores, blue/green updates and fields ACK's `DBInstance` lacks are refused |
+| `charts/aws/step-functions` | `terraform-aws-step-functions` v5.1.1 | partial: the state machine (logging, X-Ray, publish), its role with the module's 41 service integration policies carried as data, the JSON, statement and logs policies and policy ARNs, and its log group; the log group's ARN is built from `account_id` and `region` (`StateMachine` takes it by ARN only); `encryption_configuration` is refused (no field on ACK's `StateMachine`), as are Terraform's timeouts. Passed on AWS Emulator, moto unused (`off-catalog-1113025827-6910`) |
+| `charts/aws/eks-pod-identity` | `terraform-aws-eks-pod-identity` v2.10.0 | partial: the role trusting EKS Pod Identity, the custom policy (source, statements, override merged by Sid), policy ARNs, and the pod identity associations (`roleRef`); the module's preset policies (63 variables) are not ported yet. Passed on AWS Emulator, moto unused (`off-catalog-1113030542-23849`; the associations untested there: they need an EKS cluster) |
+
+**notify-slack has no chart** (2026-11-12). The module is a Lambda
+function (its `functions/notify_slack.py`, packaged by terraform-aws-lambda
+from a local `source_path` into a zip, uploaded inline or to S3) subscribed
+to an SNS topic, with the function's role, policy, log group and
+permission for SNS. Everything but the package has a stable kind
+(`lambda/Function`, `sns/Topic`, `sns/Subscription`, `iam/Role`,
+`cloudwatchlogs/LogGroup`) or an ack-extensions one (`lambda.aws.hfl.dev`
+`Permission`), but a chart cannot build the package: Helm renders text,
+and ACK's `Function` takes code as an S3 object or zip bytes. Without the
+function the topic notifies nothing, so a chart of the rest would mislead.
+What it needs is a published package (an S3 object a chart names by
+bucket and key, built once per module release by a build step outside the
+chart, or an image for `packageType: Image`); the lambda module's local
+packaging is the same gap.
 
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
@@ -717,3 +735,4 @@ Gaps the charts found, for ack-extensions (beyond section 5):
 | An Elastic IP association with an instance (`AssociateAddress`, with `instanceRef` and `allocationRef`), and `domain` on `ElasticIPAddress` | ec2-instance (`create_eip`) | a new kind (ack-extensions) |
 | A reference from a `Queue`'s redrive policy to its dead-letter queue (`deadLetterTargetRef`), so the queue waits for it; or "Dead letter target does not exist" treated as retryable, not terminal | sqs (`create_dlq`) | a reference field on ACK's `Queue` (upstream), or an ack-extensions patch |
 | `groups` on `Instance.networkInterfaces` (so a public IP or secondary IPs can be asked for with the instance's groups), `enablePrimaryIPv6`, `placement.groupID`, `cpuOptions.amdSevSnp` | ec2-instance | fields on ACK's `Instance` (upstream) |
+| `DBInstance` fields: `domainAuthSecretARN`, `domainDNSIPs`, `domainFQDN`, `domainOU`, `engineLifecycleSupport`, `dedicatedLogVolume`, `upgradeStorageConfig`, `allowMajorVersionUpgrade`, `blueGreenUpdate`; restores to a point in time and from S3; an `optionGroupRef` (ack-extensions' `OptionGroup` is taken by name) | rds | fields on ACK's `DBInstance` (upstream) and restore kinds |

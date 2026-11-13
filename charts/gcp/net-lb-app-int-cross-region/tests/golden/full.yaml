@@ -1,0 +1,651 @@
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: full-bs-api
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backend_service:api"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-api"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP2"
+  healthChecks:
+    - healthCheckRef:
+        name: full-hc-grpc
+  backend:
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: full-neg-neg-a
+      maxRatePerEndpoint: 10
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          external: "projects/my-project/regions/europe-west1/networkEndpointGroups/ilb-full-neg-b"
+      maxRate: 100
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: full-bs-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backend_service:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-default"
+  location: global
+  description: "Default service."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP"
+  healthChecks:
+    - healthCheckRef:
+        name: full-hc-default
+    - healthCheckRef:
+        external: "projects/my-project/global/healthChecks/other"
+  affinityCookieTtlSec: 60
+  connectionDrainingTimeoutSec: 30
+  localityLbPolicy: "RING_HASH"
+  portName: "http"
+  sessionAffinity: "HTTP_COOKIE"
+  timeoutSec: 20
+  backend:
+    - balancingMode: "UTILIZATION"
+      capacityScaler: 0.5
+      description: "The group."
+      group:
+        instanceGroupRef:
+          name: full-group-ig
+      maxUtilization: 0.8
+  circuitBreakers:
+    maxConnections: 100
+    maxPendingRequests: 10
+    maxRequests: 1000
+    maxRequestsPerConnection: 5
+    maxRetries: 3
+    connectTimeout:
+      seconds: 5
+      nanos: 100
+  consistentHash:
+    minimumRingSize: 1024
+    httpCookie:
+      name: "sticky"
+      path: "/"
+      ttl:
+        seconds: 3600
+  iap:
+    oauth2ClientId: "client-id"
+    oauth2ClientSecret:
+      value: "client-secret"
+  logConfig:
+    enable: true
+    sampleRate: 0.5
+  outlierDetection:
+    consecutiveErrors: 5
+    consecutiveGatewayFailure: 3
+    enforcingConsecutiveErrors: 100
+    enforcingConsecutiveGatewayFailure: 100
+    enforcingSuccessRate: 100
+    maxEjectionPercent: 50
+    successRateMinimumHosts: 5
+    successRateRequestVolume: 100
+    successRateStdevFactor: 1900
+    baseEjectionTime:
+      seconds: 30
+    interval:
+      seconds: 10
+      nanos: 0
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: full-bs-mirror
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "backend_service:mirror"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-mirror"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP"
+  backend:
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          external: "projects/my-project/zones/europe-west1-b/networkEndpointGroups/other"
+      maxRatePerInstance: 5
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-europe-west1"
+  location: global
+  description: "A cross-region internal ALB."
+  ipAddress:
+    ip: "10.0.1.10"
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "8080"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+  target:
+    targetHTTPProxyRef:
+      name: full
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-fr-europe-west4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west4"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-europe-west4"
+  location: global
+  description: "A cross-region internal ALB."
+  ipAddress:
+    addressRef:
+      external: "projects/my-project/regions/europe-west4/addresses/ilb-ew4"
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "8080"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+  target:
+    targetHTTPProxyRef:
+      name: full
+---
+# Source: net-lb-app-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: full-hc-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "health_check:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-hc"
+  location: global
+  description: "HTTP check."
+  checkIntervalSec: 10
+  healthyThreshold: 2
+  timeoutSec: 5
+  unhealthyThreshold: 3
+  httpHealthCheck:
+    host: example.com
+    portSpecification: USE_SERVING_PORT
+    proxyHeader: NONE
+    requestPath: /healthz
+    response: ok
+  logConfig:
+    enable: true
+---
+# Source: net-lb-app-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: full-hc-grpc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "health_check:grpc"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-grpc"
+  location: global
+  description: "Terraform managed."
+  grpcHealthCheck:
+    grpcServiceName: health
+    port: 9090
+---
+# Source: net-lb-app-int-cross-region/templates/groups.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  name: full-group-ig
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "group:ig"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-ig"
+  zone: "europe-west1-b"
+  description: "An unmanaged group."
+  instances:
+    - external: "projects/my-project/zones/europe-west1-b/instances/vm-a"
+  namedPort:
+    - name: "http"
+      port: 80
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: full-ep-neg-a-e1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "endpoint:neg-a-e1"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  networkEndpointGroupRef:
+    name: full-neg-neg-a
+  zone: "europe-west4-b"
+  ipAddress: "10.0.2.5"
+  instanceRef:
+    external: "vm-b"
+  resourceID: "8080"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: full-neg-neg-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "neg:neg-a"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-neg-a"
+  location: "europe-west4-b"
+  description: "A cross-region internal ALB."
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRegionNetworkEndpointGroup
+metadata:
+  name: full-neg-neg-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "serverless_neg:neg-b"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-neg-b"
+  region: "europe-west1"
+  description: "A cross-region internal ALB."
+  networkEndpointType: SERVERLESS
+  cloudRun:
+    urlMask: "/<service>"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRegionNetworkEndpointGroup
+metadata:
+  name: full-neg-neg-c
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "psc_neg:neg-c"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-neg-c"
+  region: "europe-west1"
+  networkEndpointType: PRIVATE_SERVICE_CONNECT
+  pscTargetService: "europe-west1-cloudkms.googleapis.com"
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: full-sa-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service_attachment:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-europe-west1"
+  location: "europe-west1"
+  projectRef:
+    external: "my-project"
+  description: "Published."
+  targetServiceRef:
+    name: full-fr-europe-west1
+  natSubnets:
+    - external: "projects/my-project/regions/europe-west1/subnetworks/psc-1"
+  connectionPreference: ACCEPT_AUTOMATIC
+  consumerRejectLists:
+    - external: "bad-project"
+  enableProxyProtocol: true
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: full-sa-europe-west4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service_attachment:europe-west4"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-europe-west4"
+  location: "europe-west4"
+  projectRef:
+    external: "my-project"
+  description: "Published."
+  targetServiceRef:
+    name: full-fr-europe-west4
+  natSubnets:
+    - external: "projects/my-project/regions/europe-west4/subnetworks/psc-2"
+  connectionPreference: ACCEPT_AUTOMATIC
+  consumerRejectLists:
+    - external: "bad-project"
+  enableProxyProtocol: true
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetHTTPProxy
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full-proxy"
+  location: global
+  description: "Proxy."
+  httpKeepAliveTimeoutSec: 600
+  urlMapRef:
+    name: full
+---
+# Source: net-lb-app-int-cross-region/templates/urlmap.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeURLMap
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "url_map"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "ilb-full"
+  location: global
+  description: "The URL map."
+  defaultRouteAction:
+    corsPolicy:
+      allowCredentials: true
+      allowHeaders: ["x-a"]
+      allowMethods: ["GET"]
+      allowOriginRegexes: [".*\\.example\\.com"]
+      allowOrigins: ["https://example.com"]
+      disabled: false
+      exposeHeaders: ["x-b"]
+      maxAge: 3600
+    faultInjectionPolicy:
+      abort:
+        httpStatus: 503
+        percentage: 0.5
+      delay:
+        fixedDelay:
+          seconds: "1"
+          nanos: 0
+        percentage: 1
+    requestMirrorPolicy:
+      backendServiceRef:
+        name: full-bs-mirror
+    retryPolicy:
+      numRetries: 2
+      retryConditions: ["5xx"]
+      perTryTimeout:
+        seconds: "3"
+    timeout:
+      seconds: "30"
+      nanos: 5
+    urlRewrite:
+      hostRewrite: "rewritten.example.com"
+      pathPrefixRewrite: "/v2"
+    weightedBackendServices:
+      - backendServiceRef:
+          name: full-bs-api
+        weight: 10
+      - backendServiceRef:
+          name: full-bs-default
+        weight: 90
+        headerAction:
+          requestHeadersToAdd:
+            - headerName: "x-canary"
+              headerValue: "no"
+              replace: true
+          responseHeadersToRemove: ["x-internal"]
+  headerAction:
+    requestHeadersToAdd:
+      - headerName: "x-lb"
+        headerValue: "ilb"
+        replace: false
+    requestHeadersToRemove: ["x-remove"]
+    responseHeadersToAdd:
+      - headerName: "x-served-by"
+        headerValue: "ilb"
+        replace: true
+    responseHeadersToRemove: ["server"]
+  hostRule:
+    - hosts: ["api.example.com"]
+      pathMatcher: "api"
+      description: "API hosts."
+    - hosts: ["old.example.com"]
+      pathMatcher: "redirect"
+  pathMatcher:
+    - name: "api"
+      description: "API."
+      defaultService:
+        backendServiceRef:
+          name: full-bs-api
+      pathRule:
+        - paths: ["/v1/*"]
+          service:
+            backendServiceRef:
+              name: full-bs-api
+          routeAction:
+            timeout:
+              seconds: "10"
+            urlRewrite:
+              pathPrefixRewrite: "/"
+        - paths: ["/old/*"]
+          urlRedirect:
+            hostRedirect: "new.example.com"
+            httpsRedirect: false
+            pathRedirect: "/new"
+            redirectResponseCode: "MOVED_PERMANENTLY_DEFAULT"
+            stripQuery: true
+      routeRules:
+        - priority: 1
+          service: "projects/my-project/global/backendServices/ilb-full-api"
+          headerAction:
+            requestHeadersToAdd:
+              - headerName: "x-route"
+                headerValue: "1"
+                replace: true
+          matchRules:
+            - ignoreCase: true
+              fullPathMatch: "/api/v1/users"
+              headerMatches:
+                - headerName: "x-exact"
+                  invertMatch: false
+                  exactMatch: "a"
+                - headerName: "x-prefix"
+                  invertMatch: true
+                  prefixMatch: "b"
+                - headerName: "x-suffix"
+                  invertMatch: false
+                  suffixMatch: "c"
+                - headerName: "x-regex"
+                  invertMatch: false
+                  regexMatch: "d.*"
+                - headerName: "x-present"
+                  invertMatch: false
+                  presentMatch: true
+                - headerName: "x-range"
+                  invertMatch: false
+                  rangeMatch:
+                    rangeEnd: 10
+                    rangeStart: 1
+              metadataFilters:
+                - filterMatchCriteria: MATCH_ALL
+                  filterLabels:
+                    - name: "env"
+                      value: "prod"
+              queryParameterMatches:
+                - name: "q1"
+                  exactMatch: "v"
+                - name: "q2"
+                  regexMatch: "v.*"
+                - name: "q3"
+                  presentMatch: true
+            - ignoreCase: false
+              prefixMatch: "/api/"
+            - ignoreCase: false
+              regexMatch: "/api/[a-z]+"
+            - ignoreCase: false
+              pathTemplateMatch: "/api/{id=*}"
+          routeAction:
+            urlRewrite:
+              pathTemplateRewrite: "/{id}"
+        - priority: 2
+          service: "projects/my-project/global/backendServices/external"
+          urlRedirect:
+            prefixRedirect: "/p"
+    - name: "redirect"
+      defaultUrlRedirect:
+        hostRedirect: "new.example.com"
+        httpsRedirect: false
+        stripQuery: false
+  test:
+    - host: "api.example.com"
+      path: "/v1/x"
+      service:
+        backendServiceRef:
+          external: "projects/my-project/global/backendServices/ilb-full-api"
+      description: "API test."

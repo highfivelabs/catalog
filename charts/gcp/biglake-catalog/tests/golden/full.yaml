@@ -1,0 +1,119 @@
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeCatalog
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "catalog"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  resourceID: "lake"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeDatabase
+metadata:
+  name: full-database-sales
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:sales"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  catalog: "lake"
+  resourceID: "sales"
+  type: "HIVE"
+  hiveOptions:
+    locationUri: "gs://my-bucket/sales"
+    parameters:
+      "owner": "sales-team"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: biglake.gcp.hfl.dev/v1beta1
+kind: BigLakeDatabase
+metadata:
+  name: full-database-staging
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:staging"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "us-central1"
+  catalog: "lake"
+  resourceID: "staging"
+  type: "HIVE"
+  hiveOptions:
+    locationUri: "gs://my-bucket/staging"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+kind: BigLakeTable
+metadata:
+  name: full-table-sales-customers
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:sales-customers"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentDatabaseRef:
+    external: "projects/my-project/locations/us-central1/catalogs/lake/databases/sales"
+  resourceID: "customers"
+  type: "HIVE"
+  hiveOptions:
+    tableType: "MANAGED_TABLE"
+    storageDescriptor:
+      locationURI: "gs://my-bucket/sales/customers"
+      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
+      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"
+---
+# Source: biglake-catalog/templates/main.yaml
+apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+kind: BigLakeTable
+metadata:
+  name: full-table-sales-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: biglake-catalog
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table:sales-orders"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  parentDatabaseRef:
+    external: "projects/my-project/locations/us-central1/catalogs/lake/databases/sales"
+  resourceID: "orders"
+  type: "HIVE"
+  hiveOptions:
+    tableType: "EXTERNAL_TABLE"
+    storageDescriptor:
+      locationURI: "gs://my-bucket/sales/orders"
+      inputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+      outputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+    parameters:
+      "provider": "iceberg"

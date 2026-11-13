@@ -1,0 +1,237 @@
+# Every accepted variable and attribute: a zonal WAF_v2 gateway with
+# autoscale, a private and a public frontend (the public IP the chart
+# makes, with DNS, IP tags, DDoS and its own tags), Private Link, HTTP and
+# TLS proxy listeners, path-based routing, redirects (to a listener, by
+# path rule), rewrites, a load distribution policy, an SSL policy and
+# profile, a WAF configuration, identities, lock, role assignments and
+# diagnostic settings. IDs and keys both, as the module takes them.
+name: appgw-full
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full
+tags: {env: test, team: net}
+labels: {team: net}
+deletion_policy: ABANDON
+enable_telemetry: false
+zones: ["1", "2", "3"]
+sku: {name: WAF_v2, tier: WAF_v2}
+autoscale_configuration: {min_capacity: 1, max_capacity: 3}
+enable_http2: true
+enable_fips: false
+force_firewall_policy_association: true
+firewall_policy: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/wafp}
+global_configuration: {enable_request_buffering: true, enable_response_buffering: false}
+custom_error_configurations:
+  - {status_code: HttpStatus502, custom_error_page_url: "https://example.com/502.html"}
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai]
+customer_managed_key: {key_vault_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.KeyVault/vaults/kv, key_name: k}
+private_endpoints: {}
+private_endpoints_manage_dns_zone_group: false
+public_ip_addresses:
+  pub:
+    name: pip-appgw-full
+    domain_name_label: appgw-full-example
+    idle_timeout_in_minutes: 10
+    ip_tags: {RoutingPreference: Internet}
+    ddos_protection_mode: Enabled
+    ddos_protection_plan_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/ddosProtectionPlans/ddos
+    tags: {role: frontend}
+    zones: ["1", "2", "3"]
+gateway_ip_configurations:
+  - name: gw-ip
+    subnet: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw}
+private_link_configurations:
+  - name: plc
+    ip_configurations:
+      - name: plc-ip
+        primary: true
+        private_ip_allocation_method: Dynamic
+        subnet: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pl}
+frontend_ip_configurations:
+  - {name: fe-public, public_ip_address_key: pub, private_link_configuration: {private_link_configuration_key: PLC}}
+  - name: fe-private
+    private_ip_address: 10.0.0.10
+    private_ip_allocation_method: Static
+    subnet: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw}
+frontend_ports:
+  - {name: port-80, port: 80}
+  - {name: port-8443, port: 8443}
+backend_address_pools:
+  - name: pool-web
+    backend_addresses: [{ip_address: 10.0.1.4}, {fqdn: web.example.com}]
+  - {name: pool-api}
+probes:
+  - name: probe-http
+    id: ignored-as-in-the-module
+    protocol: Http
+    host: web.example.com
+    path: /healthz
+    interval: 30
+    timeout: 30
+    unhealthy_threshold: 3
+    min_servers: 0
+    port: 80
+    pick_host_name_from_backend_http_settings: false
+    match: {body: ok, status_codes: ["200-399"]}
+  - {name: probe-tcp, protocol: Tcp, interval: 30, timeout: 30, unhealthy_threshold: 3, pick_host_name_from_backend_settings: true}
+backend_http_settings_collection:
+  - name: http-80
+    port: 80
+    protocol: Http
+    cookie_based_affinity: Enabled
+    affinity_cookie_name: APPGW
+    request_timeout: 30
+    path: /
+    host_name: web.example.com
+    pick_host_name_from_backend_address: false
+    probe_enabled: true
+    probe: {probe_key: Probe-HTTP}
+    connection_draining: {enabled: true, drain_timeout_in_sec: 60}
+    authentication_certificates: [{id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/authenticationCertificates/auth}]
+    trusted_root_certificates: [{id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/trustedRootCertificates/root}]
+  - {name: http-api, port: 8080, protocol: Http, probe: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/probes/probe-http}}
+backend_settings_collection:
+  - name: tcp-5432
+    port: 5432
+    protocol: Tcp
+    timeout: 60
+    host_name: db.example.com
+    pick_host_name_from_backend_address: false
+    probe: {probe_key: probe-tcp}
+    trusted_root_certificates: [{id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/trustedRootCertificates/root}]
+http_listeners:
+  - name: listener-80
+    protocol: Http
+    host_name: web.example.com
+    require_server_name_indication: false
+    frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}
+    frontend_port: {frontend_port_key: port-80}
+    firewall_policy: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/wafp}
+    custom_error_configurations: [{status_code: HttpStatus403, custom_error_page_url: "https://example.com/403.html"}]
+  - name: listener-redirect
+    protocol: Http
+    host_names: [old.example.com, legacy.example.com]
+    frontend_ip_configuration: {frontend_ip_configuration_key: fe-private}
+    frontend_port: {frontend_port_key: port-80}
+    ssl_certificate: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/sslCertificates/cert}
+    ssl_profile: {ssl_profile_key: profile-strict}
+listeners:
+  - name: tls-listener
+    protocol: Tcp
+    frontend_ip_configuration: {frontend_ip_configuration_key: fe-private}
+    frontend_port: {frontend_port_key: port-8443}
+    ssl_profile: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/sslProfiles/profile-strict}
+routing_rules:
+  - name: tcp-rule
+    priority: 200
+    rule_type: Basic
+    listener: {listener_key: tls-listener}
+    backend_address_pool: {backend_address_pool_key: pool-api}
+    backend_settings: {backend_settings_key: tcp-5432}
+load_distribution_policies:
+  - name: ldp-rr
+    load_distribution_algorithm: RoundRobin
+    load_distribution_targets: [{id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/loadDistributionPolicies/ldp-rr/loadDistributionTargets/t1}]
+rewrite_rule_sets:
+  - name: rw-headers
+    id: ignored-as-in-the-module
+    rewrite_rules:
+      - name: add-hsts
+        rule_sequence: 100
+        conditions: [{variable: http_resp_Content-Type, pattern: text/html, ignore_case: true, negate: false}]
+        action_set:
+          request_header_configurations: [{header_name: X-Forwarded-Proto, header_value: https}]
+          response_header_configurations: [{header_name: Strict-Transport-Security, header_value: max-age=31536000}]
+          url_configuration: {modified_path: /new, modified_query_string: "a=b", reroute: false}
+url_path_maps:
+  - name: paths
+    default_backend_address_pool: {backend_address_pool_key: pool-web}
+    default_backend_http_settings: {backend_http_settings_key: http-80}
+    default_rewrite_rule_set: {rewrite_rule_set_key: rw-headers}
+    default_load_distribution_policy: {load_distribution_policy_key: ldp-rr}
+    path_rules:
+      - name: api
+        paths: [/api/*]
+        backend_address_pool: {backend_address_pool_key: pool-api}
+        backend_http_settings: {backend_http_settings_key: http-api}
+        rewrite_rule_set: {rewrite_rule_set_key: rw-headers}
+        load_distribution_policy: {load_distribution_policy_key: ldp-rr}
+        firewall_policy: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/wafp}
+      - name: old
+        paths: [/old/*]
+        redirect_configuration: {redirect_configuration_key: to-listener}
+  - name: redirect-paths
+    default_redirect_configuration: {redirect_configuration_key: to-url}
+redirect_configurations:
+  - name: to-listener
+    redirect_type: Permanent
+    include_path: true
+    include_query_string: true
+    target_listener: {http_listener_key: listener-80}
+    path_rules: [{path_rule_key: old, url_path_map_key: paths}]
+    url_path_maps: [{url_path_map_key: paths}]
+  - name: to-url
+    redirect_type: Found
+    target_url: "https://example.com"
+    request_routing_rules: [{request_routing_rule_key: rule-redirect}]
+request_routing_rules:
+  - name: rule-paths
+    rule_type: PathBasedRouting
+    priority: 100
+    http_listener: {http_listener_key: listener-80}
+    url_path_map: {url_path_map_key: paths}
+    rewrite_rule_set: {rewrite_rule_set_key: rw-headers}
+  - name: rule-redirect
+    rule_type: Basic
+    priority: 110
+    http_listener: {http_listener_key: listener-redirect}
+    redirect_configuration: {redirect_configuration_key: to-url}
+  - name: rule-ldp
+    rule_type: Basic
+    priority: 120
+    http_listener: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/httpListeners/listener-80}
+    backend_address_pool: {backend_address_pool_key: pool-web}
+    backend_http_settings: {backend_http_settings_key: http-80}
+    load_distribution_policy: {load_distribution_policy_key: ldp-rr}
+ssl_policy:
+  policy_type: CustomV2
+  min_protocol_version: TLSv1_2
+  cipher_suites: [TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+  disabled_ssl_protocols: []
+ssl_profiles:
+  - name: profile-strict
+    ssl_policy: {policy_type: Predefined, policy_name: AppGwSslPolicy20220101S, min_protocol_version: TLSv1_2}
+    client_auth_configuration: {verify_client_cert_issuer_dn: true, verify_client_revocation: OCSP}
+    trusted_client_certificates: [{id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Network/applicationGateways/appgw-full/trustedClientCertificates/ca}]
+web_application_firewall_configuration:
+  enabled: true
+  firewall_mode: Prevention
+  rule_set_type: OWASP
+  rule_set_version: "3.2"
+  file_upload_limit_in_mb: 100
+  max_request_body_size_in_kb: 128
+  request_body_check: true
+  disabled_rule_groups: [{rule_group_name: REQUEST-942-APPLICATION-ATTACK-SQLI, rules: [942100, 942110]}]
+  exclusions: [{match_variable: RequestHeaderNames, selector: X-Custom, selector_match_operator: Equals}]
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader:
+    role_definition_id_or_name: Reader
+    principal_id: 11111111-1111-1111-1111-111111111111
+    skip_service_principal_aad_check: true
+  contrib:
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+    principal_id: 22222222-2222-2222-2222-222222222222
+    principal_type: Group
+    description: network contributors
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.OperationalInsights/workspaces/law
+    log_categories: [ApplicationGatewayAccessLog]
+  storage:
+    name: diag-to-storage
+    storage_account_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-full/providers/Microsoft.Storage/storageAccounts/st
+    log_groups: [audit]
+    metric_categories: []
+    log_analytics_destination_type: AzureDiagnostics

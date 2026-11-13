@@ -1,0 +1,74 @@
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: BastionHost
+metadata:
+  name: basic-bastion
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "bastion_host"
+spec:
+  azureName: "bas-example"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  sku:
+    name: Basic
+  disableCopyPaste: false
+  enableFileCopy: false
+  enableIpConnect: false
+  enableKerberos: false
+  enablePrivateOnlyBastion: false
+  enableSessionRecording: false
+  enableShareableLink: false
+  enableTunneling: false
+  ipConfigurations:
+    - name: "ipconfig-bas-example"
+      privateIPAllocationMethod: Dynamic
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: basic-pip
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/AzureBastionSubnet"
+  scaleUnits: 2
+  zones:
+    - "1"
+    - "2"
+    - "3"
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: basic-pip
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip"
+spec:
+  azureName: "pip-bas-example"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "1"
+    - "2"
+    - "3"

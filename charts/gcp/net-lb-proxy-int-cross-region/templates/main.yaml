@@ -1,0 +1,142 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric
+modules/net-lb-proxy-int-cross-region/main.tf (v60.0.0), Copyright 2026
+Google LLC, Apache-2.0.
+
+google_compute_global_forwarding_rule.default: one global
+ComputeForwardingRule (INTERNAL_MANAGED, TCP) per vpc_config.subnetworks
+key, named <name>-<key>, in that subnet;
+google_compute_target_tcp_proxy.default: a global ComputeTargetTCPProxy;
+google_compute_network_endpoint_group.default: one zonal
+ComputeNetworkEndpointGroup per gce or hybrid entry of neg_configs;
+google_compute_network_endpoint.default: one ComputeNetworkEndpoint
+(config-connector-extensions, compute.gcp.hfl.dev/v1beta1) per endpoint
+of those, keyed <neg>-<endpoint>;
+google_compute_region_network_endpoint_group.psc: one
+ComputeRegionNetworkEndpointGroup per psc entry.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "backendService" "healthCheck" "targetProxy")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := $v.project_id }}
+{{- $network := include "netlbpxr.link" $v.vpc_config.network }}
+{{- $tp := $v.target_proxy_config | default dict }}
+{{- $addresses := $v.addresses | default dict }}
+{{- range $k := keys $v.vpc_config.subnetworks | sortAlpha }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "fr" $k)) "id" (printf "forwarding_rule:%s" $k) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "forwarding rule" (printf "%s-%s" $v.name $k) 63 "letter") | quote }}
+  location: global
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  {{- with index $addresses $k }}
+  ipAddress:
+    {{- if regexMatch "^[0-9a-fA-F.:]+$" . }}
+    ip: {{ . | quote }}
+    {{- else }}
+    addressRef:
+      external: {{ include "netlbpxr.link" . | quote }}
+    {{- end }}
+  {{- end }}
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: {{ $network | quote }}
+  portRange: {{ $v.port | toString | quote }}
+  subnetworkRef:
+    external: {{ include "netlbpxr.link" (index $v.vpc_config.subnetworks $k) | quote }}
+  target:
+    targetTCPProxyRef:
+      name: {{ include "kcc.name" (list $.Release.Name) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetTCPProxy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "target_proxy" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "targetProxy" "target proxy" ($tp.name | default $v.name) 63 "letter") | quote }}
+  location: global
+  description: {{ ternary "Terraform managed." $tp.description (kindIs "invalid" $tp.description) | quote }}
+  {{- with $tp.proxy_header }}
+  proxyHeader: {{ . | quote }}
+  {{- end }}
+  backendServiceRef:
+    name: {{ include "kcc.name" (list $.Release.Name) }}
+{{- range $k := keys ($v.neg_configs | default dict) | sortAlpha }}
+{{- $n := index $v.neg_configs $k }}
+{{- $types := list }}
+{{- range $t := list "gce" "hybrid" "psc" }}{{ if not (kindIs "invalid" (index $n $t)) }}{{ $types = append $types $t }}{{ end }}{{ end }}
+{{- if ne (len $types) 1 }}
+{{- fail "net-lb-proxy-int-cross-region: Only one type of neg can be configured at a time." }}
+{{- end }}
+{{- $negProject := include "netlbpxr.project" (list $ $n) }}
+{{- $negObject := include "kcc.name" (list $.Release.Name "neg" $k) }}
+{{- if or $n.gce $n.hybrid }}
+{{- $z := $n.gce | default $n.hybrid }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $negObject "id" (printf "neg:%s" $k) "project" $negProject "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "netlbpxr.negName" (list $ $k) | quote }}
+  location: {{ $z.zone | quote }}
+  networkEndpointType: {{ ternary "GCE_VM_IP_PORT" "NON_GCP_PRIVATE_IP_PORT" (not (empty $n.gce)) }}
+  networkRef:
+    {{- /* The API takes the project's default network when none is given;
+    Config Connector requires one, so it is named. */}}
+    external: {{ include "netlbpxr.link" ($z.network | default (printf "projects/%s/global/networks/default" $negProject)) | quote }}
+  {{- if and $n.gce $z.subnetwork }}
+  subnetworkRef:
+    external: {{ include "netlbpxr.link" $z.subnetwork | quote }}
+  {{- end }}
+{{- range $ek := keys ($z.endpoints | default dict) | sortAlpha }}
+{{- $e := index $z.endpoints $ek }}
+---
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "ep" $k $ek)) "id" (printf "endpoint:%s-%s" $k $ek) "project" $negProject "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $negProject | quote }}
+  networkEndpointGroupRef:
+    name: {{ $negObject }}
+  zone: {{ $z.zone | quote }}
+  ipAddress: {{ $e.ip_address | quote }}
+  {{- with $e.instance }}
+  instanceRef:
+    external: {{ . | quote }}
+  {{- end }}
+  resourceID: {{ $e.port | toString | quote }}
+{{- end }}
+{{- else }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRegionNetworkEndpointGroup
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $negObject "id" (printf "psc_neg:%s" $k) "project" $negProject "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "netlbpxr.negName" (list $ $k) | quote }}
+  region: {{ $n.psc.region | quote }}
+  networkEndpointType: PRIVATE_SERVICE_CONNECT
+  pscTargetService: {{ $n.psc.target_service | quote }}
+  {{- with $n.psc.network }}
+  networkRef:
+    external: {{ include "netlbpxr.link" . | quote }}
+  {{- end }}
+  {{- with $n.psc.subnetwork }}
+  subnetworkRef:
+    external: {{ include "netlbpxr.link" . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

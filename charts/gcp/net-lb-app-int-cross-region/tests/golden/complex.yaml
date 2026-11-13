@@ -1,0 +1,496 @@
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: complex-bs-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service:default"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-default"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP"
+  healthChecks:
+    - healthCheckRef:
+        name: complex-hc-default
+  backend:
+    - balancingMode: "UTILIZATION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        instanceGroupRef:
+          name: complex-group-nginx-ew1
+    - balancingMode: "UTILIZATION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        instanceGroupRef:
+          name: complex-group-nginx-ew4
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: complex-bs-gce-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service:gce-neg"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-gce-neg"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTP"
+  healthChecks:
+    - healthCheckRef:
+        name: complex-hc-default
+  backend:
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: complex-neg-neg-nginx-ew1
+      maxRatePerEndpoint: 1
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: complex-neg-neg-nginx-ew4
+      maxRatePerEndpoint: 1
+---
+# Source: net-lb-app-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: complex-bs-home
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service:home"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-home"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: "HTTPS"
+  healthChecks:
+    - healthCheckRef:
+        name: complex-hc-neg
+  localityLbPolicy: "ROUND_ROBIN"
+  backend:
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: complex-neg-neg-home-hello-ew1
+      maxRatePerEndpoint: 1
+    - balancingMode: "RATE"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: complex-neg-neg-home-hello-ew4
+      maxRatePerEndpoint: 1
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: complex-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-europe-west1"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/prj-host/global/networks/shared-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/prj-host/regions/europe-west1/subnetworks/gce"
+  target:
+    targetHTTPProxyRef:
+      name: complex
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: complex-fr-europe-west4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west4"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-europe-west4"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/prj-host/global/networks/shared-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/prj-host/regions/europe-west4/subnetworks/gce"
+  target:
+    targetHTTPProxyRef:
+      name: complex
+---
+# Source: net-lb-app-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: complex-hc-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check:default"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-default"
+  location: global
+  description: "Terraform managed."
+  httpHealthCheck:
+    port: 80
+---
+# Source: net-lb-app-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: complex-hc-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check:neg"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-neg"
+  location: global
+  description: "Terraform managed."
+  httpsHealthCheck:
+    host: hello.home.example.com
+    port: 443
+---
+# Source: net-lb-app-int-cross-region/templates/groups.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  name: complex-group-nginx-ew1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group:nginx-ew1"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-nginx-ew1"
+  zone: "europe-west1-b"
+  description: "Terraform managed."
+  instances:
+    - external: "projects/prj-gce/zones/europe-west1-b/instances/nginx-ew1"
+  namedPort:
+    - name: "http"
+      port: 80
+---
+# Source: net-lb-app-int-cross-region/templates/groups.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  name: complex-group-nginx-ew4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group:nginx-ew4"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-nginx-ew4"
+  zone: "europe-west4-b"
+  description: "Terraform managed."
+  instances:
+    - external: "projects/prj-gce/zones/europe-west4-b/instances/nginx-ew4"
+  namedPort:
+    - name: "http"
+      port: 80
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: complex-ep-neg-home-hello-ew1-e-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:neg-home-hello-ew1-e-0"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  projectRef:
+    external: "prj-gce"
+  networkEndpointGroupRef:
+    name: complex-neg-neg-home-hello-ew1
+  zone: "europe-west1-b"
+  ipAddress: "192.168.0.3"
+  resourceID: "443"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: complex-ep-neg-home-hello-ew4-e-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:neg-home-hello-ew4-e-0"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  projectRef:
+    external: "prj-gce"
+  networkEndpointGroupRef:
+    name: complex-neg-neg-home-hello-ew4
+  zone: "europe-west4-b"
+  ipAddress: "192.168.1.3"
+  resourceID: "443"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: complex-ep-neg-nginx-ew1-e-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:neg-nginx-ew1-e-0"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  projectRef:
+    external: "prj-gce"
+  networkEndpointGroupRef:
+    name: complex-neg-neg-nginx-ew1
+  zone: "europe-west1-c"
+  ipAddress: "10.24.32.26"
+  instanceRef:
+    external: "nginx-ew1-c"
+  resourceID: "80"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: complex-ep-neg-nginx-ew4-e-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:neg-nginx-ew4-e-0"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  projectRef:
+    external: "prj-gce"
+  networkEndpointGroupRef:
+    name: complex-neg-neg-nginx-ew4
+  zone: "europe-west4-c"
+  ipAddress: "10.34.32.26"
+  instanceRef:
+    external: "nginx-ew4-c"
+  resourceID: "80"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: complex-neg-neg-home-hello-ew1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:neg-home-hello-ew1"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-neg-home-hello-ew1"
+  location: "europe-west1-b"
+  description: "Terraform managed."
+  networkEndpointType: NON_GCP_PRIVATE_IP_PORT
+  networkRef:
+    external: "projects/prj-host/global/networks/shared-vpc"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: complex-neg-neg-home-hello-ew4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:neg-home-hello-ew4"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-neg-home-hello-ew4"
+  location: "europe-west4-b"
+  description: "Terraform managed."
+  networkEndpointType: NON_GCP_PRIVATE_IP_PORT
+  networkRef:
+    external: "projects/prj-host/global/networks/shared-vpc"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: complex-neg-neg-nginx-ew1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:neg-nginx-ew1"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-neg-nginx-ew1"
+  location: "europe-west1-c"
+  description: "Terraform managed."
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/prj-host/global/networks/shared-vpc"
+  subnetworkRef:
+    external: "projects/prj-host/regions/europe-west1/subnetworks/gce"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: complex-neg-neg-nginx-ew4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:neg-nginx-ew4"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0-neg-nginx-ew4"
+  location: "europe-west4-c"
+  description: "Terraform managed."
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/prj-host/global/networks/shared-vpc"
+  subnetworkRef:
+    external: "projects/prj-host/regions/europe-west4/subnetworks/gce"
+---
+# Source: net-lb-app-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetHTTPProxy
+metadata:
+  name: complex
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0"
+  location: global
+  description: "Terraform managed."
+  urlMapRef:
+    name: complex
+---
+# Source: net-lb-app-int-cross-region/templates/urlmap.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeURLMap
+metadata:
+  name: complex
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "complex"
+    app.kubernetes.io/name: net-lb-app-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "url_map"
+    cnrm.cloud.google.com/project-id: "prj-gce"
+spec:
+  resourceID: "ilb-l7-test-0"
+  location: global
+  description: "Terraform managed."
+  defaultService:
+    backendServiceRef:
+      name: complex-bs-default
+  hostRule:
+    - hosts: ["*"]
+      pathMatcher: "gce"
+    - hosts: ["hello.home.example.com"]
+      pathMatcher: "home"
+  pathMatcher:
+    - name: "gce"
+      defaultService:
+        backendServiceRef:
+          name: complex-bs-default
+      pathRule:
+        - paths: ["/gce-neg","/gce-neg/*"]
+          service:
+            backendServiceRef:
+              name: complex-bs-gce-neg
+    - name: "home"
+      defaultService:
+        backendServiceRef:
+          name: complex-bs-home

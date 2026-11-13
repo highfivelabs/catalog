@@ -1,0 +1,157 @@
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: mock-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "catalog-sfn"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"states.us-east-1.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policyRefs:
+    - from:
+        name: mock-policy-service-lambda
+    - from:
+        name: mock-policy-service-xray
+    - from:
+        name: mock-policy-inline
+    - from:
+        name: mock-policy-logs
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+  name: mock-log-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "log-group"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "/aws/vendedlogs/states/catalog-sfn"
+  retentionDays: 7
+  tags:
+    "catalog-test": "true"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: mock-policy-service-lambda
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-service-lambda"
+spec:
+  name: "catalog-sfn-lambda"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"lambda:InvokeFunction\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:lambda:us-east-1:000000000000:function:catalog-none\"],\"Sid\":\"lambdaLambda\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: mock-policy-service-xray
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-service-xray"
+spec:
+  name: "catalog-sfn-xray"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"xray:PutTraceSegments\",\"xray:PutTelemetryRecords\",\"xray:GetSamplingRules\",\"xray:GetSamplingTargets\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"],\"Sid\":\"xrayXray\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: mock-policy-inline
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-inline"
+spec:
+  name: "catalog-sfn-inline"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"sqs:SendMessage\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"],\"Sid\":\"sqs\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: mock-policy-logs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-logs"
+spec:
+  name: "catalog-sfn-logs"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"logs:CreateLogDelivery\",\"logs:GetLogDelivery\",\"logs:UpdateLogDelivery\",\"logs:DeleteLogDelivery\",\"logs:ListLogDeliveries\",\"logs:PutResourcePolicy\",\"logs:DescribeResourcePolicies\",\"logs:DescribeLogGroups\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"]}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "catalog-test"
+      value: "true"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+  name: mock-state-machine
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "state-machine"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "catalog-sfn"
+  definition: "{\"StartAt\": \"Hello\", \"States\": {\"Hello\": {\"Type\": \"Pass\", \"Result\": \"Hello\", \"Next\": \"World\"}, \"World\": {\"Type\": \"Pass\", \"Result\": \"World\", \"End\": true}}}"
+  roleRef:
+    from:
+      name: mock-role
+  type_: "STANDARD"
+  loggingConfiguration:
+    destinations:
+      - cloudWatchLogsLogGroup:
+          logGroupARN: "arn:aws:logs:us-east-1:000000000000:log-group:/aws/vendedlogs/states/catalog-sfn:*"
+    includeExecutionData: true
+    level: "ALL"
+  tracingConfiguration:
+    enabled: true
+  tags:
+    - key: "Name"
+      value: "catalog-sfn"
+    - key: "catalog-test"
+      value: "true"
