@@ -427,6 +427,13 @@ is refused (section 8).
 | `credential-set` | `registries/credentialSets@2025-11-01` | aso-extensions `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`, 2025-11-01) |
 | `scope-map` | scope map, token, token password | aso-extensions `RegistriesScopeMap`, `RegistriesToken` (2025-11-01); a token's password is a secret returned once (refused) |
 
+Chart `charts/azure/avm-res-containerregistry-registry`: private endpoints
+mapped from 0.2.0 (2026-11-13) as `PrivateEndpoint` and
+`PrivateEndpointsPrivateDnsZoneGroup`. `customer_managed_key` stays not
+ported: ASO's `Registry` takes the identity's client ID (a literal, or a
+ConfigMap ASO writes for an identity it manages), which the module reads
+from Azure and a render cannot.
+
 ### 15. avm-res-network-firewallpolicy (v0.3.4; azurerm)
 
 | Submodule | ASO (2025-03-01) |

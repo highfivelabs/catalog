@@ -1,6 +1,7 @@
 # Every input the chart carries: the group by ID, identities, the admin
 # user, network rules and bypasses, policies, retention, ABAC permissions,
-# geo-replications, cache rules, tags, a lock, role assignments and
+# geo-replications, cache rules, tags, a lock, role assignments,
+# private endpoints (one inheriting the lock, one with its own) and
 # diagnostic settings.
 name: acrplatform
 location: westeurope
@@ -63,3 +64,22 @@ role_assignments:
 diagnostic_settings:
   law:
     workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law
+private_endpoints:
+  hub:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io]
+    network_interface_name: nic-pe-acrplatform
+    application_security_group_associations:
+      app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app
+    ip_configurations:
+      reg: {name: ipconfig-registry, private_ip_address: 10.0.1.20}
+    tags: {tier: private}
+  spoke:
+    name: pe-acr-spoke
+    location: northeurope
+    resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke/subnets/snet-pe
+    private_service_connection_name: psc-acr-spoke
+    private_dns_zone_group_name: zones
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io]
+    lock: {kind: ReadOnly, name: pe-readonly}
