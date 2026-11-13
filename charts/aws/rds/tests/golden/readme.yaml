@@ -1,0 +1,164 @@
+---
+# Source: rds/templates/rds.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: readme-monitoring-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "readme"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "enhanced-monitoring-role"
+spec:
+  name: "MyRDSMonitoringRole"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"monitoring.rds.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "MyRDSMonitoringRole"
+    - key: "Owner"
+      value: "user"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBInstance
+metadata:
+  name: readme-db-instance
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "readme"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-instance"
+    rds.services.k8s.aws/delete-automated-backups: "true"
+    rds.services.k8s.aws/final-db-snapshot-identifier: "final-demodb-c0831f98"
+    rds.services.k8s.aws/skip-final-snapshot: "false"
+spec:
+  dbInstanceIdentifier: "demodb"
+  dbInstanceClass: "db.t3a.large"
+  engine: "mysql"
+  engineVersion: "8.0"
+  allocatedStorage: 5
+  storageEncrypted: true
+  dbName: "demodb"
+  masterUsername: "user"
+  manageMasterUserPassword: true
+  port: 3306
+  enableIAMDatabaseAuthentication: true
+  vpcSecurityGroupIDs:
+    - "sg-12345678"
+  dbSubnetGroupRef:
+    from:
+      name: readme-subnet-group
+  dbParameterGroupRef:
+    from:
+      name: readme-parameter-group
+  optionGroupName: "demodb"
+  multiAZ: false
+  publiclyAccessible: false
+  autoMinorVersionUpgrade: true
+  preferredMaintenanceWindow: "Mon:00:00-Mon:03:00"
+  copyTagsToSnapshot: true
+  performanceInsightsEnabled: false
+  preferredBackupWindow: "03:00-06:00"
+  monitoringInterval: 30
+  monitoringRoleRef:
+    from:
+      name: readme-monitoring-role
+  deletionProtection: true
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Owner"
+      value: "user"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBParameterGroup
+metadata:
+  name: readme-parameter-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "readme"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-parameter-group"
+spec:
+  name: "demodb"
+  description: "demodb parameter group"
+  family: "mysql8.0"
+  parameterOverrides:
+    "character_set_client": "utf8mb4"
+    "character_set_server": "utf8mb4"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "demodb"
+    - key: "Owner"
+      value: "user"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+  name: readme-subnet-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "readme"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-subnet-group"
+spec:
+  name: "demodb"
+  description: "demodb subnet group"
+  subnetIDs:
+    - "subnet-12345678"
+    - "subnet-87654321"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "demodb"
+    - key: "Owner"
+      value: "user"
+---
+# Source: rds/templates/rds.yaml
+apiVersion: rds.aws.hfl.dev/v1alpha1
+kind: OptionGroup
+metadata:
+  name: readme-option-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "readme"
+    app.kubernetes.io/name: rds
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "db-option-group"
+spec:
+  name: "demodb"
+  description: "demodb option group"
+  engineName: "mysql"
+  majorEngineVersion: "8.0"
+  options:
+    - optionName: "MARIADB_AUDIT_PLUGIN"
+      optionSettings:
+        - name: "SERVER_AUDIT_EVENTS"
+          value: "CONNECT"
+        - name: "SERVER_AUDIT_FILE_ROTATIONS"
+          value: "37"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "demodb"
+    - key: "Owner"
+      value: "user"

@@ -1,0 +1,250 @@
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-fwp-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-fwp-hub"
+  owner:
+    group: network.azure.com
+    kind: FirewallPolicy
+    name: full-fwp
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law-default"
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: FirewallPoliciesRuleCollectionGroup
+metadata:
+  name: full-rcg-core
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule_collection_group:core"
+spec:
+  azureName: "rcg-core"
+  owner:
+    name: full-fwp
+  priority: 200
+  ruleCollections:
+    - firewallPolicyFilterRuleCollection:
+        ruleCollectionType: FirewallPolicyFilterRuleCollection
+        name: "web"
+        priority: 300
+        action:
+          type: Allow
+        rules:
+          - applicationRule:
+              ruleType: ApplicationRule
+              name: "microsoft"
+              targetFqdns:
+                - '*.microsoft.com'
+              sourceAddresses:
+                - 10.0.0.0/8
+              httpHeadersToInsert:
+                - headerName: "X-Env"
+                  headerValue: "prod"
+              protocols:
+                - port: 443
+                  protocolType: Https
+                - port: 80
+                  protocolType: Http
+          - applicationRule:
+              ruleType: ApplicationRule
+              name: "updates"
+              fqdnTags:
+                - WindowsUpdate
+              sourceIpGroups:
+                - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ipGroups/ipg-spokes
+              protocols:
+                - port: 443
+                  protocolType: Https
+    - firewallPolicyNatRuleCollection:
+        ruleCollectionType: FirewallPolicyNatRuleCollection
+        name: "inbound"
+        priority: 100
+        action:
+          type: DNAT
+        rules:
+          - natRule:
+              ruleType: NatRule
+              name: "ssh"
+              ipProtocols:
+                - TCP
+              destinationAddresses:
+                - "20.10.10.10"
+              destinationPorts:
+                - "22"
+              sourceAddresses:
+                - '*'
+              translatedAddress: "10.1.0.10"
+              translatedPort: "22"
+    - firewallPolicyFilterRuleCollection:
+        ruleCollectionType: FirewallPolicyFilterRuleCollection
+        name: "dns"
+        priority: 400
+        action:
+          type: Allow
+        rules:
+          - networkRule:
+              ruleType: NetworkRule
+              name: "dns"
+              ipProtocols:
+                - UDP
+                - TCP
+              destinationPorts:
+                - "53"
+              destinationAddresses:
+                - 168.63.129.16
+              sourceAddresses:
+                - 10.0.0.0/8
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: FirewallPolicy
+metadata:
+  name: full-fwp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_policy"
+spec:
+  azureName: "fwp-hub"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  basePolicy:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/firewallPolicies/fwp-base"
+  dnsSettings:
+    enableProxy: true
+    servers:
+      - 10.0.0.4
+      - 10.0.0.5
+  explicitProxy:
+    enableExplicitProxy: true
+    enablePacFile: true
+    httpPort: 8080
+    httpsPort: 8443
+    pacFile: "https://st.blob.core.windows.net/pac/proxy.pac?sv=x"
+    pacFilePort: 8090
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-fw"
+  insights:
+    isEnabled: true
+    retentionDays: 30
+    logAnalyticsResources:
+      defaultWorkspaceId:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law-default"
+      workspaces:
+        - region: "westeurope"
+          workspaceId:
+            reference:
+              armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law-weu"
+  intrusionDetection:
+    mode: Alert
+    configuration:
+      privateRanges:
+        - 10.0.0.0/8
+      signatureOverrides:
+        - {"id":"2024897","mode":"Deny"}
+      bypassTrafficSettings:
+        - name: "backup"
+          protocol: TCP
+          description: "nightly backup"
+          destinationAddresses:
+            - 10.1.0.4
+          destinationPorts:
+            - "443"
+          sourceAddresses:
+            - 10.2.0.0/24
+  sku:
+    tier: Premium
+  snat:
+    autoLearnPrivateRanges: Enabled
+    privateRanges:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+  sql:
+    allowSqlRedirect: false
+  threatIntelMode: Deny
+  threatIntelWhitelist:
+    fqdns:
+      - a.example.com
+      - b.example.com
+    ipAddresses:
+      - 203.0.113.10
+  transportSecurity:
+    certificateAuthority:
+      keyVaultSecretId: "https://kv-fw.vault.azure.net/secrets/fw-ca"
+      name: "fw-ca"
+  tags:
+    environment: prod
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-fwp-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: FirewallPolicy
+    name: full-fwp
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-firewallpolicy/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-fwp-role-netops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-firewallpolicy
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-netops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: FirewallPolicy
+    name: full-fwp
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Network Contributor"

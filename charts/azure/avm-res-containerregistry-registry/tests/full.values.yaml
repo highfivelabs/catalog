@@ -1,0 +1,65 @@
+# Every input the chart carries: the group by ID, identities, the admin
+# user, network rules and bypasses, policies, retention, ABAC permissions,
+# geo-replications, cache rules, tags, a lock, role assignments and
+# diagnostic settings.
+name: acrplatform
+location: westeurope
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr
+enable_telemetry: false
+admin_enabled: true
+anonymous_pull_enabled: true
+azuread_authentication_as_arm_policy_enabled: false
+data_endpoint_enabled: true
+enable_trust_policy: true
+export_policy_enabled: false
+quarantine_policy_enabled: true
+public_network_access_enabled: false
+network_rule_bypass_option: AzureServices
+network_rule_bypass_for_tasks_enabled: true
+network_rule_set:
+  default_action: Deny
+  ip_rule: [{ip_range: 203.0.113.0/24}]
+retention_policy_in_days: 30
+role_assignment_mode: AbacRepositoryPermissions
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-acr]
+georeplications:
+  - {location: northeurope, tags: {replica: "true"}}
+  - {location: swedencentral, regional_endpoint_enabled: false, zone_redundancy_enabled: false}
+cache_rules:
+  hub:
+    name: dockerhub-nginx
+    source_repository: docker.io/library/nginx
+    target_repository: cache/nginx
+    credential_set_key: hub
+  mcr:
+    name: mcr-dotnet
+    source_repository: mcr.microsoft.com/dotnet/runtime
+    target_repository: cache/dotnet
+    credential_set_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrplatform/credentialSets/mcr
+credential_sets:
+  hub:
+    name: dockerhub
+    login_server: docker.io
+    auth_credentials:
+      - username_secret_identifier: https://kv-acr.vault.azure.net/secrets/hub-user
+        password_secret_identifier: https://kv-acr.vault.azure.net/secrets/hub-token
+scope_maps:
+  pull:
+    name: app-pull
+    actions: [repositories/app/content/read, repositories/app/metadata/read]
+    description: Pull the app repository
+    registry_tokens:
+      ci: {name: ci-pull}
+      old: {name: old-pull, enabled: false}
+tags: {environment: prod}
+lock: {kind: CanNotDelete}
+role_assignments:
+  pull:
+    role_definition_id_or_name: AcrPull
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    skip_service_principal_aad_check: true
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law

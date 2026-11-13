@@ -1,0 +1,67 @@
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: basic-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "my-stepfunction"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"states.eu-west-1.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policyRefs:
+    - from:
+        name: basic-policy-service-lambda
+  tags:
+    - key: "Module"
+      value: "my"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: basic-policy-service-lambda
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-service-lambda"
+spec:
+  name: "my-stepfunction-lambda"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"lambda:InvokeFunction\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:lambda:eu-west-1:111122223333:function:test1\",\"arn:aws:lambda:eu-west-1:111122223333:function:test2\"],\"Sid\":\"lambdaLambda\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Module"
+      value: "my"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+  name: basic-state-machine
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "state-machine"
+    services.k8s.aws/region: "eu-west-1"
+spec:
+  name: "my-stepfunction"
+  definition: "{\"Comment\": \"A Hello World example of the Amazon States Language using Pass states\", \"StartAt\": \"Hello\", \"States\": {\"Hello\": {\"Type\": \"Pass\", \"Result\": \"Hello\", \"Next\": \"World\"}, \"World\": {\"Type\": \"Pass\", \"Result\": \"World\", \"End\": true}}}\n"
+  roleRef:
+    from:
+      name: basic-role
+  type_: "STANDARD"
+  tags:
+    - key: "Module"
+      value: "my"
+    - key: "Name"
+      value: "my-stepfunction"

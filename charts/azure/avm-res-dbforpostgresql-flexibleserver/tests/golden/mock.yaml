@@ -1,0 +1,115 @@
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServer
+metadata:
+  name: mock-psql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "catalog-psql"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  authConfig:
+    activeDirectoryAuth: Enabled
+    passwordAuth: Disabled
+    tenantId: "11111111-2222-3333-4444-555555555555"
+  highAvailability:
+    mode: Disabled
+  maintenanceWindow:
+    customWindow: Enabled
+    dayOfWeek: 0
+    startHour: 0
+    startMinute: 0
+  network:
+    publicNetworkAccess: Enabled
+  sku:
+    name: "Standard_B1ms"
+    tier: Burstable
+  storage:
+    storageSizeGB: 32
+  tags:
+    catalog: mock
+  version: "16"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersAdministrator
+metadata:
+  name: mock-psql-admin-aso
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ad_administrator:aso"
+spec:
+  azureName: "22222222-3333-4444-5555-666666666666"
+  owner:
+    name: mock-psql
+  principalName: "catalog-aso"
+  principalType: ServicePrincipal
+  tenantId: "11111111-2222-3333-4444-555555555555"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersConfiguration
+metadata:
+  name: mock-psql-config-slow
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "server_configuration:slow"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "log_min_duration_statement"
+  owner:
+    name: mock-psql
+  source: user-override
+  value: "1000"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersDatabase
+metadata:
+  name: mock-psql-db-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "database:app"
+spec:
+  azureName: "app"
+  owner:
+    name: mock-psql
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersFirewallRule
+metadata:
+  name: mock-psql-fw-office
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_rule:office"
+spec:
+  azureName: "office"
+  owner:
+    name: mock-psql
+  startIpAddress: "203.0.113.10"
+  endIpAddress: "203.0.113.10"

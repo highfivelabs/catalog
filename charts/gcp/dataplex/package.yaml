@@ -1,0 +1,40 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"),
+# computed from inputs as fabric computes them: id is the lake's Terraform
+# ID (projects/<p>/locations/<region>/lakes/<lake>), lake its name, assets
+# fabric's local.zone_assets (one entry per asset, zones and assets in key
+# order, Terraform's) and zones the zones that have an asset, in key order.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-dataplex
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    lake: >-
+      'lake' in inputs.names && inputs.names.lake != '' ? inputs.names.lake :
+      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null && inputs.prefix != '' ? inputs.prefix + '-' : '') + inputs.name
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.region + '/lakes/' +
+      ('lake' in inputs.names && inputs.names.lake != '' ? inputs.names.lake :
+      (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + (inputs.prefix != null && inputs.prefix != '' ? inputs.prefix + '-' : '') + inputs.name)
+    assets: >-
+      inputs.zones.map(z, z).sort().map(z,
+        inputs.zones[z].assets.map(a, a).sort().map(a, {
+          'zone_name': z,
+          'asset_name': a,
+          'resource_name': inputs.zones[z].assets[a].resource_name,
+          'resource_project': has(inputs.zones[z].assets[a].resource_project) && inputs.zones[z].assets[a].resource_project != null ? inputs.zones[z].assets[a].resource_project : inputs.project_id,
+          'cron_schedule': !has(inputs.zones[z].assets[a].discovery_spec_enabled) || inputs.zones[z].assets[a].discovery_spec_enabled == null || inputs.zones[z].assets[a].discovery_spec_enabled
+            ? dyn(has(inputs.zones[z].assets[a].cron_schedule) && inputs.zones[z].assets[a].cron_schedule != null ? inputs.zones[z].assets[a].cron_schedule : '15 15 * * *')
+            : null,
+          'discovery_spec_enabled': !has(inputs.zones[z].assets[a].discovery_spec_enabled) || inputs.zones[z].assets[a].discovery_spec_enabled == null || inputs.zones[z].assets[a].discovery_spec_enabled,
+          'resource_spec_type': has(inputs.zones[z].assets[a].resource_spec_type) && inputs.zones[z].assets[a].resource_spec_type != null ? inputs.zones[z].assets[a].resource_spec_type : 'STORAGE_BUCKET'
+        })).flatten()
+    zones: >-
+      inputs.zones.map(z, z).sort().filter(z, size(inputs.zones[z].assets) > 0)

@@ -1,0 +1,261 @@
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: full-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn"
+  description: "Runs the orders state machine"
+  path: "/sfn/"
+  permissionsBoundary: "arn:aws:iam::111122223333:policy/boundary"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"states.us-east-2.amazonaws.com\",\"events.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policies:
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-dynamodb"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-stepfunction_Sync"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-xray"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-0"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-1"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-inline"
+    - "arn:aws:iam::111122223333:policy/sfn/orders-sfn-logs"
+    - "arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Role"
+      value: "sfn"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+  name: full-log-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "log-group"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "/aws/vendedlogs/states/orders"
+  retentionDays: 14
+  kmsKeyID: "arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+  tags:
+    "Environment": "dev"
+    "Logs": "yes"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-service-dynamodb
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-service-dynamodb"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-dynamodb"
+  path: "/sfn/"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"dynamodb:GetItem\",\"dynamodb:PutItem\",\"dynamodb:UpdateItem\",\"dynamodb:DeleteItem\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:dynamodb:us-east-2:111122223333:table/Orders\"],\"Sid\":\"dynamodbDynamodb\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-service-stepfunction-sync-9ef1613c
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-service-stepfunction_Sync"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-stepfunction_Sync"
+  path: "/sfn/"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"events:PutTargets\",\"events:PutRule\",\"events:DescribeRule\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:events:us-east-2:111122223333:rule/StepFunctionsGetEventsForStepFunctionsExecutionRule\"],\"Sid\":\"stepfunctionSyncEvents\"},{\"Action\":[\"states:StartSyncExecution\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:states:us-east-2:111122223333:stateMachine:child\"],\"Sid\":\"stepfunctionSyncStepfunction\"},{\"Action\":[\"states:DescribeExecution\",\"states:StopExecution\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:states:us-east-2:111122223333:execution:child:*\"],\"Sid\":\"stepfunctionSyncStepfunctionWildcard\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-service-xray
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-service-xray"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-xray"
+  path: "/sfn/"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"xray:PutTraceSegments\",\"xray:PutTelemetryRecords\",\"xray:GetSamplingRules\",\"xray:GetSamplingTargets\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"],\"Sid\":\"xrayXray\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-json
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-json"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn"
+  path: "/sfn/"
+  policyDocument: "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"xray:GetSamplingStatisticSummaries\"], \"Resource\": [\"*\"]}]}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-jsons-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-jsons-0"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-0"
+  path: "/sfn/"
+  policyDocument: "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"sqs:SendMessage\"], \"Resource\": [\"*\"]}]}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-jsons-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-jsons-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-1"
+  path: "/sfn/"
+  policyDocument: "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"sns:Publish\"], \"Resource\": [\"*\"]}]}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-inline
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-inline"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-inline"
+  path: "/sfn/"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"s3:GetObject\"],\"Condition\":{\"StringEquals\":{\"aws:PrincipalAccount\":[\"111122223333\"]}},\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::orders/*\"],\"Sid\":\"s3read\"}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: full-policy-logs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-logs"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders-sfn-logs"
+  path: "/sfn/"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"logs:CreateLogDelivery\",\"logs:GetLogDelivery\",\"logs:UpdateLogDelivery\",\"logs:DeleteLogDelivery\",\"logs:ListLogDeliveries\",\"logs:PutResourcePolicy\",\"logs:DescribeResourcePolicies\",\"logs:DescribeLogGroups\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"]}],\"Version\":\"2012-10-17\"}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+  name: full-state-machine
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "state-machine"
+    services.k8s.aws/region: "us-east-2"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  name: "orders"
+  definition: "{\"StartAt\": \"Done\", \"States\": {\"Done\": {\"Type\": \"Succeed\"}}}"
+  roleRef:
+    from:
+      name: full-role
+  type_: "EXPRESS"
+  publish: true
+  loggingConfiguration:
+    destinations:
+      - cloudWatchLogsLogGroup:
+          logGroupARN: "arn:aws:logs:us-east-2:111122223333:log-group:/aws/vendedlogs/states/orders:*"
+    includeExecutionData: true
+    level: "ALL"
+  tracingConfiguration:
+    enabled: true
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "orders"

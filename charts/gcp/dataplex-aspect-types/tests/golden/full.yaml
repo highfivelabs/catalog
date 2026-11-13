@@ -1,0 +1,190 @@
+---
+# Source: dataplex-aspect-types/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAspectType
+metadata:
+  name: full-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex-aspect-types
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c42"
+    domain: "ownership"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "aspect-type:owner"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "owner"
+  description: "Who owns the entry."
+  displayName: "Owner"
+  labels:
+    cost-center: "c42"
+    domain: "ownership"
+    env: "prod"
+  metadataTemplate:
+    name: owner
+    recordFields:
+    - constraints:
+        required: true
+      index: 1
+      name: team
+      type: string
+    - index: 2
+      name: contact
+      type: string
+    type: record
+---
+# Source: dataplex-aspect-types/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexAspectType
+metadata:
+  name: full-quality
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex-aspect-types
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c42"
+    domain: "quality"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "aspect-type:quality"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "quality"
+  description: "Data quality facts."
+  displayName: "Quality"
+  labels:
+    cost-center: "c42"
+    domain: "quality"
+    env: "prod"
+  metadataTemplate:
+    name: quality
+    recordFields:
+    - annotations:
+        description: 0 to 100
+      index: 1
+      name: score
+      type: double
+    - index: 2
+      name: checked
+      type: datetime
+    type: record
+---
+# Source: dataplex-aspect-types/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-quality-iam-roles-dataplex-aspecttypeowner-8f16a710
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex-aspect-types
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c42"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "iam:quality.roles/dataplex.aspectTypeOwner"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: full-quality
+  role: "roles/dataplex.aspectTypeOwner"
+  members:
+    - "group:data-owners@example.com"
+---
+# Source: dataplex-aspect-types/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-quality-iam-roles-dataplex-aspecttypeuser-766a6880
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex-aspect-types
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c42"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "iam:quality.roles/dataplex.aspectTypeUser"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: full-quality
+  role: "roles/dataplex.aspectTypeUser"
+  members:
+    - "group:analysts@example.com"
+---
+# Source: dataplex-aspect-types/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-quality-user-temp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex-aspect-types
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c42"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "iam-binding:quality-user-temp"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: full-quality
+  role: "roles/dataplex.aspectTypeUser"
+  members:
+    - "user:temp@example.com"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp('2031-01-01T00:00:00Z')"
+    description: "until the end of 2030"
+---
+# Source: dataplex-aspect-types/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  name: full-iam-member-quality-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dataplex-aspect-types
+    app.kubernetes.io/version: "0.1.0"
+    cost-center: "c42"
+    env: "prod"
+    hfl.dev/team: "data"
+  annotations:
+    hfl.dev/id: "iam-member:quality-sa"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: full-quality
+  role: "roles/dataplex.aspectTypeUser"
+  member: "serviceAccount:etl@my-project.iam.gserviceaccount.com"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp('2031-01-01T00:00:00Z')"
