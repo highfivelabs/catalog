@@ -1,0 +1,47 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: dataproc
+spec:
+  version: "1.0.0"
+  components:
+    - name: processing-dp-cluster
+      package:
+        name: gcp-dataproc
+        version: "0.1.0"
+      inputs:
+        name: my-cluster
+        region: europe-west8
+        dataproc_config:
+          cluster_config:
+            gce_cluster_config:
+              internal_ip_only: true
+              service_account: dataproc@my-project.iam.gserviceaccount.com
+              subnetwork: projects/my-project/regions/europe-west8/subnetworks/subnet
+            software_config:
+              image_version: "2.2"
+              override_properties: {}
+        iam:
+          roles/dataproc.viewer:
+            - group:viewers@example.com
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: dataproc
+  scope: my-team
+spec:
+  template: dataproc
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: dataproc-dev
+  scope: my-team/dev
+spec:
+  stack: dataproc
+  version: "1.0.0"
+  components:
+    processing-dp-cluster:
+      values:
+        project_id: my-project

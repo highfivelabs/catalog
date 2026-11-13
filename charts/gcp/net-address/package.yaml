@@ -1,0 +1,64 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# fabric's address outputs are maps of whole address objects keyed by the
+# address name; here each is the address name to its IP address, the one
+# field consumers take (docs/design.md, "Outputs"). The IP is the
+# allocated one Config Connector reports, else the one the values set.
+# network_attachment_ids is the attachments' IDs, keyed as fabric keys
+# them. psc is, per PSC key, the endpoint's address and forwarding rule
+# (id, name, psc_connection_id), as fabric's, without the whole objects.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-address
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    external_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('external:'),
+        {v.spec.resourceID: has(v.status.observedState) && has(v.status.observedState.address)
+          ? v.status.observedState.address : (has(v.spec.address) ? v.spec.address : null)})
+    global_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('global:'),
+        {v.spec.resourceID: has(v.status.observedState) && has(v.status.observedState.address)
+          ? v.status.observedState.address : (has(v.spec.address) ? v.spec.address : null)})
+    internal_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('internal:'),
+        {v.spec.resourceID: has(v.status.observedState) && has(v.status.observedState.address)
+          ? v.status.observedState.address : (has(v.spec.address) ? v.spec.address : null)})
+    ipsec_interconnect_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('ipsec_interconnect:'),
+        {v.spec.resourceID: v.spec.address})
+    psa_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('psa:'),
+        {v.spec.resourceID: v.spec.address})
+    psc_addresses: >-
+      resources.transformMapEntry(k, v, k.startsWith('psc:'),
+        {v.spec.resourceID: has(v.status.observedState) && has(v.status.observedState.address)
+          ? v.status.observedState.address : (has(v.spec.address) ? v.spec.address : null)})
+    network_attachment_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('network_attachment:'),
+        {k.substring(19): 'projects/' + v.spec.projectRef.external + '/regions/' + v.spec.region
+          + '/networkAttachments/' + v.spec.resourceID})
+    psc: >-
+      resources.transformMapEntry(k, v, k.startsWith('psc:'),
+        {k.substring(4): {
+          'address': {
+            'address': has(v.status.observedState) && has(v.status.observedState.address)
+              ? v.status.observedState.address : (has(v.spec.address) ? v.spec.address : null),
+            'id': 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+              + (v.spec.location == 'global' ? '/global' : '/regions/' + v.spec.location)
+              + '/addresses/' + v.spec.resourceID,
+            'name': v.spec.resourceID},
+          'forwarding_rule': ('psc_consumer:' + k.substring(4)) in resources
+            ? {'id': 'projects/' + v.metadata.annotations['cnrm.cloud.google.com/project-id']
+                + (v.spec.location == 'global' ? '/global' : '/regions/' + v.spec.location)
+                + '/forwardingRules/' + v.spec.resourceID,
+               'name': v.spec.resourceID,
+               'psc_connection_id': has(resources['psc_consumer:' + k.substring(4)].status.pscConnectionId)
+                 ? resources['psc_consumer:' + k.substring(4)].status.pscConnectionId : null}
+            : {'id': null, 'name': null, 'psc_connection_id': null}}})

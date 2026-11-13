@@ -1,0 +1,50 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: alloydb
+spec:
+  version: "1.0.0"
+  components:
+    - name: alloydb
+      package:
+        name: gcp-alloydb
+        version: "0.1.0"
+      inputs:
+        cluster_name: db
+        instance_name: db
+        location: europe-west8
+        network_config:
+          psa_config:
+            network: projects/my-project/global/networks/my-network
+        automated_backup_configuration:
+          enabled: true
+        read_pool:
+          ro:
+            node_count: 2
+        users:
+          app@example.com:
+            roles:
+              - alloydbiamuser
+            type: ALLOYDB_IAM_USER
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: alloydb
+  scope: my-team
+spec:
+  template: alloydb
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: alloydb-dev
+  scope: my-team/dev
+spec:
+  stack: alloydb
+  version: "1.0.0"
+  components:
+    alloydb:
+      values:
+        project_id: my-project
+        project_number: "123456789012"

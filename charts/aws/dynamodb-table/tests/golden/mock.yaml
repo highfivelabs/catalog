@@ -1,0 +1,47 @@
+---
+# Source: dynamodb-table/templates/table.yaml
+apiVersion: dynamodb.services.k8s.aws/v1alpha1
+kind: Table
+metadata:
+  name: mock-table
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: dynamodb-table
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  tableName: "catalog-test-table"
+  billingMode: "PAY_PER_REQUEST"
+  attributeDefinitions:
+    - attributeName: "id"
+      attributeType: "S"
+    - attributeName: "sk"
+      attributeType: "S"
+    - attributeName: "gk"
+      attributeType: "S"
+  keySchema:
+    - attributeName: "id"
+      keyType: HASH
+    - attributeName: "sk"
+      keyType: RANGE
+  streamSpecification:
+    streamEnabled: true
+    streamViewType: "NEW_IMAGE"
+  timeToLive:
+    enabled: true
+    attributeName: "expires_at"
+  globalSecondaryIndexes:
+    - indexName: "ByG"
+      keySchema:
+        - attributeName: "gk"
+          keyType: HASH
+      projection:
+        projectionType: "ALL"
+  tags:
+    - key: "Name"
+      value: "catalog-test-table"
+    - key: "catalog-test"
+      value: "true"

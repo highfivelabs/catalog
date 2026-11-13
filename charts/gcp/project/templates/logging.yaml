@@ -8,6 +8,19 @@ google_project_iam_audit_config.default: one IAMAuditConfig per service of
 logging_data_access, with a log config per type set.
 google_logging_project_exclusion.logging_exclusion: one LoggingLogExclusion
 per entry of logging_exclusions, described "<name> (Terraform-managed).".
+google_logging_project_sink.sink: one LoggingLogSink per entry of
+logging_sinks, named by its key, with fabric's defaults (described
+"<name> (Terraform-managed).", a unique writer identity); a sink of type
+project is refused (LoggingLogSink's destination is a dataset, log
+bucket, topic or bucket, never a project).
+google_storage_bucket_iam_member, google_pubsub_topic_iam_member and
+google_project_iam_member .*_sinks_binding: with iam (the default), one
+IAMPolicyMember granting the sink's writer identity (memberFrom.logSinkRef)
+write access to its destination, as fabric grants it; a bigquery sink's
+grant needs dataset IAM, which is alpha (BigQueryDatasetAccess), so a
+bigquery sink needs iam: false.
+google_logging_log_scope.log_scopes: one LoggingLogScope (v1alpha1, behind
+allow_alpha) per entry of log_scopes, bare project IDs as projects/<id>.
 */ -}}
 {{- $v := .Values }}
 {{- $access := $v.logging_data_access | default dict }}
@@ -46,4 +59,122 @@ spec:
     {{- include "project.ref" $ | nindent 4 }}
   description: {{ printf "%s (Terraform-managed)." $name | quote }}
   filter: {{ index $exclusions $name | quote }}
+{{- end }}
+
+{{- $sinks := $v.logging_sinks | default dict }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- range $name := keys $sinks | sortAlpha }}
+{{- $s := index $sinks $name }}
+{{- if not (has $s.type (list "bigquery" "logging" "project" "pubsub" "storage")) }}
+{{- fail (printf "project: logging_sinks.%s: Type must be one of 'bigquery', 'logging', 'project', 'pubsub', 'storage'." $name) }}
+{{- end }}
+{{- if and $s.bq_partitioned_table (ne $s.type "bigquery") }}
+{{- fail (printf "project: logging_sinks.%s: Can only set bq_partitioned_table when type is `bigquery`." $name) }}
+{{- end }}
+{{- if eq $s.type "project" }}
+{{- include "kcc.unsupported" (list $ (printf "logging_sinks.%s with type project" $name) true "LoggingLogSink's destination is a BigQuery dataset, a log bucket, a Pub/Sub topic or a Cloud Storage bucket, never another project") }}
+{{- end }}
+{{- $iam := ternary true $s.iam (kindIs "invalid" $s.iam) }}
+{{- if and (eq $s.type "bigquery") $iam }}
+{{- include "kcc.unsupported" (list $ (printf "logging_sinks.%s.iam (true by default) on a bigquery sink" $name) true "the writer identity's grant on the dataset needs dataset IAM, which Config Connector has only as the alpha BigQueryDatasetAccess; set iam: false and grant roles/bigquery.dataEditor on the dataset elsewhere") }}
+{{- end }}
+{{- $dest := toString $s.destination }}
+{{- $kname := include "kcc.name" (list $.Release.Name "sink" $name) }}
+---
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $kname "id" (printf "logging-sink:%s" $name) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "logging sink" $name 100) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  description: {{ (kindIs "invalid" $s.description | ternary (printf "%s (Terraform-managed)." $name) $s.description) | quote }}
+  destination:
+    {{- if eq $s.type "bigquery" }}
+    bigQueryDatasetRef:
+    {{- else if eq $s.type "logging" }}
+    loggingLogBucketRef:
+    {{- else if eq $s.type "pubsub" }}
+    pubSubTopicRef:
+    {{- else }}
+    storageBucketRef:
+    {{- end }}
+      external: {{ $dest | quote }}
+  {{- with $s.filter }}
+  filter: {{ . | quote }}
+  {{- end }}
+  uniqueWriterIdentity: {{ ternary true $s.unique_writer (kindIs "invalid" $s.unique_writer) }}
+  disabled: {{ $s.disabled | default false }}
+  {{- if eq $s.type "bigquery" }}
+  bigqueryOptions:
+    usePartitionedTables: {{ $s.bq_partitioned_table | default false }}
+  {{- end }}
+  {{- with $s.exclusions }}
+  exclusions:
+    {{- range $ek := keys . | sortAlpha }}
+    - name: {{ $ek | quote }}
+      filter: {{ index $s.exclusions $ek | quote }}
+    {{- end }}
+  {{- end }}
+{{- if $iam }}
+{{- $parts := splitList "/" $dest }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "sink-writer" $name)) "id" (printf "logging-sink-writer:%s" $name)) | nindent 2 }}
+spec:
+  memberFrom:
+    logSinkRef:
+      name: {{ $kname }}
+  {{- if eq $s.type "storage" }}
+  role: roles/storage.objectCreator
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    external: {{ $dest | quote }}
+  {{- else if eq $s.type "pubsub" }}
+  role: roles/pubsub.publisher
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    external: {{ $dest | quote }}
+  {{- else }}
+  {{- if lt (len $parts) 6 }}
+  {{- fail (printf "project: logging_sinks.%s: a logging sink's destination must be projects/<project>/locations/<location>/buckets/<bucket>" $name) }}
+  {{- end }}
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: {{ printf "projects/%s" (index $parts 1) | quote }}
+  condition:
+    title: {{ printf "%s bucket writer" $name | quote }}
+    description: {{ printf "Grants bucketWriter to the writer identity used by log sink %s on %s" $name (include "project.id" $) | quote }}
+    expression: {{ printf "resource.name.endsWith('locations/%s/buckets/%s')" (index $parts 3) (index $parts 5) | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- $scopes := $v.log_scopes | default dict }}
+{{- include "kcc.alpha" (list $ "log_scopes" $scopes "LoggingLogScope") }}
+{{- range $name := keys $scopes | sortAlpha }}
+{{- $sc := index $scopes $name }}
+---
+apiVersion: logging.cnrm.cloud.google.com/v1alpha1
+kind: LoggingLogScope
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "log-scope" $name)) "id" (printf "log-scope:%s" $name) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "log scope" $name 100) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  location: global
+  resourceNames:
+    {{- range $r := $sc.resource_names }}
+    - {{ ternary $r (printf "projects/%s" $r) (hasPrefix "projects/" $r) | quote }}
+    {{- end }}
+  {{- with $sc.description }}
+  description: {{ . | quote }}
+  {{- end }}
 {{- end }}

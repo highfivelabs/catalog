@@ -1,0 +1,36 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the managed policy (aws_iam_policy, iam/Policy). IAM is global:
+the policy takes no region.
+*/ -}}
+{{- include "ack.names" (list $ (list "policy")) -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $name := include "ack.resourceName" (list $ "policy" "policy" ($v.name | default "") 128) }}
+{{- if not $name }}
+{{- fail "iam-policy: name is required: the policy's name (or names.policy); Terraform's generated name would change between renders" }}
+{{- end }}
+{{- if not $v.policy }}
+{{- fail "iam-policy: policy is required: the policy document (JSON)" }}
+{{- end }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "policy")) "id" "policy") | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+{{- with $v.path }}
+  path: {{ . | quote }}
+{{- end }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+  policyDocument: {{ $v.policy | quote }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

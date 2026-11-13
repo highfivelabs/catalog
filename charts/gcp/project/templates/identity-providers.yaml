@@ -1,0 +1,142 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/identity-providers.tf
+and identity-providers-defs.tf (v60.0.0), Copyright 2025 Google LLC,
+Apache-2.0.
+
+google_iam_workload_identity_pool.default and
+google_iam_workload_identity_pool_provider.default: one
+IAMWorkloadIdentityPool per entry of workload_identity_pools and one
+IAMWorkloadIdentityPoolProvider per provider, with fabric's OIDC templates
+(github, gitlab, okta, terraform: their issuer and attribute mapping).
+Refused: SAML providers and an OIDC provider's jwks_json
+(IAMWorkloadIdentityPoolProvider has neither).
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- $defs := dict
+  "github" (dict "issuer_uri" "https://token.actions.githubusercontent.com" "attribute_mapping" (dict
+    "google.subject" "assertion.sub"
+    "attribute.sub" "assertion.sub"
+    "attribute.actor" "assertion.actor"
+    "attribute.repository" "assertion.repository"
+    "attribute.repository_owner" "assertion.repository_owner"
+    "attribute.ref" "assertion.ref"
+    "attribute.fast_sub" "\"repo:\" + assertion.repository + \":ref:\" + assertion.ref"
+    "attribute.workflow" "assertion.workflow"
+    "attribute.job_workflow_ref" "assertion.job_workflow_ref"
+    "attribute.event_name" "assertion.event_name"
+    "attribute.pr_review_sub" "\"event:\" + assertion.event_name + \":workflow:\" + assertion.workflow"))
+  "gitlab" (dict "issuer_uri" "https://gitlab.com" "attribute_mapping" (dict
+    "google.subject" "assertion.sub"
+    "attribute.sub" "assertion.sub"
+    "attribute.environment" "assertion.environment"
+    "attribute.environment_protected" "assertion.environment_protected"
+    "attribute.namespace_id" "assertion.namespace_id"
+    "attribute.namespace_path" "assertion.namespace_path"
+    "attribute.pipeline_id" "assertion.pipeline_id"
+    "attribute.pipeline_source" "assertion.pipeline_source"
+    "attribute.project_id" "assertion.project_id"
+    "attribute.project_path" "assertion.project_path"
+    "attribute.repository" "assertion.project_path"
+    "attribute.ref" "assertion.ref"
+    "attribute.ref_protected" "assertion.ref_protected"
+    "attribute.ref_type" "assertion.ref_type"))
+  "terraform" (dict "issuer_uri" "https://app.terraform.io" "attribute_mapping" (dict
+    "google.subject" "assertion.terraform_workspace_id"
+    "attribute.aud" "assertion.aud"
+    "attribute.terraform_run_phase" "assertion.terraform_run_phase"
+    "attribute.terraform_project_id" "assertion.terraform_project_id"
+    "attribute.terraform_project_name" "assertion.terraform_project_name"
+    "attribute.terraform_workspace_id" "assertion.terraform_workspace_id"
+    "attribute.terraform_workspace_name" "assertion.terraform_workspace_name"
+    "attribute.terraform_organization_id" "assertion.terraform_organization_id"
+    "attribute.terraform_organization_name" "assertion.terraform_organization_name"
+    "attribute.terraform_run_id" "assertion.terraform_run_id"
+    "attribute.terraform_full_workspace" "assertion.terraform_full_workspace"))
+  "okta" (dict "attribute_mapping" (dict "google.subject" "assertion.sub" "attribute.sub" "assertion.sub")) }}
+{{- $pools := $v.workload_identity_pools | default dict }}
+{{- range $pk := keys $pools | sortAlpha }}
+{{- $p := index $pools $pk | default dict }}
+{{- $poolName := include "kcc.name" (list $.Release.Name "wif-pool" $pk) }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkloadIdentityPool
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $poolName "id" (printf "workload-identity-pool:%s" $pk) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "workload identity pool" $pk 32) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  location: global
+  {{- with $p.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $p.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $p.disabled) }}
+  disabled: {{ $p.disabled }}
+  {{- end }}
+{{- $providers := $p.providers | default dict }}
+{{- range $prk := keys $providers | sortAlpha }}
+{{- $pr := index $providers $prk }}
+{{- $idp := $pr.identity_provider | default dict }}
+{{- $n := 0 }}{{ range $t := list "aws" "oidc" "saml" }}{{ if index $idp $t }}{{ $n = add1 $n }}{{ end }}{{ end }}
+{{- if ne (int $n) 1 }}
+{{- fail (printf "project: workload_identity_pools.%s.providers.%s: Exactly one of identity_provider.aws, identity_provider.oidc, identity_provider.saml can be defined." $pk $prk) }}
+{{- end }}
+{{- $oidc := $idp.oidc }}
+{{- $tpl := "" }}
+{{- if $oidc }}
+{{- $tpl = $oidc.template | default "" }}
+{{- if not (has ($tpl | default "github") (list "github" "gitlab" "okta" "terraform")) }}
+{{- fail (printf "project: workload_identity_pools.%s.providers.%s: Supported provider templates are: github, gitlab, okta, terraform." $pk $prk) }}
+{{- end }}
+{{- if not (or $oidc.issuer_uri (and $tpl (ne $tpl "okta"))) }}
+{{- fail (printf "project: workload_identity_pools.%s.providers.%s: OIDC providers need explicit issuer_uri unless template is one of github, gitlab, terraform." $pk $prk) }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "workload_identity_pools.%s.providers.%s.identity_provider.oidc.jwks_json" $pk $prk) $oidc.jwks_json "IAMWorkloadIdentityPoolProvider has no jwksJson") }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ (printf "workload_identity_pools.%s.providers.%s.identity_provider.saml" $pk $prk) $idp.saml "IAMWorkloadIdentityPoolProvider has no SAML provider") }}
+{{- $def := ternary (index $defs $tpl | default dict) dict (ne $tpl "") }}
+{{- $mapping := merge (deepCopy ($pr.attribute_mapping | default dict)) ($def.attribute_mapping | default dict) }}
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMWorkloadIdentityPoolProvider
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "wif-provider" $pk $prk)) "id" (printf "workload-identity-provider:%s/%s" $pk $prk) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $prk | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  location: global
+  workloadIdentityPoolRef:
+    name: {{ $poolName }}
+  {{- with $pr.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $pr.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  disabled: {{ $pr.disabled | default false }}
+  {{- with $pr.attribute_condition }}
+  attributeCondition: {{ . | quote }}
+  {{- end }}
+  {{- with $mapping }}
+  attributeMapping: {{ toJson . }}
+  {{- end }}
+  {{- with $idp.aws }}
+  aws:
+    accountId: {{ .account_id | quote }}
+  {{- end }}
+  {{- if $oidc }}
+  oidc:
+    issuerUri: {{ coalesce $oidc.issuer_uri $def.issuer_uri | quote }}
+    {{- with $oidc.allowed_audiences }}
+    allowedAudiences: {{ toJson . }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

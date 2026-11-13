@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "service:compute.googleapis.com"
@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "service:storage.googleapis.com"
@@ -39,6 +39,53 @@ spec:
   projectRef:
     name: mock
 ---
+# Source: project/templates/quotas.yaml
+apiVersion: cloudquota.cnrm.cloud.google.com/v1beta1
+kind: APIQuotaPreference
+metadata:
+  name: mock-quota-catalog-mock-cpus
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "quota:catalog-mock-cpus"
+spec:
+  resourceID: "catalog-mock-cpus"
+  projectRef:
+    name: mock
+  service: "compute.googleapis.com"
+  quotaID: "CPUS-per-project-region"
+  quotaConfig:
+    preferredValue: 8
+  dimensions: {"region":"us-central1"}
+---
+# Source: project/templates/bigquery-reservation.yaml
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationReservation
+metadata:
+  name: mock-bq-reservation-catalog-mock-res
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "bigquery-reservation:catalog-mock-res"
+spec:
+  resourceID: "catalog-mock-res"
+  projectRef:
+    name: mock
+  location: "US"
+  slotCapacity: 0
+  ignoreIdleSlots: false
+  edition: "ENTERPRISE"
+  autoscale:
+    maxSlots: 50
+---
 # Source: project/templates/project.yaml
 apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
 kind: EssentialContactsContact
@@ -48,7 +95,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "contact:ops@example.com"
@@ -68,7 +115,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "data-access:storage.googleapis.com"
@@ -90,7 +137,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "custom-role:catalogMockRole"
@@ -111,7 +158,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "iam"
@@ -134,7 +181,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "iam-additive-logs"
@@ -147,6 +194,53 @@ spec:
   member: "user:dev@example.com"
 ---
 # Source: project/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: mock-sink-writer-catalog-mock-sink
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:catalog-mock-sink"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: mock-sink-catalog-mock-sink
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/catalog-mock-prj"
+  condition:
+    title: "catalog-mock-sink bucket writer"
+    description: "Grants bucketWriter to the writer identity used by log sink catalog-mock-sink on catalog-mock-prj"
+    expression: "resource.name.endsWith('locations/global/buckets/_Default')"
+---
+# Source: project/templates/kms-autokeys.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyHandle
+metadata:
+  name: mock-key-handle-catalog-mock-disk
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "kms-autokey:catalog-mock-disk"
+spec:
+  resourceID: "catalog-mock-disk"
+  projectRef:
+    name: mock
+  location: "us-central1"
+  resourceTypeSelector: "compute.googleapis.com/Disk"
+---
+# Source: project/templates/logging.yaml
 apiVersion: logging.cnrm.cloud.google.com/v1beta1
 kind: LoggingLogExclusion
 metadata:
@@ -155,7 +249,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "logging-exclusion:catalog-mock-exclusion"
@@ -166,6 +260,101 @@ spec:
   description: "catalog-mock-exclusion (Terraform-managed)."
   filter: "resource.type=gce_instance"
 ---
+# Source: project/templates/logging-metrics.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogMetric
+metadata:
+  name: mock-metric-catalog-mock-metric
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-metric:catalog-mock-metric"
+spec:
+  resourceID: "catalog-mock-metric"
+  projectRef:
+    name: mock
+  filter: "severity>=ERROR"
+  metricDescriptor:
+    metricKind: "DELTA"
+    valueType: "INT64"
+---
+# Source: project/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: mock-sink-catalog-mock-sink
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "logging-sink:catalog-mock-sink"
+spec:
+  resourceID: "catalog-mock-sink"
+  projectRef:
+    name: mock
+  description: "catalog-mock-sink (Terraform-managed)."
+  destination:
+    loggingLogBucketRef:
+      external: "projects/catalog-mock-prj/locations/global/buckets/_Default"
+  filter: "severity>=ERROR"
+  uniqueWriterIdentity: true
+  disabled: false
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringAlertPolicy
+metadata:
+  name: mock-alert-catalog-mock-alert
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "alert:catalog-mock-alert"
+    cnrm.cloud.google.com/project-id: "catalog-mock-prj"
+spec:
+  displayName: "catalog mock alert"
+  combiner: "OR"
+  notificationChannels:
+    - name: mock-channel-catalog-mock-email
+  conditions:
+    - displayName: "errors"
+      conditionThreshold:
+        comparison: "COMPARISON_GT"
+        duration: "60s"
+        filter: "metric.type=\"logging.googleapis.com/log_entry_count\" resource.type=\"global\""
+        thresholdValue: 10
+        aggregations:
+        - alignmentPeriod: 60s
+          perSeriesAligner: ALIGN_RATE
+---
+# Source: project/templates/monitoring.yaml
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  name: mock-channel-catalog-mock-email
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "notification-channel:catalog-mock-email"
+    cnrm.cloud.google.com/project-id: "catalog-mock-prj"
+spec:
+  type: "email"
+  labels: {"email_address":"ops@example.com"}
+---
 # Source: project/templates/org-policies.yaml
 apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
 kind: OrgPolicyPolicy
@@ -175,7 +364,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "org_policy:compute.disableSerialPortAccess"
@@ -187,6 +376,34 @@ spec:
     rules:
     - enforce: true
 ---
+# Source: project/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: mock-pam-catalog-mock-pam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "pam-entitlement:catalog-mock-pam"
+spec:
+  resourceID: "catalog-mock-pam"
+  projectRef:
+    name: mock
+  location: global
+  maxRequestDuration: "3600s"
+  eligibleUsers:
+    - principals: ["user:dev@example.com"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/viewer"
+  requesterJustificationConfig:
+    unstructured: {}
+---
 # Source: project/templates/project.yaml
 apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
 kind: Project
@@ -196,7 +413,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: project
-    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/version: "0.9.0"
     env: "test"
   annotations:
     hfl.dev/id: "project"
@@ -208,3 +425,40 @@ spec:
     external: "123456789"
   billingAccountRef:
     external: "010101-ABCDEF-010101"
+---
+# Source: project/templates/tag-keys.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagKey
+metadata:
+  name: mock-tag-catalog-mock-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "tag-key:catalog-mock-env"
+spec:
+  parent: "projects/catalog-mock-prj"
+  shortName: "catalog-mock-env"
+  description: "catalog mock tag key"
+---
+# Source: project/templates/tag-keys.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagValue
+metadata:
+  name: mock-tag-catalog-mock-env-dev
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: project
+    app.kubernetes.io/version: "0.9.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "tag-value:catalog-mock-env/dev"
+spec:
+  parentRef:
+    name: mock-tag-catalog-mock-env
+  shortName: "dev"
+  description: "Managed by the Terraform project module."
