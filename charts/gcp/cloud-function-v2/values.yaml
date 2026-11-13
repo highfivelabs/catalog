@@ -1,0 +1,115 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's cloud-function-v2 module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.function, names.bucket (the bucket bucket_config creates),
+# names.serviceAccount, names.triggerServiceAccount and names.vpcConnector:
+# those names in full. A name set here takes no prefix; unset, each is
+# fabric's (<prefix>-<name>, <prefix>-<bucket_name>, the account's name or
+# name, tf-cf-trigger-<name>, the connector's name or name).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every derived name
+# (never a name set under names, nor bucket_name when the chart does not
+# create the bucket). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object; fabric's "Resource labels" (on the
+# function and the bucket). A prefixed key (hfl.dev/team) stays in
+# Kubernetes; an unprefixed one also becomes a Google Cloud label.
+labels: {}
+# Cloud labels on every resource: on Google Cloud, labels.
+tags: {}
+# DELETE (the default) or ABANDON: what deleting an object does to its
+# cloud resource. Not a fabric variable (docs/design.md, "Deletion").
+deletion_policy: DELETE
+
+# Enable and configure auto-created bucket. Set fields to null to use
+# defaults: {force_destroy, lifecycle_delete_age_days, location}.
+bucket_config: null
+# Name of the bucket that will be used for the function code. It will be
+# created with prefix prepended if bucket_config is not null.
+bucket_name: ""
+# A set of key/value environment variable pairs available during build time.
+build_environment_variables: {}
+# Build service account email.
+build_service_account: null
+# Build worker pool, in
+# projects/<PROJECT-ID>/locations/<REGION>/workerPools/<POOL_NAME> format.
+build_worker_pool: null
+# Cloud function source: path is a Cloud Storage object URI
+# (gs://<bucket>/<object>.zip). A local zip or folder (and folder_options)
+# is refused: the chart has no files to upload (README, "Differences").
+bundle_config:
+  path: ""
+  folder_options: {}
+# Context-specific interpolations. Refused when set: Bundt's ${...}
+# expressions and valueFrom replace fabric's $context lookups.
+context: {}
+# Optional description.
+description: Terraform managed.
+# Direct VPC egress configuration: {mode, network, subnetwork, tags}.
+direct_vpc_egress: null
+# User managed repository created in Artifact Registry.
+docker_repository_id: null
+# Cloud function environment variables.
+environment_variables:
+  LOG_EXECUTION_ID: "true"
+# Cloud function configuration. Defaults to using main as entrypoint, 1
+# instance with 256MiB of memory, and 180 second timeout.
+function_config:
+  automatic_update_policy: null
+  binary_authorization_policy: null
+  cpu: "0.166"
+  entry_point: main
+  instance_count: 1
+  max_instance_request_concurrency: null
+  min_instance_count: 0
+  memory_mb: 256
+  on_deploy_update_policy: null
+  runtime: python313
+  timeout_seconds: 180
+# IAM bindings for the function in {ROLE => [MEMBERS]} format;
+# roles/run.invoker goes on the function's Cloud Run service.
+iam: {}
+# Control traffic that reaches the cloud function. Allowed values are
+# ALLOW_ALL, ALLOW_INTERNAL_AND_GCLB and ALLOW_INTERNAL_ONLY.
+ingress_settings: null
+# Resource name of a KMS crypto key used to encrypt/decrypt function
+# resources in key id format.
+kms_key: null
+# Name used for cloud function and associated resources.
+name: ""
+# Optional prefix used for resource names (the function and the bucket).
+prefix: null
+# Project id used for all resources.
+project_id: ""
+# Region used for all resources.
+region: ""
+# Secret Manager secrets. Key is the variable name or mountpoint, volume
+# versions are in version:path format.
+secrets: {}
+# Function trigger configuration. Leave null for HTTP trigger:
+# {event_type, pubsub_topic, region, event_filters, service_account_email,
+# service_account_create, retry_policy}.
+trigger_config: null
+# VPC connector configuration: {name, egress_settings}.
+vpc_connector: {}
+# Service account configurations.
+service_account_config:
+  create: true
+  display_name: null
+  email: null
+  name: null
+  roles:
+    - roles/logging.logWriter
+    - roles/monitoring.metricWriter
+# VPC connector network configuration. Must be provided if new VPC
+# connector is being created.
+vpc_connector_create: null
