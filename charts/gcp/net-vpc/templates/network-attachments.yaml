@@ -2,42 +2,39 @@
 Copyright 2026 High Five Labs
 SPDX-License-Identifier: Apache-2.0
 Ported from cloud-foundation-fabric modules/net-vpc/subnets.tf (v60.0.0),
-Copyright 2025 Google LLC, Apache-2.0: PSC network attachments. An alpha
-kind: needs allow_alpha.
+Copyright 2025 Google LLC, Apache-2.0: PSC network attachments.
+
+google_compute_network_attachment.default: a ComputeNetworkAttachment of
+config-connector-extensions (compute.gcp.hfl.dev/v1beta1; Config
+Connector's own kind is v1alpha1), as net-address renders it, on a subnet
+of this chart, named by its URL.
 */ -}}
-{{- include "kcc.alpha" (list $ "network_attachments" .Values.network_attachments "ComputeNetworkAttachment") }}
+{{- $subnets := include "netvpc.subnets" . | fromJson }}
 {{- range $name, $a := .Values.network_attachments }}
-{{- if and $a.description (ne $a.description "Terraform-managed.") }}
-{{- fail (printf "net-vpc: network_attachments %s description is not supported: ComputeNetworkAttachment has no description field" $name) }}
+{{- $s := index $subnets (toString $a.subnet) }}
+{{- if not $s }}
+{{- fail (printf "net-vpc: network_attachments %s subnet %q is not a subnet of this chart (REGION/NAME)" $name (toString $a.subnet)) }}
 {{- end }}
-{{- $parts := splitList "/" $a.subnet }}
-{{- $region := index $parts 0 }}
-{{- $subnetName := index $parts 1 }}
 ---
-apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+apiVersion: compute.gcp.hfl.dev/v1beta1
 kind: ComputeNetworkAttachment
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "attachment" $name)) "id" (printf "network_attachment:%s" $name) "project" $.Values.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
 spec:
-  resourceID: {{ include "kcc.cloudName" (list $ "network attachment" $name 63 "letter") }}
-  location: {{ $region }}
+  resourceID: {{ include "kcc.cloudName" (list $ "network attachment" $name 63 "letter") | quote }}
   projectRef:
     external: {{ required "net-vpc: project_id is needed for network attachments" $.Values.project_id | quote }}
-  connectionPreference: {{ (kindIs "invalid" $a.automatic_connection | ternary false $a.automatic_connection) | ternary "ACCEPT_AUTOMATIC" "ACCEPT_MANUAL" }}
-  subnetworkRefs:
-    - name: {{ include "kcc.name" (list $.Release.Name "subnet" $region $subnetName) }}
+  region: {{ $s.region | quote }}
+  description: {{ ternary "Terraform-managed." $a.description (kindIs "invalid" $a.description) | quote }}
+  connectionPreference: {{ ternary "ACCEPT_AUTOMATIC" "ACCEPT_MANUAL" (eq $a.automatic_connection true) }}
+  subnetworks:
+    - {{ printf "projects/%s/regions/%s/subnetworks/%s" $.Values.project_id $s.region (include "kcc.cloudName" (list $ "subnet" $s.name 63 "letter")) | quote }}
   {{- with $a.producer_accept_lists }}
   producerAcceptLists:
-    {{- range $p := . }}
-    - kind: Project
-      external: {{ $p | quote }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   {{- with $a.producer_reject_lists }}
   producerRejectLists:
-    {{- range $p := . }}
-    - kind: Project
-      external: {{ $p | quote }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
