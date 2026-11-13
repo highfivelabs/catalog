@@ -50,7 +50,8 @@ The module's variables, with the same names, types and defaults.
 | `context`, `factories_config`, `asset_search` | refused, by design: Bundt replaces `$context` lookups with `${...}` expressions; a chart cannot read the caller's files (their entries go in `org_policies` and `pam_entitlements`); a search is a read at plan time, not a resource |
 | `asset_feeds`, `assured_workload_config`, `scc_sha_custom_modules` | refused: `CloudAssetFolderFeed`, `AssuredWorkloadsWorkload` and `SecurityCenterManagementSecurityHealthAnalyticsCustomModule` are `v1alpha1` kinds, not ported yet |
 | `iam_deny_policies` | an `IAMDenyPolicy` of config-connector-extensions (`iam.gcp.hfl.dev/v1beta1`) per entry on the folder, named by its key: `display_name`, and each rule's description, denied and exception principals and permissions and denial condition; fabric's check that a rule has a denied principal and a denied permission |
-| `cloud_armor_policy`, `logging_settings`, `scc_mute_configs`, `service_agents_config` | refused, gaps: Config Connector has no kind for an organization security policy association, a folder's logging settings, a Security Command Center v2 mute config or a folder's service identities |
+| `cloud_armor_policy` | with `allow_alpha: true`, a `ComputeOrganizationSecurityPolicyAssociation` (`v1alpha1`) of `policy_id` with the folder, named `name` or `folder-<number>`, as the `organization` chart does. It needs an existing folder (`folder_create: false`, `id`): its `attachmentId` is the folder's number, which a new folder has only after it is made. `excluded_folders` and `excluded_projects` are refused: the kind has no such fields |
+| `logging_settings`, `scc_mute_configs`, `service_agents_config` | refused, gaps: Config Connector has no kind for a folder's logging settings, a Security Command Center v2 mute config or a folder's service identities |
 | `deletion_policy` | not a fabric variable; `ABANDON` keeps the cloud resources |
 
 ## Outputs
@@ -80,8 +81,7 @@ logging come under it (`docs/design.md`, "From Terraform").
 
 Found porting this module, for config-connector-extensions: `Folder` has no
 `deletionProtection`; `LoggingLogSink` has no `interceptChildren`; no
-kinds for `google_compute_organization_security_policy_association`,
-`google_logging_folder_settings`,
+kinds for `google_logging_folder_settings`,
 `google_scc_v2_folder_mute_config` or `google_folder_service_identity`
 (`docs/coverage/blocked-kinds.md`).
 
@@ -145,7 +145,8 @@ folder, `docs/design.md`, "The test provisioner").
 ## Changes
 
 - **0.2.0** (2026-11-13): `iam_deny_policies` as config-connector-extensions'
-  `IAMDenyPolicy`.
+  `IAMDenyPolicy`; `cloud_armor_policy` with `allow_alpha` on an existing
+  folder.
 - **0.1.0** (2026-11-13): the port: the folder, its IAM, organization
   policies, contacts, logging, PAM entitlements, tag bindings, firewall
   policy association and Autokey configuration.
