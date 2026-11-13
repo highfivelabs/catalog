@@ -11,7 +11,7 @@ task examples-test                                                              
 
 | Directory | Files |
 | --- | --- |
-| `alloydb/`, `artifact-registry/`, `bigtable-instance/`, `cloud-identity-group/`, `cloudsql-instance/`, `data-catalog-policy-tag/`, `datafusion/`, `dataproc/`, `dns/`, `gcs/`, `gke-hub/`, `gke-nodepool/`, `iam-service-account/`, `kms/`, `ncc-spoke-ra/`, `net-cloudnat/`, `net-firewall-policy/`, `net-lb-ext/`, `net-lb-int/`, `net-vpc/`, `net-vpc-firewall/`, `net-vpc-peering/`, `project/`, `pubsub/`, `secret-manager/`, `service-directory/`, `source-repository/`, `vpc-sc/` | one module call each |
+| `alloydb/`, `api-gateway/`, `artifact-registry/`, `backup-dr/`, `bigtable-instance/`, `binauthz/`, `certificate-manager/`, `cloud-identity-group/`, `cloudsql-instance/`, `data-catalog-policy-tag/`, `datafusion/`, `dataplex/`, `dataproc/`, `dns/`, `gcs/`, `gke-cluster-autopilot/`, `gke-cluster-standard/`, `gke-hub/`, `gke-nodepool/`, `iam-service-account/`, `kms/`, `ncc-spoke-ra/`, `net-address/`, `net-cloud-armor/`, `net-cloudnat/`, `net-firewall-policy/`, `net-lb-ext/`, `net-lb-int/`, `net-vpc-firewall/`, `net-vpc-peering/`, `net-vpc/`, `net-vpn-static/`, `project/`, `pubsub/`, `secret-manager/`, `service-directory/`, `source-repository/`, `vpc-sc/` | one module call each |
 | `wiring/` | two calls, one using the other's output |
 | `names/` | `namePrefix: ${instance.name}` on every component, and the plans of two Instances (`convert.args`, `convert-prod.args`) |
 | `gaps/` | what the converter says about what it cannot carry |

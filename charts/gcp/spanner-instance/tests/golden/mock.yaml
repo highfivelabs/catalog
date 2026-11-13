@@ -1,0 +1,115 @@
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    kind: SpannerInstance
+    name: mock
+  bindings:
+    - role: "roles/spanner.viewer"
+      members:
+        - member: "user:dev@example.com"
+---
+# Source: spanner-instance/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: mock-db-orders-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "database:orders/iam"
+spec:
+  resourceRef:
+    apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+    kind: SpannerDatabase
+    name: mock-db-orders
+  bindings:
+    - role: "roles/spanner.databaseReader"
+      members:
+        - member: "user:dev@example.com"
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerDatabase
+metadata:
+  name: mock-db-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "database:orders"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "orders"
+  instanceRef:
+    name: mock
+  ddl:
+    - "CREATE TABLE t (id INT64) PRIMARY KEY (id)"
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.cnrm.cloud.google.com/v1beta1
+kind: SpannerInstance
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "instance"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-spanner"
+  config: "custom-catalog-mock"
+  displayName: "catalog-mock-spanner"
+  processingUnits: 100
+---
+# Source: spanner-instance/templates/main.yaml
+apiVersion: spanner.gcp.hfl.dev/v1beta1
+kind: SpannerInstanceConfig
+metadata:
+  name: mock-config
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: spanner-instance
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "instance_config"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  resourceID: "custom-catalog-mock"
+  displayName: "custom-catalog-mock"
+  baseConfigRef:
+    external: "projects/mock-project/instanceConfigs/regional-us-central1"
+  replicas:
+    - location: "us-central1"
+      type: "READ_WRITE"
+      defaultLeaderLocation: true
+  labels:
+    env: "test"

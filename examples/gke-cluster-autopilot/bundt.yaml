@@ -1,0 +1,48 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: gke-cluster-autopilot
+spec:
+  version: "1.0.0"
+  components:
+    - name: cluster-1
+      package:
+        name: gcp-gke-cluster-autopilot
+        version: "0.1.0"
+      inputs:
+        name: cluster-1
+        location: europe-west1-b
+        vpc_config:
+          network: projects/my-project/global/networks/vpc
+          secondary_range_names:
+            pods: pods
+            services: services
+          subnetwork: projects/my-project/regions/europe-west1/subnetworks/gke
+        access_config:
+          ip_access:
+            authorized_ranges:
+              internal-vms: 10.0.0.0/8
+          master_ipv4_cidr_block: 192.168.0.0/28
+        labels:
+          environment: dev
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: gke-cluster-autopilot
+  scope: my-team
+spec:
+  template: gke-cluster-autopilot
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: gke-cluster-autopilot-dev
+  scope: my-team/dev
+spec:
+  stack: gke-cluster-autopilot
+  version: "1.0.0"
+  components:
+    cluster-1:
+      values:
+        project_id: my-project

@@ -1,0 +1,38 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-operationalinsights-workspace
+repo: https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace
+path: .
+version: v0.5.1
+commit: b4ffa3ff87ac09ff6de3b7014c44b4d213aa302b
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-operationalinsights-workspace/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set. Read by `task coverage`; `task
+# coverage-verify` renders the chart to check that each one is refused.
+# kind: gap (no Azure Service Operator or aso-extensions kind or field; the
+# reason names the ARM type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design.
+refused:
+  - variable: monitor_private_link_scoped_resource
+    kind: not-ported
+    reason: "accepted, but an entry's exclusions are refused: they update the access mode settings of an existing scope, which the module reads first and the chart does not own"
+    partial: true
+    fields: [exclusions]
+  - variable: private_endpoints
+    kind: not-ported
+    reason: "ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet"
+  - variable: private_endpoint_extensions
+    kind: not-ported
+    reason: "extensions of private endpoints (their Private Link Scope exclusions and DNS zone groups), which this chart does not map yet"
+  - variable: log_analytics_workspace_timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

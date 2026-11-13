@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "binauthz values (fabric binauthz v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id"],
+  "definitions": {
+    "evaluation_mode": {
+      "enum": ["ALWAYS_ALLOW", "ALWAYS_DENY", "REQUIRE_ATTESTATION"]
+    },
+    "enforcement_mode": {
+      "enum": ["ENFORCED_BLOCK_AND_AUDIT_LOG", "DRYRUN_AUDIT_LOG_ONLY"]
+    },
+    "attestors": {
+      "type": ["array", "null"],
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). This chart names no singular resource, so it takes no key.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every attestor and note name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": ["object", "null"],
+      "additionalProperties": {"type": "string", "maxLength": 63}
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": ["object", "null"],
+      "propertyNames": {"pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"}
+    },
+    "admission_whitelist_patterns": {
+      "description": "An image name pattern to allowlist.",
+      "type": ["array", "null"],
+      "items": {"type": "string"}
+    },
+    "attestors_config": {
+      "description": "Attestors configuration.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["note_reference", "iam", "pgp_public_keys", "pkix_public_keys"],
+        "properties": {
+          "note_reference": {"type": ["string", "null"]},
+          "iam": {
+            "type": ["object", "null"],
+            "additionalProperties": {"type": "array", "items": {"type": "string"}}
+          },
+          "pgp_public_keys": {"type": ["array", "null"], "items": {"type": "string"}},
+          "pkix_public_keys": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "public_key_pem", "signature_algorithm"],
+              "properties": {
+                "id": {"type": ["string", "null"]},
+                "public_key_pem": {"type": "string"},
+                "signature_algorithm": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "cluster_admission_rules": {
+      "description": "Admission rules.",
+      "type": ["object", "null"],
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evaluation_mode", "enforcement_mode", "attestors"],
+        "properties": {
+          "evaluation_mode": {"$ref": "#/definitions/evaluation_mode"},
+          "enforcement_mode": {"$ref": "#/definitions/enforcement_mode"},
+          "attestors": {"$ref": "#/definitions/attestors"}
+        }
+      }
+    },
+    "default_admission_rule": {
+      "description": "Default admission rule. attestors is not required here: Helm drops a value set to null when the default has the key.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluation_mode", "enforcement_mode"],
+      "properties": {
+        "evaluation_mode": {"$ref": "#/definitions/evaluation_mode"},
+        "enforcement_mode": {"$ref": "#/definitions/enforcement_mode"},
+        "attestors": {"$ref": "#/definitions/attestors"}
+      }
+    },
+    "project_id": {
+      "description": "Project ID.",
+      "type": "string",
+      "minLength": 1
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": ["DELETE", "ABANDON", "PREVENT", null]
+    }
+  }
+}

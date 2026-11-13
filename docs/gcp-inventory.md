@@ -168,19 +168,19 @@ not have. Each is refused by the chart when set.
 | 27 | [net-address](#net-address) | partial | M | 613 | 9 | 4 / 0 / 1 |
 | 28 | [net-vpn-ha](#net-vpn-ha) | partial | L | 933 | 19 | 6 / 0 / 1 |
 | 29 | [cloud-identity-group](#cloud-identity-group) | full | S | 175 | 6 | 2 / 0 / 0 |
-| 30 | [dns-response-policy](#dns-response-policy) | partial | S | 276 | 9 | 0 / 1 / 1 |
+| 30 | [dns-response-policy](#dns-response-policy) | partial | S | 276 | 9 | 0 / 0 / 2 |
 | 31 | [certificate-manager](#certificate-manager) | partial | S | 282 | 5 | 4 / 0 / 1 |
 | 32 | [net-lb-app-ext](#net-lb-app-ext) | partial | XL | 3127 | 17 | 12 / 1 / 2 |
 | 33 | [net-lb-int](#net-lb-int) | full | L | 1389 | 24 | 6 / 0 / 0 |
 | 34 | [net-lb-ext](#net-lb-ext) | full | M | 646 | 11 | 4 / 0 / 0 |
 | 35 | [net-lb-app-int](#net-lb-app-int) | partial | XL | 2770 | 22 | 12 / 0 / 2 |
-| 36 | [compute-vm](#compute-vm) | partial | XL | 2404 | 43 | 11 / 4 / 3 |
-| 37 | [compute-mig](#compute-mig) | full, with alpha | L | 1085 | 21 | 3 / 4 / 0 |
+| 36 | [compute-vm](#compute-vm) | partial | XL | 2404 | 43 | 11 / 3 / 4 |
+| 37 | [compute-mig](#compute-mig) | partial | L | 1085 | 21 | 3 / 2 / 2 |
 | 38 | [service-directory](#service-directory) | full | S | 249 | 8 | 5 / 0 / 0 |
 | 39 | [workflows](#workflows) | full, with alpha | M | 798 | 18 | 4 / 2 / 0 |
 | 40 | [cloud-function-v2](#cloud-function-v2) | partial | L | 917 | 25 | 6 / 0 / 3 |
 | 41 | [alloydb](#alloydb) | full | L | 1458 | 33 | 4 / 0 / 0 |
-| 42 | [spanner-instance](#spanner-instance) | full, with alpha | M | 426 | 7 | 6 / 1 / 0 |
+| 42 | [spanner-instance](#spanner-instance) | partial | M | 426 | 7 | 6 / 0 / 1 |
 | 43 | [bigtable-instance](#bigtable-instance) | full | S | 308 | 11 | 4 / 0 / 0 |
 | 44 | [firestore](#firestore) | full, with alpha | M | 452 | 7 | 2 / 3 / 0 |
 | 45 | [managed-kafka](#managed-kafka) | full, with alpha | S | 283 | 11 | 2 / 2 / 0 |
@@ -213,7 +213,7 @@ not have. Each is refused by the chart when set.
 | 72 | [dataplex-datascan](#dataplex-datascan) | partial | M | 765 | 16 | 0 / 0 / 3 |
 | 73 | [dataplex-aspect-types](#dataplex-aspect-types) | partial | S | 343 | 5 | 0 / 0 / 3 |
 | 74 | [data-catalog-policy-tag](#data-catalog-policy-tag) | full | M | 474 | 12 | 6 / 0 / 0 |
-| 75 | [data-catalog-tag](#data-catalog-tag) | full, with alpha | S | 146 | 2 | 0 / 1 / 0 |
+| 75 | [data-catalog-tag](#data-catalog-tag) | partial | S | 146 | 2 | 0 / 0 / 1 |
 | 76 | [data-catalog-tag-template](#data-catalog-tag-template) | partial | S | 351 | 4 | 0 / 1 / 2 |
 | 77 | [api-gateway](#api-gateway) | partial | M | 522 | 11 | 4 / 0 / 5 |
 | 78 | [apigee](#apigee) | partial | M | 827 | 13 | 9 / 2 / 1 |
@@ -224,7 +224,7 @@ not have. Each is refused by the chart when set.
 | 83 | [looker-core](#looker-core) | none | M | 435 | 15 | 0 / 0 / 1 |
 | 84 | [ai-applications](#ai-applications) | partial | L | 1666 | 8 | 2 / 8 / 1 |
 | 85 | [geap-agent-gateway](#geap-agent-gateway) | partial | L | 920 | 15 | 0 / 3 / 3 |
-| 86 | [geap-agent-runtime](#geap-agent-runtime) | partial | L | 1132 | 14 | 3 / 1 / 1 |
+| 86 | [geap-agent-runtime](#geap-agent-runtime) | partial | L | 1132 | 14 | 3 / 0 / 2 |
 | 87 | [geap-workbench](#geap-workbench) | partial | M | 668 | 30 | 1 / 1 / 1 |
 | 88 | [secops-rules](#secops-rules) | partial | S | 180 | 5 | 0 / 2 / 1 |
 | 89 | [container-registry](#container-registry) | none | S | 113 | 3 | 1 / 0 / 1 |
@@ -779,7 +779,7 @@ Rank 30. Terraform module: [`modules/dns-response-policy`](https://github.com/Go
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
 | `google_dns_response_policy` | DNSResponsePolicy (dns.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
-| `google_dns_response_policy_rule` | DNSResponsePolicyRule | alpha only |
+| `google_dns_response_policy_rule` | DNSResponsePolicyRule (dns.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### certificate-manager
 
@@ -879,7 +879,7 @@ Rank 36. Terraform module: [`modules/compute-vm`](https://github.com/GoogleCloud
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
 | `google_compute_disk` | ComputeDisk |  |
-| `google_compute_disk_resource_policy_attachment` | ComputeDiskResourcePolicyAttachment | alpha only |
+| `google_compute_disk_resource_policy_attachment` | ComputeDiskResourcePolicyAttachment (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_instance` | ComputeInstance |  |
 | `google_compute_instance_group` | ComputeInstanceGroup |  |
 | `google_compute_instance_group_membership` | ComputeInstanceGroup (spec.instances) |  |
@@ -901,17 +901,17 @@ Rank 36. Terraform module: [`modules/compute-vm`](https://github.com/GoogleCloud
 
 This module allows creating a managed instance group supporting one or more application versions via instance templates. Optionally, a healt…
 
-Rank 37. Terraform module: [`modules/compute-mig`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/compute-mig). Coverage: **full, with alpha**. Size: L (1085 lines of Terraform, 21 variables, 4 outputs).
+Rank 37. Terraform module: [`modules/compute-mig`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/compute-mig). Coverage: **partial**. Size: L (1085 lines of Terraform, 21 variables, 4 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_compute_autoscaler` | ComputeAutoscaler | alpha only |
+| `google_compute_autoscaler` | ComputeAutoscaler (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_compute_health_check` | ComputeHealthCheck |  |
 | `google_compute_instance_group_manager` | ComputeInstanceGroupManager |  |
 | `google_compute_per_instance_config` | ComputePerInstanceConfig | alpha only |
 | `google_compute_region_autoscaler` | ComputeRegionAutoscaler | alpha only |
 | `google_compute_region_instance_group_manager` | ComputeInstanceGroupManager |  |
-| `google_compute_region_per_instance_config` | ComputeRegionPerInstanceConfig | alpha only |
+| `google_compute_region_per_instance_config` | ComputeRegionPerInstanceConfig (compute.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### service-directory
 
@@ -953,7 +953,7 @@ Rank 40. Terraform module: [`modules/cloud-function-v2`](https://github.com/Goog
 | `google_cloud_run_service_iam_binding` | IAMPartialPolicy -> RunService |  |
 | `google_cloud_run_service_iam_member` | IAMPolicyMember -> RunService |  |
 | `google_cloudfunctions2_function` | CloudFunctions2Function (cloudfunctions2.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
-| `google_cloudfunctions2_function_iam_binding` | none | **gap** |
+| `google_cloudfunctions2_function_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on CloudFunctions2Function | gap kind (config-connector-extensions) |
 | `google_project_iam_member` | IAMPolicyMember -> Project |  |
 | `google_service_account` | IAMServiceAccount |  |
 | `google_storage_bucket` | StorageBucket |  |
@@ -978,7 +978,7 @@ Rank 41. Terraform module: [`modules/alloydb`](https://github.com/GoogleCloudPla
 
 This module allows to create a spanner instance with associated spanner instance config and databases in the instance. Additionally it allow…
 
-Rank 42. Terraform module: [`modules/spanner-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/spanner-instance). Coverage: **full, with alpha**. Size: M (426 lines of Terraform, 7 variables, 6 outputs).
+Rank 42. Terraform module: [`modules/spanner-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/spanner-instance). Coverage: **partial**. Size: M (426 lines of Terraform, 7 variables, 6 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
@@ -986,7 +986,7 @@ Rank 42. Terraform module: [`modules/spanner-instance`](https://github.com/Googl
 | `google_spanner_database_iam_binding` | IAMPartialPolicy -> SpannerDatabase |  |
 | `google_spanner_database_iam_member` | IAMPolicyMember -> SpannerDatabase |  |
 | `google_spanner_instance` | SpannerInstance |  |
-| `google_spanner_instance_config` | SpannerInstanceConfig | alpha only |
+| `google_spanner_instance_config` | SpannerInstanceConfig (spanner.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_spanner_instance_iam_binding` | IAMPartialPolicy -> SpannerInstance |  |
 | `google_spanner_instance_iam_member` | IAMPolicyMember -> SpannerInstance |  |
 
@@ -1299,7 +1299,7 @@ Rank 62. Terraform module: [`modules/cloud-build-v2-connection`](https://github.
 | `google_cloudbuildv2_connection` | CloudBuildConnection (cloudbuild.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_cloudbuildv2_connection_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on CloudBuildConnection | gap kind (config-connector-extensions) |
 | `google_cloudbuildv2_connection_iam_member` | IAMMember (iam.gcp.hfl.dev/v1alpha1) on CloudBuildConnection | gap kind (config-connector-extensions) |
-| `google_cloudbuildv2_repository` | none | **gap** |
+| `google_cloudbuildv2_repository` | CloudBuildRepository (cloudbuild.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 
 ### secure-source-manager-instance
 
@@ -1462,11 +1462,11 @@ Rank 74. Terraform module: [`modules/data-catalog-policy-tag`](https://github.co
 
 This module allows managing Data Catalog Tag on GCP resources such as B.
 
-Rank 75. Terraform module: [`modules/data-catalog-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-tag). Coverage: **full, with alpha**. Size: S (146 lines of Terraform, 2 variables, 1 outputs).
+Rank 75. Terraform module: [`modules/data-catalog-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-tag). Coverage: **partial**. Size: S (146 lines of Terraform, 2 variables, 1 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_data_catalog_tag` | DataCatalogTag | alpha only |
+| `google_data_catalog_tag` | DataCatalogTag (datacatalog.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### data-catalog-tag-template
 
@@ -1636,7 +1636,7 @@ Rank 86. Terraform module: [`modules/geap-agent-runtime`](https://github.com/Goo
 | `google_service_account` | IAMServiceAccount |  |
 | `google_storage_bucket` | StorageBucket |  |
 | `google_storage_bucket_object` | StorageBucketObject (storage.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
-| `google_vertex_ai_reasoning_engine` | AIPlatformReasoningEngine | alpha only |
+| `google_vertex_ai_reasoning_engine` | AIPlatformReasoningEngine (aiplatform.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### geap-workbench
 

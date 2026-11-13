@@ -1,0 +1,48 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-insights-component
+repo: https://github.com/Azure/terraform-azurerm-avm-res-insights-component
+path: .
+version: v0.5.0
+commit: 8c75ae7771d672228595c19cefa6c216a8955d49
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-insights-component/tree/v0.5.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-insights-component/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  - variable: application_type
+    kind: gap
+    reason: "accepted for web and other; ios, java, phone, MobileCenter, Node.JS and store are refused: ASO's Component (2020-02-02) enumerates Application_Type as web and other only"
+    partial: true
+  - variable: linked_storage_account
+    kind: gap
+    reason: "Microsoft.Insights/components/linkedStorageAccounts (the profiler's storage account) has no Azure Service Operator or aso-extensions kind"
+  - variable: monitor_private_link_scope
+    kind: gap
+    reason: "accepted for kind Resource; kind Metrics and subscription_location are refused: aso-extensions' PrivateLinkScopesScopedResource is at API 2021-09-01, which has neither"
+    partial: true
+    fields: [kind, subscription_location]
+  - variable: ignore_body_changes
+    kind: gap
+    reason: "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)"
+  - variable: resource_types
+    kind: by-design
+    reason: "ASO's kinds fix the API versions (Component 2020-02-02, PricingPlan 2017-10-01)"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

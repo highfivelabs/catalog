@@ -1,0 +1,79 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dns-response-policy/main.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_dns_response_policy.default: a DNSResponsePolicy
+(config-connector-extensions, dns.gcp.hfl.dev/v1beta1) when policy_create.
+google_dns_response_policy_rule.default: one DNSResponsePolicyRule
+(dns.gcp.hfl.dev/v1beta1) per rule of the rules variable merged with the
+factory's, in the policy the chart makes or the existing one named name.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.names" (list $ (list "policy")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $policy := include "dnsResponsePolicy.name" . }}
+{{- if $v.policy_create }}
+---
+apiVersion: dns.gcp.hfl.dev/v1beta1
+kind: DNSResponsePolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "policy")) "id" "policy" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  resourceID: {{ $policy | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  {{- with $v.networks }}
+  networks:
+    {{- range $k := keys . | sortAlpha }}
+    - networkUrl: {{ index $v.networks $k | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.clusters }}
+  gkeClusters:
+    {{- range $k := keys . | sortAlpha }}
+    - gkeClusterName: {{ index $v.clusters $k | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- $rules := include "dnsResponsePolicy.rules" . | fromJson }}
+{{- range $key := keys $rules | sortAlpha }}
+{{- $r := index $rules $key }}
+---
+apiVersion: dns.gcp.hfl.dev/v1beta1
+kind: DNSResponsePolicyRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $key)) "id" (printf "rule:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  responsePolicy: {{ printf "projects/%s/responsePolicies/%s" $v.project_id $policy | quote }}
+  resourceID: {{ include "kcc.cloudName" (list $ "rule" $key 63) | quote }}
+  dnsName: {{ $r.dns_name | quote }}
+  {{- if $r.local_data }}
+  localData:
+    localDatas:
+      {{- range $t := keys $r.local_data | sortAlpha }}
+      {{- $d := index $r.local_data $t }}
+      {{- /* fabric sets each record's name to the rule's DNS name, as
+      the console does. */}}
+      - name: {{ $r.dns_name | quote }}
+        type: {{ $t | quote }}
+        {{- if not (kindIs "invalid" $d.ttl) }}
+        ttl: {{ $d.ttl | int64 }}
+        {{- end }}
+        rrdatas:
+          {{- range $d.rrdatas }}
+          - {{ . | quote }}
+          {{- else }} []
+          {{- end }}
+      {{- end }}
+  {{- else }}
+  behavior: {{ $r.behavior | quote }}
+  {{- end }}
+{{- end }}

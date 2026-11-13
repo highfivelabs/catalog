@@ -1,0 +1,34 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as the Terraform provider computes the
+# resources' IDs: spanner_instance_id is <project>/<instance ID>
+# (names.instance when set, else instance.name with the namePrefix),
+# spanner_database_ids each database's <instance ID>/<name>, and
+# spanner_instance_config_id projects/<project>/instanceConfigs/<name> when
+# the chart creates the configuration, else null. fabric's
+# spanner_databases, spanner_instance and spanner_instance_config are whole
+# Terraform objects and not outputs.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-spanner-instance
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    spanner_database_ids: >-
+      inputs.databases.transformMapEntry(k, v, {k:
+      ('instance' in inputs.names && inputs.names.instance != '' ? inputs.names.instance : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.instance.name) +
+      '/' + k})
+    spanner_instance_config_id: >-
+      has(inputs.instance.config) && inputs.instance.config != null
+      && has(inputs.instance.config.auto_create) && inputs.instance.config.auto_create != null
+      ? dyn('projects/' + inputs.project_id + '/instanceConfigs/' + inputs.instance.config.name)
+      : null
+    spanner_instance_id: >-
+      inputs.project_id + '/' +
+      ('instance' in inputs.names && inputs.names.instance != '' ? inputs.names.instance : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.instance.name)

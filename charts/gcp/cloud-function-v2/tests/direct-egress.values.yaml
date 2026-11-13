@@ -1,0 +1,17 @@
+# Direct VPC egress, an existing connector's egress setting left out,
+# and a subnet-based connector the chart creates.
+project_id: my-project
+region: europe-west1
+name: test-cf-http
+bucket_name: my-bucket
+bundle_config: {path: "gs://my-bucket/bundles/function.zip"}
+direct_vpc_egress:
+  mode: VPC_EGRESS_PRIVATE_RANGES_ONLY
+  network: projects/my-project/global/networks/vpc
+  subnetwork: projects/my-project/regions/europe-west1/subnetworks/apps
+  tags: [fn]
+function_config:
+  on_deploy_update_policy: true
+vpc_connector_create:
+  subnet: {name: connector-subnet, project_id: host-project}
+  throughput: {min: 200, max: 300}

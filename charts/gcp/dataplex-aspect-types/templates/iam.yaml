@@ -1,0 +1,89 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/dataplex-aspect-types/iam.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_dataplex_aspect_type_iam_binding.authoritative: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per role of an
+aspect type's iam, keyed <aspect type>.<role> as fabric keys it.
+google_dataplex_aspect_type_iam_binding.bindings: one IAMBinding per entry
+of an aspect type's iam_bindings, keyed by the entry's key across every
+aspect type (fabric merges them; the later aspect type's entry wins).
+google_dataplex_aspect_type_iam_member.members: one IAMMember
+(config-connector-extensions, iam.gcp.hfl.dev/v1alpha1, so allow_alpha)
+per entry of iam_bindings_additive, keyed the same way.
+*/ -}}
+{{- $v := .Values }}
+{{- $types := include "dataplexAspectTypes.all" . | fromJson }}
+{{- $bindings := dict }}
+{{- $additive := dict }}
+{{- range $key := keys $types | sortAlpha }}
+{{- $t := index $types $key }}
+{{- $object := include "dataplexAspectTypes.object" (list $ $key) }}
+{{- range $role, $members := ($t.iam | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $object "iam" $role)) "id" (printf "iam:%s.%s" $key $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: {{ $object }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- range $bk, $b := ($t.iam_bindings | default dict) }}
+{{- $_ := set $bindings $bk (dict "object" $object "b" $b) }}
+{{- end }}
+{{- range $bk, $b := ($t.iam_bindings_additive | default dict) }}
+{{- $_ := set $additive $bk (dict "object" $object "b" $b) }}
+{{- end }}
+{{- end }}
+{{- range $bk, $e := $bindings }}
+{{- $b := $e.b }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam-binding" $bk)) "id" (printf "iam-binding:%s" $bk) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: {{ $e.object }}
+  role: {{ $b.role | quote }}
+  members:
+  {{- range $m := ($b.members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+  {{- with $b.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- include "kcc.alpha" (list $ "iam_bindings_additive" $additive "IAMMember (config-connector-extensions)") }}
+{{- range $bk, $e := $additive }}
+{{- $b := $e.b }}
+---
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "iam-member" $bk)) "id" (printf "iam-member:%s" $bk) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: dataplex.gcp.hfl.dev/v1beta1
+    kind: DataplexAspectType
+    name: {{ $e.object }}
+  role: {{ $b.role | quote }}
+  member: {{ $b.member | quote }}
+  {{- with $b.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}

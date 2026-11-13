@@ -1,0 +1,92 @@
+# Most settings the chart carries in Autopilot mode, Backup for GKE included.
+project_id: my-project
+name: cluster-full
+description: everything
+location: europe-west1
+node_locations: [europe-west1-b, europe-west1-c]
+min_master_version: "1.33"
+release_channel: STABLE
+issue_client_certificate: false
+deletion_protection: false
+vpc_config:
+  network: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/vpc
+  subnetwork: projects/my-project/regions/europe-west1/subnetworks/gke
+  secondary_range_blocks: {pods: 10.4.0.0/14, services: 10.0.32.0/20}
+  stack_type: IPV4
+  additional_ranges: [pods-2]
+  disable_default_snat: true
+  disable_l4_lb_firewall_reconciliation: true
+access_config:
+  dns_access: {allow_external_traffic: false, enable_k8s_tokens: true}
+  ip_access:
+    disable_public_endpoint: true
+    gcp_public_cidrs_access_enabled: false
+    private_endpoint_config: {endpoint_subnetwork: projects/my-project/regions/europe-west1/subnetworks/cp}
+node_config:
+  service_account: nodes@my-project.iam.gserviceaccount.com
+  boot_disk_kms_key: projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/gke
+  tags: [gke, nap]
+  resource_manager_tags: {tagKeys/1: tagValues/2}
+enable_addons:
+  config_connector: true
+  cloudrun: true
+  kalm: true
+enable_features:
+  binary_authorization: true
+  allow_net_admin: true
+  fqdn_network_policy: true
+  beta_apis: [authentication.k8s.io/v1beta1/selfsubjectreviews]
+  database_encryption: {state: ENCRYPTED, key_name: projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/etcd}
+  gateway_api: true
+  groups_for_rbac: gke-security-groups@example.com
+  identity_service: true
+  l4_ilb_subsetting: true
+  mesh_certificates: true
+  security_posture_config: {mode: BASIC, vulnerability_mode: VULNERABILITY_BASIC}
+  resource_usage_export: {dataset: gke_usage, enable_network_egress_metering: true}
+  service_external_ips: false
+  dns: {provider: CLOUD_DNS, scope: CLUSTER_SCOPE, domain: cluster.local}
+  upgrade_notifications: {event_types: [UPGRADE_EVENT], kms_key_name: projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/topic}
+  vertical_pod_autoscaling: true
+logging_config: {enable_api_server_logs: true}
+monitoring_config:
+  enable_api_server_metrics: true
+  enable_pod_metrics: true
+  advanced_datapath_observability: {enable_metrics: true, enable_relay: false}
+maintenance_config:
+  daily_window_start_time: null
+  recurring_window: {start_time: "2025-01-01T00:00:00Z", end_time: "2025-01-01T04:00:00Z", recurrence: "FREQ=WEEKLY;BYDAY=SA"}
+  maintenance_exclusions:
+    - {name: holidays, start_time: "2025-12-20T00:00:00Z", end_time: "2026-01-05T00:00:00Z", scope: NO_UPGRADES}
+backup_configs:
+  enable_backup_agent: true
+  backup_channels:
+    to-dr: {destination_project: dr-project, labels: {team: ops}}
+  restore_channels:
+    from-dr: {destination_project: projects/dr-project, region: europe-west4, deletion_policy: ABANDON}
+  backup_plans:
+    daily:
+      schedule: "0 3 * * *"
+      retention_policy_days: 7
+      encryption_key: projects/kms/locations/europe-west1/keyRings/k/cryptoKeys/backup
+      applications: {app: [web, api]}
+    ns:
+      namespaces: [default]
+      include_secrets: false
+      retention_policy_lock: true
+      retention_policy_delete_lock_days: 2
+  restore_plans:
+    all:
+      backup_plan: daily
+      cluster_resource_restore_scope:
+        conflict_policy: USE_EXISTING_VERSION
+        selected_group_kinds: [{resource_group: storage.k8s.io, resource_kind: StorageClass}]
+      namespaced_restore_scope: {selected_namespaces: [default], restore_mode: FAIL_ON_CONFLICT}
+      restore_order:
+        - {requiring: {resource_kind: Pod}, satisfying: {resource_kind: ConfigMap}}
+      transformation_rules:
+        - description: drop annotations
+          field_actions: [{op: REMOVE, path: /metadata/annotations}]
+          resource_filter: {namespaces: [default], group_kinds: [{resource_kind: Deployment}]}
+      volume_data_restore: {policy: RESTORE_VOLUME_DATA_FROM_BACKUP, bindings: {GCE_PERSISTENT_DISK: NO_VOLUME_DATA_RESTORATION}}
+deletion_policy: ABANDON
