@@ -28,7 +28,7 @@ refused:
     reason: "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)"
   - variable: resource_types
     kind: by-design
-    reason: "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01 or 2026-01-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)"
+    reason: "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)"
   - variable: retry
     kind: by-design
     reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
@@ -70,13 +70,6 @@ refused:
   - variable: public_network_access_enabled
     kind: gap
     reason: "deprecated form of public_network_access: ASO's ManagedEnvironment (2025-01-01) has no publicNetworkAccess"
-  # Child types with no kind.
-  - variable: dapr_subscriptions
-    kind: gap
-    reason: "no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/daprSubscriptions"
-  - variable: dot_net_components
-    kind: gap
-    reason: "no ASO or aso-extensions kind for Microsoft.App/managedEnvironments/dotNetComponents"
   # Secret values: the builder's decision (ASO takes each as a
   # SecretReference to a Kubernetes Secret; how a component supplies one is
   # not settled).
@@ -154,12 +147,12 @@ refused:
     partial: true
     fields: [value]
   - variable: storages
-    kind: gap
-    reason: "accepted for NFS and Azure Files shares, but the account key (account_key, azure_file.account_key) is refused, a secret value the chart does not take, and azure_file.account_key_vault_properties too: aso-extensions' ManagedEnvironmentsStorage is at ARM API version 2025-01-01, which has no accountKeyVaultProperties"
+    kind: not-ported
+    reason: "accepted for NFS and Azure Files shares, the key by Key Vault reference (azure_file.account_key_vault_properties), but the account key (account_key, azure_file.account_key) is refused, a secret value the chart does not take"
     partial: true
-    fields: [account_key, account_key_vault_properties]
+    fields: [account_key]
   - variable: java_components
     kind: gap
-    reason: "accepted for SpringBootAdmin, SpringCloudConfig and SpringCloudEureka, but Nacos and SpringCloudGateway components and ingress are refused: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2025-01-01) has neither"
+    reason: "accepted for every component type (aso-extensions' ManagedEnvironmentsJavaComponent, ARM API version 2026-03-02-preview), but ingress is refused: the kind has no ingress in its spec (the module sends an empty object, whose one property, fqdn, is read-only)"
     partial: true
-    fields: [component_type, ingress]
+    fields: [ingress]

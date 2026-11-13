@@ -141,8 +141,19 @@ examples, less what the chart refuses), `full` (every value the chart
 carries), `names` and `mock`, validated against Config Connector
 v1.160.0's CRD schemas, and the refusals in `tests/*.fail.yaml`.
 
-The fake-cloud run is pending (`task test-mock MOCK_CHARTS=organization`;
-`tests/mock.values.yaml`, on a fake organization ID).
+Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
+MOCK_CHARTS=organization`, run `off-catalog-1113170855-30420`, at
+config-connector-extensions `d54a2075`): `tests/mock.values.yaml`, on a
+fake organization ID, with an authoritative role, an additive member, a
+custom role, a custom constraint and an organization policy, a tag key
+with a value and a logging exclusion: all 8 objects Ready, the outputs
+evaluated (`custom_constraint_ids`, `custom_role_id`,
+`organization_policies_ids`, `tag_keys` and `tag_values`), all deleted.
+The run before it (`off-catalog-1113165419-19612`) found that an IAM
+`resourceRef` to the organization needs its `apiVersion`, now set. Not
+applied: contacts (mockgcp's essential contacts take only a project
+parent), sinks, PAM, the firewall policy association and tag bindings,
+render-tested only.
 
 Not applied live: live runs are pending KEYLIVE, and a live run needs an
 organization the test identity may change (nothing can create one).

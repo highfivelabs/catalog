@@ -17,7 +17,9 @@ encryption (blocks of the azurerm resource, separate calls in azurerm) as
 ServersDatabasesBackupLongTermRetentionPolicy,
 ServersDatabasesBackupShortTermRetentionPolicy,
 ServersDatabasesSecurityAlertPolicy and
-ServersDatabasesTransparentDataEncryption. module.elasticpool
+ServersDatabasesTransparentDataEncryption. express_vulnerability_assessment_enabled
+as aso-extensions' ServersSqlVulnerabilityAssessment
+(sql.azure.hfl.dev/v20250101). module.elasticpool
 (azurerm_mssql_elasticpool) as ServersElasticPool.
 azurerm_mssql_firewall_rule as ServersFirewallRule. azurerm_private_endpoint
 (either of the module's two) as PrivateEndpoint (network.azure.com/v20250301),
@@ -39,7 +41,6 @@ ported.
 {{- include "aso.unsupported" (list $ "administrator_login_password_wo_version" $v.administrator_login_password_wo_version "it versions administrator_login_password_wo, which is refused") }}
 {{- include "aso.unsupported" (list $ "generate_administrator_login_password" $v.generate_administrator_login_password $secret) }}
 {{- include "aso.unsupported" (list $ "administrator_login_password_key_vault_configuration" $v.administrator_login_password_key_vault_configuration "it stores the administrator password, a secret value the chart does not take, in Key Vault") }}
-{{- include "aso.unsupported" (list $ "express_vulnerability_assessment_enabled" $v.express_vulnerability_assessment_enabled "Microsoft.Sql/servers/sqlVulnerabilityAssessments (the express vulnerability assessment) has no Azure Service Operator or aso-extensions kind") }}
 {{- range $k, $r := $v.firewall_rules }}
 {{- include "aso.unsupported" (list $ (printf "firewall_rules.%s.timeouts" $k) $r.timeouts $timeouts) }}
 {{- end }}
@@ -47,7 +48,7 @@ ported.
 {{- include "aso.unsupported" (list $ (printf "databases.%s.import" $k) $d.import "a .bacpac import is an action with a storage key and an administrator password, secret values, and no Azure Service Operator kind") }}
 {{- include "aso.unsupported" (list $ (printf "databases.%s.threat_detection_policy.storage_account_access_key" $k) (($d.threat_detection_policy | default dict).storage_account_access_key) "a storage account key is a secret value, which does not belong in a component's inputs") }}
 {{- if and (eq $d.geo_backup_enabled false) (hasPrefix "DW" (toString ($d.sku_name | default ""))) }}
-{{- include "aso.unsupported" (list $ (printf "databases.%s.geo_backup_enabled" $k) "false" "Microsoft.Sql/servers/databases/geoBackupPolicies has no Azure Service Operator or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ (printf "databases.%s.geo_backup_enabled" $k) "false" "Microsoft.Sql/servers/databases/geoBackupPolicies: aso-extensions' ServersDatabasesGeoBackupPolicy (3d9ba27) names its owner as sql.azure.hfl.dev Servers_Database, not ASO's ServersDatabase, so it never reconciles") }}
 {{- end }}
 {{- end }}
 {{- include "aso.names" (list $ (list "server")) }}
@@ -124,6 +125,21 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   version: {{ $v.server_version | toString | quote }}
+{{- if eq $v.express_vulnerability_assessment_enabled true }}
+---
+apiVersion: sql.azure.hfl.dev/v20250101
+kind: ServersSqlVulnerabilityAssessment
+metadata:
+  {{- /* The server's one express vulnerability assessment setting
+  (sqlVulnerabilityAssessments/default), which azurerm sets when the
+  value is true; a setting of the server with no delete in Azure: always
+  detached on delete. */}}
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "va")) "id" "express_vulnerability_assessment" "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  state: Enabled
+{{- end }}
 {{- with $v.connection_policy }}
 ---
 apiVersion: sql.azure.com/v20250101

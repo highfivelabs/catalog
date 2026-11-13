@@ -37,13 +37,9 @@ refused:
   - variable: administrator_login_password_key_vault_configuration
     kind: by-design
     reason: "it stores the administrator password, a secret value the chart does not take, in Key Vault; aso-extensions' VaultSecret takes its value from a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open)"
-  - variable: express_vulnerability_assessment_enabled
-    kind: gap
-    reason: "accepted at false only: true needs Microsoft.Sql/servers/sqlVulnerabilityAssessments (the express configuration), which has no ASO or aso-extensions kind (ASO's ServersVulnerabilityAssessment is the classic, storage-backed one)"
-    partial: true
   - variable: databases
     kind: gap
-    reason: "accepted, except import (a .bacpac import is a POST action with a storage key and an administrator password, secret values, and no ASO kind), threat_detection_policy.storage_account_access_key (a secret value; ASO takes it only from a Kubernetes Secret) and geo_backup_enabled false on a DataWarehouse (DW) SKU (Microsoft.Sql/servers/databases/geoBackupPolicies has no ASO or aso-extensions kind; azurerm sets it only for DW SKUs). managed_identities.system_assigned is accepted and ignored, as the module ignores it"
+    reason: "accepted, except import (a .bacpac import is a POST action with a storage key and an administrator password, secret values, and no ASO kind) and threat_detection_policy.storage_account_access_key (a secret value; ASO takes it only from a Kubernetes Secret) and geo_backup_enabled false on a DataWarehouse (DW) SKU (azurerm sets Microsoft.Sql/servers/databases/geoBackupPolicies for DW SKUs only; aso-extensions' ServersDatabasesGeoBackupPolicy at 3d9ba27 names its owner as sql.azure.hfl.dev Servers_Database instead of ASO's ServersDatabase and never reconciles, found against the fake cloud). managed_identities.system_assigned is accepted and ignored, as the module ignores it"
     partial: true
     fields: [import, threat_detection_policy.storage_account_access_key, geo_backup_enabled]
   - variable: firewall_rules

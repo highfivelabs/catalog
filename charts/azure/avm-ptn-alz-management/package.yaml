@@ -7,21 +7,25 @@
 # inputs do not make. Not outputs: automation_account_dsc_keys and
 # log_analytics_workspace_keys (secret values, sensitive in the module,
 # which do not belong in outputs). automation_account's
-# dsc_server_endpoint is always null: azurerm reads it from the account's
-# agentRegistrationInformation, which aso-extensions' AutomationAccount
-# status does not carry (docs/azure.md, "8. Charts").
+# dsc_server_endpoint is derived from the account's hybrid service URL
+# (https://<id>.jrds.<region>.azure-automation.net/automationAccounts/<id>
+# becomes https://<id>.agentsvc.<region>.azure-automation.net/accounts/<id>),
+# the endpoint azurerm reads from agentRegistrationInformation; outputs
+# read the objects a chart renders, not the ConfigMap aso-extensions'
+# AutomationAccount can export it to (operatorSpec.configMaps).
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: azure-avm-ptn-alz-management
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [aso]
   outputs:
     automation_account: >-
       'automation_account' in resources
-      ? {'dsc_server_endpoint': null,
+      ? {'dsc_server_endpoint': 'automationHybridServiceUrl' in resources.automation_account.status
+      ? dyn(resources.automation_account.status.automationHybridServiceUrl.replace('.jrds.', '.agentsvc.').replace('/automationAccounts/', '/accounts/')) : null,
       'hybrid_service_url': 'automationHybridServiceUrl' in resources.automation_account.status ? resources.automation_account.status.automationHybridServiceUrl : null,
       'id': resources.automation_account.status.id,
       'name': resources.automation_account.spec.azureName,
