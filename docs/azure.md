@@ -405,6 +405,13 @@ The core works. The VM's ARM version is old.
 | --- | --- |
 | LB, backend pools and addresses, probes, rules, NAT rules and pools, outbound rules, public IPs, NIC associations | `network/LoadBalancer` (pools, probes, rules and outbound rules are inline ARM properties), `LoadBalancersInboundNatRule`, `PublicIPAddress`. NIC association is a `NetworkInterface` property. Covered |
 
+Covered, except the NIC association. Chart
+`charts/azure/avm-res-network-loadbalancer` (2026-11-12): 22 of 23
+variables, every child inline in the `LoadBalancer` (NAT rules too, not
+`LoadBalancersInboundNatRule`, so one object owns them all), the public IPs
+it makes as `PublicIPAddress` objects; `backend_address_pool_network_interfaces`
+is refused (section 8).
+
 ### 14. avm-res-containerregistry-registry (v0.9.0)
 
 | Submodule | Creates | ASO |
@@ -719,6 +726,7 @@ aso-extensions:
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
+| `avm-res-network-loadbalancer` | `backend_address_pool_network_interfaces` | none: a NIC joins a pool through its own `ipConfigurations[].loadBalancerBackendAddressPools`; ASO has no association kind and sets a NIC's IP configurations only by owning the whole `NetworkInterface` |
 
 The private DNS zone's `soa_record` maps to aso-extensions'
 `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev/v20240601`, its CRD
@@ -798,8 +806,8 @@ reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
-identity, Log Analytics workspace, container registry and firewall policy
-charts are applied
+identity, Log Analytics workspace, container registry, firewall policy and load
+balancer charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -826,6 +834,14 @@ left. Its `tests/mock.values.yaml` passed against the fake cloud too
 (stock ASO against aso-extensions' fakearm at `e3b4177`, run
 `off-catalog-1112233431-23161`: 2 objects Ready and deleted, outputs
 evaluated).
+The load balancer (public Standard,
+with the public IP it makes, a pool, a TCP probe, a rule, a NAT rule and
+an outbound rule) passed in run `cat11130126a761` on 2026-11-13: 2
+objects, outputs evaluated (the address Azure allocated among them),
+nothing left. Its `tests/mock.values.yaml` passed against the fake cloud
+too (stock ASO against aso-extensions' fakearm at `b9beb5b`, with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113012254-13575`: 2 objects Ready
+and deleted, outputs evaluated).
 
 The AKS chart (`avm-res-containerservice-managedcluster`) is not applied
 live: AKS makes the cluster's node resource group (`MC_<group>_<name>_<region>`,
