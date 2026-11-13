@@ -1,0 +1,366 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azure-avm-ptn-alz-sub-vending
+main.network-security-group.tf, main.route-table.tf,
+main.virtual-network.tf, locals.tf and modules/network-security-group,
+modules/route-table and modules/virtual-network (v0.3.4), and the
+virtual network module those call (avm-res-network-virtualnetwork 0.20.0,
+its peering submodule 0.14.1), Copyright (c) Microsoft Corporation, MIT.
+
+module.networksecuritygroup: an ASO NetworkSecurityGroup each, its
+security rules NetworkSecurityGroupsSecurityRule objects (2025-03-01; the
+module sends 2024-05-01). module.routetable: an ASO RouteTable each, its
+routes RouteTablesRoute objects. module.virtualnetwork: an ASO
+VirtualNetwork each, its subnets VirtualNetworksSubnet objects; the hub
+peerings (to the hub, owned by this network; from the hub, owned by the
+hub's network by ID) and mesh peerings VirtualNetworksVirtualNetworkPeering
+objects, named as the module names them (peer-<uuidv5 of the remote
+network's ID>); the Virtual WAN hub connection an aso-extensions
+VirtualHubsHubVirtualNetworkConnection (network.azure.hfl.dev/v20260301;
+the module sends 2022-07-01), owned by the hub by ID.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $base := include "aso.name" (list .Release.Name) }}
+
+{{- /* module.networksecuritygroup. */ -}}
+{{- $nsgs := dict }}
+{{- if eq $v.network_security_group_enabled true }}
+{{- range $k, $g := ($v.network_security_groups | default dict) }}
+{{- $what := printf "network_security_groups.%s" $k }}
+{{- include "aso.unsupported" (list $ (printf "%s.resource_types" $what) (include "subv.anySet" $g.resource_types) "ASO's kinds fix the API versions (NetworkSecurityGroup and NetworkSecurityGroupsSecurityRule 2025-03-01)") }}
+{{- $p := include "subv.parent" (list $ $what $g.resource_group_key $g.resource_group_name_existing true) | fromJson }}
+{{- $obj := include "aso.name" (list $base "nsg" $k) }}
+{{- $name := include "aso.cloudName" (list $ "network security group" $g.name 80 false) }}
+{{- $_ := set $nsgs $k (dict "obj" $obj "id" (printf "%s/providers/Microsoft.Network/networkSecurityGroups/%s" $p.id $name)) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "network_security_group:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $name | quote }}
+  location: {{ $g.location | default $v.location | quote }}
+  owner:
+    {{- toYaml $p.owner | nindent 4 }}
+  {{- with (include "aso.tags" (list $ $g.tags) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $rk, $r := ($g.security_rules | default dict) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: NetworkSecurityGroupsSecurityRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "nsg" $k "rule" $rk)) "id" (printf "network_security_group:%s/security_rule:%s" $k $rk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | quote }}
+  owner:
+    name: {{ $obj }}
+  access: {{ $r.access }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  direction: {{ $r.direction }}
+  priority: {{ $r.priority | int }}
+  protocol: {{ $r.protocol | quote }}
+  {{- range $f := list (list "source_address_prefix" "sourceAddressPrefix") (list "source_port_range" "sourcePortRange") (list "destination_address_prefix" "destinationAddressPrefix") (list "destination_port_range" "destinationPortRange") }}
+  {{- with (index $r (index $f 0)) }}
+  {{ index $f 1 }}: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- range $f := list (list "source_address_prefixes" "sourceAddressPrefixes") (list "source_port_ranges" "sourcePortRanges") (list "destination_address_prefixes" "destinationAddressPrefixes") (list "destination_port_ranges" "destinationPortRanges") }}
+  {{- with (index $r (index $f 0)) }}
+  {{ index $f 1 }}:
+    {{- range (uniq . | sortAlpha) }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- range $f := list (list "source_application_security_group_ids" "sourceApplicationSecurityGroups") (list "destination_application_security_group_ids" "destinationApplicationSecurityGroups") }}
+  {{- with (index $r (index $f 0)) }}
+  {{ index $f 1 }}:
+    {{- range (uniq . | sortAlpha) }}
+    - reference:
+        armId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* module.routetable (local.route_tables). */ -}}
+{{- $rts := dict }}
+{{- if eq $v.route_table_enabled true }}
+{{- range $k, $t := ($v.route_tables | default dict) }}
+{{- $what := printf "route_tables.%s" $k }}
+{{- include "aso.unsupported" (list $ (printf "%s.resource_types" $what) (include "subv.anySet" $t.resource_types) "ASO's kinds fix the API versions (RouteTable and RouteTablesRoute 2025-03-01)") }}
+{{- if not $t.location }}{{ fail (printf "%s: %s needs a location" $n $what) }}{{ end }}
+{{- /* coalesce(resource_group_name_existing, the group of resource_group_key). */ -}}
+{{- $p := include "subv.parent" (list $ $what (ternary "" $t.resource_group_key (not (empty $t.resource_group_name_existing))) $t.resource_group_name_existing false) | fromJson }}
+{{- $obj := include "aso.name" (list $base "rt" $k) }}
+{{- $name := include "aso.cloudName" (list $ "route table" $t.name 80 false) }}
+{{- $_ := set $rts $k (dict "obj" $obj "id" (printf "%s/providers/Microsoft.Network/routeTables/%s" $p.id $name)) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: RouteTable
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "route_table:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $name | quote }}
+  location: {{ $t.location | quote }}
+  owner:
+    {{- toYaml $p.owner | nindent 4 }}
+  disableBgpRoutePropagation: {{ eq $t.bgp_route_propagation_enabled false }}
+  {{- with (include "aso.tags" (list $ $t.tags) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $rk, $r := ($t.routes | default dict) }}
+---
+apiVersion: network.azure.com/v20250301
+kind: RouteTablesRoute
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "rt" $k "route" $rk)) "id" (printf "route_table:%s/route:%s" $k $rk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | quote }}
+  owner:
+    name: {{ $obj }}
+  addressPrefix: {{ $r.address_prefix | quote }}
+  nextHopType: {{ $r.next_hop_type }}
+  {{- with $r.next_hop_in_ip_address }}
+  nextHopIpAddress: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* module.virtualnetwork. */ -}}
+{{- if eq $v.virtual_network_enabled true }}
+{{- $nets := dict }}
+{{- range $k, $net := ($v.virtual_networks | default dict) }}
+{{- $what := printf "virtual_networks.%s" $k }}
+{{- if not (or $net.resource_group_key $net.resource_group_name_existing) }}
+{{- fail (printf "%s: Each virtual network must specify either 'resource_group_key' or 'resource_group_name_existing'." $n) }}
+{{- end }}
+{{- if eq (kindIs "invalid" $net.address_space) (kindIs "invalid" $net.ipam_pools) }}
+{{- fail (printf "%s: Each virtual network must specify either 'address_space' or 'ipam_pools', but not both." $n) }}
+{{- end }}
+{{- $p := include "subv.parent" (list $ $what (ternary "" $net.resource_group_key (not (empty $net.resource_group_name_existing))) $net.resource_group_name_existing false) | fromJson }}
+{{- $name := include "aso.cloudName" (list $ "virtual network" $net.name 64 false) }}
+{{- $_ := set $nets $k (dict "obj" (include "aso.name" (list $base "vnet" $k)) "name" $name "id" (printf "%s/providers/Microsoft.Network/virtualNetworks/%s" $p.id $name) "owner" $p.owner) }}
+{{- end }}
+{{- range $k, $net := ($v.virtual_networks | default dict) }}
+{{- $me := index $nets $k }}
+{{- $obj := $me.obj }}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "virtual_network:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $me.name | quote }}
+  location: {{ $net.location | default $v.location | quote }}
+  owner:
+    {{- toYaml $me.owner | nindent 4 }}
+  addressSpace:
+    {{- if $net.ipam_pools }}
+    ipamPoolPrefixAllocations:
+      {{- range $pl := $net.ipam_pools }}
+      {{- $len := int $pl.prefix_length }}
+      {{- if not (or (and (ge $len 2) (le $len 29)) (and (ge $len 48) (le $len 64))) }}
+      {{- fail (printf "%s: virtual_networks.%s: an IPAM pool's prefix_length must be between 2 and 29 for IPv4 and 48 and 64 for IPv6." $n $k) }}
+      {{- end }}
+      - numberOfIpAddresses: {{ include "subv.pow2" (sub (ternary 128 32 (ge $len 48)) $len) | quote }}
+        reference:
+          armId: {{ $pl.id | quote }}
+      {{- end }}
+    {{- else }}
+    addressPrefixes:
+      {{- range (uniq $net.address_space | sortAlpha) }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- with $net.dns_servers }}
+  dhcpOptions:
+    dnsServers:
+      {{- range . }}
+      - {{ . | quote }}
+      {{- end }}
+  {{- end }}
+  {{- with $net.ddos_protection_plan_id }}
+  ddosProtectionPlan:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  enableDdosProtection: {{ not (empty $net.ddos_protection_plan_id) }}
+  enableVmProtection: false
+  {{- if not (kindIs "invalid" $net.flow_timeout_in_minutes) }}
+  flowTimeoutInMinutes: {{ $net.flow_timeout_in_minutes | int }}
+  {{- end }}
+  {{- with (include "aso.tags" (list $ $net.tags) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+{{- /* Its subnets (the virtual network module's module.subnet). */ -}}
+{{- range $sk, $s := ($net.subnets | default dict) }}
+{{- $set := 0 }}
+{{- range $f := list "address_prefix" "address_prefixes" "ipam_pools" }}{{ if not (kindIs "invalid" (index $s $f)) }}{{ $set = add1 $set }}{{ end }}{{ end }}
+{{- if ne $set 1 }}
+{{- fail (printf "%s: Each subnet must specify exactly one of 'address_prefix', 'address_prefixes', or 'ipam_pools'." $n) }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "vnet" $k "subnet" $sk)) "id" (printf "virtual_network:%s/subnet:%s" $k $sk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $s.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- if not (kindIs "invalid" $s.ipam_pools) }}
+  ipamPoolPrefixAllocations:
+    {{- range $pl := $s.ipam_pools }}
+    - reference:
+        armId: {{ $pl.pool_id | quote }}
+      {{- if not (kindIs "invalid" $pl.prefix_length) }}
+      numberOfIpAddresses: {{ include "subv.pow2" (sub (ternary 128 32 (ge (int $pl.prefix_length) 48)) (int $pl.prefix_length)) | quote }}
+      {{- end }}
+    {{- end }}
+  {{- else if not (kindIs "invalid" $s.address_prefix) }}
+  addressPrefix: {{ $s.address_prefix | quote }}
+  {{- else }}
+  addressPrefixes:
+    {{- range $s.address_prefixes }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $s.delegations }}
+  delegations:
+    {{- range . }}
+    - name: {{ .name | quote }}
+      serviceName: {{ .service_delegation.name | quote }}
+    {{- end }}
+  {{- end }}
+  defaultOutboundAccess: {{ eq $s.default_outbound_access_enabled true }}
+  {{- with $s.nat_gateway }}
+  natGateway:
+    reference:
+      armId: {{ .id | quote }}
+  {{- end }}
+  {{- with $s.network_security_group }}
+  networkSecurityGroup:
+    reference:
+      {{- if .id }}
+      armId: {{ .id | quote }}
+      {{- else if (index $nsgs (.key_reference | default "")) }}
+      group: network.azure.com
+      kind: NetworkSecurityGroup
+      name: {{ (index $nsgs .key_reference).obj }}
+      {{- else }}
+      {{- fail (printf "%s: virtual_networks.%s.subnets.%s.network_security_group: give an id, or a key_reference that is a key of network_security_groups (with network_security_group_enabled)" $n $k $sk) }}
+      {{- end }}
+  {{- end }}
+  privateEndpointNetworkPolicies: {{ $s.private_endpoint_network_policies | default "Enabled" | quote }}
+  privateLinkServiceNetworkPolicies: {{ ternary "Disabled" "Enabled" (eq $s.private_link_service_network_policies_enabled false) }}
+  {{- with $s.route_table }}
+  routeTable:
+    reference:
+      {{- if .id }}
+      armId: {{ .id | quote }}
+      {{- else if (index $rts (.key_reference | default "")) }}
+      group: network.azure.com
+      kind: RouteTable
+      name: {{ (index $rts .key_reference).obj }}
+      {{- else }}
+      {{- fail (printf "%s: virtual_networks.%s.subnets.%s.route_table: give an id, or a key_reference that is a key of route_tables (with route_table_enabled)" $n $k $sk) }}
+      {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $s.service_endpoints) }}
+  serviceEndpoints:
+    {{- range (uniq $s.service_endpoints | sortAlpha) }}
+    - service: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $s.service_endpoint_policies) }}
+  serviceEndpointPolicies:
+    {{- range $_, $sp := $s.service_endpoint_policies }}
+    - reference:
+        armId: {{ $sp.id | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- /* Hub peering (local.hub_peering_map, module.peering_hub_outbound and
+module.peering_hub_inbound). */ -}}
+{{- if eq $net.hub_peering_enabled true }}
+{{- if not $net.hub_network_resource_id }}
+{{- fail (printf "%s: virtual_networks.%s: hub_peering_enabled needs hub_network_resource_id" $n $k) }}
+{{- end }}
+{{- $dir := lower ($net.hub_peering_direction | default "both") }}
+{{- if not (has $dir (list "tohub" "fromhub" "both")) }}{{ $dir = "both" }}{{ end }}
+{{- if ne $dir "fromhub" }}
+{{- $o := include "subv.withDefaults" (list ($net.hub_peering_options_tohub | default dict) (dict "allow_forwarded_traffic" true "allow_gateway_transit" false "allow_virtual_network_access" true "do_not_verify_remote_gateways" false "enable_only_ipv6_peering" false "peer_complete_vnets" true "use_remote_gateways" true)) | fromJson }}
+{{- include "subv.peering" (dict "root" $ "name" (include "aso.name" (list $base "vnet" $k "tohub")) "id" (printf "virtual_network:%s/peering_tohub" $k) "azureName" ($net.hub_peering_name_tohub | default (printf "peer-%s" (include "subv.uuidv5" $net.hub_network_resource_id))) "owner" (dict "name" $obj) "remote" (dict "armId" $net.hub_network_resource_id) "o" $o "what" (printf "virtual_networks.%s.hub_peering_options_tohub" $k)) }}
+{{- end }}
+{{- if ne $dir "tohub" }}
+{{- $o := include "subv.withDefaults" (list ($net.hub_peering_options_fromhub | default dict) (dict "allow_forwarded_traffic" true "allow_gateway_transit" true "allow_virtual_network_access" true "do_not_verify_remote_gateways" false "enable_only_ipv6_peering" false "peer_complete_vnets" true "use_remote_gateways" false)) | fromJson }}
+{{- include "subv.peering" (dict "root" $ "name" (include "aso.name" (list $base "vnet" $k "fromhub")) "id" (printf "virtual_network:%s/peering_fromhub" $k) "azureName" ($net.hub_peering_name_fromhub | default (printf "peer-%s" (include "subv.uuidv5" $me.id))) "owner" (dict "armId" $net.hub_network_resource_id) "remote" (dict "group" "network.azure.com" "kind" "VirtualNetwork" "name" $obj) "o" $o "what" (printf "virtual_networks.%s.hub_peering_options_fromhub" $k)) }}
+{{- end }}
+{{- end }}
+
+{{- /* Mesh peering (local.virtual_networks_mesh_peering_list). */ -}}
+{{- if eq $net.mesh_peering_enabled true }}
+{{- range $dk, $dst := $v.virtual_networks }}
+{{- if and (ne $dk $k) (eq $dst.mesh_peering_enabled true) }}
+{{- $d := index $nets $dk }}
+{{- include "subv.peering" (dict "root" $ "name" (include "aso.name" (list $base "vnet" $k "mesh" $dk)) "id" (printf "virtual_network:%s/peering_mesh:%s" $k $dk) "azureName" (printf "peer-%s" (include "subv.uuidv5" $d.id)) "owner" (dict "name" $obj) "remote" (dict "group" "network.azure.com" "kind" "VirtualNetwork" "name" $d.obj) "o" (dict "allow_forwarded_traffic" (eq $net.mesh_peering_allow_forwarded_traffic true) "allow_gateway_transit" false "allow_virtual_network_access" true "do_not_verify_remote_gateways" false "enable_only_ipv6_peering" false "peer_complete_vnets" true "use_remote_gateways" false) "what" (printf "virtual_networks.%s" $k)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* azapi_resource.vhubconnection and .vhubconnection_routing_intent. */ -}}
+{{- if eq $net.vwan_connection_enabled true }}
+{{- if not $net.vwan_hub_resource_id }}
+{{- fail (printf "%s: virtual_networks.%s: vwan_connection_enabled needs vwan_hub_resource_id" $n $k) }}
+{{- end }}
+{{- $sec := $net.vwan_security_configuration | default dict }}
+---
+apiVersion: network.azure.hfl.dev/v20260301
+kind: VirtualHubsHubVirtualNetworkConnection
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "vnet" $k "vhc")) "id" (printf "virtual_network:%s/vhub_connection" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $net.vwan_connection_name | default (printf "vhc-%s" (include "subv.uuidv5" $me.id)) | quote }}
+  owner:
+    armId: {{ $net.vwan_hub_resource_id | quote }}
+  enableInternetSecurity: {{ eq $sec.secure_internet_traffic true }}
+  remoteVirtualNetwork:
+    reference:
+      armId: {{ $me.id | quote }}
+  {{- if ne $sec.routing_intent_enabled true }}
+  {{- $private := eq $sec.secure_private_traffic true }}
+  routingConfiguration:
+    associatedRouteTable:
+      reference:
+        armId: {{ $net.vwan_associated_routetable_resource_id | default (printf "%s/hubRouteTables/defaultRouteTable" $net.vwan_hub_resource_id) | quote }}
+    propagatedRouteTables:
+      ids:
+        {{- $ids := $net.vwan_propagated_routetables_resource_ids | default list }}
+        {{- if not $ids }}{{ $ids = list (printf "%s/hubRouteTables/%s" $net.vwan_hub_resource_id (ternary "noneRouteTable" "defaultRouteTable" $private)) }}{{ end }}
+        {{- range $ids }}
+        - reference:
+            armId: {{ . | quote }}
+        {{- end }}
+      labels:
+        {{- range (ternary (list "none") ($net.vwan_propagated_routetables_labels | default (list "default")) $private) }}
+        - {{ . | quote }}
+        {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

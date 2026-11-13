@@ -1,0 +1,438 @@
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroup
+metadata:
+  name: full-mg-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "management_group:corp"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "corp"
+  details:
+    parent:
+      reference:
+        armId: "/providers/Microsoft.Management/managementGroups/alz"
+  displayName: "Corp"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSetting
+metadata:
+  name: full-hierarchy-settings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "hierarchy_settings"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/11111111-2222-3333-4444-555555555555"
+  defaultManagementGroup: "/providers/Microsoft.Management/managementGroups/corp"
+  requireAuthorizationForGroupCreation: false
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  name: full-placement-corp1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "subscription_placement:corp1"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "0000aaaa-0000-0000-0000-000000000001"
+  owner:
+    name: full-mg-corp
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  name: full-placement-platform
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "subscription_placement:platform"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "0000aaaa-0000-0000-0000-000000000002"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/alz"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  name: full-pa-alz-deploy-mdfc-2ec2aad7
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_assignment:alz/Deploy-MDFC"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Deploy-MDFC"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/alz"
+  location: "westeurope"
+  definitionVersion: "2.*.*"
+  displayName: "Deploy Microsoft Defender for Cloud"
+  enforcementMode: "DoNotEnforce"
+  identity:
+    type: SystemAssigned
+  metadata:
+    assignedBy: alz
+    createdBy: ""
+    createdOn: ""
+    updatedBy: ""
+    updatedOn: ""
+  notScopes:
+    - /providers/Microsoft.Management/managementGroups/sandbox
+  overrides:
+    - kind: policyEffect
+      selectors:
+      - in:
+        - ref1
+        kind: policyDefinitionReferenceId
+      value: Audit
+  resourceSelectors:
+    - name: eu
+      selectors:
+      - in:
+        - westeurope
+        - northeurope
+        kind: resourceLocation
+  parameters:
+    emailSecurityContact:
+      value: security@contoso.com
+    logAnalytics:
+      value:
+        id: law
+        retention: 30
+  policyDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/policySetDefinitions/1f3afdf9-d0c9-4c3d-847f-89da613e70a8"
+  operatorSpec:
+    configMapExpressions:
+      - name: full-pa-alz-deploy-mdfc-2ec2aad7-principal
+        key: principalId
+        value: "self.status.identity.principalId"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  name: full-pa-corp-deny-ip-4069b383
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_assignment:corp/Deny-IP"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Deny-IP"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: full-mg-corp
+  location: "westeurope"
+  definitionVersion: "1.*.*"
+  displayName: "Deny IP forwarding"
+  metadata:
+    createdBy: ""
+    createdOn: ""
+    updatedBy: ""
+    updatedOn: ""
+  policyDefinitionReference:
+    armId: "/providers/Microsoft.Management/managementGroups/corp/providers/Microsoft.Authorization/policyDefinitions/Deny-IP"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  name: full-pa-corp-deploy-ama-c3bb8285
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_assignment:corp/Deploy-AMA"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Deploy-AMA"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: full-mg-corp
+  location: "westeurope"
+  definitionVersion: "1.*.*"
+  displayName: "Deploy the Azure Monitor Agent"
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mgmt/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-ama"
+  metadata:
+    createdBy: ""
+    createdOn: ""
+    updatedBy: ""
+    updatedOn: ""
+  policyDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/policySetDefinitions/924bfe3a-762f-40e7-86dd-5c8b95eb09e6"
+  operatorSpec:
+    configMapExpressions:
+      - name: full-pa-corp-deploy-ama-c3bb8285-principal
+        key: principalId
+        value: "self.status.identity.userAssignedIdentities.map(k, self.status.identity.userAssignedIdentities[k].principalId)[0]"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  name: full-pa-corp-deploy-diag-40ceecf6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_assignment:corp/Deploy-Diag"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Deploy-Diag"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: full-mg-corp
+  location: "westeurope"
+  definitionVersion: "1.*.*"
+  displayName: "Deploy diagnostic settings"
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mgmt/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-ama"
+  metadata:
+    createdBy: ""
+    createdOn: ""
+    updatedBy: ""
+    updatedOn: ""
+  policyDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038"
+  operatorSpec:
+    configMapExpressions:
+      - name: full-pa-corp-deploy-diag-40ceecf6-principal
+        key: principalId
+        value: "self.status.identity.userAssignedIdentities.map(k, self.status.identity.userAssignedIdentities[k].principalId)[0]"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyDefinition
+metadata:
+  name: full-pd-corp-deny-ip-1045614d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_definition:corp/Deny-IP"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "Deny-IP"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: full-mg-corp
+  displayName: Deny IP forwarding
+  mode: All
+  policyRule:
+    if:
+      equals: true
+      field: Microsoft.Network/networkInterfaces/enableIPForwarding
+    then:
+      effect: deny
+  policyType: Custom
+  version: 1.0.0
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-pra-582ddfa2-6988-53ed-bcf9-bbe4d3bc0d4b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_role_assignment:582ddfa2-6988-53ed-bcf9-bbe4d3bc0d4b"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "582ddfa2-6988-53ed-bcf9-bbe4d3bc0d4b"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/alz"
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: full-pa-alz-deploy-mdfc-2ec2aad7-principal
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/fb1c8493-542b-48eb-b624-b4c8fea62acd"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-pra-e0a067cf-297f-5014-a244-5873ecd5b5ca
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_role_assignment:e0a067cf-297f-5014-a244-5873ecd5b5ca"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "e0a067cf-297f-5014-a244-5873ecd5b5ca"
+  owner:
+    armId: "/subscriptions/0000aaaa-0000-0000-0000-000000000003/resourceGroups/rg-security"
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: full-pa-alz-deploy-mdfc-2ec2aad7-principal
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: "/subscriptions/0000aaaa-0000-0000-0000-000000000003/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-pra-9fab028e-3dc0-50d1-8a8b-3d2b11864b08
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_role_assignment:9fab028e-3dc0-50d1-8a8b-3d2b11864b08"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "9fab028e-3dc0-50d1-8a8b-3d2b11864b08"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/corp"
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: full-pa-corp-deploy-diag-40ceecf6-principal
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-pra-d3432873-e6e2-5d77-be69-d769c7aa2577
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "policy_role_assignment:d3432873-e6e2-5d77-be69-d769c7aa2577"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "d3432873-e6e2-5d77-be69-d769c7aa2577"
+  owner:
+    armId: "/subscriptions/0000aaaa-0000-0000-0000-000000000003"
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: full-pa-corp-deploy-diag-40ceecf6-principal
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: "/subscriptions/0000aaaa-0000-0000-0000-000000000003/providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-mgra-corp-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "management_group_role_assignment:corp-reader"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/corp"
+  principalId: "33333333-0000-0000-0000-000000000002"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+  delegatedManagedIdentityResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-mgra-platform-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "management_group_role_assignment:platform-owner"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "ccf53165-f364-523b-936e-147861bb365b"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/alz"
+  principalId: "33333333-0000-0000-0000-000000000001"
+  principalType: "Group"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+  description: "Platform owners"
+  condition: "((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})))"
+  conditionVersion: "2.0"
