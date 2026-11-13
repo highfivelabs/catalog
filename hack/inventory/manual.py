@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Terraform resource type -> (KCC kind or None, note). IAM types are handled by rule.
 # "via:<Kind>" means covered by a field of another kind, not a kind of its own.
+# None also where Config Connector's kind cannot make what the module makes:
+# google_network_services_gateway is net-swp's SECURE_WEB_GATEWAY, and
+# NetworkServicesGateway (v1beta1 at 1.160.0) has no network, subnetwork,
+# gatewaySecurityPolicy, certificateUrls, labels or routingMode, and requires scope.
 M = {
  "google_access_context_manager_gcp_user_access_binding": "AccessContextManagerGCPUserAccessBinding",
  "google_access_context_manager_service_perimeter_dry_run_resource": "via:AccessContextManagerServicePerimeter (spec.spec.resources)",
@@ -90,7 +94,7 @@ M = {
  "google_network_security_gateway_security_policy": "NetworkSecurityGatewaySecurityPolicy", "google_network_security_gateway_security_policy_rule": None,
  "google_network_security_tls_inspection_policy": "NetworkSecurityTLSInspectionPolicy", "google_network_security_url_lists": "NetworkSecurityURLList",
  "google_network_services_agent_connectivity_template": None, "google_network_services_agent_gateway": None,
- "google_network_services_authz_extension": "NetworkServicesAuthzExtension", "google_network_services_gateway": "NetworkServicesGateway",
+ "google_network_services_authz_extension": "NetworkServicesAuthzExtension", "google_network_services_gateway": None,
  "google_org_policy_custom_constraint": "OrgPolicyCustomConstraint", "google_org_policy_policy": "OrgPolicyPolicy",
  "google_organization_iam_audit_config": "IAMAuditConfig", "google_organization_iam_custom_role": "IAMCustomRole", "google_organization_service_identity": None,
  "google_privateca_ca_pool": "PrivateCACAPool", "google_privateca_certificate_authority": "PrivateCACertificateAuthority",
