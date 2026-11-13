@@ -1,0 +1,18 @@
+# Applied to the fake AWS (hack/mock-apply-aws.sh): a queue with a queue
+# policy whose statement takes the queue's own ARN, in the fake's own
+# account (account_id, tests/mock.set.yaml: the emulator answers as
+# 000000000000, moto as 123456789012), and a redrive policy to a
+# dead-letter queue from tests/mock.needs.yaml (the dead-letter queue as
+# its own component, as create_dlq's refusal says).
+name: catalog-test-queue
+region: us-east-1
+account_id: "000000000000"
+visibility_timeout_seconds: 45
+message_retention_seconds: 86400
+redrive_policy: {deadLetterTargetArn: "arn:aws:sqs:us-east-1:000000000000:catalog-test-queue-dlq", maxReceiveCount: 4}
+create_queue_policy: true
+queue_policy_statements:
+  account:
+    actions: ["sqs:SendMessage", "sqs:ReceiveMessage"]
+    principals: [{type: AWS, identifiers: ["*"]}]
+tags: {catalog-test: "true"}

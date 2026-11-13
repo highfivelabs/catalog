@@ -1,0 +1,60 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-operationalinsights-workspace
+repo: https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace
+path: .
+version: v0.5.1
+commit: b4ffa3ff87ac09ff6de3b7014c44b4d213aa302b
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-operationalinsights-workspace/tree/v0.5.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-operationalinsights-workspace/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set. Read by `task coverage`; `task
+# coverage-verify` renders the chart to check that each one is refused.
+# kind: gap (no Azure Service Operator or aso-extensions kind or field; the
+# reason names the ARM type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design.
+refused:
+  - variable: log_analytics_workspace_data_exports
+    kind: gap
+    reason: "Microsoft.OperationalInsights/workspaces/dataExports has no ASO or aso-extensions kind"
+  - variable: log_analytics_workspace_dedicated_cluster_resource_id
+    kind: gap
+    reason: "the module links the cluster with a linked service, Microsoft.OperationalInsights/workspaces/linkedServices, which has no ASO or aso-extensions kind"
+  - variable: log_analytics_workspace_linked_storage_accounts
+    kind: gap
+    reason: "Microsoft.OperationalInsights/workspaces/linkedStorageAccounts has no ASO or aso-extensions kind"
+  - variable: log_analytics_workspace_tables
+    kind: gap
+    reason: "Microsoft.OperationalInsights/workspaces/tables has no ASO or aso-extensions kind"
+  - variable: log_analytics_workspace_tables_update
+    kind: gap
+    reason: "Microsoft.OperationalInsights/workspaces/tables has no ASO or aso-extensions kind"
+  - variable: monitor_private_link_scope
+    kind: gap
+    reason: "Microsoft.Insights/privateLinkScopes and their scopedResources have no ASO or aso-extensions kind"
+  - variable: monitor_private_link_scoped_resource
+    kind: gap
+    reason: "Microsoft.Insights/privateLinkScopes/scopedResources has no ASO or aso-extensions kind"
+  - variable: monitor_private_link_scoped_service_name
+    kind: gap
+    reason: "Microsoft.Insights/privateLinkScopes/scopedResources has no ASO or aso-extensions kind"
+  - variable: network_security_perimeter_association
+    kind: gap
+    reason: "Microsoft.Network/networkSecurityPerimeters/resourceAssociations has no ASO or aso-extensions kind"
+  - variable: private_endpoints
+    kind: not-ported
+    reason: "ASO has PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup; this chart does not map them yet"
+  - variable: private_endpoint_extensions
+    kind: not-ported
+    reason: "extensions of private endpoints (their Private Link Scope exclusions and DNS zone groups), which this chart does not map yet"
+  - variable: log_analytics_workspace_timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"

@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# outputs, from the live Parameter (resources.parameter). The insecure
+# value is a String's or StringList's, the secure value a SecureString's
+# (as the module, which marks raw_value sensitive). Not provided: value
+# (the module's jsondecode of the raw value; outputs cannot decode JSON).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-ssm-parameter
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    raw_value: >-
+      'parameter' in resources ? resources.parameter.spec.value : null
+    insecure_value: >-
+      'parameter' in resources && resources.parameter.spec.type != 'SecureString' ? resources.parameter.spec.value : null
+    secure_value: >-
+      'parameter' in resources && resources.parameter.spec.type == 'SecureString' ? resources.parameter.spec.value : null
+    secure_type: >-
+      'parameter' in resources ? resources.parameter.spec.type == 'SecureString' : false
+    ssm_parameter_arn: >-
+      'parameter' in resources ? resources.parameter.status.ackResourceMetadata.arn : null
+    ssm_parameter_version: >-
+      'parameter' in resources && has(resources.parameter.status.version) ? resources.parameter.status.version : null
+    ssm_parameter_name: >-
+      'parameter' in resources ? resources.parameter.spec.name : null
+    ssm_parameter_type: >-
+      'parameter' in resources ? resources.parameter.spec.type : null
