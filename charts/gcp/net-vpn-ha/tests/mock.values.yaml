@@ -1,0 +1,18 @@
+# Applied to the fake cloud by hack/mock-apply.sh, on the network in
+# tests/mock.needs.yaml: the HA gateway, an external peer gateway, the
+# router and an import route policy (allow_alpha: config-connector-
+# extensions' fake cloud runs its ComputeRouterRoutePolicy controller).
+allow_alpha: true
+project_id: mock-project
+region: us-central1
+name: catalog-mock-havpn
+network: projects/mock-project/global/networks/catalog-mock-havpn-net
+peer_gateways:
+  default:
+    external: {redundancy_type: SINGLE_IP_INTERNALLY_REDUNDANT, interfaces: [8.8.8.8]}
+router_config:
+  asn: 64514
+  route_policies:
+    import:
+      type: IMPORT
+      terms: [{priority: 1, match: {expression: "destination == '10.0.0.0/8'"}, actions: [{expression: "drop()"}]}]

@@ -1,0 +1,42 @@
+# Every value the chart carries: an IPv6 gateway, two external peer
+# gateways (one named), a router with keepalive and custom advertisements,
+# and import and export route policies (allow_alpha).
+allow_alpha: true
+project_id: my-project
+region: europe-west1
+network: projects/my-project/global/networks/my-network
+name: vpn-full
+vpn_gateway_create: {description: My HA VPN, ipv6: true}
+peer_gateways:
+  onprem:
+    external:
+      redundancy_type: TWO_IPS_REDUNDANCY
+      interfaces: [8.8.8.8, 8.8.4.4]
+      description: On-premises routers
+      name: onprem-gw
+  aws:
+    external:
+      redundancy_type: FOUR_IPS_REDUNDANCY
+      interfaces: [1.1.1.1, 1.1.1.2, 1.1.1.3, 1.1.1.4]
+router_config:
+  asn: 64514
+  keepalive: 25
+  custom_advertise: {all_subnets: false, ip_ranges: {10.0.0.0/8: all, 192.168.0.0/16: lab}}
+  route_policies:
+    import-onprem:
+      type: IMPORT
+      terms:
+        - priority: 1
+          match: {expression: "destination == '10.0.0.0/8'", title: onprem, description: on-premises range}
+          actions:
+            - {expression: "drop()"}
+        - priority: 2
+          match: {expression: "destination == '0.0.0.0/0'"}
+          actions: []
+    export-all:
+      type: EXPORT
+      terms:
+        - priority: 10
+          match: {expression: "destination == '10.10.0.0/16'", location: here}
+          actions:
+            - {expression: "med.set(100)", title: med, description: set the MED, location: here}

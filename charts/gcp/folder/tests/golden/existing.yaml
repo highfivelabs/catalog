@@ -1,0 +1,143 @@
+---
+# Source: folder/templates/folder.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: existing-firewall-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "firewall_policy"
+spec:
+  resourceID: "default"
+  attachmentTargetRef:
+    external: "folders/1234567890"
+  firewallPolicyRef:
+    external: "locations/global/firewallPolicies/12345"
+---
+# Source: folder/templates/folder.yaml
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  name: existing-contact-admins-example-org-69ae988d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "contact:admins@example.org"
+spec:
+  folderRef:
+    external: "folders/1234567890"
+  email: "admins@example.org"
+  languageTag: en
+  notificationCategorySubscriptions: ["ALL"]
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: existing-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    external: folders/1234567890
+    kind: Folder
+  bindings:
+    - role: "roles/viewer"
+      members:
+        - member: "group:viewers@example.org"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: existing-sink-writer-audit
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:audit"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: existing-sink-audit
+  role: roles/storage.objectCreator
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    external: "audit-bucket"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: existing-sink-audit
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "logging-sink:audit"
+spec:
+  resourceID: "audit"
+  folderRef:
+    external: "folders/1234567890"
+  description: "audit (Terraform-managed)."
+  destination:
+    storageBucketRef:
+      external: "audit-bucket"
+  includeChildren: true
+  disabled: false
+---
+# Source: folder/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: existing-org-policy-compute-skipdefaultnetworkcreation-721f251c
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.skipDefaultNetworkCreation"
+spec:
+  resourceID: compute.skipDefaultNetworkCreation
+  folderRef:
+    external: "folders/1234567890"
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: folder/templates/folder.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: existing-tag-env
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "tag-binding:env"
+spec:
+  parentRef:
+    external: "//cloudresourcemanager.googleapis.com/folders/1234567890"
+  tagValueRef:
+    external: "tagValues/1234567890"

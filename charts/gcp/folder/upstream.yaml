@@ -1,0 +1,68 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/folder
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/folder
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/folder
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: asset_feeds
+    kind: alpha
+    reason: "CloudAssetFolderFeed is v1alpha1; not ported yet, even with allow_alpha"
+  - variable: asset_search
+    kind: by-design
+    reason: "a Cloud Asset Inventory search is a read at plan time, not a resource; Bundt does not run one"
+  - variable: assured_workload_config
+    kind: alpha
+    reason: "AssuredWorkloadsWorkload is v1alpha1; not ported yet, even with allow_alpha"
+  - variable: cloud_armor_policy
+    kind: gap
+    reason: "Config Connector has no kind for an organization security policy association (ComputeOrganizationSecurityPolicyAssociation)"
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: deletion_protection
+    kind: gap
+    reason: "true is refused: Config Connector's Folder has no deletionProtection (deletion_policy: ABANDON keeps the folder instead); false, the default, is accepted"
+    partial: true
+  - variable: factories_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: their entries go in the variables they feed (org_policies, pam_entitlements)"
+  - variable: iam_deny_policies
+    kind: gap
+    reason: "Config Connector has no IAM deny policy kind (IAMDenyPolicy)"
+  - variable: logging_settings
+    kind: gap
+    reason: "Config Connector has no kind for a folder's logging settings (LoggingSettings)"
+  - variable: logging_sinks
+    kind: gap
+    reason: "intercept_children is refused (LoggingLogSink has no interceptChildren); a sink of type project is refused (LoggingLogSink's destination is never a project); a bigquery sink needs iam: false (dataset IAM is alpha)"
+    partial: true
+    fields: [intercept_children]
+    values: [project]
+  - variable: scc_mute_configs
+    kind: gap
+    reason: "Config Connector has no Security Command Center v2 mute config kind (SecurityCenterMuteConfig)"
+  - variable: scc_sha_custom_modules
+    kind: alpha
+    reason: "SecurityCenterManagementSecurityHealthAnalyticsCustomModule is v1alpha1; not ported yet, even with allow_alpha"
+  - variable: service_agents_config
+    kind: gap
+    reason: "Config Connector has no kind for a folder's service identities (ServiceIdentity)"

@@ -1,0 +1,58 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/folder/organization-policies.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+*/ -}}
+{{- define "folder.policySpec" -}}
+{{- $isBoolean := true }}
+{{- range $r := (.rules | default list) }}{{ if or $r.allow $r.deny }}{{ $isBoolean = false }}{{ end }}{{ end }}
+{{- $spec := dict }}
+{{- if not (kindIs "invalid" .inherit_from_parent) }}{{ $_ := set $spec "inheritFromParent" .inherit_from_parent }}{{ end }}
+{{- if not (kindIs "invalid" .reset) }}{{ $_ := set $spec "reset" .reset }}{{ end }}
+{{- $rules := list }}
+{{- range $r := (.rules | default list) }}
+{{- $rule := dict }}
+{{- $allow := $r.allow | default dict }}{{- $deny := $r.deny | default dict }}
+{{- if $allow.all }}{{ $_ := set $rule "allowAll" true }}{{ end }}
+{{- if $deny.all }}{{ $_ := set $rule "denyAll" true }}{{ end }}
+{{- if and $isBoolean (not (kindIs "invalid" $r.enforce)) }}{{ $_ := set $rule "enforce" $r.enforce }}{{ end }}
+{{- if or $allow.values $deny.values }}
+{{- $values := dict }}
+{{- with $allow.values }}{{ $_ := set $values "allowedValues" . }}{{ end }}
+{{- with $deny.values }}{{ $_ := set $values "deniedValues" . }}{{ end }}
+{{- $_ := set $rule "values" $values }}
+{{- end }}
+{{- with $r.parameters }}{{ $_ := set $rule "parameters" (fromJson .) }}{{ end }}
+{{- with $r.condition }}{{ if .expression }}
+{{- $cond := dict "expression" .expression }}
+{{- range $f := list "title" "description" "location" }}{{ with (index $r.condition $f) }}{{ $_ := set $cond $f . }}{{ end }}{{ end }}
+{{- $_ := set $rule "condition" $cond }}
+{{- end }}{{ end }}
+{{- $rules = append $rules $rule }}
+{{- end }}
+{{- if $rules }}{{ $_ := set $spec "rules" $rules }}{{ end }}
+{{- toYaml $spec }}
+{{- end -}}
+{{- $policies := .Values.org_policies | default dict }}
+{{- $names := dict }}
+{{- range $k, $_ := $policies }}{{ $_ := set $names (trimPrefix "dry_run:" $k) true }}{{ end }}
+{{- range $name, $_ := $names }}
+---
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "org-policy" $name)) "id" (printf "org_policy:%s" $name)) | nindent 2 }}
+spec:
+  resourceID: {{ $name }}
+  folderRef:
+    {{- include "folder.ref" $ | nindent 4 }}
+  {{- with (get $policies $name) }}
+  spec:
+    {{- include "folder.policySpec" . | nindent 4 }}
+  {{- end }}
+  {{- with (get $policies (printf "dry_run:%s" $name)) }}
+  dryRunSpec:
+    {{- include "folder.policySpec" . | nindent 4 }}
+  {{- end }}
+{{- end }}

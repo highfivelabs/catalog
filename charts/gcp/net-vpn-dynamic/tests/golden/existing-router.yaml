@@ -1,0 +1,136 @@
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: existing-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "address"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-existing"
+  location: "europe-west1"
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: existing-router-esp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "esp"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-existing-esp"
+  location: "europe-west1"
+  ipProtocol: ESP
+  ipAddress:
+    addressRef:
+      name: existing-router
+  target:
+    targetVPNGatewayRef:
+      name: existing-router
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: existing-router-udp-500
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "udp_500"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-existing-udp-500"
+  location: "europe-west1"
+  ipProtocol: UDP
+  portRange: "500"
+  ipAddress:
+    addressRef:
+      name: existing-router
+  target:
+    targetVPNGatewayRef:
+      name: existing-router
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: existing-router-udp-4500
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "udp_4500"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-existing-udp-4500"
+  location: "europe-west1"
+  ipProtocol: UDP
+  portRange: "4500"
+  ipAddress:
+    addressRef:
+      name: existing-router
+  target:
+    targetVPNGatewayRef:
+      name: existing-router
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: existing-router-route-policy-import
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:import"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "import"
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  routerRef:
+    external: projects/my-project/regions/europe-west1/routers/existing-router
+  type: ROUTE_POLICY_TYPE_IMPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "true"
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetVPNGateway
+metadata:
+  name: existing-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-existing"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"

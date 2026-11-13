@@ -1,0 +1,52 @@
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: existing-route-policy-export
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:export"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "export"
+  projectRef:
+    external: "my-project"
+  region: "europe-west8"
+  routerRef:
+    external: projects/my-project/regions/europe-west8/routers/existing-router
+  type: ROUTE_POLICY_TYPE_EXPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "true"
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: existing
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-gw-vpn-ipsec"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  vpnInterfaces:
+    - id: 0
+      interconnectAttachmentRef:
+        external: "vlan-a"
+    - id: 1
+      interconnectAttachmentRef:
+        external: "vlan-b"

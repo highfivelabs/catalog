@@ -1,0 +1,118 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-vlan-attachment/main.tf
+and route-policies.tf (v60.0.0), Copyright 2023 and 2026 Google LLC,
+Apache-2.0.
+
+google_compute_interconnect_attachment.default: a
+ComputeInterconnectAttachment, PARTNER (dedicated_interconnect_config is
+refused, README.md). google_compute_address.default
+(vpn_gateways_ip_range): the IPsec address pool, an INTERNAL
+IPSEC_INTERCONNECT ComputeAddress, pool-<name>. google_compute_router
+.encrypted (IPsec) or .unencrypted (router_config.create): a ComputeRouter,
+<name>-underlay (encrypted) or router_config.name. google_compute_router
+_route_policy.default: a config-connector-extensions
+ComputeRouterRoutePolicy per policy (v1alpha1: allow_alpha).
+google_compute_router_interface.default and google_compute_router_peer
+.default exist only for a dedicated attachment, so are not rendered.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "attachment" "router" "address")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "Bundt replaces fabric's $context lookups with ${...} expressions in the component's inputs") }}
+{{- include "kcc.unsupported" (list $ "dedicated_interconnect_config" $v.dedicated_interconnect_config "its router interface and BGP peer take the attachment's assigned addresses, which Config Connector cannot pass between objects in one render, and ComputeInterconnectAttachment has no candidateCloudRouterIpAddress or candidateCustomerRouterIpAddress (README.md, \"Values\")") }}
+{{- $rc := $v.router_config | default dict }}
+{{- include "kcc.unsupported" (list $ "router_config.md5_authentication_key" $rc.md5_authentication_key "it configures a dedicated attachment's BGP peer, and ComputeRouterPeer has no md5AuthenticationKey") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $api := "https://www.googleapis.com/compute/v1/" }}
+{{- $network := trimPrefix $api $v.network }}
+{{- $ipsec := not (empty $v.vpn_gateways_ip_range) }}
+{{- $rcCreate := ne (toString $rc.create) "false" }}
+{{- $rcName := ternary "router" $rc.name (kindIs "invalid" $rc.name) }}
+{{- $routerObject := include "kcc.name" (list .Release.Name) }}
+{{- $router := dict }}
+{{- if $rcCreate }}
+{{- $_ := set $router "name" $routerObject }}
+{{- else }}
+{{- if not $rcName }}
+{{- fail "net-vlan-attachment: router_config.name is required when router_config.create is false" }}
+{{- end }}
+{{- $_ := set $router "external" (printf "projects/%s/regions/%s/routers/%s" $v.project_id $v.region $rcName) }}
+{{- end }}
+{{- $asn := ternary 65001 $rc.asn (kindIs "invalid" $rc.asn) }}
+{{- if $ipsec }}
+{{- $cidr := splitList "/" $v.vpn_gateways_ip_range }}
+{{- if ne (len $cidr) 2 }}
+{{- fail (printf "net-vlan-attachment: vpn_gateways_ip_range %q must be a CIDR range" $v.vpn_gateways_ip_range) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "address" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "address" "address" (printf "pool-%s" $v.name) 63 "letter") | quote }}
+  location: {{ $v.region | quote }}
+  addressType: INTERNAL
+  purpose: IPSEC_INTERCONNECT
+  address: {{ index $cidr 0 | quote }}
+  prefixLength: {{ index $cidr 1 | int }}
+  networkRef:
+    external: {{ $network | quote }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInterconnectAttachment
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "attachment" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "attachment" "VLAN attachment" $v.name 63 "letter") | quote }}
+  description: {{ $v.description | quote }}
+  region: {{ $v.region | quote }}
+  routerRef:
+    {{- toYaml $router | nindent 4 }}
+  type: PARTNER
+  adminEnabled: {{ ne (toString $v.admin_enabled) "false" }}
+  {{- with $v.partner_interconnect_config }}
+  edgeAvailabilityDomain: {{ .edge_availability_domain | quote }}
+  {{- end }}
+  {{- if $ipsec }}
+  encryption: IPSEC
+  ipsecInternalAddresses:
+    - name: {{ include "kcc.name" (list $.Release.Name) }}
+  {{- else if not (kindIs "invalid" $v.mtu) }}
+  mtu: {{ toString $v.mtu | quote }}
+  {{- end }}
+{{- if $rcCreate }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $routerObject "id" "router" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- if $ipsec }}
+  resourceID: {{ include "kcc.resourceName" (list $ "router" "router" (printf "%s-underlay" $v.name) 63 "letter") | quote }}
+  {{- else }}
+  resourceID: {{ include "kcc.resourceName" (list $ "router" "router" ($rcName | default (printf "underlay-%s" $v.name)) 63 "letter") | quote }}
+  {{- end }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  {{- if $ipsec }}
+  encryptedInterconnectRouter: true
+  bgp:
+    asn: {{ int64 $asn }}
+    advertiseMode: DEFAULT
+    {{- with $v.ipsec_gateway_ip_ranges }}
+    advertisedIpRanges:
+      {{- range $desc, $range := . }}
+      - range: {{ $range | quote }}
+        description: {{ $desc | quote }}
+      {{- end }}
+    {{- end }}
+  {{- else }}
+  bgp:
+    {{- include "router.bgp" (merge (dict "asn" $asn) (omit $rc "asn")) | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- include "router.policies" (dict "root" $ "policies" ($rc.route_policies | default dict) "router" $router "abandon" $abandon) }}

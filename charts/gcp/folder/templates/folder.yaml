@@ -1,0 +1,132 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/folder/main.tf and tags.tf
+(v60.0.0), Copyright 2025 and 2022 Google LLC, Apache-2.0.
+
+google_folder.folder (folder_create): a Folder, its display name name,
+under parent. google_essential_contacts_contact.contact: an
+EssentialContactsContact per entry of contacts, in English, as fabric's.
+google_compute_firewall_policy_association.default (firewall_policy): a
+ComputeFirewallPolicyAssociation of the hierarchical policy with the
+folder. google_kms_autokey_config.default (autokey_config): a
+KMSAutokeyConfig naming the key project. google_tags_tag_binding.binding:
+a TagsTagBinding per entry of tag_bindings. Refused (README.md):
+assured_workload_config (AssuredWorkloadsWorkload is v1alpha1),
+cloud_armor_policy (no kind), deletion_protection: true (Folder has no
+such field), and the variables the other files of the module port.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "folder")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $create := include "folder.create" . }}
+{{- if and (not $create) (kindIs "invalid" $v.id) }}
+{{- fail "folder: Variable `id` cannot be null when `folder_create` is false." }}
+{{- end }}
+{{- if and $v.parent (not (regexMatch "(organizations|folders)/[0-9]+" (toString $v.parent))) }}
+{{- fail "folder: Parent must be of the form folders/folder_id or organizations/organization_id, or map to a context variable via $folder_ids:." }}
+{{- end }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "Bundt replaces fabric's $context lookups with ${...} expressions in the component's inputs") }}
+{{- include "kcc.unsupported" (list $ "factories_config" $v.factories_config "a chart cannot read the caller's files: their entries go in the variables they feed (org_policies, pam_entitlements)") }}
+{{- include "kcc.unsupported" (list $ "asset_search" $v.asset_search "a search is a read at plan time, not a resource; Bundt does not run one") }}
+{{- include "kcc.unsupported" (list $ "asset_feeds" $v.asset_feeds "CloudAssetFolderFeed is a v1alpha1 kind; not ported yet") }}
+{{- include "kcc.unsupported" (list $ "assured_workload_config" $v.assured_workload_config "AssuredWorkloadsWorkload is a v1alpha1 kind; not ported yet") }}
+{{- include "kcc.unsupported" (list $ "cloud_armor_policy" $v.cloud_armor_policy "Config Connector has no kind for an organization security policy association (ComputeOrganizationSecurityPolicyAssociation)") }}
+{{- include "kcc.unsupported" (list $ "iam_deny_policies" $v.iam_deny_policies "Config Connector has no IAM deny policy kind (IAMDenyPolicy)") }}
+{{- include "kcc.unsupported" (list $ "logging_settings" $v.logging_settings "Config Connector has no kind for a folder's logging settings (LoggingSettings)") }}
+{{- include "kcc.unsupported" (list $ "scc_mute_configs" $v.scc_mute_configs "Config Connector has no Security Command Center v2 mute config kind (SecurityCenterMuteConfig)") }}
+{{- include "kcc.unsupported" (list $ "scc_sha_custom_modules" $v.scc_sha_custom_modules "SecurityCenterManagementSecurityHealthAnalyticsCustomModule is a v1alpha1 kind; not ported yet") }}
+{{- include "kcc.unsupported" (list $ "service_agents_config" $v.service_agents_config "Config Connector has no kind for a folder's service identities (ServiceIdentity)") }}
+{{- if eq (toString $v.deletion_protection) "true" }}
+{{- include "kcc.unsupported" (list $ "deletion_protection: true" true "Config Connector's Folder has no deletionProtection; deletion_policy: ABANDON keeps the folder when the component is deleted") }}
+{{- end }}
+{{- if $create }}
+{{- if not $v.name }}
+{{- fail "folder: name is required to create a folder" }}
+{{- end }}
+{{- if not $v.parent }}
+{{- fail "folder: parent is required to create a folder" }}
+{{- end }}
+---
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Folder
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $.Release.Name "id" "folder" "abandon" $abandon) | nindent 2 }}
+spec:
+  displayName: {{ include "folder.displayName" $ | quote }}
+  {{- if hasPrefix "folders/" $v.parent }}
+  folderRef:
+    external: {{ trimPrefix "folders/" $v.parent | quote }}
+  {{- else }}
+  organizationRef:
+    external: {{ trimPrefix "organizations/" $v.parent | quote }}
+  {{- end }}
+{{- end }}
+{{- $contacts := $v.contacts | default dict }}
+{{- range $email := keys $contacts | sortAlpha }}
+{{- $types := index $contacts $email }}
+{{- range $t := $types }}
+{{- if not (has $t (list "ALL" "SUSPENSION" "SECURITY" "TECHNICAL" "BILLING" "LEGAL" "PRODUCT_UPDATES")) }}
+{{- fail "folder: Invalid contact notification value." }}
+{{- end }}
+{{- end }}
+---
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "contact" $email)) "id" (printf "contact:%s" $email) "abandon" $abandon) | nindent 2 }}
+spec:
+  folderRef:
+    {{- include "folder.ref" $ | nindent 4 }}
+  email: {{ $email | quote }}
+  languageTag: en
+  notificationCategorySubscriptions: {{ toJson $types }}
+{{- end }}
+{{- with $v.firewall_policy }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "firewall-policy")) "id" "firewall_policy" "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "firewall policy association" .name 63) | quote }}
+  attachmentTargetRef:
+    {{- if $create }}
+    kind: Folder
+    name: {{ $.Release.Name }}
+    {{- else }}
+    external: {{ printf "folders/%s" (include "folder.number" $) | quote }}
+    {{- end }}
+  firewallPolicyRef:
+    external: {{ ternary .policy (printf "locations/global/firewallPolicies/%s" .policy) (hasPrefix "locations/" .policy) | quote }}
+{{- end }}
+{{- with $v.autokey_config }}
+---
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSAutokeyConfig
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "autokey")) "id" "autokey_config" "abandon" $abandon) | nindent 2 }}
+spec:
+  folderRef:
+    {{- include "folder.ref" $ | nindent 4 }}
+  keyProject:
+    external: {{ trimPrefix "projects/" .project | quote }}
+{{- end }}
+{{- $bindings := $v.tag_bindings | default dict }}
+{{- range $key := keys $bindings | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tag" $key)) "id" (printf "tag-binding:%s" $key)) | nindent 2 }}
+spec:
+  parentRef:
+    {{- if $create }}
+    kind: Folder
+    name: {{ $.Release.Name }}
+    {{- else }}
+    external: {{ printf "//cloudresourcemanager.googleapis.com/folders/%s" (include "folder.number" $) | quote }}
+    {{- end }}
+  tagValueRef:
+    external: {{ index $bindings $key | quote }}
+{{- end }}

@@ -1,0 +1,58 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's
+# net-ipsec-over-interconnect module (v60.0.0): same names, types and
+# defaults, so a module block's arguments become this file one to one
+# (README.md, "From Terraform"). values.schema.json carries the types and
+# the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.gateway, names.peer_gateway, names.router: the HA VPN gateway's,
+# the external peer gateway's and the Cloud Router's names in full. A name
+# set here takes no namePrefix; unset, fabric's (vpn-gw-<name>,
+# peer_gateway_config.name or peer-vpn-gw-<name>, router_config.name or
+# router-<name>).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the chart
+# derives, never one set under names. Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. An unprefixed key also becomes a Google
+# Cloud label on the resources that take labels, so it must be a valid one.
+labels: {}
+# Cloud labels on every resource that takes them.
+tags: {}
+# Not a fabric variable: route policies (router_config.route_policies) are
+# config-connector-extensions' ComputeRouterRoutePolicy, a v1alpha1 kind,
+# refused unless this is true (docs/design.md, "Alpha kinds").
+allow_alpha: false
+
+# VLAN attachments used by the VPN Gateway: {a: <id or self link>, b: ...}.
+interconnect_attachments: null
+# Common name to identify the VPN Gateway.
+name: null
+# The VPC name to which resources are associated to (an id or self link).
+network: null
+# The external peer gateway: {create (false), description, name, id,
+# interfaces}. An existing gateway's id, or one or two interface addresses
+# to create one.
+peer_gateway_config: {}
+# The project id.
+project_id: null
+# GCP Region.
+region: null
+# Cloud Router configuration for the VPN: {create (true), asn, name,
+# keepalive, custom_advertise, route_policies}. To reuse an existing
+# router, set create to false and use name to specify it. Required, as in
+# fabric.
+router_config: null
+# VPN tunnel configurations, keyed. Refused when set: see README.md.
+tunnels: {}
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# cloud resources when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null

@@ -1,0 +1,92 @@
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  name: mock-peer-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "external_gateway:default"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-havpn-default"
+  description: "Terraform managed external VPN gateway"
+  redundancyType: "SINGLE_IP_INTERNALLY_REDUNDANT"
+  interface:
+    - id: 0
+      ipAddress: "8.8.8.8"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "vpn-catalog-mock-havpn"
+  region: "us-central1"
+  networkRef:
+    external: "projects/mock-project/global/networks/catalog-mock-havpn-net"
+  bgp:
+    asn: 64514
+    advertiseMode: DEFAULT
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: mock-route-policy-import
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:import"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "import"
+  projectRef:
+    external: "mock-project"
+  region: "us-central1"
+  routerRef:
+    name: mock
+  type: ROUTE_POLICY_TYPE_IMPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "destination == '10.0.0.0/8'"
+      actions:
+        - expression: "drop()"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-havpn"
+  description: "Terraform managed external VPN gateway"
+  region: "us-central1"
+  networkRef:
+    external: "projects/mock-project/global/networks/catalog-mock-havpn-net"
+  stackType: IPV4_ONLY
