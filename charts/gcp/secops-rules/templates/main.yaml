@@ -1,0 +1,91 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/secops-rules/main.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_chronicle_reference_list.default: a ChronicleReferenceList of
+config-connector-extensions (chronicle.gcp.hfl.dev/v1beta1) per entry of
+reference_lists_config, its ID the key, its entries the lines of
+factories_data.reference_lists.<key> (fabric's <reference_lists_defs>/
+<key>.txt). google_chronicle_rule.default: a ChronicleRule (v1beta1) per
+entry of rules_config, its text factories_data.rules.<key> (fabric's
+<rules_defs>/<key>.yaral), deleted with FORCE, as fabric's.
+google_chronicle_rule_deployment.default: a ChronicleRuleDeployment
+(v1alpha1: allow_alpha) of each rule.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list)) }}
+{{- include "kcc.alpha" (list $ "rules_config" $v.rules_config "ChronicleRuleDeployment (config-connector-extensions)") }}
+{{- $fc := $v.factories_config | default dict }}
+{{- include "kcc.unsupported" (list $ "factories_config.rules" $fc.rules "a chart cannot read the caller's files: put the file's content in rules_config") }}
+{{- include "kcc.unsupported" (list $ "factories_config.reference_lists" $fc.reference_lists "a chart cannot read the caller's files: put the file's content in reference_lists_config") }}
+{{- $tc := required "secops-rules: tenant_config ({customer_id, region}) is required" $v.tenant_config }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $fd := $v.factories_data | default dict }}
+{{- $types := dict "STRING" "REFERENCE_LIST_SYNTAX_TYPE_PLAIN_TEXT_STRING" "REGEX" "REFERENCE_LIST_SYNTAX_TYPE_REGEX" "CIDR" "REFERENCE_LIST_SYNTAX_TYPE_CIDR" }}
+{{- range $key := keys ($v.reference_lists_config | default dict) | sortAlpha }}
+{{- $l := index $v.reference_lists_config $key }}
+{{- /* fabric's validation, with its message. */}}
+{{- if not (hasKey $types (toString $l.type)) }}
+{{- fail "secops-rules: The 'type' attribute for each reference list must be one of: CIDR, STRING, REGEX." }}
+{{- end }}
+{{- $data := index ($fd.reference_lists | default dict) $key }}
+{{- if kindIs "invalid" $data }}
+{{- fail (printf "secops-rules: factories_data.reference_lists.%s is needed: the content of %s/%s.txt, which a chart cannot read" $key ($fc.reference_lists_defs | default "data/reference_lists") $key) }}
+{{- end }}
+{{- $entries := ternary $data (splitList "\n" (toString $data)) (kindIs "slice" $data) }}
+---
+apiVersion: chronicle.gcp.hfl.dev/v1beta1
+kind: ChronicleReferenceList
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "list" $key)) "id" (printf "reference_list:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $key | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $tc.region | quote }}
+  instance: {{ $tc.customer_id | quote }}
+  description: {{ $l.description | quote }}
+  syntaxType: {{ index $types $l.type }}
+  entries:
+    {{- range $entries }}
+    - value: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- range $key := keys ($v.rules_config | default dict) | sortAlpha }}
+{{- $r := index $v.rules_config $key }}
+{{- /* fabric's validation, with its message (fabric's own text). */}}
+{{- if not (has (toString $r.run_frequency) (list "LIVE" "HOURLY" "DAILY")) }}
+{{- fail "secops-rules: The 'type' attribute for each reference list must be one of: CIDR, STRING, REGEX." }}
+{{- end }}
+{{- $text := index ($fd.rules | default dict) $key }}
+{{- if not $text }}
+{{- fail (printf "secops-rules: factories_data.rules.%s is needed: the content of %s/%s.yaral, which a chart cannot read" $key ($fc.rules_defs | default "data/rules") $key) }}
+{{- end }}
+{{- $rule := include "kcc.name" (list $.Release.Name "rule" $key) }}
+---
+apiVersion: chronicle.gcp.hfl.dev/v1beta1
+kind: ChronicleRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $rule "id" (printf "rule:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $tc.region | quote }}
+  instance: {{ $tc.customer_id | quote }}
+  deletionPolicy: FORCE
+  text: {{ $text | quote }}
+---
+apiVersion: chronicle.gcp.hfl.dev/v1alpha1
+kind: ChronicleRuleDeployment
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule-deployment" $key)) "id" (printf "rule_deployment:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  ruleRef:
+    name: {{ $rule }}
+  enabled: {{ ne (toString $r.enabled) "false" }}
+  alerting: {{ eq (toString $r.alerting) "true" }}
+  archived: {{ eq (toString $r.archived) "true" }}
+  runFrequency: {{ $r.run_frequency | quote }}
+{{- end }}

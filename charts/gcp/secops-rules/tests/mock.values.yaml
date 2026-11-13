@@ -1,0 +1,22 @@
+# Applied to the fake cloud by hack/mock-apply.sh: a reference list and a
+# rule, deployed (config-connector-extensions' Chronicle kinds, served by
+# its Chronicle fake).
+allow_alpha: true
+project_id: mock-project
+tenant_config: {customer_id: 3fb9b8b0-6a5a-4b0b-8a6f-b1a7b1f6c1d2, region: us}
+reference_lists_config:
+  cat_mock_ips: {description: "Mock IP ranges", type: CIDR}
+rules_config:
+  cat_mock_rule: {enabled: true, run_frequency: LIVE}
+factories_data:
+  reference_lists:
+    cat_mock_ips: [10.0.0.0/8]
+  rules:
+    cat_mock_rule: |
+      rule cat_mock_rule {
+        events:
+          $e.metadata.event_type = "NETWORK_CONNECTION"
+          net.ip_in_range_cidr($e.target.ip, %cat_mock_ips)
+        condition:
+          $e
+      }
