@@ -148,6 +148,10 @@ Azure Service Operator, evaluates the outputs, deletes it and checks Azure
 no longer has it: passed on 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
 fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113104327-27737` (2026-11-13): the account, container, queue, local user, blob and queue services, lifecycle policy, Data Lake filesystem, private endpoint and its DNS zone group
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
 - **0.2.0** (2026-11-13): `blob_properties`, `file_service_properties`,

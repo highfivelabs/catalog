@@ -181,6 +181,10 @@ aso-extensions' fakearm at `b9beb5ba`): the cluster, both agent pools and
 the maintenance configuration Ready and deleted, the outputs evaluated
 (run `off-catalog-1112234355-26788`, 2026-11-12).
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113105656-11634` (2026-11-13): the cluster, both pools, the maintenance configuration, the private endpoint and its DNS zone group, the data collection endpoint, rules and associations, the three Prometheus rule groups, the action group and both metric alerts
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
 - **0.2.0** (2026-11-13): `private_endpoints` (with

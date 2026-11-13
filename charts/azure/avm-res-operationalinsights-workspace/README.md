@@ -149,6 +149,10 @@ table, a table update, a data export, linked storage, a Monitor Private
 Link Scope and a private endpoint to it) is applied to the fake cloud with aso-extensions' manager
 beside ASO (`docs/azure.md`, "8. Charts").
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113104327-27737` (2026-11-13): the workspace, its tables, export, linked storage, scope, scoped resource, private endpoint and its DNS zone group
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
 - **0.2.0** (2026-11-13): `private_endpoints` and

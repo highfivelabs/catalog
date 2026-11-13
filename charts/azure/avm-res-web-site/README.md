@@ -172,6 +172,10 @@ alone (the serverfarm chart's `asp` case, runs `cat11130326bbfc` and
 `cat111303502c33`); raising the quota is a subscription-scope change the
 live rules forbid (docs/azure.md, "8. Charts").
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `b9beb5ba`), run `off-catalog-1113105656-11634` (2026-11-13): the site, slot, the slot's private endpoint with its DNS zone group and lock, hostname binding, certificate and locks
+Ready and deleted, the outputs evaluated.
+
 ## Changes
 
 - **0.2.0** (2026-11-13): a deployment slot's `private_endpoints` render
