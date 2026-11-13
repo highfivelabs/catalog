@@ -1026,9 +1026,10 @@ chart's `tests/mock.values.yaml` passed against the fake cloud (stock ASO
 against aso-extensions' fakearm at `b9beb5b`, with PR #98's
 `hack/azure-mock.sh`, run `off-catalog-1113013113-10644`): the machine,
 interface, public IP, data disk and extension Ready and deleted, outputs
-evaluated. The aso-extensions kinds (run commands, shutdown schedules,
-maintenance assignments, locks) are rendered and validated only: neither
-run installs the aso-extensions manager.
+evaluated. Both runs install the aso-extensions manager beside ASO
+(below), so its kinds (run commands, shutdown schedules, maintenance
+assignments, locks) can be applied, not only rendered; the mock values
+carry none of them yet.
 
 The application gateway (Standard_v2,
 capacity 1, the public IP it makes, on a subnet the case first makes with
