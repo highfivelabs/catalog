@@ -1,0 +1,65 @@
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolver
+metadata:
+  name: basic-dnsr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dns_resolver"
+spec:
+  azureName: "resolver"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns"
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/virtualNetworks/vnet-dns"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversInboundEndpoint
+metadata:
+  name: basic-in-inbound1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "inbound_endpoint:inbound1"
+spec:
+  azureName: "inbound1"
+  location: "eastus2"
+  owner:
+    name: basic-dnsr
+  ipConfigurations:
+    - privateIpAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/virtualNetworks/vnet-dns/subnets/inbound"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversOutboundEndpoint
+metadata:
+  name: basic-out-outbound1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "outbound_endpoint:outbound1"
+spec:
+  azureName: "outbound1"
+  location: "eastus2"
+  owner:
+    name: basic-dnsr
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/virtualNetworks/vnet-dns/subnets/outbound"

@@ -1,0 +1,45 @@
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: ContainerApp
+metadata:
+  name: basic-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "container_app"
+spec:
+  azureName: "ca-example"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  environmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example"
+  managedEnvironmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example"
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      allowInsecure: false
+      exposedPort: 0
+      external: true
+      targetPort: 80
+      traffic:
+        - latestRevision: true
+          weight: 100
+      transport: auto
+    maxInactiveRevisions: 0
+  template:
+    containers:
+      - name: "hello"
+        image: "mcr.microsoft.com/k8se/quickstart:latest"
+        resources:
+          cpu: 0.25
+          memory: "0.5Gi"
+    scale:
+      cooldownPeriod: 300
+      maxReplicas: 10
+      pollingInterval: 30
