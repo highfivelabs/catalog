@@ -1,0 +1,27 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-runtime/main.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_storage_bucket.default: the StorageBucket fabric makes beside a
+package deployment (bucket_config.create and deployment_config.package_config
+set). google_storage_bucket_object.dependencies, .pickle and .requirements
+upload local files, which a chart cannot read: are_paths_local true is
+refused in agent.yaml, so they are never rendered.
+*/ -}}
+{{- $v := .Values }}
+{{- $pkg := include "geapAgentRuntime.package" . }}
+{{- $b := $v.bucket_config | default dict }}
+{{- $create := ternary $b.create true (and (hasKey $b "create") (not (kindIs "invalid" $b.create))) }}
+{{- if and $create $pkg }}
+{{- $ubla := ternary $b.uniform_bucket_level_access true (and (hasKey $b "uniform_bucket_level_access") (not (kindIs "invalid" $b.uniform_bucket_level_access))) }}
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "bucket")) "id" "bucket" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  resourceID: {{ include "geapAgentRuntime.bucket" . | quote }}
+  location: {{ $v.region | quote }}
+  uniformBucketLevelAccess: {{ $ubla }}
+{{- end }}

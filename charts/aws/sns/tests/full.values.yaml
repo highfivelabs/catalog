@@ -1,0 +1,50 @@
+# The module's examples/complete: feedback roles, delivery and data
+# protection policies, a KMS key, tracing, the topic policy from the
+# default statement, statements (one without resources: the topic's own
+# ARN), a source and an override document, and subscriptions.
+name: complete
+display_name: complete
+region: us-east-1
+account_id: "111122223333"
+kms_master_key_id: alias/sns
+tracing_config: Active
+signature_version: 2
+maximum_message_size: 2048
+delivery_policy: '{"http":{"defaultHealthyRetryPolicy":{"minDelayTarget":20,"maxDelayTarget":20,"numRetries":3}}}'
+data_protection_policy: '{"Name":"data_protection_policy","Version":"2021-06-01","Statement":[{"DataDirection":"Inbound","Principal":["*"],"DataIdentifier":["arn:aws:dataprotection::aws:data-identifier/EmailAddress"],"Operation":{"Deny":{}}}]}'
+application_feedback: {failure_role_arn: "arn:aws:iam::111122223333:role/feedback", success_role_arn: "arn:aws:iam::111122223333:role/feedback", success_sample_rate: 100}
+firehose_feedback: {failure_role_arn: "arn:aws:iam::111122223333:role/feedback"}
+http_feedback: {success_sample_rate: 50, success_role_arn: "arn:aws:iam::111122223333:role/feedback"}
+lambda_feedback: {failure_role_arn: "arn:aws:iam::111122223333:role/feedback"}
+sqs_feedback: {failure_role_arn: "arn:aws:iam::111122223333:role/feedback", success_role_arn: "arn:aws:iam::111122223333:role/feedback", success_sample_rate: 0}
+source_topic_policy_documents:
+  - '{"Version":"2012-10-17","Statement":[{"Sid":"SourceA","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::111122223333:root"},"Action":"sns:Publish","Resource":"*"}]}'
+override_topic_policy_documents:
+  - '{"Version":"2012-10-17","Statement":[{"Sid":"pub","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sns:Publish","Resource":"*"}]}'
+topic_policy_statements:
+  pub:
+    actions: ["sns:Publish"]
+    principals: [{type: AWS, identifiers: ["arn:aws:iam::111122223333:role/publisher"]}]
+  sub:
+    actions: ["sns:Subscribe", "sns:Receive"]
+    resources: ["*"]
+    principals: [{type: AWS, identifiers: ["*"]}]
+    condition:
+      - {test: StringLike, variable: "sns:Endpoint", values: ["arn:aws:sqs:us-east-1:111122223333:*"]}
+subscriptions:
+  sqs:
+    protocol: sqs
+    endpoint: arn:aws:sqs:us-east-1:111122223333:complete
+    filter_policy: '{"store":["example_corp"]}'
+    filter_policy_scope: MessageBody
+    redrive_policy: '{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:111122223333:complete-dlq"}'
+  email:
+    protocol: email
+    endpoint: ops@example.com
+    delivery_policy: '{"healthyRetryPolicy":{"numRetries":5}}'
+  firehose:
+    protocol: firehose
+    endpoint: arn:aws:firehose:us-east-1:111122223333:deliverystream/complete
+    subscription_role_arn: arn:aws:iam::111122223333:role/sns-firehose
+deletion_policy: ABANDON
+tags: {Environment: dev}

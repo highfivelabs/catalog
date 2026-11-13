@@ -1,0 +1,53 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/geap-agent-runtime
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/geap-agent-runtime
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-agent-runtime
+registry_url: null
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field) or by-design
+# (Bundt replaces it). partial: the variable is accepted, the reason says
+# what is refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: memory_bank_config
+    kind: gap
+    reason: "AIPlatformReasoningEngine (config-connector-extensions, v1beta1) has no contextSpec, so no memory bank"
+  - variable: agent_runtime_config
+    kind: gap
+    reason: "AIPlatformReasoningEngine has no spec.identityType (so identity_type AGENT_IDENTITY, the default, is refused; SERVICE_ACCOUNT is what the kind does) and no classMethods"
+    partial: true
+    fields: [identity_type, class_methods]
+  - variable: deployment_config
+    kind: gap
+    reason: "AIPlatformReasoningEngine has no containerSpec or sourceCodeSpec; package_config is accepted with GCS URIs only (are_paths_local: false), since a chart cannot read files from the caller's disk"
+    partial: true
+    fields: [container_config, source_files_config, package_config.are_paths_local]
+  - variable: networking_config
+    kind: gap
+    reason: "AIPlatformReasoningEngine's deploymentSpec has no agentGatewayConfig"
+    partial: true
+    fields: [agent_gateways]
+  - variable: enable_deletion_protection
+    kind: gap
+    reason: "false (Terraform's deletion_policy FORCE, which deletes the engine's sessions and memories, and the bucket's force_destroy) is refused: AIPlatformReasoningEngine has no force deletion"
+    partial: true
+  - variable: managed
+    kind: gap
+    reason: "false (fabric's unmanaged engine, whose code Terraform ignores after create) is refused: Config Connector reconciles every field it is given and has no ignore_changes"
+    partial: true
