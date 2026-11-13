@@ -574,7 +574,7 @@ public IP it makes as a `PublicIPAddress`.
 | --- | --- |
 | avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. The admin password goes to Key Vault (`aso-ext` `VaultSecret`). Entra database users: aso-extensions candidate a1, PR #5104 |
 | avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered |
-| avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered |
+| avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered. Chart `charts/azure/avm-res-web-serverfarm` (2026-11-12): `ServerFarm` at 2025-05-01 (the module sends 2025-03-01), 24 of 27 variables (`retry`, `timeouts` and a non-default `server_farm_resource_type` refused), both outputs |
 | avm-ptn-alz (35) | management groups, policy definitions, policy set definitions and policy assignments are all **GAP** (no `Microsoft.Management` or `Microsoft.Authorization/policy*` kinds; management groups are issue #2249, open). Role definitions and assignments, and identities, are covered |
 | avm-res-documentdb-databaseaccount (36) | `documentdb/DatabaseAccount` and its SQL and Mongo children. **GAP**: Gremlin databases and graphs, SQL dedicated gateway |
 | avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links. Covered |
@@ -982,6 +982,18 @@ address from its DNS configurations), deleted, Azure answering 404. Its
 against aso-extensions' fakearm at `b9beb5b`, with PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
 its zone group Ready and deleted, outputs evaluated).
+
+The App Service plan chart (`avm-res-web-serverfarm`) is not applied live:
+the sandbox subscription's App Service quota is 0 in eastus2, for B1 and
+F1 alike. Its case (`asp`: Linux B1, one worker) ran only when named and
+Azure refused it ("Operation cannot be completed without additional
+quota", runs `cat11130326bbfc` with B1 and `cat111303502c33` with F1, on
+2026-11-13; nothing was made). Raising the quota is a subscription-scope
+change the live rules forbid, so the case waits on the builder. Its
+`tests/mock.values.yaml` passed against the fake cloud (PR #118's
+`hack/azure-mock.sh` with `web.azure.com` in its `crdPattern`, run
+`off-catalog-1113031322-10940`: the plan Ready and deleted, outputs
+evaluated).
 
 The virtual machine chart has a live case (`AZURE_LIVE_CASES=vm`: a Linux
 machine with an interface, a public IP it makes, a data disk and a script

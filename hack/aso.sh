@@ -14,7 +14,7 @@ SUM="$(sed -n 's/^| Azure Service Operator CRDs SHA-256 | `\([0-9a-f]*\)`.*/\1/p
 [[ -n "${VERSION}" && -n "${SUM}" ]] || { echo "aso.sh: no Azure Service Operator release in UPSTREAM.md" >&2; exit 1; }
 # The ASO API groups (<group>.azure.com) the Azure charts render. A chart
 # that renders a kind of another group adds it here.
-GROUPS_USED="resources network storage keyvault authorization insights managedidentity operationalinsights containerregistry containerservice dbforpostgresql cognitiveservices compute"
+GROUPS_USED="resources network storage keyvault authorization insights managedidentity operationalinsights containerregistry containerservice dbforpostgresql cognitiveservices compute web"
 DIR="${ROOT}/.cache/aso-${VERSION}"
 SCHEMAS="${ROOT}/.cache/schemas-aso-${VERSION}"
 BUNDLE="${DIR}/azureserviceoperator_customresourcedefinitions_v${VERSION}.yaml"

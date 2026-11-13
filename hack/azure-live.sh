@@ -17,13 +17,15 @@
 # avm-res-network-privateendpoint,
 # avm-res-network-applicationgateway,
 # avm-res-cognitiveservices-account,
-# avm-res-compute-virtualmachine)
+# avm-res-compute-virtualmachine,
+# avm-res-web-serverfarm)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm)
-# applies only those; the default is all but cog and vm. A case may first apply another
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp)
+# applies only those; the default is all but cog, vm and asp (asp: the
+# sandbox has no App Service quota, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
 # subnet), deleted after the case's own objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
@@ -168,7 +170,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -197,7 +199,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     privateendpoints.network.azure.com privateendpointsprivatednszonegroups.network.azure.com \
     accounts.cognitiveservices.azure.com \
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
-    virtualmachinesextensions.compute.azure.com; do
+    virtualmachinesextensions.compute.azure.com \
+    serverfarms.web.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -629,6 +632,20 @@ extensions:
     type_handler_version: "2.1"
     settings: '{"commandToExecute":"echo catalog-run-${RUN}"}'
 EOF
+# The smallest Linux App Service plan: B1 (about 0.02 USD an hour), one
+# worker, not zone balanced (B1 has no zone redundancy). Not in the default
+# cases: the sandbox subscription's App Service quota is 0 (B1 and F1 alike),
+# and raising it is a subscription-scope change (docs/azure.md, "8. Charts").
+cat >"${WORK}/asp.yaml" <<EOF
+name: ${RUN}-asp
+location: ${LOCATION}
+parent_id: ${RG}
+os_type: Linux
+sku_name: B1
+worker_count: 1
+zone_balancing_enabled: false
+tags: {catalog-run: ${RUN}}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -652,7 +669,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     pe:avm-res-network-privateendpoint \
     appgw:avm-res-network-applicationgateway \
     cog:avm-res-cognitiveservices-account \
-    vm:avm-res-compute-virtualmachine; do
+    vm:avm-res-compute-virtualmachine \
+    asp:avm-res-web-serverfarm; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
