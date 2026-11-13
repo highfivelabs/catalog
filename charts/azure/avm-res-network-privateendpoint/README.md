@@ -108,7 +108,12 @@ schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
 `task test-live-azure` (case `pe`) applies an endpoint to a storage
 account's blob service, with a DNS zone group, in a subnet of a network the
 case applies with it, to the Azure sandbox with Azure Service Operator,
-evaluates the outputs, deletes it and checks Azure no longer has it.
+evaluates the outputs, deletes it and checks Azure no longer has it:
+passed on 2026-11-13 (run `cat11130308507d`, the private address read from
+the endpoint's DNS configurations with the zone group in place).
+`task test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions'
+fake cloud: passed on 2026-11-13, both objects Ready and deleted, the
+outputs evaluated.
 
 ## Changes
 
