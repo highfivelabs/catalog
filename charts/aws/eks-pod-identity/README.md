@@ -71,4 +71,8 @@ policy's; a policy's Terraform id is its ARN). Not provided:
 against its golden file and the pinned controllers' CRDs, and checks each
 `tests/*.fail.yaml` is refused with its message. `tests/mock.values.yaml`
 is the fake-AWS case (`task test-mock-aws`): the role and its policies; an
-association needs an EKS cluster, which that layer does not make.
+association needs an EKS cluster, which that layer does not make. It
+passed on AWS Emulator (1.0.322), moto unused: the role and the custom
+policy (attached by its built ARN beside an AWS managed policy) synced, the
+outputs evaluated, both deleted (offload VM `off-catalog-1113030542-23849`,
+2026-11-13, after one Spot preemption).
