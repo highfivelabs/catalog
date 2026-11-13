@@ -1,0 +1,256 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-authorization-roleassignment main.tf,
+locals*.tf, local.role.assignments*.tf and variables*.tf (v0.3.1),
+Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_role_assignment.this: one ASO RoleAssignment
+(authorization.azure.com/v20220401) per principal of each entry of
+role_assignments_for_resources, _for_resource_groups, _for_subscriptions,
+_for_management_groups and _for_scopes, owned by the scope's ARM ID (a role
+assignment is an extension resource), keyed as the module keys it
+("resourcegroup-user-<entry>-<assignment>-<principal>"), through
+lib/_aso.tpl's aso.roleAssignments: a role definition given by ID becomes
+roleDefinitionReference.armId (with the scope's subscription in front, as
+the module formats it), one given by name wellKnownName, which ASO resolves
+as the module's azurerm_role_definition data source does.
+azurerm_role_assignment.basic: one RoleAssignment per
+role_assignments_azure_resource_manager entry.
+azuread_directory_role_assignment.this and .basic: one aso-extensions
+DirectoryRoleAssignment (entra.azure.hfl.dev/v1, Microsoft Graph's
+roleManagement/directory/roleAssignments) each; ASO has no Entra directory
+role kind.
+
+The module's data sources are lookups a render cannot make: principals by
+user principal name, mail, display name or client ID (azuread), a
+resource by name, a user-assigned identity by group and name and a
+management group by display name (azurerm). Each is refused naming the
+gap; principals are taken by object ID, which the module's *_by_object_id
+and *_by_principal_id lookups only check. azuread_directory_role (which
+activates a directory role by display name or template ID) is not needed:
+Graph's role management API assigns a role by its template ID without
+activating it. The telemetry is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := .Chart.Name }}
+{{- $graph := "a render cannot read Microsoft Entra (Microsoft Graph); give the principal's object ID in" }}
+{{- range $var, $by := dict "users_by_employee_id" "users_by_object_id" "users_by_mail" "users_by_object_id" "users_by_mail_nickname" "users_by_object_id" "users_by_user_principal_name" "users_by_object_id" "groups_by_display_name" "groups_by_object_id" "groups_by_mail_nickname" "groups_by_object_id" "app_registrations_by_client_id" "app_registrations_by_principal_id" "app_registrations_by_display_name" "app_registrations_by_principal_id" "app_registrations_by_object_id" "app_registrations_by_principal_id" "system_assigned_managed_identities_by_client_id" "system_assigned_managed_identities_by_principal_id" "system_assigned_managed_identities_by_display_name" "system_assigned_managed_identities_by_principal_id" "user_assigned_managed_identities_by_client_id" "user_assigned_managed_identities_by_principal_id" "user_assigned_managed_identities_by_display_name" "user_assigned_managed_identities_by_principal_id" }}
+{{- include "aso.unsupported" (list $ $var (index $v $var) (printf "the module looks the principal up with an azuread data source, and %s %s" $graph $by)) }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "user_assigned_managed_identities_by_resource_group_and_name" $v.user_assigned_managed_identities_by_resource_group_and_name "the module reads the identity's principal ID from Resource Manager (azurerm_user_assigned_identity), which a render cannot read; give it in user_assigned_managed_identities_by_principal_id (the identity chart's principal_id output)") }}
+{{- range $k, $_ := ($v.names | default dict) }}
+{{- fail (printf "%s: names.%s is not a name this chart gives: it names no Azure resource" $n $k) }}
+{{- end }}
+{{- if $v.tags }}
+{{- fail (printf "%s: tags are not supported: role assignments and directory role assignments take no Azure tags" $n) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $base := include "aso.name" (list .Release.Name) }}
+{{- $guid := "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }}
+{{- $mgScope := "(?i)^/providers/Microsoft\\.Management/managementGroups/[^/]+$" }}
+
+{{- /* The principals, by key: local.users, groups, app_registrations,
+system_assigned_managed_identities, user_assigned_managed_identities, and
+local.all_principals (their merge, a later map winning a key). */ -}}
+{{- $kinds := list (list "user" "users_by_object_id" "users") (list "group" "groups_by_object_id" "groups") (list "app_registration" "app_registrations_by_principal_id" "app_registrations") (list "system_assigned_managed_identity" "system_assigned_managed_identities_by_principal_id" "system_assigned_managed_identities") (list "user_assigned_managed_identity" "user_assigned_managed_identities_by_principal_id" "user_assigned_managed_identities") }}
+{{- $principalType := dict "user" "User" "group" "Group" "appregistration" "ServicePrincipal" "sami" "ServicePrincipal" "uami" "ServicePrincipal" }}
+{{- $byField := dict }}
+{{- $all := dict }}
+{{- range $kinds }}
+{{- $type := index . 0 }}{{- $var := index . 1 }}
+{{- $m := dict }}
+{{- range $k, $id := (index $v $var | default dict) }}
+{{- if not (regexMatch $guid (toString $id)) }}
+{{- fail (printf "%s: %s.%s %q is not an object ID (a GUID)" $n $var $k (toString $id)) }}
+{{- end }}
+{{- $_ := set $m $k $id }}
+{{- $_ := set $all $k (dict "principal_id" $id "type" $type) }}
+{{- end }}
+{{- $_ := set $byField (index . 2) $m }}
+{{- end }}
+
+{{- /* local.role_definitions: a role definition's GUID (id) or its name,
+which ASO resolves (wellKnownName). */ -}}
+{{- $rds := dict }}
+{{- range $k, $d := ($v.role_definitions | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "role_definitions.%s.scope" $k) $d.scope "the module looks a role up by name at that scope; ASO resolves a role name (wellKnownName) itself, at the assignment's subscription, so a lookup scope cannot be given: give the role's id") }}
+{{- if $d.id }}
+{{- $id := splitList "/" (toString $d.id) | last }}
+{{- if not (regexMatch $guid $id) }}
+{{- fail (printf "%s: role_definitions.%s.id %q is not a role definition ID (a GUID)" $n $k (toString $d.id)) }}
+{{- end }}
+{{- $_ := set $rds $k (dict "id" $id) }}
+{{- else if $d.name }}
+{{- $_ := set $rds $k (dict "name" $d.name) }}
+{{- else }}
+{{- fail (printf "%s: role_definitions.%s needs an id or a name" $n $k) }}
+{{- end }}
+{{- end }}
+
+{{- /* local.role_assignments: each scope's entries, as the module keys
+them, with the scope and the role. */ -}}
+{{- $out := dict }}
+{{- $sub := "" }}
+{{- with $v.subscription_id }}
+{{- if not (regexMatch $guid (toString .)) }}
+{{- fail (printf "%s: subscription_id %q is not a subscription ID (a GUID)" $n (toString .)) }}
+{{- end }}
+{{- $sub = . }}
+{{- end }}
+{{- $scopes := list }}
+{{- range $k, $e := ($v.role_assignments_for_resources | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "role_assignments_for_resources.%s without resource_type" $k) (not $e.resource_type) "the module finds the resource by name in Resource Manager's resource list (azurerm_resources), which a render cannot read: give its type as resource_type (Microsoft.Storage/storageAccounts), or its ID in role_assignments_for_scopes") }}
+{{- if not $sub }}{{ fail (printf "%s: role_assignments_for_resources needs subscription_id (the module uses its provider's subscription)" $n) }}{{ end }}
+{{- if not (regexMatch "^[A-Za-z0-9.]+/[^/]+(/[^/]+/[^/]+)*$" $e.resource_type) }}
+{{- fail (printf "%s: role_assignments_for_resources.%s.resource_type %q is not a resource type (Microsoft.Storage/storageAccounts)" $n $k $e.resource_type) }}
+{{- end }}
+{{- $scopes = append $scopes (list "resource" $k $e (printf "/subscriptions/%s/resourceGroups/%s/providers/%s/%s" $sub $e.resource_group_name $e.resource_type $e.resource_name) $sub) }}
+{{- end }}
+{{- range $k, $e := ($v.role_assignments_for_resource_groups | default dict) }}
+{{- $s := $e.subscription_id | default $sub }}
+{{- if not $s }}{{ fail (printf "%s: role_assignments_for_resource_groups.%s needs a subscription_id, or the chart's subscription_id (the module uses its provider's subscription)" $n $k) }}{{ end }}
+{{- $scopes = append $scopes (list "resourcegroup" $k $e (printf "/subscriptions/%s/resourceGroups/%s" $s $e.resource_group_name) $s) }}
+{{- end }}
+{{- range $k, $e := ($v.role_assignments_for_subscriptions | default dict) }}
+{{- $s := $e.subscription_id | default $sub }}
+{{- if not $s }}{{ fail (printf "%s: role_assignments_for_subscriptions.%s needs a subscription_id, or the chart's subscription_id (the module uses its provider's subscription)" $n $k) }}{{ end }}
+{{- $scopes = append $scopes (list "subscription" $k $e (printf "/subscriptions/%s" $s) $s) }}
+{{- end }}
+{{- range $k, $e := ($v.role_assignments_for_management_groups | default dict) }}
+{{- if not $e.management_group_id }}
+{{- include "aso.unsupported" (list $ (printf "role_assignments_for_management_groups.%s.management_group_display_name" $k) $e.management_group_display_name "the module looks the management group up by display name (azurerm_management_group), which a render cannot read: give its management_group_id") }}
+{{- fail (printf "%s: role_assignments_for_management_groups.%s needs a management_group_id" $n $k) }}
+{{- end }}
+{{- $scopes = append $scopes (list "managementgroup" $k $e (printf "/providers/Microsoft.Management/managementGroups/%s" $e.management_group_id) "") }}
+{{- end }}
+{{- range $k, $e := ($v.role_assignments_for_scopes | default dict) }}
+{{- $s := "" }}
+{{- if not (regexMatch $mgScope $e.scope) }}
+{{- if not (regexMatch "(?i)^/subscriptions/[0-9a-f-]{36}(/.+)?$" $e.scope) }}
+{{- fail (printf "%s: role_assignments_for_scopes.%s.scope %q is not a management group's or a subscription's (or anything in one) ARM ID" $n $k $e.scope) }}
+{{- end }}
+{{- $s = index (splitList "/" $e.scope) 2 }}
+{{- end }}
+{{- $scopes = append $scopes (list "scope" $k $e $e.scope $s) }}
+{{- end }}
+{{- $fields := list (list "users" "user" "users") (list "groups" "group" "groups") (list "app_registrations" "appregistration" "app_registrations") (list "system_assigned_managed_identities" "sami" "system_assigned_managed_identities") (list "user_assigned_managed_identities" "uami" "user_assigned_managed_identities") }}
+{{- range $sc := $scopes }}
+{{- $prefix := index $sc 0 }}{{- $key := index $sc 1 }}{{- $e := index $sc 2 }}{{- $scope := index $sc 3 }}{{- $s := index $sc 4 }}
+{{- range $ak, $a := ($e.role_assignments | default dict) }}
+{{- $rd := index $rds $a.role_definition }}
+{{- if not $rd }}
+{{- fail (printf "%s: role_assignments_for_%s %s, role assignment %s: role_definition %q is not a key of role_definitions" $n $prefix $key $ak $a.role_definition) }}
+{{- end }}
+{{- $role := $rd.name }}
+{{- if $rd.id }}
+{{- $role = printf "%s/providers/Microsoft.Authorization/roleDefinitions/%s" (ternary (printf "/subscriptions/%s" $s) "" (ne $s "")) $rd.id }}
+{{- end }}
+{{- range $f := $fields }}
+{{- range $p := (index $a (index $f 0) | default list) }}
+{{- $id := index (index $byField (index $f 2)) $p }}
+{{- if not $id }}
+{{- fail (printf "%s: role assignment %s of %s: %s %q is not a key of %s" $n $ak $key (index $f 0) $p (index (dict "users" "users_by_object_id" "groups" "groups_by_object_id" "app_registrations" "app_registrations_by_principal_id" "system_assigned_managed_identities" "system_assigned_managed_identities_by_principal_id" "user_assigned_managed_identities" "user_assigned_managed_identities_by_principal_id") (index $f 0))) }}
+{{- end }}
+{{- $skip := and (has (index $f 1) (list "appregistration" "sami" "uami")) $a.skip_service_principal_aad_check }}
+{{- $_ := set $out (printf "%s-%s-%s-%s-%s" $prefix (index $f 1) $key $ak $p) (dict "scope" $scope "r" (dict "principal_id" $id "principal_type" (index $principalType (index $f 1)) "role_definition_id_or_name" $role "skip_service_principal_aad_check" $skip)) }}
+{{- end }}
+{{- end }}
+{{- range $p := ($a.any_principals | default list) }}
+{{- $pr := index $all $p }}
+{{- if not $pr }}
+{{- fail (printf "%s: role assignment %s of %s: any_principals %q is not a key of any *_by_object_id or *_by_principal_id map" $n $ak $key $p) }}
+{{- end }}
+{{- $_ := set $out (printf "%s-any-%s-%s-%s" $prefix $key $ak $p) (dict "scope" $scope "r" (dict "principal_id" $pr.principal_id "role_definition_id_or_name" $role)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $ck := (keys $out | sortAlpha) }}
+{{- $o := index $out $ck }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $base "idPrefix" "" "owner" (dict "armId" $o.scope) "v" (dict $ck $o.r)) }}
+{{- end }}
+
+{{- /* azurerm_role_assignment.basic. */ -}}
+{{- $roleID := "^(/subscriptions/[0-9a-fA-F-]+)?/providers/Microsoft\\.Authorization/roleDefinitions/[0-9a-fA-F-]+$" }}
+{{- range $k, $r := ($v.role_assignments_azure_resource_manager | default dict) }}
+{{- if and $r.role_definition_id $r.role_definition_name }}
+{{- fail (printf "%s: role_assignments_azure_resource_manager.%s: set role_definition_id or role_definition_name, not both" $n $k) }}
+{{- end }}
+{{- if and $r.role_definition_id (not (regexMatch $roleID $r.role_definition_id)) }}
+{{- fail (printf "%s: role_assignments_azure_resource_manager.%s.role_definition_id %q is not a role definition ID (/subscriptions/<id>/providers/Microsoft.Authorization/roleDefinitions/<guid>)" $n $k $r.role_definition_id) }}
+{{- end }}
+{{- $role := $r.role_definition_id | default $r.role_definition_name }}
+{{- if not $role }}
+{{- fail (printf "%s: role_assignments_azure_resource_manager.%s needs a role_definition_id or a role_definition_name" $n $k) }}
+{{- end }}
+{{- if not (or (regexMatch $mgScope $r.scope) (regexMatch "(?i)^/subscriptions/[^/]+(/.+)?$" $r.scope)) }}
+{{- fail (printf "%s: role_assignments_azure_resource_manager.%s.scope %q is not an ARM ID" $n $k $r.scope) }}
+{{- end }}
+{{- $r2 := omit $r "role_definition_id" "role_definition_name" "scope" }}
+{{- $_ := set $r2 "role_definition_id_or_name" $role }}
+{{- if and (not $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" (printf "%s-arm" $base) "idPrefix" "arm:" "owner" (dict "armId" $r.scope) "v" (dict $k $r2)) }}
+{{- end }}
+
+{{- /* local.entra_id_role_assignments (azuread_directory_role_assignment.this). */ -}}
+{{- $erds := dict }}
+{{- range $k, $d := ($v.entra_id_role_definitions | default dict) }}
+{{- if not $d.template_id }}
+{{- include "aso.unsupported" (list $ (printf "entra_id_role_definitions.%s.display_name" $k) $d.display_name "the module activates the directory role by display name (azuread_directory_role), which a render cannot look up: give its template_id (Directory Readers is 88d8e3e3-8f55-4a1e-953a-9b9898b8876b)") }}
+{{- fail (printf "%s: entra_id_role_definitions.%s needs a template_id" $n $k) }}
+{{- end }}
+{{- $_ := set $erds $k $d.template_id }}
+{{- end }}
+{{- $entra := dict }}
+{{- range $key, $e := ($v.role_assignments_for_entra_id | default dict) }}
+{{- range $ak, $a := ($e.role_assignments | default dict) }}
+{{- $rd := index $erds $a.role_definition }}
+{{- if not $rd }}
+{{- fail (printf "%s: role_assignments_for_entra_id %s, role assignment %s: role_definition %q is not a key of entra_id_role_definitions" $n $key $ak $a.role_definition) }}
+{{- end }}
+{{- range $f := $fields }}
+{{- range $p := (index $a (index $f 0) | default list) }}
+{{- $id := index (index $byField (index $f 2)) $p }}
+{{- if not $id }}
+{{- fail (printf "%s: role assignment %s of %s: %s %q is not a key of the principals given by object ID" $n $ak $key (index $f 0) $p) }}
+{{- end }}
+{{- $_ := set $entra (printf "entraid-%s-%s-%s-%s" (index $f 1) $key $ak $p) (dict "principal_id" $id "role_id" $rd) }}
+{{- end }}
+{{- end }}
+{{- range $p := ($a.any_principals | default list) }}
+{{- $pr := index $all $p }}
+{{- if not $pr }}
+{{- fail (printf "%s: role assignment %s of %s: any_principals %q is not a key of any *_by_object_id or *_by_principal_id map" $n $ak $key $p) }}
+{{- end }}
+{{- $_ := set $entra (printf "entraid-any-%s-%s-%s" $key $ak $p) (dict "principal_id" $pr.principal_id "role_id" $rd) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $ck := (keys $entra | sortAlpha) }}
+{{- $r := index $entra $ck }}
+{{- include "ra.directoryRoleAssignment" (dict "root" $ "name" (include "aso.name" (list $base "entra" $ck)) "id" (printf "entra-role-assignment-%s" $ck) "abandon" $abandon "principal_id" $r.principal_id "role_id" $r.role_id) }}
+{{- end }}
+
+{{- /* azuread_directory_role_assignment.basic. */ -}}
+{{- range $k, $r := ($v.role_assignments_entra_id | default dict) }}
+{{- if and $r.app_scope_id $r.directory_scope_id }}
+{{- fail (printf "%s: role_assignments_entra_id.%s: set app_scope_id or directory_scope_id, not both" $n $k) }}
+{{- end }}
+{{- include "ra.directoryRoleAssignment" (dict "root" $ "name" (include "aso.name" (list $base "entra-basic" $k)) "id" (printf "entra-basic:%s" $k) "abandon" $abandon "principal_id" $r.principal_object_id "role_id" $r.role_id "app_scope_id" $r.app_scope_id "directory_scope_id" $r.directory_scope_id) }}
+{{- end }}
+
+{{- define "ra.directoryRoleAssignment" }}
+---
+apiVersion: entra.azure.hfl.dev/v1
+kind: DirectoryRoleAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" .root "name" .name "id" .id "abandon" .abandon) | nindent 2 }}
+spec:
+  {{- if .app_scope_id }}
+  appScopeId: {{ .app_scope_id | quote }}
+  {{- else }}
+  directoryScopeId: {{ .directory_scope_id | default "/" | quote }}
+  {{- end }}
+  principalId: {{ .principal_id | quote }}
+  roleDefinitionId: {{ .role_id | quote }}
+{{- end }}

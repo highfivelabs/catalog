@@ -1,0 +1,36 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-ptn-network-private-link-private-dns-zones
+repo: https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones
+path: .
+version: v0.23.2
+commit: 4d2214f162806d48ea9a157de4b904f879fc61d4
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones/tree/v0.23.2
+registry_url: https://registry.terraform.io/modules/Azure/avm-ptn-network-private-link-private-dns-zones/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+# partial: the variable is accepted, the reason says what is refused.
+refused:
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: location
+    kind: by-design
+    reason: "accepted for the regions in avm-utl-regions v0.12.0's data (its cached list and region codes, a table in the chart); the module reads the subscription's live location list, so a region newer than that data is refused, naming it"
+    partial: true
+  - variable: virtual_network_link_name_template
+    kind: by-design
+    reason: "accepted with the module's documented placeholders ${zone_key}, ${vnet_key}, ${vnet_name} and ${location}; another Terraform template expression (a function call, a directive) is refused, here and in every name template override"
+    partial: true

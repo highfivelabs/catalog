@@ -1,0 +1,220 @@
+# Every accepted variable: identities, Dapr, ingress with its options,
+# a registry pulled with an identity, a Key Vault secret reference, the
+# Java runtime, a service type, a workload profile, a template with init
+# containers, every probe, volumes, all four kinds of scale rule and a
+# service bind, an authentication configuration with every provider, a
+# lock and a role assignment.
+name: ca-full
+location: eastus2
+resource_group_name: rg-example
+subscription_id: 00000000-0000-0000-0000-000000000000
+container_app_environment_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example
+enable_telemetry: false
+revision_mode: Multiple
+max_inactive_revisions: 5
+workload_profile_name: Consumption
+tags: {env: test}
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids:
+    - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull
+identity_settings:
+  - identity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull
+    lifecycle: Init
+dapr:
+  app_id: ca-full
+  app_port: 8080
+  app_protocol: grpc
+  enable_api_logging: true
+  enabled: true
+  http_max_request_size: 4
+  http_read_buffer_size: 65
+  log_level: debug
+ingress:
+  allow_insecure_connections: true
+  client_certificate_mode: accept
+  exposed_port: 0
+  external_enabled: true
+  target_port: 8080
+  transport: http2
+  traffic_weight:
+    - {label: blue, revision_suffix: v1, percentage: 80}
+    - {latest_revision: true, percentage: 20}
+  additional_port_mappings:
+    - {exposed_port: 9090, external: false, target_port: 9090}
+  cors_policy:
+    allow_credentials: true
+    allowed_headers: [x-request-id]
+    allowed_methods: [GET, POST]
+    allowed_origins: ["https://example.com"]
+    expose_headers: [x-trace]
+    max_age: 600
+  custom_domains:
+    - name: app.example.com
+      certificate_binding_type: SniEnabled
+      certificate_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example/certificates/cert-app
+  ip_restrictions:
+    - {action: Allow, description: office, ip_range: 203.0.113.0/24, name: office}
+  sticky_sessions: {affinity: sticky}
+registries:
+  - server: crexample.azurecr.io
+    identity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull
+runtime:
+  java: {enable_metrics: true}
+secrets:
+  db:
+    name: db-password
+    key_vault_secret_id: https://kv-example.vault.azure.net/secrets/db-password
+    identity: system
+service: {type: redis}
+template:
+  cooldown_period: 120
+  max_replicas: 5
+  min_replicas: 1
+  polling_interval: 15
+  revision_suffix: v1
+  termination_grace_period_seconds: 30
+  containers:
+    - name: app
+      image: crexample.azurecr.io/app:1.0
+      cpu: 0.5
+      memory: 1Gi
+      args: [--port, "8080"]
+      command: [/app]
+      env:
+        - {name: MODE, value: full}
+        - {name: DB_PASSWORD, secret_name: db-password}
+      liveness_probes:
+        - transport: HTTP
+          port: 8080
+          path: /healthz
+          host: localhost
+          initial_delay: 5
+          interval_seconds: 20
+          failure_count_threshold: 5
+          timeout: 2
+          termination_grace_period_seconds: 10
+          header: [{name: X-Probe, value: liveness}]
+      readiness_probes:
+        - {transport: TCP, port: 8080, success_count_threshold: 2}
+      startup_probes:
+        - {transport: HTTPS, port: 8443, path: /ready}
+      volume_mounts:
+        - {name: scratch, path: /tmp/scratch}
+        - {name: secrets, path: /mnt/secrets, sub_path: db}
+  init_containers:
+    - name: migrate
+      image: crexample.azurecr.io/migrate:1.0
+      cpu: 0.25
+      memory: 0.5Gi
+      command: [/migrate]
+      args: [up]
+      env: [{name: MODE, value: init}]
+      volume_mounts: [{name: scratch, path: /tmp/scratch}]
+  volumes:
+    - {name: scratch}
+    - name: secrets
+      storage_type: Secret
+      secrets: [{path: db, secret_name: db-password}]
+    - {name: files, storage_type: AzureFile, storage_name: share-files, mount_options: "dir_mode=0777"}
+  azure_queue_scale_rules:
+    - name: queue
+      queue_name: jobs
+      queue_length: 10
+      account_name: stexample
+      identity: system
+      authentication: []
+  custom_scale_rules:
+    - name: cron
+      custom_rule_type: cron
+      metadata: {timezone: UTC, start: "0 8 * * *", end: "0 18 * * *", desiredReplicas: "2"}
+  http_scale_rules:
+    - {name: http, concurrent_requests: "50"}
+  tcp_scale_rules:
+    - name: tcp
+      concurrent_requests: "100"
+      authentication: [{secret_name: db-password, trigger_parameter: password}]
+  service_binds:
+    - name: redis
+      service_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/containerApps/redis
+auth_configs:
+  current:
+    name: current
+    platform: {enabled: true, runtime_version: "~1"}
+    global_validation:
+      unauthenticated_client_action: RedirectToLoginPage
+      redirect_to_provider: azureactivedirectory
+      exclude_paths: [/healthz]
+    identity_providers:
+      azure_active_directory:
+        enabled: true
+        registration:
+          open_id_issuer: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+          client_id: 33333333-4444-5555-6666-777777777777
+          client_secret_setting_name: microsoft-provider-authentication-secret
+        login: {login_parameters: ["response_type=code id_token"], disable_www_authenticate: false}
+        validation:
+          jwt_claim_checks: {allowed_groups: [g1], allowed_client_applications: [a1]}
+          allowed_audiences: ["api://ca-full"]
+          default_authorization_policy:
+            allowed_principals: {groups: [g1], identities: [i1]}
+            allowed_applications: [a1]
+      facebook:
+        enabled: true
+        registration: {app_id: fb-app, app_secret_setting_name: facebook-secret}
+        graph_api_version: v18.0
+        login: {scopes: [email]}
+      github:
+        enabled: true
+        registration: {client_id: gh-client, client_secret_setting_name: github-secret}
+        login: {scopes: [user]}
+      google:
+        enabled: true
+        registration: {client_id: google-client, client_secret_setting_name: google-secret}
+        login: {scopes: [openid]}
+        validation: {allowed_audiences: [google-aud]}
+      twitter:
+        enabled: false
+        registration: {consumer_key: tw-key, consumer_secret_setting_name: twitter-secret}
+      apple:
+        enabled: true
+        registration: {client_id: apple-client, client_secret_setting_name: apple-secret}
+        login: {scopes: [name]}
+      azure_static_web_apps:
+        enabled: false
+        registration: {client_id: swa-client}
+      custom_open_id_connect_providers:
+        okta:
+          enabled: true
+          registration:
+            client_id: okta-client
+            client_credential: {method: ClientSecretPost, client_secret_setting_name: okta-secret}
+            open_id_connect_configuration:
+              authorization_endpoint: https://example.okta.com/oauth2/v1/authorize
+              token_endpoint: https://example.okta.com/oauth2/v1/token
+              issuer: https://example.okta.com
+              certification_uri: https://example.okta.com/oauth2/v1/keys
+          login: {name_claim_type: name, scopes: [openid]}
+    login:
+      routes: {logout_endpoint: /.auth/logout}
+      token_store:
+        enabled: true
+        token_refresh_extension_hours: 72
+        azure_blob_storage: {sas_url_setting_name: token-store-sas}
+      preserve_url_fragments_for_logins: true
+      allowed_external_redirect_urls: ["https://example.com/after"]
+      cookie_expiration: {convention: FixedTime, time_to_expiration: "08:00:00"}
+      nonce: {validate_nonce: true, nonce_expiration_interval: "00:05:00"}
+    http_settings:
+      require_https: true
+      routes: {api_prefix: /.auth}
+      forward_proxy: {convention: Custom, custom_host_header_name: X-Host, custom_proto_header_name: X-Proto}
+    encryption_settings:
+      container_app_auth_encryption_secret_name: auth-enc
+      container_app_auth_signing_secret_name: auth-sign
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader:
+    role_definition_id_or_name: Reader
+    principal_id: 44444444-5555-6666-7777-888888888888
+    principal_type: Group

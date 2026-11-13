@@ -1,0 +1,233 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-dnsresolver main.tf and
+locals.tf (v0.8.0), Copyright (c) Microsoft Corporation, MIT.
+
+azurerm_private_dns_resolver.this: one ASO DnsResolver
+(network.azure.com/v1api20220701, the ARM version azurerm sends), owned by
+the resource group resource_group_name names, in the network
+virtual_network_resource_id names.
+azurerm_private_dns_resolver_inbound_endpoint.this and
+azurerm_private_dns_resolver_outbound_endpoint.this: one
+DnsResolversInboundEndpoint or DnsResolversOutboundEndpoint per entry,
+owned by the resolver, in <virtual_network_resource_id>/subnets/<subnet_name>.
+azurerm_private_dns_resolver_dns_forwarding_ruleset.this: one
+DnsForwardingRuleset per ruleset of an outbound endpoint, owned by the
+resource group, on that endpoint. azurerm_private_dns_resolver_forwarding_rule.this:
+one DnsForwardingRuleSetsForwardingRule per rule, named by its key as the
+module names it. azurerm_private_dns_resolver_virtual_network_link.default
+and .additional: one DnsForwardingRuleSetsVirtualNetworkLink each.
+azurerm_management_lock.this and .rulesets: an aso-extensions
+ManagementLock on the resolver and on each ruleset.
+azurerm_role_assignment.dnsresolver and .rulesets: ASO RoleAssignments on
+the resolver and on each ruleset. terraform_data.outbound (it replaces a
+ruleset when its endpoint is replaced; ASO updates the ruleset's
+reference) and the telemetry are not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.names" (list $ (list "dnsResolver")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-dnsresolver: name is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-network-dnsresolver: location is required" }}{{ end }}
+{{- if not $v.virtual_network_resource_id }}{{ fail "avm-res-network-dnsresolver: virtual_network_resource_id is required" }}{{ end }}
+{{- $vnet := toString $v.virtual_network_resource_id }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+$" $vnet) }}
+{{- fail (printf "avm-res-network-dnsresolver: virtual_network_resource_id %q is not a virtual network's resource ID" $vnet) }}
+{{- end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-dnsresolver: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "dnsr") }}
+{{- $resolverOwner := dict "group" "network.azure.com" "kind" "DnsResolver" "name" $obj }}
+{{- $noModuleTags := dict "Chart" .Chart "Values" dict }}
+{{- /* A child's tags, as the module computes them: its own merged over the
+module's (merge_with_module_tags, the default), its own alone, the
+module's alone, or none. */ -}}
+{{- $lockNotes := "" }}
+{{- with $v.lock }}{{ $lockNotes = ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}{{ end }}
+{{- $ras := dict }}
+{{- range $k, $r := ($v.role_assignments | default dict) }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolver
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "dns_resolver" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "dnsResolver" "DNS resolver" $v.name 80 "^[^#]+$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with (include "aso.tags" (list $ dict) | fromJson) }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  virtualNetwork:
+    reference:
+      armId: {{ $vnet | quote }}
+{{- range $key, $e := ($v.inbound_endpoints | default dict) }}
+{{- $tags := dict }}
+{{- if not (kindIs "invalid" $e.tags) }}
+{{- $tags = include "aso.tags" (list (ternary $ $noModuleTags (not (and (kindIs "bool" $e.merge_with_module_tags) (not $e.merge_with_module_tags)))) $e.tags) | fromJson }}
+{{- else if not (and (kindIs "bool" $e.merge_with_module_tags) (not $e.merge_with_module_tags)) }}
+{{- $tags = include "aso.tags" (list $ dict) | fromJson }}
+{{- end }}
+{{- $method := $e.private_ip_allocation_method | default "Dynamic" }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversInboundEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "in" $key)) "id" (printf "inbound_endpoint:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $e.name | default (printf "in-%s-dnsResolver-inbound" $key) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    name: {{ $obj }}
+  ipConfigurations:
+    - privateIpAllocationMethod: {{ $method }}
+      {{- with $e.private_ip_address }}
+      privateIpAddress: {{ . | quote }}
+      {{- end }}
+      subnet:
+        reference:
+          armId: {{ printf "%s/subnets/%s" $vnet $e.subnet_name | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- $rulesetKeys := list }}
+{{- range $ep, $o := ($v.outbound_endpoints | default dict) }}
+{{- $tags := dict }}
+{{- if not (kindIs "invalid" $o.tags) }}
+{{- $tags = include "aso.tags" (list (ternary $ $noModuleTags (not (and (kindIs "bool" $o.merge_with_module_tags) (not $o.merge_with_module_tags)))) $o.tags) | fromJson }}
+{{- else if not (and (kindIs "bool" $o.merge_with_module_tags) (not $o.merge_with_module_tags)) }}
+{{- $tags = include "aso.tags" (list $ dict) | fromJson }}
+{{- end }}
+{{- $outObj := include "aso.name" (list $.Release.Name "out" $ep) }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversOutboundEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $outObj "id" (printf "outbound_endpoint:%s" $ep) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $o.name | default (printf "out-%s-dnsResolver-outbound" $ep) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    name: {{ $obj }}
+  subnet:
+    reference:
+      armId: {{ printf "%s/subnets/%s" $vnet $o.subnet_name | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $rk, $rs := ($o.forwarding_ruleset | default dict) }}
+{{- $rsName := $rs.name | default (printf "ruleset-%s-%s" $ep $rk) }}
+{{- $key := printf "%s-%s" $ep $rsName }}
+{{- if has $key $rulesetKeys }}
+{{- fail (printf "avm-res-network-dnsresolver: two forwarding rulesets have the key %q (<outbound endpoint key>-<ruleset name>); the module's map cannot hold both" $key) }}
+{{- end }}
+{{- $rulesetKeys = append $rulesetKeys $key }}
+{{- $rsTags := dict }}
+{{- if not (kindIs "invalid" $rs.tags) }}
+{{- $rsTags = include "aso.tags" (list (ternary $ $noModuleTags (not (and (kindIs "bool" $rs.merge_with_module_tags) (not $rs.merge_with_module_tags)))) $rs.tags) | fromJson }}
+{{- else if not (and (kindIs "bool" $rs.merge_with_module_tags) (not $rs.merge_with_module_tags)) }}
+{{- $rsTags = include "aso.tags" (list $ dict) | fromJson }}
+{{- end }}
+{{- $rsObj := include "aso.name" (list $.Release.Name "frs" $ep $rk) }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleset
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $rsObj "id" (printf "forwarding_ruleset:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "forwarding ruleset" $rsName 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  dnsResolverOutboundEndpoints:
+    - reference:
+        group: network.azure.com
+        kind: DnsResolversOutboundEndpoint
+        name: {{ $outObj }}
+  {{- with $rsTags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $ruleKey, $rule := ($rs.rules | default dict) }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsForwardingRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "rule" $ep $rk $ruleKey)) "id" (printf "forwarding_rule:%s-%s" $key $ruleKey) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $ruleKey | quote }}
+  owner:
+    name: {{ $rsObj }}
+  domainName: {{ $rule.domain_name | quote }}
+  forwardingRuleState: {{ ternary "Disabled" "Enabled" (and (kindIs "bool" $rule.enabled) (not $rule.enabled)) }}
+  {{- with $rule.metadata }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  targetDnsServers:
+    {{- range $ip := (keys $rule.destination_ip_addresses | sortAlpha) }}
+    - ipAddress: {{ $ip | quote }}
+      port: {{ index $rule.destination_ip_addresses $ip | int }}
+    {{- end }}
+{{- end }}
+{{- if not (and (kindIs "bool" $rs.link_with_outbound_endpoint_virtual_network) (not $rs.link_with_outbound_endpoint_virtual_network)) }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsVirtualNetworkLink
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "dlink" $ep $rk)) "id" (printf "virtual_network_link:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ printf "default-%s" $rsName | quote }}
+  owner:
+    name: {{ $rsObj }}
+  virtualNetwork:
+    reference:
+      armId: {{ $vnet | quote }}
+{{- end }}
+{{- range $lk, $l := ($rs.additional_virtual_network_links | default dict) }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsVirtualNetworkLink
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "vlink" $ep $rk $lk)) "id" (printf "virtual_network_link:%s-%s" $key $lk) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $l.name | default (printf "additional-%s-%s-%s" $ep $rsName (sha256sum $l.vnet_id | trunc 6)) | quote }}
+  owner:
+    name: {{ $rsObj }}
+  {{- with $l.metadata }}
+  metadata:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  virtualNetwork:
+    reference:
+      armId: {{ $l.vnet_id | quote }}
+{{- end }}
+{{- $rsOwner := dict "group" "network.azure.com" "kind" "DnsForwardingRuleset" "name" $rsObj }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $rsObj "idPrefix" (printf "ruleset/%s/" $key) "owner" $rsOwner "v" (dict "kind" .kind "name" .name "notes" $lockNotes) "defaultName" (printf "lock-%s" $key)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $rsObj "idPrefix" (printf "ruleset/%s/" $key) "owner" $rsOwner "v" $ras) }}
+{{- end }}
+{{- end }}
+{{- with $v.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $resolverOwner "v" (dict "kind" .kind "name" .name "notes" $lockNotes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $resolverOwner "v" $ras) }}
