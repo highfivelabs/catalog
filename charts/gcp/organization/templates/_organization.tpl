@@ -28,8 +28,11 @@ external: {{ include "organization.id" . | quote }}
 {{- end -}}
 
 {{/* organization.iamRef: the organization as an IAM resourceRef (its
-number, as Config Connector's IAM kinds take it). */}}
+number, as Config Connector's IAM kinds take it). The apiVersion is needed:
+without it Config Connector cannot find the Organization's service mapping
+(found in the fake cloud, 2026-11-13). */}}
 {{- define "organization.iamRef" -}}
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
 kind: Organization
 external: {{ include "organization.number" . | quote }}
 {{- end -}}
