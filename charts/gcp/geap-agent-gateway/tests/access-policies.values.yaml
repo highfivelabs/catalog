@@ -1,0 +1,46 @@
+# IAM v3 access policies (iam.tf): a project policy with registry, agent,
+# MCP server and custom-condition rules bound to the project, one bound to
+# the gateway with a binding condition, and an existing organization
+# policy bound by its resource name.
+allow_alpha: true
+iap_config: null
+name: my-gateway
+project_id: my-project-id
+region: europe-west1
+access_path: egress
+registries:
+  - projects/my-project-id/locations/europe-west1
+  - projects/my-project-id/locations/us-central1
+access_policies:
+  agents:
+    display_name: Agents egress
+    annotations: {owner: platform}
+    rules:
+      registry:
+        principals: ["group:agents@example.com", "serviceAccount:agent@my-project-id.iam.gserviceaccount.com"]
+        registry: true
+      one-agent:
+        principals: ["user:one@example.com"]
+        agent_id: my-agent
+        description: One agent.
+      mcp:
+        principals: ["allUsers"]
+        excluded_principals: ["user:two@example.com"]
+        mcp_server_id: projects/other/locations/us-central1/mcpServers/tools
+        location: us-central1
+        effect: DENY
+        excluded_permissions: ["iap.googleapis.com/resources.other"]
+      custom:
+        principals: ["principalSet://goog/public:all"]
+        condition: "request.time < timestamp('2027-01-01T00:00:00Z')"
+  gateway-only:
+    binding_id: gw-binding
+    target_resource: gateway
+    binding_condition: {expression: "true", title: always}
+    rules:
+      all:
+        principals: ["group:agents@example.com"]
+        registry: true
+        location: europe-west1
+  corp:
+    policy_reuse: organizations/123456789012/locations/global/accessPolicies/corp-guardrails

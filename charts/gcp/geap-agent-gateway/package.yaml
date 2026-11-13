@@ -8,15 +8,16 @@
 # connectivity_template_id is the template the gateway references, by
 # project number, as fabric's: the one the chart makes, or
 # networking_config.connectivity_template_reuse; null with neither. Not
-# outputs: agent_gateway (fabric's whole object), and access_policy_ids,
-# authz_extension_ids, authz_policy_ids and policy_binding_ids, whose
-# resources the chart refuses (README.md, "Values").
+# outputs: agent_gateway (fabric's whole object), and authz_extension_ids
+# and authz_policy_ids, whose resources the chart refuses (README.md,
+# "Values"). access_policy_ids and policy_binding_ids are built from the
+# objects' resourceIDs, keyed as fabric's.
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: gcp-geap-agent-gateway
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [kcc]
   outputs:
@@ -26,3 +27,11 @@ spec:
     connectivity_template_id: >-
       has(resources.gateway.spec.agentConnectivityTemplate)
       ? dyn(resources.gateway.spec.agentConnectivityTemplate) : null
+    access_policy_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('access_policy:'),
+        {k.substring(14): 'projects/' + inputs.project_id
+          + '/locations/global/accessPolicies/' + v.spec.resourceID})
+    policy_binding_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('policy_binding:'),
+        {k.substring(15): 'projects/' + inputs.project_id
+          + '/locations/global/policyBindings/' + v.spec.resourceID})

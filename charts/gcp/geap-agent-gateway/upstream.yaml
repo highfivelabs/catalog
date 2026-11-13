@@ -26,15 +26,12 @@ refused:
   - variable: context
     kind: by-design
     reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
-  - variable: access_policies
-    kind: gap
-    reason: "Config Connector's IAMAccessPolicy (v1alpha1) takes an organization only, not a project, and config-connector-extensions' IAMPolicyBinding targets a principal set only, not a resource (the project or the gateway)"
   - variable: iap_config
     kind: gap
-    reason: "Config Connector's NetworkServicesAuthzExtension (v1alpha1) is a load balancer callout with a required backend service and no service field, so it cannot delegate to IAP; fabric's default ({}) makes one, so every render sets iap_config: null"
+    reason: "config-connector-extensions' NetworkServicesAuthzExtension (v1beta1) can name iap.googleapis.com, but the REQUEST_AUTHZ authorization policy binding it to the gateway has only Config Connector's alpha NetworkSecurityAuthzPolicy, whose target.resources take forwarding rules, not an agent gateway; fabric's default ({}) makes one, so every render sets iap_config: null"
   - variable: model_armor_config
     kind: gap
-    reason: "Config Connector's NetworkServicesAuthzExtension (v1alpha1) is a load balancer callout with a required backend service and no service field, so it cannot delegate to Model Armor"
+    reason: "config-connector-extensions' NetworkServicesAuthzExtension (v1beta1) can name Model Armor, but the CONTENT_AUTHZ authorization policy binding it to the gateway has only Config Connector's alpha NetworkSecurityAuthzPolicy, whose target.resources take forwarding rules, not an agent gateway"
   - variable: project_number
     kind: by-design
     reason: "accepted; null (fabric's default, which reads the google_project data source) is refused when the chart makes a connectivity template: a chart cannot read the project's number"
