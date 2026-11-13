@@ -127,18 +127,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 5 ported, 48 partial, 85 blocked, 39 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 6 ported, 45 partial, 60 blocked, 66 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 578 of 1478 (39.1%) |
-| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 290 of 2348 (12.4%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 555 of 1478 (37.6%) |
+| AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 289 of 2348 (12.3%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 180 of 1170 (15.4%) |
-| **All** | **177** | | **1048 of 4996 (21.0%)** |
+| **All** | **177** | | **1024 of 4996 (20.5%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-4 ported, 31 partial, 59 blocked, 4 not started.
+5 ported, 28 partial, 59 blocked, 6 not started.
 
 **Ported and partial**
 
@@ -157,7 +157,6 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`cloudsql-instance`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloudsql-instance) ([chart](charts/gcp/cloudsql-instance)) | ![cloudsql-instance](docs/coverage/bars/gcp-cloudsql-instance.svg) 31 of 35 | 14 of 17 | 4 of 4 | partial |
 | [`gke-nodepool`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-nodepool) ([chart](charts/gcp/gke-nodepool)) | ![gke-nodepool](docs/coverage/bars/gcp-gke-nodepool.svg) 20 of 20 | 4 of 4 | 2 of 2 | partial |
 | [`pubsub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/pubsub) ([chart](charts/gcp/pubsub)) | ![pubsub](docs/coverage/bars/gcp-pubsub.svg) 13 of 14 | 3 of 6 | 7 of 7 | partial |
-| [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) ([chart](charts/gcp/net-firewall-policy)) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 11 of 13 | 1 of 1 | 6 of 11 | partial |
 | [`vpc-sc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/vpc-sc) ([chart](charts/gcp/vpc-sc)) | ![vpc-sc](docs/coverage/bars/gcp-vpc-sc.svg) 10 of 12 | 3 of 6 | 5 of 5 | partial |
 | [`net-vpc-peering`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-peering) ([chart](charts/gcp/net-vpc-peering)) | ![net-vpc-peering](docs/coverage/bars/gcp-net-vpc-peering.svg) 7 of 7 | 0 of 2 | 1 of 1 | ported |
 | [`cloud-identity-group`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-identity-group) ([chart](charts/gcp/cloud-identity-group)) | ![cloud-identity-group](docs/coverage/bars/gcp-cloud-identity-group.svg) 6 of 6 | 2 of 2 | 2 of 2 | ported |
@@ -169,9 +168,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`ncc-spoke-ra`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/ncc-spoke-ra) ([chart](charts/gcp/ncc-spoke-ra)) | ![ncc-spoke-ra](docs/coverage/bars/gcp-ncc-spoke-ra.svg) 8 of 8 | 2 of 5 | 5 of 6 | partial |
 | [`gke-hub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-hub) ([chart](charts/gcp/gke-hub)) | ![gke-hub](docs/coverage/bars/gcp-gke-hub.svg) 7 of 8 | 1 of 1 | 3 of 3 | partial |
 | [`source-repository`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/source-repository) ([chart](charts/gcp/source-repository)) | ![source-repository](docs/coverage/bars/gcp-source-repository.svg) 7 of 7 | 3 of 3 | 4 of 4 | partial |
-| [`dataproc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataproc) ([chart](charts/gcp/dataproc)) | ![dataproc](docs/coverage/bars/gcp-dataproc.svg) 9 of 9 | 2 of 2 | 3 of 3 | partial |
 | [`datafusion`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/datafusion) ([chart](charts/gcp/datafusion)) | ![datafusion](docs/coverage/bars/gcp-datafusion.svg) 14 of 14 | 5 of 6 | 4 of 4 | partial |
-| [`data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag) ([chart](charts/gcp/data-catalog-policy-tag)) | ![data-catalog-policy-tag](docs/coverage/bars/gcp-data-catalog-policy-tag.svg) 11 of 12 | 2 of 2 | 6 of 6 | partial |
+| [`api-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/api-gateway) ([chart](charts/gcp/api-gateway)) | ![api-gateway](docs/coverage/bars/gcp-api-gateway.svg) 8 of 8 | 10 of 10 | 4 of 9 | ported |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 137 of 162 | 30 of 36 | 0 of 0 | partial |
 | [`network-firewall-rules`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/firewall-rules) ([chart](charts/gcp/firewall-rules)) | ![network-firewall-rules](docs/coverage/bars/gcp-network-firewall-rules.svg) 5 of 5 | 2 of 2 | 0 of 0 | ported |
 | [`network-network-firewall-policy`](https://github.com/terraform-google-modules/terraform-google-network/tree/v18.3.1/modules/network-firewall-policy) ([chart](charts/gcp/network-firewall-policy)) | ![network-network-firewall-policy](docs/coverage/bars/gcp-network-network-firewall-policy.svg) 6 of 8 | 3 of 3 | 0 of 0 | partial |
@@ -192,8 +190,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`cloud-run-v2`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-run-v2) | ![cloud-run-v2](docs/coverage/bars/gcp-cloud-run-v2.svg) 0 of 21 | 0 of 12 | 9 of 13 | blocked |
 | [`billing-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/billing-account) | ![billing-account](docs/coverage/bars/gcp-billing-account.svg) 0 of 11 | 0 of 2 | 8 of 10 | blocked |
 | [`logging-bucket`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/logging-bucket) | ![logging-bucket](docs/coverage/bars/gcp-logging-bucket.svg) 0 of 12 | 0 of 2 | 7 of 9 | blocked |
+| [`net-firewall-policy`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-firewall-policy) | ![net-firewall-policy](docs/coverage/bars/gcp-net-firewall-policy.svg) 0 of 13 | 0 of 1 | 6 of 11 | blocked |
 | [`project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory) | ![project-factory](docs/coverage/bars/gcp-project-factory.svg) 0 of 8 | 0 of 16 | 0 of 1 | blocked |
-| [`net-address`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-address) | ![net-address](docs/coverage/bars/gcp-net-address.svg) 0 of 9 | 0 of 8 | 4 of 5 | blocked |
 
 **Not started**
 
@@ -201,19 +199,21 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | --- | ---: | ---: | --- |
 | [`net-vpc-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-factory) | ![net-vpc-factory](docs/coverage/bars/gcp-net-vpc-factory.svg) 0 of 4 | 0 of 3 | 0 of 0 | not started |
 | [`net-vpn-static`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-static) | ![net-vpn-static](docs/coverage/bars/gcp-net-vpn-static.svg) 0 of 9 | 0 of 9 | 5 of 5 | not started |
+| [`dataproc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataproc) | ![dataproc](docs/coverage/bars/gcp-dataproc.svg) 0 of 9 | 0 of 2 | 3 of 3 | not started |
+| [`data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag) | ![data-catalog-policy-tag](docs/coverage/bars/gcp-data-catalog-policy-tag.svg) 0 of 12 | 0 of 2 | 6 of 6 | not started |
 | [`projects-data-source`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/projects-data-source) | ![projects-data-source](docs/coverage/bars/gcp-projects-data-source.svg) 0 of 5 | 0 of 2 | 0 of 0 | not started |
 | [`cloud-config-container`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-config-container) | ![cloud-config-container](docs/coverage/bars/gcp-cloud-config-container.svg) 0 of 0 | 0 of 0 | 0 of 0 | not started |
 
 ### AWS: terraform-aws-modules
 
-0 ported, 8 partial, 26 blocked, 8 not started.
+0 ported, 8 partial, 1 blocked, 33 not started.
 
 **Ported and partial**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`s3-bucket`](https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/tree/v5.17.0) ([chart](charts/aws/s3-bucket)) | ![s3-bucket](docs/coverage/bars/aws-s3-bucket.svg) 27 of 78 | 8 of 21 | 38 of 45 | partial |
-| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 110 of 236 | 53 of 119 | 24 of 35 | partial |
+| [`vpc`](https://github.com/terraform-aws-modules/terraform-aws-vpc/tree/v6.7.3) ([chart](charts/aws/vpc)) | ![vpc](docs/coverage/bars/aws-vpc.svg) 109 of 236 | 53 of 119 | 24 of 35 | partial |
 | [`kms`](https://github.com/terraform-aws-modules/terraform-aws-kms/tree/v4.2.2) ([chart](charts/aws/kms)) | ![kms](docs/coverage/bars/aws-kms.svg) 30 of 41 | 4 of 9 | 3 of 6 | partial |
 | [`security-group`](https://github.com/terraform-aws-modules/terraform-aws-security-group/tree/v6.0.0) ([chart](charts/aws/security-group)) | ![security-group](docs/coverage/bars/aws-security-group.svg) 10 of 14 | 5 of 5 | 4 of 5 | partial |
 | [`acm`](https://github.com/terraform-aws-modules/terraform-aws-acm/tree/v6.3.1) ([chart](charts/aws/acm)) | ![acm](docs/coverage/bars/aws-acm.svg) 23 of 24 | 7 of 7 | 2 of 3 | partial |
@@ -221,33 +221,26 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-role`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-role) ([chart](charts/aws/iam-role)) | ![iam-role](docs/coverage/bars/aws-iam-role.svg) 31 of 31 | 7 of 7 | 4 of 4 | partial |
 | [`iam-policy`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2/modules/iam-policy) ([chart](charts/aws/iam-policy)) | ![iam-policy](docs/coverage/bars/aws-iam-policy.svg) 6 of 7 | 4 of 4 | 1 of 1 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 26, by rank)**
+**Blocked: a resource type has no stable kind**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`iam`](https://github.com/terraform-aws-modules/terraform-aws-iam/tree/v6.8.2) | ![iam](docs/coverage/bars/aws-iam.svg) 0 of 0 | 0 of 0 | 11 of 17 | blocked |
-| [`eks`](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/v21.29.0) | ![eks](docs/coverage/bars/aws-eks.svg) 0 of 108 | 0 of 41 | 26 of 30 | blocked |
-| [`rds`](https://github.com/terraform-aws-modules/terraform-aws-rds/tree/v7.2.2) | ![rds](docs/coverage/bars/aws-rds.svg) 0 of 111 | 0 of 34 | 7 of 10 | blocked |
-| [`rds-aurora`](https://github.com/terraform-aws-modules/terraform-aws-rds-aurora/tree/v10.4.2) | ![rds-aurora](docs/coverage/bars/aws-rds-aurora.svg) 0 of 114 | 0 of 33 | 17 of 21 | blocked |
-| [`route53`](https://github.com/terraform-aws-modules/terraform-aws-route53/tree/v6.5.1) | ![route53](docs/coverage/bars/aws-route53.svg) 0 of 22 | 0 of 16 | 9 of 16 | blocked |
-| [`ecs`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/v7.6.1) | ![ecs](docs/coverage/bars/aws-ecs.svg) 0 of 60 | 0 of 20 | 15 of 18 | blocked |
-| [`alb`](https://github.com/terraform-aws-modules/terraform-aws-alb/tree/v10.5.1) | ![alb](docs/coverage/bars/aws-alb.svg) 0 of 50 | 0 of 11 | 10 of 14 | blocked |
-| [`eventbridge`](https://github.com/terraform-aws-modules/terraform-aws-eventbridge/tree/v4.3.3) | ![eventbridge](docs/coverage/bars/aws-eventbridge.svg) 0 of 83 | 0 of 34 | 13 of 18 | blocked |
-| [`cloudwatch`](https://github.com/terraform-aws-modules/terraform-aws-cloudwatch/tree/v6.0.0) | ![cloudwatch](docs/coverage/bars/aws-cloudwatch.svg) 0 of 0 | 0 of 0 | 5 of 11 | blocked |
-| [`autoscaling`](https://github.com/terraform-aws-modules/terraform-aws-autoscaling/tree/v9.3.2) | ![autoscaling](docs/coverage/bars/aws-autoscaling.svg) 0 of 96 | 0 of 27 | 6 of 8 | blocked |
 
-**Not started**
+**Not started (first 10 of 33, by rank)**
 
-| Module | Variables covered | Outputs | Resource types with a stable kind | Status |
+| Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |
+| [`eks`](https://github.com/terraform-aws-modules/terraform-aws-eks/tree/v21.29.0) | ![eks](docs/coverage/bars/aws-eks.svg) 0 of 108 | 0 of 41 | 30 | not started |
 | [`lambda`](https://github.com/terraform-aws-modules/terraform-aws-lambda/tree/v8.13.0) | ![lambda](docs/coverage/bars/aws-lambda.svg) 0 of 141 | 0 of 36 | 21 | not started |
-| [`sqs`](https://github.com/terraform-aws-modules/terraform-aws-sqs/tree/v5.2.2) | ![sqs](docs/coverage/bars/aws-sqs.svg) 0 of 42 | 0 of 10 | 4 of 4 | not started |
-| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 0 of 39 | 0 of 8 | 4 of 4 | not started |
-| [`eks-pod-identity`](https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/tree/v2.10.0) | ![eks-pod-identity](docs/coverage/bars/aws-eks-pod-identity.svg) 0 of 82 | 0 of 8 | 4 of 4 | not started |
-| [`sns`](https://github.com/terraform-aws-modules/terraform-aws-sns/tree/v7.2.0) | ![sns](docs/coverage/bars/aws-sns.svg) 0 of 29 | 0 of 6 | 4 of 4 | not started |
-| [`ssm-parameter`](https://github.com/terraform-aws-modules/terraform-aws-ssm-parameter/tree/v2.1.2) | ![ssm-parameter](docs/coverage/bars/aws-ssm-parameter.svg) 0 of 16 | 0 of 9 | 1 of 1 | not started |
-| [`step-functions`](https://github.com/terraform-aws-modules/terraform-aws-step-functions/tree/v5.1.1) | ![step-functions](docs/coverage/bars/aws-step-functions.svg) 0 of 42 | 0 of 10 | 6 of 6 | not started |
-| [`notify-slack`](https://github.com/terraform-aws-modules/terraform-aws-notify-slack/tree/v7.5.2) | ![notify-slack](docs/coverage/bars/aws-notify-slack.svg) 0 of 51 | 0 of 11 | 4 of 4 | not started |
+| [`rds`](https://github.com/terraform-aws-modules/terraform-aws-rds/tree/v7.2.2) | ![rds](docs/coverage/bars/aws-rds.svg) 0 of 111 | 0 of 34 | 10 | not started |
+| [`rds-aurora`](https://github.com/terraform-aws-modules/terraform-aws-rds-aurora/tree/v10.4.2) | ![rds-aurora](docs/coverage/bars/aws-rds-aurora.svg) 0 of 114 | 0 of 33 | 21 | not started |
+| [`sqs`](https://github.com/terraform-aws-modules/terraform-aws-sqs/tree/v5.2.2) | ![sqs](docs/coverage/bars/aws-sqs.svg) 0 of 42 | 0 of 10 | 4 | not started |
+| [`route53`](https://github.com/terraform-aws-modules/terraform-aws-route53/tree/v6.5.1) | ![route53](docs/coverage/bars/aws-route53.svg) 0 of 22 | 0 of 16 | 16 | not started |
+| [`ecs`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/v7.6.1) | ![ecs](docs/coverage/bars/aws-ecs.svg) 0 of 60 | 0 of 20 | 18 | not started |
+| [`alb`](https://github.com/terraform-aws-modules/terraform-aws-alb/tree/v10.5.1) | ![alb](docs/coverage/bars/aws-alb.svg) 0 of 50 | 0 of 11 | 14 | not started |
+| [`dynamodb-table`](https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table/tree/v5.5.2) | ![dynamodb-table](docs/coverage/bars/aws-dynamodb-table.svg) 0 of 39 | 0 of 8 | 4 | not started |
+| [`eventbridge`](https://github.com/terraform-aws-modules/terraform-aws-eventbridge/tree/v4.3.3) | ![eventbridge](docs/coverage/bars/aws-eventbridge.svg) 0 of 83 | 0 of 34 | 18 | not started |
 
 ### Azure: Azure Verified Modules
 
