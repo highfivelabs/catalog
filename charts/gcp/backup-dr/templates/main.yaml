@@ -1,0 +1,131 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/backup-dr/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_backup_dr_backup_vault.backup_vault: one BackupDRBackupVault when
+name is set and vault_reuse is not.
+google_backup_dr_backup_plan.backup_plan: one BackupDRBackupPlan per key of
+backup_plans, in the vault the chart makes or vault_reuse's.
+google_backup_dr_management_server.management_server: one
+BackupDRManagementServer (config-connector-extensions,
+backupdr.gcp.hfl.dev/v1beta1) with management_server_config.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "kcc.names" (list $ (list "vault" "managementServer")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := printf "projects/%s" $v.project_id }}
+{{- if and (not (kindIs "invalid" $v.name)) $v.vault_reuse }}
+{{- fail (printf "%s: name and vault_reuse can not be used together." $chart) }}
+{{- end }}
+{{- $vc := $v.vault_config | default dict }}
+{{- include "kcc.unsupported" (list $ "vault_config.backup_retention_inheritance" $vc.backup_retention_inheritance "BackupDRBackupVault has no backupRetentionInheritance field") }}
+{{- include "kcc.unsupported" (list $ "vault_config.force_update" $vc.force_update "Config Connector sends no force flag on a vault's update") }}
+{{- include "kcc.unsupported" (list $ "vault_config.ignore_backup_plan_references" $vc.ignore_backup_plan_references "Config Connector sends no ignoreBackupPlanReferences flag on a vault's delete") }}
+{{- include "kcc.unsupported" (list $ "vault_config.allow_missing" $vc.allow_missing "Config Connector sends no allowMissing flag on a vault's delete") }}
+{{- $makeVault := and (not (kindIs "invalid" $v.name)) (not $v.vault_reuse) }}
+{{- $vaultObject := include "kcc.name" (list .Release.Name "vault") }}
+{{- if $makeVault }}
+---
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupVault
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $vaultObject "id" "backup_vault" "project" $v.project_id "abandon" $abandon "labels" ($vc.labels | default dict)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ include "kcc.resourceName" (list $ "vault" "backup vault" $v.name 63) | quote }}
+  {{- with $vc.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  backupMinimumEnforcedRetentionDuration: {{ $vc.backup_minimum_enforced_retention_duration | default "100000s" | quote }}
+  {{- with $vc.annotations }}
+  annotations:
+    {{- range $k, $a := . }}
+    {{ $k | quote }}: {{ $a | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $vc.access_restriction }}
+  accessRestriction: {{ . | quote }}
+  {{- end }}
+  {{- if $vc.ignore_inactive_datasources }}
+  ignoreInactiveDatasources: true
+  {{- end }}
+{{- end }}
+{{- range $key, $p := ($v.backup_plans | default dict) }}
+{{- if and (not $makeVault) (not $v.vault_reuse) }}
+{{- fail (printf "%s: backup_plans.%s needs a vault: set name, or vault_reuse" $chart $key) }}
+{{- end }}
+---
+apiVersion: backupdr.cnrm.cloud.google.com/v1beta1
+kind: BackupDRBackupPlan
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "plan" $key)) "id" (printf "backup_plan:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ include "kcc.cloudName" (list $ "backup plan" $key 63) | quote }}
+  {{- with $p.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  resourceType: {{ $p.resource_type | quote }}
+  backupVaultRef:
+    {{- if $makeVault }}
+    name: {{ $vaultObject }}
+    {{- else if contains "/" $v.vault_reuse.vault_id }}
+    external: {{ $v.vault_reuse.vault_id | quote }}
+    {{- else }}
+    external: {{ printf "%s/locations/%s/backupVaults/%s" $project $v.location $v.vault_reuse.vault_id | quote }}
+    {{- end }}
+  backupRules:
+  {{- range $r := $p.backup_rules }}
+  {{- $s := $r.standard_schedule }}
+    - ruleID: {{ $r.rule_id | quote }}
+      backupRetentionDays: {{ $r.backup_retention_days }}
+      standardSchedule:
+        recurrenceType: {{ $s.recurrence_type | quote }}
+        {{- if not (kindIs "invalid" $s.hourly_frequency) }}
+        hourlyFrequency: {{ $s.hourly_frequency }}
+        {{- end }}
+        {{- with $s.days_of_week }}
+        daysOfWeek: {{ toJson . }}
+        {{- end }}
+        {{- with $s.days_of_month }}
+        daysOfMonth: {{ toJson . }}
+        {{- end }}
+        {{- with $s.months }}
+        months: {{ toJson . }}
+        {{- end }}
+        {{- with $s.week_day_of_month }}
+        weekDayOfMonth:
+          weekOfMonth: {{ .week_of_month | quote }}
+          dayOfWeek: {{ .day_of_week | quote }}
+        {{- end }}
+        timeZone: {{ $s.time_zone | quote }}
+        backupWindow:
+          startHourOfDay: {{ $s.backup_window.start_hour_of_day }}
+          endHourOfDay: {{ $s.backup_window.end_hour_of_day }}
+  {{- end }}
+{{- end }}
+{{- with $v.management_server_config }}
+---
+apiVersion: backupdr.gcp.hfl.dev/v1beta1
+kind: BackupDRManagementServer
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "management-server")) "id" "management_server" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ include "kcc.resourceName" (list $ "managementServer" "management server" .name 63) | quote }}
+  type: {{ .type | default "BACKUP_RESTORE" | quote }}
+  {{- with .network_config }}
+  networks:
+    - network: {{ .network | quote }}
+      peeringMode: {{ .peering_mode | default "PRIVATE_SERVICE_ACCESS" | quote }}
+  {{- end }}
+{{- end }}

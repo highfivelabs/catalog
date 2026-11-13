@@ -1,0 +1,30 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/main.tf (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_kms_key_handle.default: one KMSKeyHandle per entry of kms_autokeys,
+named by its key, for compute.googleapis.com/Disk unless
+resource_type_selector says otherwise.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- $handles := $v.kms_autokeys | default dict }}
+{{- range $key := keys $handles | sortAlpha }}
+{{- $h := index $handles $key }}
+{{- if not (regexMatch "^[a-z][a-z0-9-]+[a-z0-9]$" $key) }}
+{{- fail (printf "project: kms_autokeys.%s: Autokey keys need to be valid GCP resource names." $key) }}
+{{- end }}
+---
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSKeyHandle
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "key-handle" $key)) "id" (printf "kms-autokey:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "KMS key handle" $key 63 "letter") | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  location: {{ $h.location | quote }}
+  resourceTypeSelector: {{ $h.resource_type_selector | default "compute.googleapis.com/Disk" | quote }}
+{{- end }}

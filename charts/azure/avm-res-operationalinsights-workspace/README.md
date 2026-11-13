@@ -133,7 +133,10 @@ repository, release, commit, licence and the date last synced.
 `task test CHART=avm-res-operationalinsights-workspace`: render cases
 `basic`, `full`, `names` and `mock`, each validated against ASO v2.22.0's
 CRD schemas and the aso-extensions CRDs it renders (`crds/aso-extensions`),
-and the refusals in `tests/*.fail.yaml`. `tests/mock.values.yaml` (a
+and the refusals in `tests/*.fail.yaml`. `task test-live-azure`
+applies it to the Azure sandbox with Azure Service Operator, evaluates the
+outputs, deletes it and checks Azure no longer has it: passed on
+2026-11-12. `tests/mock.values.yaml` (a
 table, a table update, a data export, linked storage and a Monitor Private
 Link Scope) is applied to the fake cloud with aso-extensions' manager
 beside ASO (`docs/azure.md`, "8. Charts").

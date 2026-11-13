@@ -1,0 +1,122 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/binauthz/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_binary_authorization_policy.policy: one BinaryAuthorizationPolicy.
+google_binary_authorization_attestor.attestors: one
+BinaryAuthorizationAttestor per key of attestors_config.
+google_binary_authorization_attestor_iam_binding.bindings: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per attestor and
+role, exact per role as fabric's.
+google_container_analysis_note.notes: one ContainerAnalysisNote per
+attestor without a note_reference.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list)) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $config := $v.attestors_config | default dict }}
+{{- $dar := $v.default_admission_rule }}
+{{- $patterns := $v.admission_whitelist_patterns | default list | uniq | sortAlpha }}
+---
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "policy" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ printf "projects/%s" $v.project_id | quote }}
+  {{- with $patterns }}
+  admissionWhitelistPatterns:
+  {{- range $p := . }}
+    - namePattern: {{ $p | quote }}
+  {{- end }}
+  {{- end }}
+  defaultAdmissionRule:
+    evaluationMode: {{ $dar.evaluation_mode | quote }}
+    enforcementMode: {{ $dar.enforcement_mode | quote }}
+    {{- with $dar.attestors }}
+    requireAttestationsBy:
+      {{- include "binauthz.requireAttestationsBy" (list $ "default_admission_rule.attestors" .) | trim | nindent 6 }}
+    {{- end }}
+  {{- with $v.cluster_admission_rules }}
+  clusterAdmissionRules:
+  {{- range $cluster, $r := . }}
+    {{ $cluster | quote }}:
+      evaluationMode: {{ $r.evaluation_mode | quote }}
+      enforcementMode: {{ $r.enforcement_mode | quote }}
+      {{- with $r.attestors }}
+      requireAttestationsBy:
+        {{- include "binauthz.requireAttestationsBy" (list $ (printf "cluster_admission_rules[%q].attestors" $cluster) .) | trim | nindent 8 }}
+      {{- end }}
+  {{- end }}
+  {{- end }}
+{{- range $key, $a := $config }}
+---
+apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+kind: BinaryAuthorizationAttestor
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "binauthz.attestor" (list $ $key)) "id" (printf "attestor:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ printf "projects/%s" $v.project_id | quote }}
+  resourceID: {{ include "kcc.cloudName" (list $ "attestor" $key 63) | quote }}
+  userOwnedDrydockNote:
+    noteRef:
+      {{- if kindIs "invalid" $a.note_reference }}
+      name: {{ include "binauthz.note" (list $ $key) }}
+      {{- else }}
+      external: {{ $a.note_reference | quote }}
+      {{- end }}
+    {{- $pgp := $a.pgp_public_keys | default list }}
+    {{- /* fabric keys the PKIX keys by "<pem>-<algorithm>", so Terraform
+    sends them in that key's order. */ -}}
+    {{- $pkix := dict }}
+    {{- range $k := ($a.pkix_public_keys | default list) }}
+    {{- $_ := set $pkix (printf "%s-%s" $k.public_key_pem $k.signature_algorithm) $k }}
+    {{- end }}
+    {{- if or $pgp $pkix }}
+    publicKeys:
+    {{- range $pk := $pgp }}
+      - asciiArmoredPgpPublicKey: {{ $pk | quote }}
+    {{- end }}
+    {{- range $_, $k := $pkix }}
+      - pkixPublicKey:
+          publicKeyPem: {{ $k.public_key_pem | quote }}
+          signatureAlgorithm: {{ $k.signature_algorithm | quote }}
+        {{- with $k.id }}
+        id: {{ . | quote }}
+        {{- end }}
+    {{- end }}
+    {{- end }}
+{{- range $role, $members := ($a.iam | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "attestor" $key "iam" $role)) "id" (printf "attestor-iam:%s/%s" $key $role) "project" $v.project_id) | nindent 2 }}
+spec:
+  resourceRef:
+    apiVersion: binaryauthorization.cnrm.cloud.google.com/v1beta1
+    kind: BinaryAuthorizationAttestor
+    name: {{ include "binauthz.attestor" (list $ $key) }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- if kindIs "invalid" $a.note_reference }}
+---
+apiVersion: containeranalysis.cnrm.cloud.google.com/v1beta1
+kind: ContainerAnalysisNote
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "binauthz.note" (list $ $key)) "id" (printf "note:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "note" (printf "%s-note" $key) 63) | quote }}
+  attestation:
+    hint:
+      humanReadableName: {{ printf "Attestor %s note" $key | quote }}
+{{- end }}
+{{- end }}

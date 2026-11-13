@@ -1,0 +1,87 @@
+---
+# Source: dataplex-datascan/templates/main.yaml
+apiVersion: dataplex.gcp.hfl.dev/v1beta1
+kind: DataplexDataScan
+metadata:
+  name: quality
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "quality"
+    app.kubernetes.io/name: dataplex-datascan
+    app.kubernetes.io/version: "0.1.0"
+    billing_id: "a"
+  annotations:
+    hfl.dev/id: "datascan"
+    cnrm.cloud.google.com/project-id: "my-project-name"
+spec:
+  projectRef:
+    external: "my-project-name"
+  location: "us-central1"
+  resourceID: "test-datascan"
+  displayName: "test-datascan"
+  description: "Terraform Managed."
+  labels:
+    billing_id: "a"
+  data:
+    resource: "//bigquery.googleapis.com/projects/bigquery-public-data/datasets/austin_bikeshare/tables/bikeshare_stations"
+  executionSpec:
+    field: "modified_date"
+    trigger:
+      schedule:
+        cron: "TZ=America/New_York 0 1 * * *"
+  dataQualitySpec:
+    samplingPercent: 100
+    rowFilter: "station_id > 1000"
+    rules:
+      - dimension: "VALIDITY"
+        column: "address"
+        threshold: 0.99
+        nonNullExpectation: {}
+      - dimension: "VALIDITY"
+        column: "council_district"
+        ignoreNull: true
+        threshold: 0.9
+        rangeExpectation:
+          minValue: "1"
+          maxValue: "10"
+          strictMinEnabled: true
+          strictMaxEnabled: false
+      - dimension: "VALIDITY"
+        column: "council_district"
+        threshold: 0.8
+        rangeExpectation:
+          minValue: "3"
+          maxValue: "9"
+      - dimension: "VALIDITY"
+        column: "power_type"
+        ignoreNull: false
+        regexExpectation:
+          regex: ".*solar.*"
+      - dimension: "VALIDITY"
+        column: "property_type"
+        ignoreNull: false
+        setExpectation:
+          values:
+            - "sidewalk"
+            - "parkland"
+      - dimension: "UNIQUENESS"
+        column: "address"
+        uniquenessExpectation: {}
+      - dimension: "VALIDITY"
+        column: "number_of_docks"
+        statisticRangeExpectation:
+          statistic: "MEAN"
+          minValue: "5"
+          maxValue: "15"
+          strictMinEnabled: true
+          strictMaxEnabled: true
+      - dimension: "VALIDITY"
+        column: "footprint_length"
+        rowConditionExpectation:
+          sqlExpression: "footprint_length > 0 AND footprint_length <= 10"
+      - dimension: "VALIDITY"
+        tableConditionExpectation:
+          sqlExpression: "COUNT(*) > 0"
+      - dimension: "VALIDITY"
+        sqlAssertion:
+          sqlStatement: "SELECT\n  city_asset_number, council_district\nFROM ${data()}\nWHERE city_asset_number IS NOT NULL\nGROUP BY 1,2\nHAVING COUNT(*) > 1\n"

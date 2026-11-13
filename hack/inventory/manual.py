@@ -135,3 +135,14 @@ IAMT = {
  "tags_tag_key": "TagsTagKey", "tags_tag_value": "TagsTagValue", "workbench_instance": None, "workstations_workstation": None, "workstations_workstation_config": None,
 }
 NONGCP = ("aws_", "random_", "tls_", "local_", "terraform_data")
+
+# Terraform type -> config-connector-extensions kind, where neither its
+# hack/discokind/kinds.yaml nor the type's own name (google_a_b -> AB) gives
+# it (classify.py).
+CCE = {
+ "google_folder_service_identity": "ServiceIdentity", "google_organization_service_identity": "ServiceIdentity",
+ "google_project_service_identity": "ServiceIdentity",
+ "google_logging_folder_settings": "LoggingSettings", "google_logging_organization_settings": "LoggingSettings",
+ "google_compute_vpn_tunnel": "ComputeVPNTunnel",
+ "google_cloudbuildv2_repository": "CloudBuildRepository",
+}
