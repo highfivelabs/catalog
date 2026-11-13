@@ -526,6 +526,14 @@ aso-extensions kind's 2021-09-01 API has no `kind` or
 | --- | --- |
 | `App/containerApps@2025-07-01` (and a preview), `containerApps/authConfigs@2025-01-01` | `app/ContainerApp`, `app/AuthConfig`. Covered, on an older API |
 
+Covered, but for `kind`. Chart `charts/azure/avm-res-app-containerapp`
+(2026-11-13): 22 of 24 variables and all 12 outputs; the app as a
+`ContainerApp` (2025-01-01), each `auth_configs` entry as an `AuthConfig`.
+Refused: `kind` (2025-01-01 has none), `timeouts` (by design), and in part
+a null `location`, an identity setting's `Retain` lifecycle (not in
+2025-01-01), registry passwords and secret values (secret values; Key
+Vault references are taken).
+
 ### 22. avm-res-web-site (v0.24.1; azapi)
 
 | Submodule | ARM types | ASO |
@@ -575,7 +583,28 @@ the endpoint's DNS configurations, not from its network interface).
 | Creates | ASO |
 | --- | --- |
 | Azure RBAC role assignments | `authorization/RoleAssignment`, `RoleDefinition` (2022-04-01) |
-| Entra directory role and directory role assignment | **GAP** (ASO's Entra group has `Application` and `SecurityGroup`; `ServicePrincipal` is next) |
+| Entra directory role and directory role assignment | **GAP** in ASO (its Entra group has `Application`, `SecurityGroup` and `ServicePrincipal`); `aso-ext` `DirectoryRoleAssignment` (`entra.azure.hfl.dev/v1`, Microsoft Graph) |
+
+Chart `charts/azure/avm-res-authorization-roleassignment` (2026-11-13): 17
+of 31 variables, 4 of them in part, and 11 of 11 outputs (`role_defintions`
+without the definitions' assignable scopes). Role assignments at every
+scope variable are ASO `RoleAssignment`s owned by the scope's ARM ID, a
+role by ID or by name (`wellKnownName`); Entra directory role assignments
+are aso-extensions `DirectoryRoleAssignment`s, a role by template ID
+(Graph assigns one without activating it, so `azuread_directory_role` is
+not needed). Principals are taken by object ID. The 14 variables refused
+whole are the module's lookups, which a render cannot make: users, groups,
+applications and managed identities by name, mail, employee ID or client
+ID in Microsoft Entra, and a user-assigned identity by group and name in
+Resource Manager; no ASO or aso-extensions kind looks a principal up. In
+part: `role_definitions.scope` (a lookup scope ASO's name resolution does
+not take), `entra_id_role_definitions.display_name`, a management group by
+display name, and `role_assignments_for_resources`, which needs a
+`resource_type` the module reads from Resource Manager. Not applied live:
+the live rules forbid role assignments, and the sandbox identity cannot
+write them; the fake-cloud run applies an assignment by name, one by ID and
+a directory role assignment through aso-extensions' fake Microsoft Graph
+(chart README).
 
 ### 25. avm-res-network-bastionhost (v0.9.0)
 
@@ -591,15 +620,20 @@ public IP it makes as a `PublicIPAddress`.
 
 | Module | ASO coverage |
 | --- | --- |
-| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. The admin password goes to Key Vault (`aso-ext` `VaultSecret`). Entra database users: aso-extensions candidate a1, PR #5104 |
+| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. Entra database users: aso-extensions candidate a1, PR #5104. Chart `charts/azure/avm-res-sql-server` (2026-11-13): 23 of 28 variables (3 in part) and 6 of 8 outputs. The administrator password (given, write-only, generated, or copied to Key Vault) and the two password outputs are refused (a secret value, section 8), so the server is Entra-only; refused too: `express_vulnerability_assessment_enabled: true`, a database's `import`, a threat detection storage key and a DataWarehouse database's `geo_backup_enabled: false` (gap 19), firewall rule `timeouts`. Fake cloud and live (centralus; eastus2 refuses SQL servers for the sandbox subscription) passed; details in the chart's README |
 | avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered. Chart `charts/azure/avm-res-network-azurefirewall` (2026-11-13): 18 of 23 variables (the five refused are the azapi mechanics: `ignore_body_changes`, `resource_types`, `retry`, `timeouts`, `firewall_timeouts`), 2 of 4 outputs: ASO's status has no IP configuration's private address (section 8) |
 | avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered. Chart `charts/azure/avm-res-web-serverfarm` (2026-11-12): `ServerFarm` at 2025-05-01 (the module sends 2025-03-01), 24 of 27 variables (`retry`, `timeouts` and a non-default `server_farm_resource_type` refused), both outputs |
 | avm-ptn-alz (35) | management groups, policy definitions, policy set definitions and policy assignments are all **GAP** (no `Microsoft.Management` or `Microsoft.Authorization/policy*` kinds; management groups are issue #2249, open). Role definitions and assignments, and identities, are covered |
 | avm-res-documentdb-databaseaccount (36) | `documentdb/DatabaseAccount` and its SQL and Mongo children. **GAP**: Gremlin databases and graphs, SQL dedicated gateway |
 | avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links. Covered |
+| avm-res-cache-redis (38) | `cache/Redis`, access policies, assignments, firewall rules, linked servers, patch schedule (2024-11-01). Covered. Chart `charts/azure/avm-res-cache-redis` (2026-11-13): 31 of 31 variables, `redis_configuration` in part (its three storage connection strings carry the account's key, secret values, refused by design), 4 of 5 outputs (not the sensitive `resource`, which carries the access keys). Passed the fake cloud (run `off-catalog-1113075628-30638`); not applied live: the sandbox subscription has not registered `Microsoft.Cache`, and ASO's registration is refused (403, run `cat11130800eaa5`; nothing was created), so the `redis` case is out of the default set (chart README) |
+| avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links (2022-07-01, the version azurerm sends). Covered. Chart `charts/azure/avm-res-network-dnsresolver` (2026-11-13): 10 of 10 variables, 7 of 7 outputs (the azurerm-shaped ones with the attributes ASO's status has); live case `dnspr` (chart README) |
 | avm-res-cache-redis (38) | `cache/Redis`, access policies, assignments, firewall rules, linked servers (2024-11-01). Covered |
 | avm-res-app-managedenvironment (40) | `app/ManagedEnvironment`. **GAP**: all nine child types (Dapr components and subscriptions, storages, certificates, managed certificates, Java and .NET components, HTTP route configs, maintenance configurations) |
 | avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old). Chart `charts/azure/avm-res-network-applicationgateway` (2026-11-12): 41 of 50 variables, everything 2022-07-01 carries; what later versions added is refused by name (section 8) |
+| avm-ptn-network-private-link-private-dns-zones (42) | `network/PrivateDnsZone`, `PrivateDnsZonesVirtualNetworkLink` (2024-06-01). Covered. Chart `charts/azure/avm-ptn-network-private-link-private-dns-zones` (2026-11-13): 18 of 19 variables (`timeouts` refused; `location` accepted in part for the regions of `avm-utl-regions` 0.12.0's data, which the chart carries as a table for `{regionName}` and `{regionCode}`, where the module reads the subscription's live list; a link name template takes the module's four placeholders, not other Terraform template expressions), 3 of 3 outputs; the module's zone and link logic is computed in the template. Live (three zones and their links to a network of the run) passed in run `cat111308205866`, the fake cloud in `off-catalog-1113080244-7256` |
+| avm-res-network-ddosprotectionplan (44) | `network/DdosProtectionPlan` (2025-03-01). Covered. Chart `charts/azure/avm-res-network-ddosprotectionplan` (2026-11-13): 7 of 7 variables, 3 of 3 outputs. Not applied live: Azure bills a DDoS Network Protection plan at about 2,944 USD a month from its creation, far above the sandbox's limit; renders and the fake cloud only (chart README) |
+| avm-ptn-alz-management (45) | `resources/ResourceGroup`, `operationalinsights/Workspace`, `insights/DataCollectionRule` (2024-03-11; the module sends 2021-04-01), `managedidentity/UserAssignedIdentity`; aso-extensions `AutomationAccount`, `WorkspacesLinkedService`, `Solution` (OperationsManagement) and Sentinel's `OnboardingState`. Covered. Chart `charts/azure/avm-ptn-alz-management` (2026-11-13): 29 of 30 variables (`timeouts` refused), 6 of 8 outputs (the two `*_keys` outputs are secrets); `automation_account.dsc_server_endpoint` is always null: aso-extensions' `AutomationAccount` status has no `agentRegistrationInformation`. Not applied live: the solutions (the sandbox subscription has not registered `Microsoft.OperationsManagement`; 403 on its register action) and Sentinel onboarding (a paid SIEM) |
 
 ## 5. Gaps ranked for aso-extensions
 
@@ -632,6 +666,7 @@ in section 4 need it, then by downloads.
 | 16 | Azure SQL Entra users | 1 (sql-server) | data plane | PR #5104 open | aso-extensions candidate a1 (open question 5) |
 | 17 | Key Vault certificate import and certificate contacts | 1 (keyvault); App Service certificates from Key Vault | data plane | n/a | aso-extensions b6, after `VaultSecret`'s shape |
 | 18 | Stale ARM versions (VirtualMachine 2022-03-01, ApplicationGateway 2022-07-01, DNS zones 2018-05-01) | 3 (virtual machine, application gateway, dnszone) | ARM version | n/a | upstream (a new `$supportedFrom` version) |
+| 19 | Azure SQL express vulnerability assessment (`Microsoft.Sql/servers/sqlVulnerabilityAssessments`) and a DataWarehouse database's geo-backup policy (`Microsoft.Sql/servers/databases/geoBackupPolicies`) | 1 (sql-server; both optional) | ARM | none found | upstream (found porting the chart, 2026-11-13) |
 
 **Where these stand at aso-extensions `b9beb5b` (2026-11-12, 232
 CRDs).** Built there, as kinds the charts can render: 1 (`ManagementLock`),
@@ -790,6 +825,7 @@ aso-extensions:
 | --- | --- | --- |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
+| `avm-res-app-containerapp` | `kind`, `identity_settings[].lifecycle` `Retain` | none: fields of a later API version than ASO's `ContainerApp` (2025-01-01) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-loadbalancer` | `backend_address_pool_network_interfaces` | none: a NIC joins a pool through its own `ipConfigurations[].loadBalancerBackendAddressPools`; ASO has no association kind and sets a NIC's IP configurations only by owning the whole `NetworkInterface` |
 
@@ -950,7 +986,7 @@ trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
 identity, Log Analytics workspace, container registry, firewall policy, load
 balancer, bastion host, private endpoint, application gateway and
-firewall charts are applied
+firewall and container app charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -1036,9 +1072,10 @@ chart's `tests/mock.values.yaml` passed against the fake cloud (stock ASO
 against aso-extensions' fakearm at `b9beb5b`, with PR #98's
 `hack/azure-mock.sh`, run `off-catalog-1113013113-10644`): the machine,
 interface, public IP, data disk and extension Ready and deleted, outputs
-evaluated. The aso-extensions kinds (run commands, shutdown schedules,
-maintenance assignments, locks) are rendered and validated only: neither
-run installs the aso-extensions manager.
+evaluated. Both runs install the aso-extensions manager beside ASO
+(below), so its kinds (run commands, shutdown schedules, maintenance
+assignments, locks) can be applied, not only rendered; the mock values
+carry none of them yet.
 
 The application gateway (Standard_v2,
 capacity 1, the public IP it makes, on a subnet the case first makes with
@@ -1081,6 +1118,22 @@ detached on delete, as the module's `azapi_update_resource` leaves it. Its
 against aso-extensions' fakearm at `b9beb5b` with PR #98's
 `hack/azure-mock.sh`, run `off-catalog-1113013709-32534`: 2 objects Ready
 and deleted, outputs evaluated).
+
+The container app (`avm-res-app-containerapp`, case `ca`: Microsoft's
+public hello-world image, scaled to zero, external ingress on port 80, in
+a Consumption-only environment the case makes first as an ASO object of
+no chart) passed in run `cat111307137a10` (offload
+`off-catalog-1113070946-25437`) on 2026-11-13: 2 objects Ready, the 12
+outputs evaluated (the FQDN and outbound addresses among them), deleted,
+Azure answering 404, nothing left. Earlier runs found that the sandbox
+subscription may hold one Container Apps environment per region ("cannot
+have more than 1 Container App Environments in East US 2"), so an
+environment a stopped run leaves blocks the next until it is deleted
+(about 25 minutes), and that ASO retries an app whose environment is still
+provisioning only slowly, hence the environment first. Its
+`tests/mock.values.yaml` passed against the fake cloud too (aso-extensions
+`b9beb5b`, run `off-catalog-1113030900-10353`: the app and its auth config
+Ready and deleted, outputs evaluated).
 
 The PostgreSQL flexible server (`avm-res-dbforpostgresql-flexibleserver`,
 case `psql`: Burstable B1ms, 32 GiB, Entra authentication only, a

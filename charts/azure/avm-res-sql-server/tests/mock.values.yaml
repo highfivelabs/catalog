@@ -1,0 +1,30 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
+# server with Entra-only authentication, a Basic database with its
+# short-term retention policy, an elastic pool and a firewall rule, in the
+# fake cloud's resource group.
+name: catalog-sql
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+server_version: "12.0"
+public_network_access_enabled: true
+azuread_administrator:
+  azuread_authentication_only: true
+  login_username: catalog-aso
+  object_id: 22222222-3333-4444-5555-666666666666
+  tenant_id: 11111111-2222-3333-4444-555555555555
+connection_policy: Default
+tags: {catalog: mock}
+databases:
+  app:
+    name: app
+    sku_name: Basic
+    storage_account_type: Local
+    short_term_retention_policy: {retention_days: 7}
+elastic_pools:
+  pool:
+    name: pool
+    sku: {name: BasicPool, capacity: 50, tier: Basic}
+    per_database_settings: {min_capacity: 0, max_capacity: 5}
+    zone_redundant: false
+firewall_rules:
+  office: {start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.10}

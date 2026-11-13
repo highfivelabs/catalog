@@ -1,0 +1,113 @@
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: default-redis-diag-diag-setting-1-83af8516
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "default"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-diag_setting_1"
+spec:
+  azureName: "diagSetting1"
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: default-redis
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law-example"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: default-redis-pe-endpoint1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "default"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:endpoint1"
+spec:
+  azureName: "pep-redis-default"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/endppoint-vnet/subnets/endpoint"
+  privateLinkServiceConnections:
+    - name: "pse-redis-default"
+      groupIds: ["redisCache"]
+      privateLinkServiceReference:
+        group: cache.azure.com
+        kind: Redis
+        name: default-redis
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: default-redis-pe-endpoint1-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "default"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:endpoint1/dns_zone_group"
+spec:
+  azureName: "private-dns-zone-group"
+  owner:
+    name: default-redis-pe-endpoint1
+  privateDnsZoneConfigs:
+    - name: "privatelink.redis.cache.windows.net"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.redis.cache.windows.net"
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: Redis
+metadata:
+  name: default-redis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "default"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cache"
+spec:
+  azureName: "redis-default"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  sku:
+    name: Premium
+    family: P
+    capacity: 2
+  enableNonSslPort: false
+  identity:
+    type: "SystemAssigned"
+  minimumTlsVersion: "1.2"
+  publicNetworkAccess: Disabled
+  redisConfiguration:
+    maxmemory-delta: "1330"
+    maxmemory-policy: "allkeys-lru"
+    maxmemory-reserved: "1330"
+  tags:
+    scenario: default
+  zones:
+    - "1"
+    - "2"
+    - "3"

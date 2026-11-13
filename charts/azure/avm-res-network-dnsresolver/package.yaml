@@ -1,0 +1,59 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). The module's azurerm-shaped objects
+# (resource, inbound_endpoints, outbound_endpoints, forwarding_rulesets)
+# carry the azurerm attributes ASO's status has: id, name, location, tags,
+# and the resolver's network, an endpoint's resolver, subnet and IP
+# configurations, a ruleset's resource group and outbound endpoint IDs.
+# inbound_endpoints, outbound_endpoints and inbound_endpoint_ips are keyed
+# like the module's maps; forwarding_rulesets by
+# <outbound endpoint key>-<ruleset name>, as the module keys them.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-dnsresolver
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.dns_resolver.spec.azureName
+    resource_id: resources.dns_resolver.status.id
+    resource: >-
+      {'id': resources.dns_resolver.status.id,
+      'name': resources.dns_resolver.spec.azureName,
+      'location': resources.dns_resolver.spec.location,
+      'resource_group_name': inputs.resource_group_name.startsWith('/') ? inputs.resource_group_name.split('/')[4] : inputs.resource_group_name,
+      'virtual_network_id': resources.dns_resolver.status.virtualNetwork.id,
+      'tags': 'tags' in resources.dns_resolver.status ? resources.dns_resolver.status.tags : {}}
+    inbound_endpoint_ips: >-
+      inputs.inbound_endpoints.transformMap(k, e,
+      resources['inbound_endpoint:' + k].status.ipConfigurations[0].privateIpAddress)
+    inbound_endpoints: >-
+      inputs.inbound_endpoints.transformMap(k, e,
+      {'id': resources['inbound_endpoint:' + k].status.id,
+      'name': resources['inbound_endpoint:' + k].spec.azureName,
+      'location': resources['inbound_endpoint:' + k].spec.location,
+      'private_dns_resolver_id': resources.dns_resolver.status.id,
+      'ip_configurations': resources['inbound_endpoint:' + k].status.ipConfigurations.map(c,
+      {'private_ip_address': c.privateIpAddress, 'private_ip_allocation_method': c.privateIpAllocationMethod, 'subnet_id': c.subnet.id}),
+      'tags': 'tags' in resources['inbound_endpoint:' + k].status ? resources['inbound_endpoint:' + k].status.tags : {}})
+    outbound_endpoints: >-
+      inputs.outbound_endpoints.transformMap(k, e,
+      {'id': resources['outbound_endpoint:' + k].status.id,
+      'name': resources['outbound_endpoint:' + k].spec.azureName,
+      'location': resources['outbound_endpoint:' + k].spec.location,
+      'private_dns_resolver_id': resources.dns_resolver.status.id,
+      'subnet_id': resources['outbound_endpoint:' + k].status.subnet.id,
+      'tags': 'tags' in resources['outbound_endpoint:' + k].status ? resources['outbound_endpoint:' + k].status.tags : {}})
+    forwarding_rulesets: >-
+      resources.transformMapEntry(k, r, k.startsWith('forwarding_ruleset:'),
+      {k.substring(19): {'id': r.status.id,
+      'name': r.spec.azureName,
+      'location': r.spec.location,
+      'resource_group_name': inputs.resource_group_name.startsWith('/') ? inputs.resource_group_name.split('/')[4] : inputs.resource_group_name,
+      'private_dns_resolver_outbound_endpoint_ids': r.status.dnsResolverOutboundEndpoints.map(o, o.id),
+      'tags': 'tags' in r.status ? r.status.tags : {}}})

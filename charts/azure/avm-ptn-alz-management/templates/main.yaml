@@ -1,0 +1,429 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-ptn-alz-management main.tf, locals.tf,
+locals.data-collection-rules.tf and
+locals.user-assigned-managed-identity.tf (v0.10.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azurerm_resource_group.management: an ASO ResourceGroup
+(resources.azure.com/v1api20200601) when resource_group_creation_enabled;
+the other resources are owned by it (by name), or by the existing group
+(by ARM ID). azurerm_log_analytics_workspace.management: an ASO Workspace
+(operationalinsights.azure.com/v20250701) when
+log_analytics_workspace_creation_enabled; else log_analytics_workspace_id
+is the workspace the rest use. azurerm_automation_account.management and
+azurerm_log_analytics_linked_service.management (with
+linked_automation_account_creation_enabled): an aso-extensions
+AutomationAccount (automation.azure.hfl.dev/v20241023) and a
+WorkspacesLinkedService "Automation" (azurerm's name for a read access
+link) in the workspace. azurerm_log_analytics_solution.management: one
+aso-extensions Solution (operationsmanagement.azure.hfl.dev/v20151101preview)
+per plan, named <product's last segment>(<workspace>) as azurerm names it.
+azapi_resource.sentinel_onboarding: an aso-extensions OnboardingState
+(securityinsights.azure.hfl.dev/v20250901) on the workspace.
+azurerm_user_assigned_identity.management: an ASO UserAssignedIdentity
+(managedidentity.azure.com/v1api20230131) for the Azure Monitor Agent.
+azapi_resource.data_collection_rule: one ASO DataCollectionRule
+(insights.azure.com/v1api20240311; the module sends 2021-04-01) per enabled
+rule, its body transcribed from the module's locals; the VM insights
+performance counter's scheduledTransferPeriod, which the module sends with
+schema validation off, is in neither API version and is not sent. A
+reference from an aso-extensions object to another resource is the ARM ID
+that resource will have (computed from the group's and its name). The
+telemetry is not ported; timeouts are refused.
+*/ -}}
+{{- define "alzmgmt.tags" -}}
+{{- /* The module's per-resource tags: the resource's own when given
+(not null), else the tags variable, as the module's
+`x.tags == null ? var.tags : x.tags`; checked by aso.tags. */ -}}
+{{- $root := index . 0 -}}{{- $own := index . 1 -}}
+{{- if kindIs "invalid" $own -}}
+{{- include "aso.tags" (list $root dict) -}}
+{{- else -}}
+{{- include "aso.tags" (list (dict "Chart" $root.Chart "Values" (dict "tags" $own)) dict) -}}
+{{- end -}}
+{{- end -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "resourceGroup" "workspace" "automationAccount")) }}
+{{- if not $v.automation_account_name }}{{ fail (printf "%s: automation_account_name is required" $chart) }}{{ end }}
+{{- if not $v.location }}{{ fail (printf "%s: location is required" $chart) }}{{ end }}
+{{- if not $v.resource_group_name }}{{ fail (printf "%s: resource_group_name is required" $chart) }}{{ end }}
+{{- $createWs := ne $v.log_analytics_workspace_creation_enabled false }}
+{{- if and $createWs (not $v.log_analytics_workspace_name) }}
+{{- fail (printf "%s: You must supply a value for log_analytics_workspace_name when log_analytics_workspace_creation_enabled is true." $chart) }}
+{{- end }}
+{{- if and (not $createWs) (not (regexMatch "^/subscriptions/[0-9a-fA-F-]+/resourceGroups/[^/]+/providers/Microsoft.OperationalInsights/workspaces/[^/]+$" (toString $v.log_analytics_workspace_id))) }}
+{{- fail (printf "%s: You must supply a valid Log Analytics Workspace resource ID when log_analytics_workspace_creation_enabled is false. The resource ID when specified must have the format '/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.OperationalInsights/workspaces/{workspaceName}'." $chart) }}
+{{- end }}
+{{- /* The resource group: its subscription and name. */}}
+{{- $rgIn := toString $v.resource_group_name }}
+{{- $sub := "" }}
+{{- $rgName := $rgIn }}
+{{- if hasPrefix "/" $rgIn }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$" $rgIn) }}{{ fail (printf "%s: resource_group_name %q is neither a name nor a resource group's ID (/subscriptions/<id>/resourceGroups/<name>)" $chart $rgIn) }}{{ end }}
+{{- $parts := splitList "/" $rgIn }}
+{{- $sub = index $parts 2 }}
+{{- $rgName = index $parts 4 }}
+{{- else if $v.subscription_id }}
+{{- $sub = toString $v.subscription_id }}
+{{- else }}
+{{- fail (printf "%s: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" $chart) }}
+{{- end }}
+{{- $createRg := ne $v.resource_group_creation_enabled false }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $rgObj := include "aso.name" (list .Release.Name "rg") }}
+{{- if $createRg }}
+{{- $rgName = include "aso.resourceName" (list $ "resourceGroup" "resource group" $rgName 90 "^[a-zA-Z0-9_().-]{0,89}[a-zA-Z0-9_()-]$") }}
+{{- end }}
+{{- $parent := printf "/subscriptions/%s/resourceGroups/%s" $sub $rgName }}
+{{- /* The owner of a resource in the group: the group's object when the
+chart makes it (so it waits for it), else the group's ID. */}}
+{{- $rgOwner := dict "armId" $parent }}
+{{- if $createRg }}{{ $rgOwner = dict "name" $rgObj }}{{ end }}
+{{- /* The workspace: made here, or log_analytics_workspace_id. */}}
+{{- $wsObj := include "aso.name" (list .Release.Name "law") }}
+{{- $wsName := "" }}
+{{- $wsID := "" }}
+{{- if $createWs }}
+{{- $wsName = include "aso.resourceName" (list $ "workspace" "Log Analytics workspace" $v.log_analytics_workspace_name 63 "^[A-Za-z0-9][A-Za-z0-9-]{2,61}[A-Za-z0-9]$") }}
+{{- $wsID = printf "%s/providers/Microsoft.OperationalInsights/workspaces/%s" $parent $wsName }}
+{{- else }}
+{{- $wsID = toString $v.log_analytics_workspace_id }}
+{{- $wsName = last (splitList "/" $wsID) }}
+{{- end }}
+{{- if $createRg }}
+---
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $rgObj "id" "resource_group" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $rgName | quote }}
+  location: {{ $v.location | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- if $createWs }}
+---
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $wsObj "id" "log_analytics_workspace" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $wsName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- toYaml $rgOwner | nindent 4 }}
+  features:
+    disableLocalAuth: {{ eq $v.log_analytics_workspace_local_authentication_enabled false }}
+    enableLogAccessUsingOnlyResourcePermissions: {{ ne $v.log_analytics_workspace_allow_resource_only_permissions false }}
+  {{- if not (kindIs "invalid" $v.log_analytics_workspace_cmk_for_query_forced) }}
+  forceCmkForQuery: {{ $v.log_analytics_workspace_cmk_for_query_forced }}
+  {{- end }}
+  publicNetworkAccessForIngestion: {{ ternary "Disabled" "Enabled" (eq $v.log_analytics_workspace_internet_ingestion_enabled false) }}
+  publicNetworkAccessForQuery: {{ ternary "Disabled" "Enabled" (eq $v.log_analytics_workspace_internet_query_enabled false) }}
+  retentionInDays: {{ $v.log_analytics_workspace_retention_in_days | default 30 | int }}
+  sku:
+    name: {{ $v.log_analytics_workspace_sku | default "PerGB2018" }}
+    {{- if not (kindIs "invalid" $v.log_analytics_workspace_reservation_capacity_in_gb_per_day) }}
+    capacityReservationLevel: {{ $v.log_analytics_workspace_reservation_capacity_in_gb_per_day | int }}
+    {{- end }}
+  {{- if not (kindIs "invalid" $v.log_analytics_workspace_daily_quota_gb) }}
+  workspaceCapping:
+    dailyQuotaGb: {{ $v.log_analytics_workspace_daily_quota_gb }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- /* The workspace as its children's owner, and as a reference from ASO
+objects (a data collection rule's destination). */}}
+{{- $wsOwner := dict "armId" $wsID }}
+{{- $wsRef := dict "armId" $wsID }}
+{{- $wsExtOwner := dict "armId" $wsID }}
+{{- if $createWs }}
+{{- $wsOwner = dict "name" $wsObj }}
+{{- $wsRef = dict "group" "operationalinsights.azure.com" "kind" "Workspace" "name" $wsObj }}
+{{- $wsExtOwner = $wsRef }}
+{{- end }}
+{{- if $v.linked_automation_account_creation_enabled }}
+{{- $aaObj := include "aso.name" (list .Release.Name "aa") }}
+{{- $aaName := include "aso.resourceName" (list $ "automationAccount" "Automation account" $v.automation_account_name 50 "^[a-zA-Z][a-zA-Z0-9-]{4,48}[a-zA-Z0-9]$") }}
+---
+apiVersion: automation.azure.hfl.dev/v20241023
+kind: AutomationAccount
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $aaObj "id" "automation_account" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $aaName | quote }}
+  location: {{ $v.automation_account_location | default $v.location | quote }}
+  owner:
+    {{- toYaml $rgOwner | nindent 4 }}
+  sku:
+    name: {{ $v.automation_account_sku_name | default "Basic" }}
+  disableLocalAuth: {{ eq $v.automation_account_local_authentication_enabled false }}
+  publicNetworkAccess: {{ ne $v.automation_account_public_network_access_enabled false }}
+  {{- with $v.automation_account_encryption }}
+  {{- /* azurerm parses key_vault_key_id (a Key Vault key's ID, its
+  version optional) into the vault's URI, the key's name and version. */}}
+  {{- $key := regexFindAll "^(https://[^/]+)/keys/([^/]+)(/([^/]+))?/?$" (toString .key_vault_key_id) 1 }}
+  {{- if not $key }}{{ fail (printf "%s: automation_account_encryption.key_vault_key_id %q is not a Key Vault key's ID (https://<vault>.vault.azure.net/keys/<name>[/<version>])" $chart (toString .key_vault_key_id)) }}{{ end }}
+  {{- $kparts := splitList "/" (trimSuffix "/" (toString .key_vault_key_id)) }}
+  encryption:
+    keySource: Microsoft.Keyvault
+    keyVaultProperties:
+      keyvaultUri: {{ printf "https://%s/" (index $kparts 2) | quote }}
+      keyName: {{ index $kparts 4 | quote }}
+      {{- if gt (len $kparts) 5 }}
+      keyVersion: {{ index $kparts 5 | quote }}
+      {{- end }}
+    {{- with .user_assigned_identity_id }}
+    identity:
+      userAssignedIdentity: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.automation_account_identity }}
+  identity:
+    type: {{ .type }}
+    {{- with .identity_ids }}
+    userAssignedIdentities:
+      {{- range (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: operationalinsights.azure.hfl.dev/v20250701
+kind: WorkspacesLinkedService
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "linked-automation")) "id" "log_analytics_linked_service" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: Automation
+  owner:
+    {{- toYaml $wsOwner | nindent 4 }}
+  resourceReference:
+    armId: {{ printf "%s/providers/Microsoft.Automation/automationAccounts/%s" $parent $aaName | quote }}
+{{- end }}
+{{- $seen := dict }}
+{{- range $plan := ($v.log_analytics_solution_plans | default list) }}
+{{- $publisher := $plan.publisher | default "Microsoft" }}
+{{- $key := printf "%s/%s" $publisher $plan.product }}
+{{- if hasKey $seen $key }}{{ fail (printf "%s: log_analytics_solution_plans lists %s twice" $chart $key) }}{{ end }}
+{{- $_ := set $seen $key true }}
+{{- $solName := printf "%s(%s)" (last (splitList "/" (toString $plan.product))) $wsName }}
+---
+apiVersion: operationsmanagement.azure.hfl.dev/v20151101preview
+kind: Solution
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "solution" (last (splitList "/" (toString $plan.product))))) "id" (printf "log_analytics_solution:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $solName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- toYaml $rgOwner | nindent 4 }}
+  plan:
+    name: {{ $solName | quote }}
+    product: {{ $plan.product | quote }}
+    publisher: {{ $publisher | quote }}
+  properties:
+    workspaceResourceReference:
+      armId: {{ $wsID | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- /* null disables the onboarding; {} enables it with its defaults. */}}
+{{- if not (kindIs "invalid" $v.sentinel_onboarding) }}
+{{- $so := $v.sentinel_onboarding }}
+---
+apiVersion: securityinsights.azure.hfl.dev/v20250901
+kind: OnboardingState
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "sentinel")) "id" "sentinel_onboarding" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $so.name | default "default" | quote }}
+  owner:
+    {{- toYaml $wsExtOwner | nindent 4 }}
+  customerManagedKey: {{ eq (toString $so.customer_managed_key_enabled) "true" }}
+{{- end }}
+{{- $ama := ($v.user_assigned_managed_identities | default dict).ama }}
+{{- if and $ama (ne (toString $ama.enabled) "false") }}
+{{- $amaTags := include "alzmgmt.tags" (list $ $ama.tags) | fromJson }}
+---
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: UserAssignedIdentity
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list .Release.Name "uami" "ama")) "id" "user_assigned_identity:ama" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "user-assigned identity" $ama.name 128 false) | quote }}
+  location: {{ $ama.location | default $v.location | quote }}
+  owner:
+    {{- toYaml $rgOwner | nindent 4 }}
+  {{- with $amaTags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- $dcrs := $v.data_collection_rules | default dict }}
+{{- range $key := list "change_tracking" "defender_sql" "vm_insights" }}
+{{- $d := index $dcrs $key }}
+{{- if and $d (ne (toString $d.enabled) "false") }}
+{{- if not $d.name }}{{ fail (printf "%s: data_collection_rules.%s.name is required" $chart $key) }}{{ end }}
+{{- $dTags := include "alzmgmt.tags" (list $ $d.tags) | fromJson }}
+---
+apiVersion: insights.azure.com/v1api20240311
+kind: DataCollectionRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "dcr" (replace "_" "-" $key))) "id" (printf "data_collection_rule:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "data collection rule" $d.name 64 false) | quote }}
+  location: {{ $d.location | default $v.location | quote }}
+  owner:
+    {{- toYaml $rgOwner | nindent 4 }}
+  {{- with $dTags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if eq $key "change_tracking" }}
+  description: Data collection rule for CT
+  dataSources:
+    extensions:
+      - name: CTDataSource-Windows
+        extensionName: ChangeTracking-Windows
+        streams: [Microsoft-ConfigurationChange, Microsoft-ConfigurationChangeV2, Microsoft-ConfigurationData]
+        extensionSettings:
+          enableFiles: true
+          enableSoftware: true
+          enableRegistry: true
+          enableServices: true
+          enableInventory: true
+          registrySettings:
+            registryCollectionFrequency: 3600
+            registryInfo:
+              {{- range $i, $k := list
+                  `HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Group Policy\Scripts\Startup`
+                  `HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Group Policy\Scripts\Shutdown`
+                  `HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Run`
+                  `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Active Setup\Installed Components`
+                  `HKEY_LOCAL_MACHINE\Software\Classes\Directory\ShellEx\ContextMenuHandlers`
+                  `HKEY_LOCAL_MACHINE\Software\Classes\Directory\Background\ShellEx\ContextMenuHandlers`
+                  `HKEY_LOCAL_MACHINE\Software\Classes\Directory\Shellex\CopyHookHandlers`
+                  `HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers`
+                  `HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers`
+                  `HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Explorer\Browser Helper Objects`
+                  `HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\Browser Helper Objects`
+                  `HKEY_LOCAL_MACHINE\Software\Microsoft\Internet Explorer\Extensions`
+                  `HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Internet Explorer\Extensions`
+                  `HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Drivers32`
+                  `HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Drivers32`
+                  `HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager\KnownDlls`
+                  `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Notify` }}
+              - name: Registry_{{ add $i 1 }}
+                groupTag: Recommended
+                enabled: false
+                recurse: true
+                description: ""
+                keyName: {{ $k | quote }}
+                valueName: ""
+              {{- end }}
+          fileSettings:
+            fileCollectionFrequency: 2700
+          softwareSettings:
+            softwareCollectionFrequency: 1800
+          inventorySettings:
+            inventoryCollectionFrequency: 36000
+          servicesSettings:
+            serviceCollectionFrequency: 1800
+      - name: CTDataSource-Linux
+        extensionName: ChangeTracking-Linux
+        streams: [Microsoft-ConfigurationChange, Microsoft-ConfigurationChangeV2, Microsoft-ConfigurationData]
+        extensionSettings:
+          enableFiles: true
+          enableSoftware: true
+          enableRegistry: false
+          enableServices: true
+          enableInventory: true
+          fileSettings:
+            fileCollectionFrequency: 900
+            fileInfo:
+              - name: ChangeTrackingLinuxPath_default
+                enabled: true
+                destinationPath: /etc/.*.conf
+                useSudo: true
+                recurse: true
+                maxContentsReturnable: 5000000
+                pathType: File
+                type: File
+                links: Follow
+                maxOutputSize: 500000
+                groupTag: Recommended
+          softwareSettings:
+            softwareCollectionFrequency: 300
+          inventorySettings:
+            inventoryCollectionFrequency: 36000
+          servicesSettings:
+            serviceCollectionFrequency: 300
+  destinations:
+    logAnalytics:
+      - name: Microsoft-CT-Dest
+        workspaceResourceReference:
+          {{- toYaml $wsRef | nindent 10 }}
+  dataFlows:
+    - streams: [Microsoft-ConfigurationChange, Microsoft-ConfigurationChangeV2, Microsoft-ConfigurationData]
+      destinations: [Microsoft-CT-Dest]
+  {{- else if eq $key "defender_sql" }}
+  description: Data collection rule for Defender for SQL.
+  dataSources:
+    extensions:
+      - name: MicrosoftDefenderForSQL
+        extensionName: MicrosoftDefenderForSQL
+        streams: [Microsoft-DefenderForSqlAlerts, Microsoft-DefenderForSqlLogins, Microsoft-DefenderForSqlTelemetry, Microsoft-DefenderForSqlScanEvents, Microsoft-DefenderForSqlScanResults, Microsoft-SqlAtpStatus-DefenderForSql]
+        extensionSettings:
+          enableCollectionOfSqlQueriesForSecurityResearch: {{ eq (toString $d.enable_collection_of_sql_queries_for_security_research) "true" }}
+  destinations:
+    logAnalytics:
+      - name: LogAnalyticsDest
+        workspaceResourceReference:
+          {{- toYaml $wsRef | nindent 10 }}
+  dataFlows:
+    - streams: [Microsoft-DefenderForSqlAlerts, Microsoft-DefenderForSqlLogins, Microsoft-DefenderForSqlTelemetry, Microsoft-DefenderForSqlScanEvents, Microsoft-DefenderForSqlScanResults, Microsoft-SqlAtpStatus-DefenderForSql]
+      destinations: [LogAnalyticsDest]
+  {{- else }}
+  description: Data collection rule for VM Insights.
+  dataSources:
+    performanceCounters:
+      - name: VMInsightsPerfCounters
+        streams: [Microsoft-InsightsMetrics]
+        samplingFrequencyInSeconds: 60
+        counterSpecifiers: ['\VmInsights\DetailedMetrics']
+    extensions:
+      - name: DependencyAgentDataSource
+        extensionName: DependencyAgent
+        streams: [Microsoft-ServiceMap]
+        extensionSettings: {}
+  destinations:
+    logAnalytics:
+      - name: VMInsightsPerf-Logs-Dest
+        workspaceResourceReference:
+          {{- toYaml $wsRef | nindent 10 }}
+  dataFlows:
+    - streams: [Microsoft-InsightsMetrics]
+      destinations: [VMInsightsPerf-Logs-Dest]
+    - streams: [Microsoft-ServiceMap]
+      destinations: [VMInsightsPerf-Logs-Dest]
+  {{- end }}
+{{- end }}
+{{- end }}

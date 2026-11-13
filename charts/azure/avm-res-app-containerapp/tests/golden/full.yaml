@@ -1,0 +1,398 @@
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: AuthConfig
+metadata:
+  name: full-auth-current
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "auth_config:current"
+spec:
+  azureName: "current"
+  owner:
+    name: full-app
+  encryptionSettings:
+    containerAppAuthEncryptionSecretName: auth-enc
+    containerAppAuthSigningSecretName: auth-sign
+  globalValidation:
+    excludedPaths:
+    - /healthz
+    redirectToProvider: azureactivedirectory
+    unauthenticatedClientAction: RedirectToLoginPage
+  httpSettings:
+    forwardProxy:
+      convention: Custom
+      customHostHeaderName: X-Host
+      customProtoHeaderName: X-Proto
+    requireHttps: true
+    routes:
+      apiPrefix: /.auth
+  identityProviders:
+    apple:
+      enabled: true
+      login:
+        scopes:
+        - name
+      registration:
+        clientId: apple-client
+        clientSecretSettingName: apple-secret
+    azureActiveDirectory:
+      enabled: true
+      login:
+        disableWWWAuthenticate: false
+        loginParameters:
+        - response_type=code id_token
+      registration:
+        clientId: 33333333-4444-5555-6666-777777777777
+        clientSecretSettingName: microsoft-provider-authentication-secret
+        openIdIssuer: https://login.microsoftonline.com/11111111-2222-3333-4444-555555555555/v2.0
+      validation:
+        allowedAudiences:
+        - api://ca-full
+        defaultAuthorizationPolicy:
+          allowedApplications:
+          - a1
+          allowedPrincipals:
+            groups:
+            - g1
+            identities:
+            - i1
+        jwtClaimChecks:
+          allowedClientApplications:
+          - a1
+          allowedGroups:
+          - g1
+    azureStaticWebApps:
+      enabled: false
+      registration:
+        clientId: swa-client
+    customOpenIdConnectProviders:
+      okta:
+        enabled: true
+        login:
+          nameClaimType: name
+          scopes:
+          - openid
+        registration:
+          clientCredential:
+            clientSecretSettingName: okta-secret
+            method: ClientSecretPost
+          clientId: okta-client
+          openIdConnectConfiguration:
+            authorizationEndpoint: https://example.okta.com/oauth2/v1/authorize
+            certificationUri: https://example.okta.com/oauth2/v1/keys
+            issuer: https://example.okta.com
+            tokenEndpoint: https://example.okta.com/oauth2/v1/token
+    facebook:
+      enabled: true
+      graphApiVersion: v18.0
+      login:
+        scopes:
+        - email
+      registration:
+        appId: fb-app
+        appSecretSettingName: facebook-secret
+    gitHub:
+      enabled: true
+      login:
+        scopes:
+        - user
+      registration:
+        clientId: gh-client
+        clientSecretSettingName: github-secret
+    google:
+      enabled: true
+      login:
+        scopes:
+        - openid
+      registration:
+        clientId: google-client
+        clientSecretSettingName: google-secret
+      validation:
+        allowedAudiences:
+        - google-aud
+    twitter:
+      enabled: false
+      registration:
+        consumerKey: tw-key
+        consumerSecretSettingName: twitter-secret
+  login:
+    allowedExternalRedirectUrls:
+    - https://example.com/after
+    cookieExpiration:
+      convention: FixedTime
+      timeToExpiration: "08:00:00"
+    nonce:
+      nonceExpirationInterval: "00:05:00"
+      validateNonce: true
+    preserveUrlFragmentsForLogins: true
+    routes:
+      logoutEndpoint: /.auth/logout
+    tokenStore:
+      azureBlobStorage:
+        sasUrlSettingName: token-store-sas
+      enabled: true
+      tokenRefreshExtensionHours: 72
+  platform:
+    enabled: true
+    runtimeVersion: ~1
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: ContainerApp
+metadata:
+  name: full-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "container_app"
+spec:
+  azureName: "ca-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  identity:
+    type: SystemAssigned,UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull"
+  environmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example"
+  managedEnvironmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example"
+  workloadProfileName: "Consumption"
+  configuration:
+    activeRevisionsMode: Multiple
+    dapr:
+      appId: "ca-full"
+      appPort: 8080
+      appProtocol: grpc
+      enableApiLogging: true
+      enabled: true
+      httpMaxRequestSize: 4
+      httpReadBufferSize: 65
+      logLevel: debug
+    identitySettings:
+      - identityReference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull"
+        lifecycle: Init
+    ingress:
+      additionalPortMappings:
+        - exposedPort: 9090
+          external: false
+          targetPort: 9090
+      allowInsecure: true
+      clientCertificateMode: accept
+      corsPolicy:
+        allowCredentials: true
+        allowedHeaders: ["x-request-id"]
+        allowedMethods: ["GET","POST"]
+        allowedOrigins: ["https://example.com"]
+        exposeHeaders: ["x-trace"]
+        maxAge: 600
+      customDomains:
+        - name: "app.example.com"
+          bindingType: SniEnabled
+          certificateReference:
+            armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-example/certificates/cert-app"
+      exposedPort: 0
+      external: true
+      ipSecurityRestrictions:
+        - action: Allow
+          description: "office"
+          ipAddressRange: "203.0.113.0/24"
+          name: "office"
+      stickySessions:
+        affinity: sticky
+      targetPort: 8080
+      traffic:
+        - latestRevision: false
+          label: "blue"
+          revisionName: "v1"
+          weight: 80
+        - latestRevision: true
+          weight: 20
+      transport: http2
+    maxInactiveRevisions: 5
+    registries:
+      - identityReference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-pull"
+        server: "crexample.azurecr.io"
+    runtime:
+      java:
+        enableMetrics: true
+    secrets:
+      - identityReference:
+          wellKnownName: "system"
+        keyVaultUrl: "https://kv-example.vault.azure.net/secrets/db-password"
+        name: "db-password"
+    service:
+      type: "redis"
+  template:
+    containers:
+      - name: "app"
+        image: "crexample.azurecr.io/app:1.0"
+        args: ["--port","8080"]
+        command: ["/app"]
+        env:
+          - name: "MODE"
+            value: "full"
+          - name: "DB_PASSWORD"
+            secretRef: "db-password"
+        probes:
+          - failureThreshold: 5
+            httpGet:
+              host: localhost
+              httpHeaders:
+              - name: X-Probe
+                value: liveness
+              path: /healthz
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 20
+            terminationGracePeriodSeconds: 10
+            timeoutSeconds: 2
+            type: Liveness
+          - failureThreshold: 3
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            successThreshold: 2
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 1
+            type: Readiness
+          - failureThreshold: 3
+            httpGet:
+              path: /ready
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 1
+            type: Startup
+        resources:
+          cpu: 0.5
+          memory: "1Gi"
+        volumeMounts:
+          - mountPath: "/tmp/scratch"
+            volumeName: "scratch"
+          - mountPath: "/mnt/secrets"
+            subPath: "db"
+            volumeName: "secrets"
+    initContainers:
+      - name: "migrate"
+        image: "crexample.azurecr.io/migrate:1.0"
+        args: ["up"]
+        command: ["/migrate"]
+        env:
+          - name: "MODE"
+            value: "init"
+        resources:
+          cpu: 0.25
+          memory: "0.5Gi"
+        volumeMounts:
+          - mountPath: "/tmp/scratch"
+            volumeName: "scratch"
+    revisionSuffix: "v1"
+    scale:
+      cooldownPeriod: 120
+      maxReplicas: 5
+      minReplicas: 1
+      pollingInterval: 15
+      rules:
+        - name: "queue"
+          azureQueue:
+            accountName: "stexample"
+            identityReference:
+              wellKnownName: "system"
+            queueLength: 10
+            queueName: "jobs"
+        - name: "cron"
+          custom:
+            metadata:
+              "desiredReplicas": "2"
+              "end": "0 18 * * *"
+              "start": "0 8 * * *"
+              "timezone": "UTC"
+            type: "cron"
+        - name: "http"
+          http:
+            metadata:
+              "concurrentRequests": "50"
+        - name: "tcp"
+          tcp:
+            auth:
+              - secretRef: "db-password"
+                triggerParameter: "password"
+            metadata:
+              "concurrentRequests": "100"
+    serviceBinds:
+      - name: "redis"
+        serviceReference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/containerApps/redis"
+    terminationGracePeriodSeconds: 30
+    volumes:
+      - name: "scratch"
+        storageType: EmptyDir
+      - name: "secrets"
+        secrets:
+          - path: "db"
+            secretRef: "db-password"
+        storageType: Secret
+      - name: "files"
+        mountOptions: "dir_mode=0777"
+        storageName: "share-files"
+        storageType: AzureFile
+  tags:
+    env: test
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-app-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-ca-full"
+  owner:
+    group: app.azure.com
+    kind: ContainerApp
+    name: full-app
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-app-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    group: app.azure.com
+    kind: ContainerApp
+    name: full-app
+  principalId: "44444444-5555-6666-7777-888888888888"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

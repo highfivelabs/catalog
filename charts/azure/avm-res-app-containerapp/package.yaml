@@ -1,0 +1,48 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs): the container app's status as ASO reads it
+# back from Azure (its ID, revisions, ingress FQDN, outbound addresses,
+# custom domains and identity). A status field Azure has not filled yet is
+# null (the URLs the module builds from one are ""). identity is the
+# module's azapi identity block: type, principal_id, tenant_id and
+# identity_ids (the user-assigned identities' IDs).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-app-containerapp
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.container_app.spec.azureName
+    resource_id: resources.container_app.status.id
+    location: resources.container_app.spec.location
+    environment_id: inputs.container_app_environment_resource_id
+    custom_domain_verification_id: >-
+      'customDomainVerificationId' in resources.container_app.status ? resources.container_app.status.customDomainVerificationId : null
+    custom_domains: >-
+      'configuration' in resources.container_app.status && 'ingress' in resources.container_app.status.configuration
+      && 'customDomains' in resources.container_app.status.configuration.ingress
+      ? resources.container_app.status.configuration.ingress.customDomains : null
+    fqdn_url: >-
+      'configuration' in resources.container_app.status && 'ingress' in resources.container_app.status.configuration
+      && 'fqdn' in resources.container_app.status.configuration.ingress
+      ? 'https://' + resources.container_app.status.configuration.ingress.fqdn : ''
+    identity: >-
+      'identity' in resources.container_app.status ? dyn({
+      'type': resources.container_app.status.identity.type,
+      'principal_id': 'principalId' in resources.container_app.status.identity ? resources.container_app.status.identity.principalId : null,
+      'tenant_id': 'tenantId' in resources.container_app.status.identity ? resources.container_app.status.identity.tenantId : null,
+      'identity_ids': 'userAssignedIdentities' in resources.container_app.status.identity ? resources.container_app.status.identity.userAssignedIdentities.map(k, k) : []}) : null
+    latest_ready_revision_name: >-
+      'latestReadyRevisionName' in resources.container_app.status ? resources.container_app.status.latestReadyRevisionName : null
+    latest_revision_fqdn: >-
+      'latestRevisionFqdn' in resources.container_app.status ? 'https://' + resources.container_app.status.latestRevisionFqdn : ''
+    latest_revision_name: >-
+      'latestRevisionName' in resources.container_app.status ? resources.container_app.status.latestRevisionName : null
+    outbound_ip_addresses: >-
+      'outboundIpAddresses' in resources.container_app.status ? resources.container_app.status.outboundIpAddresses : null
