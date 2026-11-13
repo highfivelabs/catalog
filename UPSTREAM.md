@@ -46,6 +46,7 @@ charts use are copied in `crds/ack-extensions`.
 | `acm-controller` | `v1.11.0` | `ae641dedff0e907474959e627ebef688c16564dc` | Certificate |
 | `route53-controller` | `v1.8.0` | `73c2b0e3ccf4fb8fee64c7dff66a8104f4bf9748` | RecordSet |
 | `sqs-controller` | `v1.9.0` | `0810c99dd5b0c45939727e0ca04e4810ced1fdfa` | Queue |
+| `eks-controller` | `v1.26.0` | `2549d1be1a9f1841aaf3a4303a0d5696ea941473` | PodIdentityAssociation |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in

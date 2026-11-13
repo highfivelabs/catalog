@@ -1,0 +1,52 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf, "Pod Identity Association": one per entry of associations
+(aws_eks_pod_identity_association, eks/PodIdentityAssociation), each value
+taken from the entry, else from association_defaults, as the module
+coalesces them, with roleRef to this chart's role.
+*/ -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $d := $v.association_defaults | default dict }}
+{{- range $k := keys ($v.associations | default dict) | sortAlpha }}
+{{- $a := index $v.associations $k | default dict }}
+{{- $get := dict }}
+{{- range $f := list "cluster_name" "namespace" "service_account" "target_role_arn" }}
+{{- $_ := set $get $f (get $a $f | default (get $d $f) | default "") }}
+{{- end }}
+{{- range $f := list "cluster_name" "namespace" "service_account" }}
+{{- if not (get $get $f) }}
+{{- fail (printf "eks-pod-identity: associations.%s needs %s (or association_defaults.%s)" $k $f $f) }}
+{{- end }}
+{{- end }}
+{{- $dst := index $a "disable_session_tags" }}
+{{- if not (kindIs "bool" $dst) }}{{ $dst = index $d "disable_session_tags" }}{{ end }}
+---
+apiVersion: eks.services.k8s.aws/v1alpha1
+kind: PodIdentityAssociation
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "association" $k)) "id" (printf "association-%s" $k) "region" $v.region) | nindent 2 }}
+spec:
+  clusterName: {{ get $get "cluster_name" | quote }}
+  namespace: {{ get $get "namespace" | quote }}
+  serviceAccount: {{ get $get "service_account" | quote }}
+  roleRef:
+    from:
+      name: {{ include "ack.name" (list $.Release.Name "role") }}
+{{- with get $get "target_role_arn" }}
+  targetRoleARN: {{ . | quote }}
+{{- end }}
+{{- if kindIs "bool" $dst }}
+  disableSessionTags: {{ $dst }}
+{{- end }}
+{{- $tags := include "ack.tags" (list $ $v.tags (get $a "tags" | default dict) (get $d "tags" | default dict)) | fromJson }}
+{{- if $tags }}
+  tags:
+{{- range $tk := keys $tags | sortAlpha }}
+    {{ $tk | quote }}: {{ get $tags $tk | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
