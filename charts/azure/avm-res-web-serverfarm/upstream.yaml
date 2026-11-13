@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-web-serverfarm
+repo: https://github.com/Azure/terraform-azurerm-avm-res-web-serverfarm
+path: .
+version: v2.0.8
+commit: 077bbb36ea58ae8e2ead058848c551db0c664544
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-web-serverfarm/tree/v2.0.8
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-web-serverfarm/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap, not-ported or by-design (Bundt replaces it).
+# partial: the variable is accepted, the reason says what is refused.
+refused:
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: server_farm_resource_type
+    kind: by-design
+    reason: "accepted at its default only: the API version is the ASO kind's (ServerFarm 2025-05-01)"
+    partial: true

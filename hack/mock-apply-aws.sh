@@ -24,7 +24,9 @@
 #     endpoint at the fake in use, fake credentials;
 #   - ack-extensions (config/default built by ko, the operator in its
 #     fake-AWS mode), whose operator runs a manager beside each ACK
-#     controller that has ack-extensions kinds (crds/ack-extensions).
+#     controller that has ack-extensions kinds (crds/ack-extensions), and a
+#     Cloud Control manager for the namespace of each chart whose case
+#     renders a Cloud Control kind (a CloudControlContext there, cc_context).
 # Every AWS client in the cluster gets every endpoint at the fake and a
 # dead proxy (ack-extensions' hack/noaws env), and the run stops unless
 # ack-extensions' hack/noaws verify-deployments passes for all of them,
@@ -342,6 +344,37 @@ for b in s3.list_buckets().get("Buckets", []):
 ' || echo "mock-apply-aws: moto_fixups failed" >&2
 }
 
+# cc_context NS: ack-extensions' Cloud Control kinds (*.cloudcontrol.aws.hfl.dev)
+# are served by a manager per environment, which a CloudControlContext in
+# the environment's namespace starts (ack-extensions' pkg/operator,
+# cloudcontrol.go); the operator's --fake-aws-endpoint points it at the fake
+# in use. The role is the fake account's (nothing assumes it: the fake keys
+# are the manager's). Waits until Ready, then checks the manager with
+# ack-extensions' guard, as every other AWS client.
+cc_context() {
+  local ns="$1" end
+  kubectl apply -f - >/dev/null <<YAML
+apiVersion: cloudcontrol.aws.hfl.dev/v1alpha1
+kind: CloudControlContext
+metadata: {name: cloudcontrol, namespace: ${ns}}
+spec: {roleARN: "arn:aws:iam::$(account_of "${BACKEND}"):role/catalog-cloudcontrol", region: ${REGION}}
+YAML
+  end=$(( $(date +%s) + 240 ))
+  until [[ "$(kubectl -n "${ns}" get cloudcontrolcontext cloudcontrol -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')" == True ]]; do
+    if (( $(date +%s) >= end )); then
+      echo "mock-apply-aws: CloudControlContext ${ns}/cloudcontrol not Ready in 240s" >&2
+      kubectl -n "${ns}" get cloudcontrolcontext cloudcontrol -o yaml >&2 || true
+      kubectl -n ack-extensions-system logs deploy/ack-extensions-operator --tail=40 >&2 || true
+      return 1
+    fi
+    sleep 3
+  done
+  kubectl get deploy -A -o json >"${work}/deployments.json"
+  "${ROOT}/bin/noaws" verify-deployments <"${work}/deployments.json" >/dev/null \
+    || { echo "mock-apply-aws: an AWS client in the cluster could reach real AWS" >&2; exit 1; }
+  echo "   CloudControlContext ${ns}/cloudcontrol Ready: a Cloud Control manager serves ${ns}"
+}
+
 # run_chart VALUES: apply one chart's case to the fake BACKEND points at,
 # check it, delete it. Its rows go to ${OUT}/${BACKEND}/<chart>.rows; it
 # sets chart_failed (objects not Ready or not deleted, outputs not
@@ -378,6 +411,11 @@ run_chart() {
     done <"${dir}/tests/mock.set.yaml"
   fi
   helm template "${rel}" "${dir}" --namespace "${ns}" -f "${values}" "${sets[@]}" >"${out}/rendered.yaml"
+  local cc=no
+  if grep -Eq '^apiVersion: [a-z0-9]+\.cloudcontrol\.aws\.hfl\.dev/' "${out}/rendered.yaml"; then
+    cc=yes
+    cc_context "${ns}" || echo "   ${chart}: no Cloud Control manager for ${ns}" >&2
+  fi
   kubectl apply --server-side -n "${ns}" -f "${out}/rendered.yaml" >"${out}/apply.log"
   # Fully qualified (kind.version.group/name), as hack/mock-apply.sh does.
   mapfile -t objects < <(kubectl get -n "${ns}" -f "${out}/rendered.yaml" -o json \
@@ -443,6 +481,9 @@ run_chart() {
       echo "| ${chart} | tests/mock.needs.yaml | | no | not deleted in ${TIMEOUT}s |" >>"${rows}"
       chart_failed=$((chart_failed + 1))
     fi
+  fi
+  if [[ "${cc}" == yes ]]; then
+    kubectl -n "${ns}" delete cloudcontrolcontext cloudcontrol --ignore-not-found --wait=false >/dev/null 2>&1 || true
   fi
   [[ "${outputs_ok}" == yes ]] || chart_failed=$((chart_failed + 1))
   unset ready

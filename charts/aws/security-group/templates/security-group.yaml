@@ -80,3 +80,29 @@ spec:
 {{- include "ack.tagList" (list .) | nindent 4 }}
 {{- end }}
 {{- end }}
+{{- /*
+main.tf, "Security Group VPC Association": one per entry of vpc_associations
+(aws_vpc_security_group_vpc_association), as ack-extensions' Cloud Control
+kind SecurityGroupVpcAssociation, which ACK has no kind for: only with
+allow_alpha: true (docs/design.md, "Alpha kinds"). groupRef takes this
+chart's group; the VPC is another component's, by ID.
+*/ -}}
+{{- if and $v.create $v.putin_khuylo }}
+{{- include "ack.alpha" (list $ "vpc_associations" $v.vpc_associations "SecurityGroupVpcAssociation (ack-extensions, Cloud Control)") }}
+{{- range $key := keys ($v.vpc_associations | default dict) | sortAlpha }}
+{{- $a := index $v.vpc_associations $key }}
+{{- if not $a.vpc_id }}
+{{- fail (printf "security-group: vpc_associations.%s needs vpc_id" $key) }}
+{{- end }}
+---
+apiVersion: ec2.cloudcontrol.aws.hfl.dev/v1alpha1
+kind: SecurityGroupVpcAssociation
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $.Release.Name "vpc-association" $key)) "id" (printf "vpc-association-%s" $key) "region" $v.region) | nindent 2 }}
+spec:
+  groupRef:
+    from:
+      name: {{ include "ack.name" (list $.Release.Name "sg") }}
+  vpcId: {{ $a.vpc_id | quote }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,93 @@
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: names-nic-nic0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "network_interface:nic0"
+spec:
+  azureName: "nic-app"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  enableAcceleratedNetworking: false
+  enableIPForwarding: false
+  ipConfigurations:
+    - name: "ipconfig1"
+      primary: true
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default"
+  tags:
+    team: shop
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachine
+metadata:
+  name: names-vm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "virtual_machine"
+spec:
+  azureName: "vm-shop-dev-eus2-01"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  extensionsTimeBudget: "PT1H30M"
+  hardwareProfile:
+    vmSize: "Standard_D2ds_v5"
+  networkProfile:
+    networkInterfaces:
+      - reference:
+          group: network.azure.com
+          kind: NetworkInterface
+          name: names-nic-nic0
+        primary: true
+  osProfile:
+    adminUsername: "azureuser"
+    allowExtensionOperations: true
+    computerName: "app"
+    linuxConfiguration:
+      disablePasswordAuthentication: true
+      patchSettings:
+        assessmentMode: ImageDefault
+        patchMode: ImageDefault
+      provisionVMAgent: true
+      ssh:
+        publicKeys:
+          - keyData: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK0wmN/Cr3JXqmLW7u+g9pTh+wyqDHpSQEQQ5ZJYHjqh catalog-test"
+            path: "/home/azureuser/.ssh/authorized_keys"
+  priority: Regular
+  storageProfile:
+    imageReference:
+      offer: "ubuntu-24_04-lts"
+      publisher: "Canonical"
+      sku: "server"
+      version: "latest"
+    osDisk:
+      caching: ReadWrite
+      createOption: FromImage
+      deleteOption: Delete
+      managedDisk:
+        storageAccountType: Premium_LRS
+      osType: Linux
+      writeAcceleratorEnabled: false
+  tags:
+    team: shop
+  zones:
+    - "1"
