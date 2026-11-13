@@ -1,0 +1,411 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-ptn-alz main.tf, locals.tf,
+main.management_groups.tf, main.hierarchy_settings.tf,
+main.policy_definitions.tf, main.policy_set_definitions.tf,
+main.policy_assignments.tf, main.policy_role_assignments.tf,
+main.role_definitions.tf, main.role_assignments.tf,
+main.subscription_placement.tf and variables*.tf (v0.22.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+data.alz_architecture.this: not ported. The alz provider resolves the
+architecture from its library when Terraform plans; a render fetches
+nothing, so the resolved architecture is given (the architecture value)
+and every resource below is made from it as the module makes it:
+- azapi_resource.management_groups_level_0..6: an aso-extensions
+  ManagementGroup (management.azure.hfl.dev/v20230401) for each management
+  group the architecture does not mark as existing, its parent a reference
+  to the chart's group or the parent's ID (none for the tenant root group,
+  where a group without a parent goes);
+- azapi_resource.hierarchy_settings and azapi_update_resource.hierarchy_settings:
+  an aso-extensions ManagementGroupsSetting on the tenant root group, kept
+  in Azure when deleted if it updates existing settings;
+- azapi_resource.policy_definitions, .policy_set_definitions and
+  .policy_assignments: aso-extensions PolicyDefinition, PolicySetDefinition
+  and PolicyAssignment (authorization.azure.hfl.dev/v20260701; the module
+  sends 2023-04-01 and 2024-04-01) at each management group, their
+  properties transcribed;
+- azapi_resource.role_definitions: an ASO RoleDefinition
+  (authorization.azure.com/v20220401);
+- azapi_resource.policy_role_assignments: an ASO RoleAssignment for each of
+  the architecture's policy role assignments, keyed and named as the module
+  keys it (uuidv5 of assignment name, scope, management group and role),
+  its principal the policy assignment's identity, which the assignment
+  exports to a ConfigMap (principalIdFromConfig), where the module reads
+  the assignment's identity or its user-assigned identity;
+- azapi_resource.management_group_role_assignments: an ASO RoleAssignment
+  each (the avm-utl-interfaces body and deterministic name);
+- azapi_resource.subscription_placement: an aso-extensions
+  ManagementGroupsSubscription each.
+The time_sleep and terraform_data resources (delays, *_dependencies) are
+not needed: ASO retries until what an object needs exists. The telemetry
+is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := .Chart.Name }}
+{{- range $k, $_ := ($v.names | default dict) }}
+{{- fail (printf "%s: names.%s is not a name this chart gives: the names are the architecture's" $n $k) }}
+{{- end }}
+{{- if $v.tags }}
+{{- fail (printf "%s: tags are not supported: management groups, policy definitions, set definitions and assignments, role definitions and assignments take no Azure tags" $n) }}
+{{- end }}
+{{- $lib := "the alz provider resolves the architecture with it from its library when Terraform plans (data alz_architecture); a render cannot, and the architecture value is that data source's result, already resolved" }}
+{{- include "aso.unsupported" (list $ "override_policy_definition_parameter_assign_permissions_set" $v.override_policy_definition_parameter_assign_permissions_set $lib) }}
+{{- include "aso.unsupported" (list $ "override_policy_definition_parameter_assign_permissions_unset" $v.override_policy_definition_parameter_assign_permissions_unset $lib) }}
+{{- include "aso.unsupported" (list $ "policy_default_values" $v.policy_default_values $lib) }}
+{{- include "aso.unsupported" (list $ "policy_assignment_non_compliance_message_settings" (include "alz.anySet" $v.policy_assignment_non_compliance_message_settings) $lib) }}
+{{- include "aso.unsupported" (list $ "resource_types" (include "alz.anySet" $v.resource_types) "ASO's and aso-extensions' kinds fix the API versions") }}
+{{- include "aso.unsupported" (list $ "retries" (include "alz.anySet" $v.retries) "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" (include "alz.anySet" $v.timeouts) "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- range $k, $on := ($v.schema_validation_enabled | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "schema_validation_enabled.%s false" $k) (eq $on false) "ASO's and aso-extensions' CRD schemas always validate an object") }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "subscription_placement_destroy_custom_target_management_group_id" $v.subscription_placement_destroy_custom_target_management_group_id "the module moves a subscription to that group when it is destroyed (a PUT at destroy); deleting ASO's placement moves it to the tenant's default management group") }}
+{{- range $mg, $m := ($v.policy_assignments_to_modify | default dict) }}
+{{- range $pa, $p := ($m.policy_assignments | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "policy_assignments_to_modify.%s.policy_assignments.%s" $mg $pa) (include "alz.anySet" (omit $p "creation_enabled" "role_assignments_enabled")) (printf "only creation_enabled and role_assignments_enabled are applied; its other fields change the assignment as %s" $lib)) }}
+{{- end }}
+{{- end }}
+{{- if not $v.parent_resource_id }}
+{{- fail (printf "%s: The parent resource id must not be an empty string." $n) }}
+{{- end }}
+{{- if contains "/" $v.parent_resource_id }}
+{{- fail (printf "%s: The parent resource id must be the name of the parent management group and should not contain `/`." $n) }}
+{{- end }}
+{{- $a := $v.architecture }}
+{{- if not $a }}
+{{- fail (printf "%s: architecture is required: the module reads architecture %q from the alz provider's library when Terraform plans (data alz_architecture), which a render cannot; give that data source's result as architecture" $n $v.architecture_name) }}
+{{- end }}
+{{- if and $a.name $v.architecture_name (ne $a.name $v.architecture_name) }}
+{{- fail (printf "%s: architecture_name %q is not the given architecture's (%q)" $n $v.architecture_name $a.name) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $base := include "aso.name" (list .Release.Name) }}
+{{- $mgPrefix := "/providers/Microsoft.Management/managementGroups/" }}
+{{- $toModify := $v.policy_assignments_to_modify | default dict }}
+
+{{- /* local.management_groups: the groups the chart makes. */ -}}
+{{- $made := dict }}
+{{- $existingRoot := "" }}
+{{- range $mg := ($a.management_groups | default list) }}
+{{- if not $mg.id }}{{ fail (printf "%s: architecture.management_groups: every management group needs an id" $n) }}{{ end }}
+{{- if eq $mg.exists true }}
+{{- if eq (int ($mg.level | default 0)) 0 }}{{ $existingRoot = $mg.id }}{{ end }}
+{{- else }}
+{{- $_ := set $made $mg.id (include "aso.name" (list $base "mg" $mg.id)) }}
+{{- end }}
+{{- end }}
+{{- range $mg := ($a.management_groups | default list) }}
+{{- if ne $mg.exists true }}
+{{- $parent := $mg.parent_id | default $v.parent_resource_id }}
+---
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (index $made $mg.id) "id" (printf "management_group:%s" $mg.id) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $mg.id | quote }}
+  {{- if ne $parent ($v.tenant_id | default "") }}
+  details:
+    parent:
+      reference:
+        {{- if hasKey $made $parent }}
+        group: management.azure.hfl.dev
+        kind: ManagementGroup
+        name: {{ index $made $parent }}
+        {{- else }}
+        armId: {{ printf "%s%s" $mgPrefix $parent | quote }}
+        {{- end }}
+  {{- end }}
+  displayName: {{ $mg.display_name | default $mg.id | quote }}
+{{- end }}
+{{- end }}
+
+{{- /* azapi_resource.hierarchy_settings. */ -}}
+{{- with $v.management_group_hierarchy_settings }}
+{{- if not (and .default_management_group_name (regexMatch "^[a-zA-Z0-9_.()-]{1,90}$" .default_management_group_name)) }}
+{{- fail (printf "%s: Mangement group name must be between 1-90 characters. It must start with a letter or a number, and consist only of alphanumerics, hyphens, underscores, periods, and parentheses." $n) }}
+{{- end }}
+{{- if hasSuffix "." .default_management_group_name }}
+{{- fail (printf "%s: The management group name must not end with a period." $n) }}
+{{- end }}
+{{- if not $v.tenant_id }}
+{{- fail (printf "%s: management_group_hierarchy_settings needs tenant_id: the settings belong to the tenant root management group, named by the tenant's ID (the module reads it from azapi_client_config)" $n) }}
+{{- end }}
+---
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSetting
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "hierarchy-settings")) "id" "hierarchy_settings" "abandon" (or $abandon (eq .update_existing true))) | nindent 2 }}
+spec:
+  owner:
+    armId: {{ printf "%s%s" $mgPrefix $v.tenant_id | quote }}
+  defaultManagementGroup: {{ printf "%s%s" $mgPrefix .default_management_group_name | quote }}
+  requireAuthorizationForGroupCreation: {{ ne .require_authorization_for_group_creation false }}
+{{- end }}
+
+{{- /* local.policy_definitions, policy_set_definitions, role_definitions
+and policy_assignments, per management group. */ -}}
+{{- $identities := dict }}
+{{- range $mg := ($a.management_groups | default list) }}
+{{- range $key, $raw := ($mg.policy_definitions | default dict) }}
+{{- $d := include "alz.doc" $raw | fromJson }}
+{{- $p := $d.properties | default dict }}
+{{- $extra := omit $p "description" "displayName" "externalEvaluationEnforcementSettings" "metadata" "mode" "parameters" "policyRule" "policyType" "version" "versions" }}
+{{- if $extra }}{{ fail (printf "%s: architecture policy definition %s/%s has properties aso-extensions' PolicyDefinition (2026-07-01) does not take: %s" $n $mg.id $key (keys $extra | sortAlpha | join ", ")) }}{{ end }}
+---
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyDefinition
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "pd" $mg.id $key)) "id" (printf "policy_definition:%s/%s" $mg.id $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    {{- include "alz.mgOwner" (list $ $made $mg.id true) | nindent 4 }}
+  {{- with (omit $p "parameters") }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+  {{- with $p.parameters }}
+  parameters:
+    {{- include "alz.parameters" . | fromJson | toYaml | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- range $key, $raw := ($mg.policy_set_definitions | default dict) }}
+{{- $d := include "alz.doc" $raw | fromJson }}
+{{- $p := $d.properties | default dict }}
+{{- $extra := omit $p "description" "displayName" "metadata" "parameters" "policyDefinitionGroups" "policyDefinitions" "policyType" "version" "versions" }}
+{{- if $extra }}{{ fail (printf "%s: architecture policy set definition %s/%s has properties aso-extensions' PolicySetDefinition (2026-07-01) does not take: %s" $n $mg.id $key (keys $extra | sortAlpha | join ", ")) }}{{ end }}
+---
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicySetDefinition
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "psd" $mg.id $key)) "id" (printf "policy_set_definition:%s/%s" $mg.id $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    {{- include "alz.mgOwner" (list $ $made $mg.id true) | nindent 4 }}
+  {{- with (omit $p "parameters" "policyDefinitions" "policyDefinitionGroups") }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+  {{- with $p.parameters }}
+  parameters:
+    {{- include "alz.parameters" . | fromJson | toYaml | nindent 4 }}
+  {{- end }}
+  {{- with $p.policyDefinitionGroups }}
+  policyDefinitionGroups:
+    {{- range . }}
+    - {{ toYaml (omit . "additionalMetadataId") | nindent 6 | trim }}
+      {{- with .additionalMetadataId }}
+      additionalMetadataReference:
+        armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  policyDefinitions:
+    {{- range ($p.policyDefinitions | default list) }}
+    - policyDefinitionReference:
+        armId: {{ .policyDefinitionId | quote }}
+      {{- with (omit . "policyDefinitionId") }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- range $key, $raw := ($mg.role_definitions | default dict) }}
+{{- $d := include "alz.doc" $raw | fromJson }}
+{{- $p := $d.properties | default dict }}
+---
+apiVersion: authorization.azure.com/v20220401
+kind: RoleDefinition
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "rd" $mg.id $key)) "id" (printf "role_definition:%s/%s" $mg.id $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    armId: {{ printf "%s%s" $mgPrefix $mg.id | quote }}
+  {{- with $p.assignableScopes }}
+  assignableScopesReferences:
+    {{- range . }}
+    - armId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $p.permissions }}
+  permissions:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  roleName: {{ $p.roleName | quote }}
+  {{- with $p.type }}
+  type: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $raw := ($mg.policy_assignments | default dict) }}
+{{- $mod := (index ((index $toModify $mg.id) | default dict) "policy_assignments" | default dict) }}
+{{- if ne (index ($mod | default dict) $key | default dict).creation_enabled false }}
+{{- $d := include "alz.doc" $raw | fromJson }}
+{{- $p := $d.properties | default dict }}
+{{- $obj := include "aso.name" (list $base "pa" $mg.id $key) }}
+{{- $_ := set $identities (printf "%s/%s" $mg.id $key) (dict "obj" $obj "identity" $d.identity) }}
+---
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" (printf "policy_assignment:%s/%s" $mg.id $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    {{- include "alz.mgOwner" (list $ $made $mg.id true) | nindent 4 }}
+  location: {{ $v.location | quote }}
+  definitionVersion: {{ $p.definitionVersion | default "1.*.*" | quote }}
+  {{- range $f := list "description" "displayName" "enforcementMode" }}
+  {{- with (index $p $f) }}
+  {{ $f }}: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- with $d.identity }}
+  identity:
+    type: {{ .type }}
+    {{- with .userAssignedIdentities }}
+    userAssignedIdentities:
+      {{- range $id, $_ := . }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  metadata:
+    {{- $meta := deepCopy ($p.metadata | default dict) }}
+    {{- range $f := list "createdBy" "createdOn" "updatedBy" "updatedOn" }}{{ $_ := set $meta $f "" }}{{ end }}
+    {{- toYaml $meta | nindent 4 }}
+  {{- range $f := list "nonComplianceMessages" "notScopes" "overrides" "resourceSelectors" }}
+  {{- with (index $p $f) }}
+  {{ $f }}:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- with $p.parameters }}
+  parameters:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $p.policyDefinitionId }}
+  policyDefinitionReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- if $d.identity }}
+  operatorSpec:
+    configMapExpressions:
+      - name: {{ include "aso.name" (list $obj "principal") }}
+        key: principalId
+        value: {{ if eq (toString $d.identity.type) "UserAssigned" }}{{ printf "self.status.identity.userAssignedIdentities.map(k, self.status.identity.userAssignedIdentities[k].principalId)[0]" | quote }}{{ else }}"self.status.identity.principalId"{{ end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* local.policy_role_assignments. */ -}}
+{{- range $pra := ($a.policy_role_assignments | default list) }}
+{{- $mod := (index ((index $toModify $pra.management_group_id) | default dict) "policy_assignments" | default dict) }}
+{{- $m := (index ($mod | default dict) $pra.policy_assignment_name) | default dict }}
+{{- if and (not (contains "00000000-0000-0000-0000-000000000000" $pra.scope)) (ne $m.creation_enabled false) (ne $m.role_assignments_enabled false) }}
+{{- $key := include "alz.uuidv5" (printf "%s%s%s%s" $pra.policy_assignment_name $pra.scope $pra.management_group_id $pra.role_definition_id) }}
+{{- $pa := index $identities (printf "%s/%s" $pra.management_group_id $pra.policy_assignment_name) }}
+{{- if not (and $pa $pa.identity) }}
+{{- fail (printf "%s: architecture policy role assignment for %s/%s: the architecture has no such policy assignment with an identity, whose principal it assigns the role to" $n $pra.management_group_id $pra.policy_assignment_name) }}
+{{- end }}
+{{- $role := $pra.role_definition_id }}
+{{- if hasPrefix "/subscriptions" (lower $pra.scope) }}{{ $role = printf "/subscriptions/%s%s" (index (splitList "/" $pra.scope) 2) $pra.role_definition_id }}{{ end }}
+---
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "pra" $key)) "id" (printf "policy_role_assignment:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $key | quote }}
+  owner:
+    armId: {{ $pra.scope | quote }}
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: {{ include "aso.name" (list $pa.obj "principal") }}
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: {{ $role | quote }}
+{{- end }}
+{{- end }}
+
+{{- /* azapi_resource.management_group_role_assignments (avm-utl-interfaces'
+body and name). */ -}}
+{{- $roleID := "(?i)/providers/Microsoft\\.Authorization/roleDefinitions/" }}
+{{- range $k, $r := ($v.management_group_role_assignments | default dict) }}
+{{- $isID := regexMatch $roleID $r.role_definition_id_or_name }}
+{{- if and (not $isID) (eq $v.role_assignment_definition_lookup_enabled false) }}
+{{- fail (printf "%s: management_group_role_assignments.%s: with role_assignment_definition_lookup_enabled false, role_definition_id_or_name must be a role definition ID" $n $k) }}
+{{- end }}
+---
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "mgra" $k)) "id" (printf "management_group_role_assignment:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- if and $isID (ne $v.role_assignment_name_use_random_uuid true) }}
+  azureName: {{ include "alz.uuidv5" (printf "%s%s" $r.principal_id $r.role_definition_id_or_name) | quote }}
+  {{- end }}
+  owner:
+    armId: {{ printf "%s%s" $mgPrefix $r.management_group_name | quote }}
+  principalId: {{ $r.principal_id | quote }}
+  {{- with $r.principal_type }}
+  principalType: {{ . | quote }}
+  {{- end }}
+  roleDefinitionReference:
+    {{- if $isID }}
+    armId: {{ $r.role_definition_id_or_name | quote }}
+    {{- else }}
+    wellKnownName: {{ $r.role_definition_id_or_name | quote }}
+    {{- end }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $r.condition }}
+  condition: {{ . | quote }}
+  {{- end }}
+  {{- with $r.condition_version }}
+  conditionVersion: {{ . | quote }}
+  {{- end }}
+  {{- with $r.delegated_managed_identity_resource_id }}
+  delegatedManagedIdentityResourceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}
+
+{{- /* azapi_resource.subscription_placement. */ -}}
+{{- $behavior := $v.subscription_placement_destroy_behavior | default "default" }}
+{{- if not (has $behavior (list "parent" "intermediate_root" "custom" "default")) }}
+{{- fail (printf "%s: The subscription_placement_destroy_behavior variable must be one of 'parent', 'intermediate_root', 'custom', or 'default'." $n) }}
+{{- end }}
+{{- $why := "the module moves each placed subscription to another management group when it is destroyed (a PUT at destroy); deleting ASO's placement moves it to the tenant's default management group, which is the default behavior" }}
+{{- include "aso.unsupported" (list $ (printf "subscription_placement_destroy_behavior %s" $behavior) (or (has $behavior (list "parent" "custom")) (and (eq $behavior "intermediate_root") $existingRoot)) $why) }}
+{{- $seen := dict }}
+{{- range $k, $s := ($v.subscription_placement | default dict) }}
+{{- if not (regexMatch "^[a-f\\d]{4}(?:[a-f\\d]{4}-){4}[a-f\\d]{12}$" $s.subscription_id) }}
+{{- fail (printf "%s: All subscription ids must be valid UUIDs." $n) }}
+{{- end }}
+{{- if hasKey $seen $s.subscription_id }}
+{{- fail (printf "%s: Each subscription ID can only be specified once in the subscription_placement variable." $n) }}
+{{- end }}
+{{- $_ := set $seen $s.subscription_id true }}
+---
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $base "placement" $k)) "id" (printf "subscription_placement:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $s.subscription_id | quote }}
+  owner:
+    {{- if hasKey $made $s.management_group_name }}
+    name: {{ index $made $s.management_group_name }}
+    {{- else }}
+    armId: {{ printf "%s%s" $mgPrefix $s.management_group_name | quote }}
+    {{- end }}
+{{- end }}

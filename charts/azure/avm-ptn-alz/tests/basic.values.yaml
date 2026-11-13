@@ -1,0 +1,85 @@
+# A small resolved architecture under the tenant root group: an
+# intermediate root and a landing zones group, a custom policy definition
+# (given as the data source's JSON string) and a set of it at the root, an
+# assignment of the set with a system-assigned identity and the policy role
+# assignment the provider computed for it, and a custom role definition.
+architecture_name: alz-small
+location: eastus2
+parent_resource_id: 11111111-2222-3333-4444-555555555555
+tenant_id: 11111111-2222-3333-4444-555555555555
+architecture:
+  name: alz-small
+  management_groups:
+    - id: alz
+      display_name: Azure Landing Zones
+      parent_id: 11111111-2222-3333-4444-555555555555
+      level: 0
+      exists: false
+      policy_definitions:
+        Deny-Public-IP: >-
+          {"name": "Deny-Public-IP", "type": "Microsoft.Authorization/policyDefinitions",
+          "properties": {"displayName": "Deny public IP addresses", "policyType": "Custom",
+          "mode": "Indexed", "description": "Denies public IP addresses.",
+          "metadata": {"version": "1.0.0", "category": "Network"},
+          "parameters": {"effect": {"type": "String", "allowedValues": ["Audit", "Deny", "Disabled"],
+          "defaultValue": "Deny", "metadata": {"displayName": "Effect", "description": "The effect"}}},
+          "policyRule": {"if": {"field": "type", "equals": "Microsoft.Network/publicIPAddresses"},
+          "then": {"effect": "[parameters('effect')]"}}}}
+      policy_set_definitions:
+        Enforce-Network:
+          name: Enforce-Network
+          properties:
+            displayName: Enforce network guardrails
+            policyType: Custom
+            metadata: {version: 1.0.0, category: Network}
+            parameters:
+              effect:
+                type: String
+                defaultValue: Deny
+                metadata: {displayName: Effect, deprecated: false, portalReview: "true"}
+            policyDefinitions:
+              - policyDefinitionReferenceId: Deny-Public-IP
+                policyDefinitionId: /providers/Microsoft.Management/managementGroups/alz/providers/Microsoft.Authorization/policyDefinitions/Deny-Public-IP
+                parameters:
+                  effect: {value: "[parameters('effect')]"}
+                groupNames: [network]
+            policyDefinitionGroups:
+              - name: network
+                displayName: Network
+      policy_assignments:
+        Enforce-Network:
+          name: Enforce-Network
+          identity: {type: SystemAssigned}
+          properties:
+            displayName: Enforce network guardrails
+            description: Enforces the network guardrails.
+            enforcementMode: Default
+            policyDefinitionId: /providers/Microsoft.Management/managementGroups/alz/providers/Microsoft.Authorization/policySetDefinitions/Enforce-Network
+            parameters:
+              effect: {value: Deny}
+            nonComplianceMessages:
+              - message: Network guardrails must be followed.
+            notScopes: []
+      role_definitions:
+        Network-Ops:
+          name: 0b3e8f1a-6f4e-5d2b-9c1a-2a3b4c5d6e7f
+          properties:
+            roleName: Network-Operations (alz)
+            description: Network operations across the estate.
+            type: CustomRole
+            permissions:
+              - actions: ["Microsoft.Network/*"]
+                notActions: []
+                dataActions: []
+                notDataActions: []
+            assignableScopes: [/providers/Microsoft.Management/managementGroups/alz]
+    - id: landingzones
+      display_name: Landing zones
+      parent_id: alz
+      level: 1
+      exists: false
+  policy_role_assignments:
+    - management_group_id: alz
+      policy_assignment_name: Enforce-Network
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+      scope: /providers/Microsoft.Management/managementGroups/alz

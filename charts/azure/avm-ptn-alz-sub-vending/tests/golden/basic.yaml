@@ -1,0 +1,77 @@
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  name: basic-mg-subscription
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_group_subscription_association"
+spec:
+  azureName: "00000000-0000-0000-0000-000000000000"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/landing-zones"
+---
+# Source: avm-ptn-alz-sub-vending/templates/main.yaml
+apiVersion: resources.azure.com/v1api20200601
+kind: ResourceGroup
+metadata:
+  name: basic-rg-network
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource_group:network"
+spec:
+  azureName: "rg-network"
+  location: "eastus2"
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata:
+  name: basic-vnet-primary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:primary"
+spec:
+  azureName: "vnet-primary"
+  location: "eastus2"
+  owner:
+    name: basic-rg-network
+  addressSpace:
+    addressPrefixes:
+      - "10.0.0.0/24"
+  enableDdosProtection: false
+  enableVmProtection: false
+---
+# Source: avm-ptn-alz-sub-vending/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata:
+  name: basic-vnet-primary-subnet-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz-sub-vending
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network:primary/subnet:default"
+spec:
+  azureName: "default"
+  owner:
+    name: basic-vnet-primary
+  addressPrefix: "10.0.0.0/26"
+  defaultOutboundAccess: false
+  privateEndpointNetworkPolicies: "Enabled"
+  privateLinkServiceNetworkPolicies: Enabled
