@@ -1,0 +1,39 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, read from the live objects (resources.<id>), keyed as the module
+# keys them: a management group by its ID, a policy or role resource by
+# "<management group>/<name in the architecture>", a policy role
+# assignment by the module's uuidv5 key. policy_assignment_identity_ids is
+# each assignment's identity's principal: the system-assigned one, or its
+# user-assigned identity's (status.identity.userAssignedIdentities), where
+# the module reads that identity from Resource Manager.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-ptn-alz
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    management_group_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('management_group:'), {k.substring(17): v.status.id})
+    policy_assignment_identity_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('policy_assignment:') && 'identity' in v.status
+          && ('principalId' in v.status.identity
+            || ('userAssignedIdentities' in v.status.identity && size(v.status.identity.userAssignedIdentities) > 0)),
+        {k.substring(18): 'principalId' in v.status.identity
+          ? v.status.identity.principalId
+          : v.status.identity.userAssignedIdentities.map(i, v.status.identity.userAssignedIdentities[i].principalId)[0]})
+    policy_assignment_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('policy_assignment:'), {k.substring(18): v.status.id})
+    policy_definition_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('policy_definition:'), {k.substring(18): v.status.id})
+    policy_role_assignment_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('policy_role_assignment:'), {k.substring(23): v.status.id})
+    policy_set_definition_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('policy_set_definition:'), {k.substring(22): v.status.id})
+    role_definition_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('role_definition:'), {k.substring(16): v.status.id})

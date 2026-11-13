@@ -1,0 +1,255 @@
+# Every input on an existing subscription: its tags updated, two resource
+# groups (one locked), a network security group and a route table by key
+# and by an existing group, an identity with GitHub, Terraform Cloud and
+# advanced federated credentials and role assignments, role assignments by
+# name and by ID, a budget, and three networks: IPAM, hub peering both
+# ways, mesh peering, and Virtual WAN connections with and without routing
+# intent.
+location: eastus2
+subscription_id: 00000000-0000-0000-0000-000000000000
+subscription_update_existing: true
+subscription_tags:
+  environment: prod
+subscription_management_group_association_enabled: true
+subscription_management_group_id: corp
+wait_for_subscription_before_subscription_operations:
+  create: 60s
+labels:
+  team: platform
+tags:
+  managed-by: catalog
+resource_group_creation_enabled: true
+resource_groups:
+  network:
+    name: rg-network
+    tags: {role: network}
+  identity:
+    name: rg-identity
+    location: westus2
+    lock_enabled: true
+  watcher:
+    name: NetworkWatcherRG
+    lock_enabled: true
+    lock_name: keep-watcher
+network_security_group_enabled: true
+network_security_groups:
+  app:
+    name: nsg-app
+    resource_group_key: network
+    tags: {tier: app}
+    security_rules:
+      https:
+        name: allow-https
+        access: Allow
+        direction: Inbound
+        priority: 100
+        protocol: Tcp
+        source_address_prefix: Internet
+        source_port_range: "*"
+        destination_address_prefixes: ["10.1.0.0/26", "10.1.0.64/26"]
+        destination_port_ranges: ["443", "8443"]
+        description: HTTPS in
+      asg:
+        name: allow-asg
+        access: Deny
+        direction: Outbound
+        priority: 200
+        protocol: "*"
+        source_application_security_group_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/applicationSecurityGroups/asg1]
+        destination_address_prefix: "*"
+        destination_port_range: "*"
+        source_port_range: "*"
+  shared:
+    name: nsg-shared
+    location: westus2
+    resource_group_name_existing: rg-shared
+route_table_enabled: true
+route_tables:
+  egress:
+    name: rt-egress
+    location: eastus2
+    resource_group_key: network
+    bgp_route_propagation_enabled: false
+    routes:
+      default:
+        name: default
+        address_prefix: 0.0.0.0/0
+        next_hop_type: VirtualAppliance
+        next_hop_in_ip_address: 10.100.0.4
+      local:
+        name: local
+        address_prefix: 10.1.0.0/16
+        next_hop_type: VnetLocal
+umi_enabled: true
+user_managed_identities:
+  deploy:
+    name: id-deploy
+    resource_group_key: identity
+    tags: {use: cicd}
+    role_assignments:
+      sub-owner:
+        definition: Owner
+        condition_version: "2.0"
+        condition: "((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})))"
+      rg-contributor:
+        definition: /providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c
+        resource_group_scope_key: network
+        principal_type: ServicePrincipal
+    federated_credentials_github:
+      main:
+        organization: contoso
+        repository: infra
+        entity: branch
+        value: main
+      prod:
+        organization: contoso
+        repository: infra
+        entity: environment
+        value: prod
+        enterprise_slug: contoso-ent
+      release:
+        name: gh-release
+        organization: contoso
+        repository: infra
+        entity: tag
+        value: v1
+      pr:
+        organization: contoso
+        repository: infra
+        entity: pull_request
+    federated_credentials_terraform_cloud:
+      plan:
+        organization: contoso
+        project: landing
+        workspace: app1
+        run_phase: plan
+    federated_credentials_advanced:
+      aks:
+        name: aks-workload
+        subject_identifier: system:serviceaccount:app:deployer
+        issuer_url: https://eastus2.oic.prod-aks.azure.com/tenant/guid/
+        audiences: [api://AzureADTokenExchange, api://other]
+  reader:
+    name: id-reader
+    resource_group_name_existing: rg-shared
+    location: westus2
+role_assignment_enabled: true
+role_assignments:
+  readers:
+    principal_id: 11111111-1111-1111-1111-111111111111
+    definition: Reader
+    principal_type: Group
+  network-contributor:
+    principal_id: 22222222-2222-2222-2222-222222222222
+    definition: /providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7
+    resource_group_scope_key: network
+  shared-rg:
+    principal_id: 33333333-3333-3333-3333-333333333333
+    definition: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7
+    relative_scope: /resourceGroups/rg-shared
+    use_random_uuid: true
+budget_enabled: true
+budgets:
+  monthly:
+    name: budget-monthly
+    amount: 1500
+    time_grain: Monthly
+    time_period_start: "2026-12-01T00:00:00Z"
+    time_period_end: "2027-11-30T23:59:59Z"
+    notifications:
+      eighty:
+        enabled: true
+        operator: GreaterThan
+        threshold: 80
+        contact_emails: [finops@contoso.com]
+      forecast:
+        enabled: true
+        operator: GreaterThanOrEqualTo
+        threshold: 120
+        threshold_type: Forecasted
+        contact_roles: [Owner]
+        contact_groups: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Insights/actionGroups/ag1]
+        locale: en-gb
+  network:
+    name: budget-network
+    amount: 200
+    time_grain: Quarterly
+    time_period_start: "2026-12-01T00:00:00Z"
+    time_period_end: "2027-11-30T23:59:59Z"
+    resource_group_key: network
+virtual_network_enabled: true
+virtual_networks:
+  spoke1:
+    name: vnet-spoke1
+    address_space: ["10.1.0.0/24", "10.1.1.0/24"]
+    resource_group_key: network
+    dns_servers: ["10.100.0.4", "10.100.0.5"]
+    flow_timeout_in_minutes: 10
+    ddos_protection_enabled: true
+    ddos_protection_plan_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/ddosProtectionPlans/ddos
+    tags: {spoke: "1"}
+    subnets:
+      app:
+        name: snet-app
+        address_prefixes: ["10.1.0.0/26"]
+        network_security_group: {key_reference: app}
+        route_table: {key_reference: egress}
+        service_endpoints: [Microsoft.Storage, Microsoft.KeyVault]
+        private_endpoint_network_policies: Disabled
+        private_link_service_network_policies_enabled: false
+        default_outbound_access_enabled: true
+      web:
+        name: snet-web
+        address_prefix: 10.1.0.64/26
+        network_security_group: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/networkSecurityGroups/nsg-web}
+        route_table: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/routeTables/rt-web}
+        nat_gateway: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/natGateways/ng}
+        service_endpoint_policies:
+          sep: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Network/serviceEndpointPolicies/sep}
+        delegations:
+          - name: aci
+            service_delegation: {name: Microsoft.ContainerInstance/containerGroups}
+    hub_peering_enabled: true
+    hub_network_resource_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+    hub_peering_options_tohub:
+      use_remote_gateways: false
+    mesh_peering_enabled: true
+    mesh_peering_allow_forwarded_traffic: true
+  spoke2:
+    name: vnet-spoke2
+    address_space: ["10.2.0.0/24"]
+    resource_group_name_existing: rg-shared
+    location: westus2
+    hub_peering_enabled: true
+    hub_peering_direction: tohub
+    hub_peering_name_tohub: spoke2-to-hub
+    hub_network_resource_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+    mesh_peering_enabled: true
+    vwan_connection_enabled: true
+    vwan_hub_resource_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2
+    vwan_propagated_routetables_labels: [default, spokes]
+    vwan_security_configuration:
+      secure_internet_traffic: true
+      secure_private_traffic: true
+  ipam:
+    name: vnet-ipam
+    ipam_pools:
+      - id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-avnm/providers/Microsoft.Network/networkManagers/avnm/ipamPools/pool1
+        prefix_length: 24
+    resource_group_key: network
+    subnets:
+      pool:
+        name: snet-pool
+        ipam_pools:
+          - pool_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-avnm/providers/Microsoft.Network/networkManagers/avnm/ipamPools/pool1
+            prefix_length: 26
+    hub_peering_enabled: true
+    hub_peering_direction: fromhub
+    hub_network_resource_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub
+    vwan_connection_enabled: true
+    vwan_connection_name: vhc-ipam
+    vwan_hub_resource_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2
+    vwan_associated_routetable_resource_id: /subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2/hubRouteTables/rt-spokes
+    vwan_propagated_routetables_resource_ids: [/subscriptions/11111111-0000-0000-0000-000000000000/resourceGroups/rg-vwan/providers/Microsoft.Network/virtualHubs/hub-eastus2/hubRouteTables/rt-spokes]
+    vwan_security_configuration:
+      routing_intent_enabled: true

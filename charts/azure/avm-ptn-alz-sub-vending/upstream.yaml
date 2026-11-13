@@ -1,0 +1,48 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-ptn-alz-sub-vending
+repo: https://github.com/Azure/terraform-azure-avm-ptn-alz-sub-vending
+path: .
+version: v0.3.4
+commit: 28577b03cf4ad2cd5faa2e9ee7991f07c7c2dab0
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azure-avm-ptn-alz-sub-vending/tree/v0.3.4
+registry_url: https://registry.terraform.io/modules/Azure/avm-ptn-alz-sub-vending/azure
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the ARM type when a kind is missing), not-ported
+# (one exists, the chart does not map it yet) or by-design. partial: the
+# variable is accepted, the reason says what is refused.
+refused:
+  - variable: subscription_register_resource_providers_enabled
+    kind: gap
+    reason: "registering a resource provider or a preview feature is an action on the subscription (POST /subscriptions/<id>/providers/<namespace>/register and Microsoft.Features/providers/<namespace>/features/<name>/register), not a resource; no ASO or aso-extensions kind does it"
+  - variable: subscription_register_resource_providers_and_features
+    kind: gap
+    partial: true
+    reason: "accepted (the module's default list), but read only with subscription_register_resource_providers_enabled, which is refused: a registration is an action, not a resource"
+  - variable: subscription_alias_enabled
+    kind: gap
+    partial: true
+    reason: "the alias is an ASO Alias, placed and tagged by its body; refused with it: any resource in the new subscription (resource groups, networks, identities, role assignments, budgets), whose subscription ID Azure gives only after the render (apply a second instance with this one's subscription_id output), and the module's cancel of the subscription when it is destroyed (POST Microsoft.Subscription/cancel, an action: deleting the Alias leaves the subscription)"
+  - variable: subscription_update_existing
+    kind: gap
+    partial: true
+    reason: "the tags are an aso-extensions TagSet on the subscription; the rename to subscription_display_name is refused: it is an action (POST /subscriptions/<id>/providers/Microsoft.Subscription/rename), not a resource"
+  - variable: network_security_groups
+    kind: by-design
+    partial: true
+    reason: "accepted, but an entry's resource_types is refused: ASO's kinds fix the API versions (NetworkSecurityGroup and NetworkSecurityGroupsSecurityRule 2025-03-01)"
+  - variable: route_tables
+    kind: by-design
+    partial: true
+    reason: "accepted, but an entry's resource_types is refused: ASO's kinds fix the API versions (RouteTable and RouteTablesRoute 2025-03-01)"

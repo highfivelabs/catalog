@@ -1,0 +1,195 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-ptn-alz-sub-vending (v0.3.4): same names, types and defaults, so a
+# module block's arguments become this file one to one.
+# values.schema.json carries the types. README.md maps each one to Azure
+# Service Operator (ASO) and aso-extensions.
+#
+# Descriptions quoted or cut down from
+# terraform-azure-avm-ptn-alz-sub-vending (variables*.tf, v0.3.4),
+# Copyright (c) Microsoft Corporation, MIT.
+
+# Not Terraform variables.
+#
+# Names in full: none. Every name is an input (resource_groups.*.name,
+# virtual_networks.*.name ...), so any key is refused.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the
+# chart gives a collision-prone resource: the subscription alias, resource
+# groups, network security groups, route tables, identities, virtual
+# networks and budgets (README.md).
+namePrefix: ""
+# Azure tags on every resource the chart makes that takes tags (the
+# alias's subscription, the subscription's tag set, resource groups,
+# network security groups, route tables, identities and networks), under
+# each resource's own (which win). Not a module variable.
+tags: {}
+# Kubernetes labels on every object. ASO never copies them to Azure.
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused.
+deletion_policy: null
+
+# Module variables (alphabetical).
+
+# Whether to create budgets. If enabled, supply the list of budgets in
+# budgets.
+budget_enabled: false
+# Map of budgets to create for the subscription, each {name, amount,
+# time_grain, time_period_start, time_period_end, relative_scope,
+# resource_group_key, notifications: {<key>: {enabled, operator, threshold,
+# threshold_type, contact_emails, contact_roles, contact_groups, locale}}}.
+budgets: {}
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# The default location of resources created by this module (required).
+location: ""
+# Whether to create network security groups and security rules in the
+# target subscription. Requires network_security_groups.
+network_security_group_enabled: false
+# A map of the network security groups to create, each {name, location,
+# resource_group_key or resource_group_name_existing, tags,
+# resource_types (refused), security_rules}.
+network_security_groups: {}
+# Whether to create additional resource groups in the target subscription.
+# Requires resource_groups.
+resource_group_creation_enabled: false
+# A map of the resource groups to create, each {name, location, tags,
+# lock_enabled, lock_name}.
+resource_groups: {}
+# Whether to create role assignments. If enabled, supply the list of role
+# assignments in role_assignments.
+role_assignment_enabled: false
+# A map of role assignments, each {principal_id, definition (a role name
+# or a scopeless role definition ID), relative_scope,
+# resource_group_scope_key, condition, condition_version, principal_type,
+# definition_lookup_enabled, use_random_uuid}.
+role_assignments: {}
+# Whether to create route tables and routes in the target subscription.
+# Requires route_tables.
+route_table_enabled: false
+# A map of route tables, each {name, location, resource_group_key or
+# resource_group_name_existing, bgp_route_propagation_enabled, tags,
+# resource_types (refused), routes}.
+route_tables: {}
+# Whether to create a new subscription using the subscription alias
+# resource. If enabled, subscription_alias_name, subscription_display_name,
+# subscription_billing_scope and subscription_workload must be supplied.
+subscription_alias_enabled: false
+# The name of the subscription alias (a-z, A-Z, 0-9, - and _; at most 63).
+subscription_alias_name: null
+# The billing scope for the new subscription alias
+# (/providers/Microsoft.Billing/billingAccounts/...).
+subscription_billing_scope: null
+# The display name of the subscription alias (a-z, A-Z, 0-9, -, _ and
+# space; at most 63).
+subscription_display_name: null
+# An existing subscription id (a lower-case GUID). Every resource group
+# this chart makes goes into the subscription of ASO's credential, which
+# must be this one.
+subscription_id: null
+# Whether to create the management group association resource. If
+# enabled, subscription_management_group_id must also be supplied.
+subscription_management_group_association_enabled: false
+# The destination management group ID for the new subscription (not its
+# display name or resource ID).
+subscription_management_group_id: null
+# Refused when set: registering resource providers and features is an
+# action, not a resource (the map below is read only when it is set).
+subscription_register_resource_providers_enabled: false
+# The map of resource providers to register, keyed by namespace, each a
+# list of provider features. The module's default; read only with
+# subscription_register_resource_providers_enabled, which is refused.
+subscription_register_resource_providers_and_features:
+  Microsoft.ApiManagement: []
+  Microsoft.AppPlatform: []
+  Microsoft.Authorization: []
+  Microsoft.Automation: []
+  Microsoft.AVS: []
+  Microsoft.Blueprint: []
+  Microsoft.BotService: []
+  Microsoft.Cache: []
+  Microsoft.Cdn: []
+  Microsoft.CognitiveServices: []
+  Microsoft.Compute: []
+  Microsoft.ContainerInstance: []
+  Microsoft.ContainerRegistry: []
+  Microsoft.ContainerService: []
+  Microsoft.CostManagement: []
+  Microsoft.CustomProviders: []
+  Microsoft.Databricks: []
+  Microsoft.DataLakeAnalytics: []
+  Microsoft.DataLakeStore: []
+  Microsoft.DataMigration: []
+  Microsoft.DataProtection: []
+  Microsoft.DBforMariaDB: []
+  Microsoft.DBforMySQL: []
+  Microsoft.DBforPostgreSQL: []
+  Microsoft.DesktopVirtualization: []
+  Microsoft.Devices: []
+  Microsoft.DevTestLab: []
+  Microsoft.DocumentDB: []
+  Microsoft.EventGrid: []
+  Microsoft.EventHub: []
+  Microsoft.HDInsight: []
+  Microsoft.HealthcareApis: []
+  Microsoft.GuestConfiguration: []
+  Microsoft.KeyVault: []
+  Microsoft.Kusto: []
+  microsoft.insights: []
+  Microsoft.Logic: []
+  Microsoft.MachineLearningServices: []
+  Microsoft.Maintenance: []
+  Microsoft.ManagedIdentity: []
+  Microsoft.ManagedServices: []
+  Microsoft.Management: []
+  Microsoft.Maps: []
+  Microsoft.MarketplaceOrdering: []
+  Microsoft.Network: []
+  Microsoft.NotificationHubs: []
+  Microsoft.OperationalInsights: []
+  Microsoft.OperationsManagement: []
+  Microsoft.PolicyInsights: []
+  Microsoft.PowerBIDedicated: []
+  Microsoft.Relay: []
+  Microsoft.RecoveryServices: []
+  Microsoft.Resources: []
+  Microsoft.Search: []
+  Microsoft.Security: []
+  Microsoft.SecurityInsights: []
+  Microsoft.ServiceBus: []
+  Microsoft.ServiceFabric: []
+  Microsoft.Sql: []
+  Microsoft.Storage: []
+  Microsoft.StreamAnalytics: []
+  Microsoft.Web: []
+# A map of tags to assign to the subscription (a new one's, or an
+# existing one's with subscription_update_existing).
+subscription_tags: {}
+# Whether to update an existing subscription with the supplied tags and
+# display name (the display name, a rename, is refused).
+subscription_update_existing: false
+# The workload type of the new subscription alias: Production or DevTest.
+subscription_workload: null
+# Whether to enable the creation of user-assigned managed identities.
+umi_enabled: false
+# A map of user-managed identities, each {name, resource_group_key or
+# resource_group_name_existing, location, tags, role_assignments,
+# federated_credentials_github, federated_credentials_terraform_cloud,
+# federated_credentials_advanced}.
+user_managed_identities: {}
+# Enables and disables the virtual network submodule.
+virtual_network_enabled: false
+# A map of the virtual networks to create, each {name, address_space or
+# ipam_pools, resource_group_key or resource_group_name_existing,
+# location, dns_servers, flow_timeout_in_minutes, ddos_protection_enabled,
+# ddos_protection_plan_id, subnets, hub_*, mesh_*, vwan_*, tags}.
+virtual_networks: {}
+# The duration to wait after vending a subscription before performing
+# subscription operations. Accepted with no effect: ASO retries until the
+# subscription answers.
+wait_for_subscription_before_subscription_operations: {}

@@ -1,0 +1,166 @@
+# Every input: an architecture under an existing intermediate root (the
+# library's alz root marked exists), a corp group made beneath it, policy
+# resources at both, an assignment with a user-assigned identity and one
+# disabled by policy_assignments_to_modify (with its role assignment),
+# another whose role assignments are disabled, a policy role assignment at
+# a subscription scope, hierarchy settings updating the existing ones,
+# management group role assignments by ID (deterministic and random names)
+# and by name, and subscription placement into the made and the existing
+# group. A policy role assignment at the all-zero subscription (the
+# library's placeholder) is skipped, as the module skips it.
+architecture_name: alz-full
+location: westeurope
+parent_resource_id: 11111111-2222-3333-4444-555555555555
+tenant_id: 11111111-2222-3333-4444-555555555555
+labels:
+  team: platform
+deletion_policy: ABANDON
+enable_telemetry: false
+telemetry_additional_content: {deployment: catalog}
+delays:
+  after_management_group: {create: 30s}
+management_groups_dependencies: [x]
+policy_assignments_dependencies: {a: b}
+policy_role_assignments_dependencies: null
+parent_id_overrides:
+  policy_assignments: {"corp/Deny-IP": /providers/Microsoft.Management/managementgroups}
+schema_validation_enabled: {policy_definitions: true}
+role_assignment_definition_lookup_enabled: true
+role_assignment_name_use_random_uuid: false
+subscription_placement_destroy_behavior: default
+policy_assignments_to_modify:
+  alz:
+    policy_assignments:
+      Audit-Old: {creation_enabled: false}
+  corp:
+    policy_assignments:
+      Deploy-AMA: {role_assignments_enabled: false}
+management_group_hierarchy_settings:
+  default_management_group_name: corp
+  require_authorization_for_group_creation: false
+  update_existing: true
+management_group_role_assignments:
+  platform-owner:
+    management_group_name: alz
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635
+    principal_id: 33333333-0000-0000-0000-000000000001
+    principal_type: Group
+    description: Platform owners
+    condition: "((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})))"
+    condition_version: "2.0"
+  corp-reader:
+    management_group_name: corp
+    role_definition_id_or_name: Reader
+    principal_id: 33333333-0000-0000-0000-000000000002
+    delegated_managed_identity_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id
+subscription_placement:
+  corp1:
+    subscription_id: 0000aaaa-0000-0000-0000-000000000001
+    management_group_name: corp
+  platform:
+    subscription_id: 0000aaaa-0000-0000-0000-000000000002
+    management_group_name: alz
+architecture:
+  name: alz-full
+  management_groups:
+    - id: alz
+      display_name: Azure Landing Zones
+      parent_id: 11111111-2222-3333-4444-555555555555
+      level: 0
+      exists: true
+      policy_assignments:
+        Audit-Old: >-
+          {"name": "Audit-Old", "properties": {"displayName": "Old audit",
+          "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/06a78e20-9358-41c9-923c-fb736d382a4d"}}
+        Deploy-MDFC:
+          name: Deploy-MDFC
+          location: westeurope
+          identity: {type: SystemAssigned}
+          properties:
+            displayName: Deploy Microsoft Defender for Cloud
+            definitionVersion: 2.*.*
+            enforcementMode: DoNotEnforce
+            policyDefinitionId: /providers/Microsoft.Authorization/policySetDefinitions/1f3afdf9-d0c9-4c3d-847f-89da613e70a8
+            metadata: {assignedBy: alz, createdBy: someone}
+            overrides:
+              - kind: policyEffect
+                value: Audit
+                selectors:
+                  - kind: policyDefinitionReferenceId
+                    in: [ref1]
+            resourceSelectors:
+              - name: eu
+                selectors:
+                  - kind: resourceLocation
+                    in: [westeurope, northeurope]
+            notScopes: [/providers/Microsoft.Management/managementGroups/sandbox]
+            parameters:
+              emailSecurityContact: {value: security@contoso.com}
+              logAnalytics: {value: {id: law, retention: 30}}
+    - id: corp
+      display_name: Corp
+      parent_id: alz
+      level: 1
+      exists: false
+      policy_definitions:
+        Deny-IP:
+          name: Deny-IP
+          properties:
+            displayName: Deny IP forwarding
+            policyType: Custom
+            mode: All
+            version: 1.0.0
+            policyRule: {if: {field: "Microsoft.Network/networkInterfaces/enableIPForwarding", equals: true}, then: {effect: deny}}
+      policy_assignments:
+        Deny-IP:
+          name: Deny-IP
+          properties:
+            displayName: Deny IP forwarding
+            policyDefinitionId: /providers/Microsoft.Management/managementGroups/corp/providers/Microsoft.Authorization/policyDefinitions/Deny-IP
+        Deploy-AMA:
+          name: Deploy-AMA
+          identity:
+            type: UserAssigned
+            userAssignedIdentities:
+              /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mgmt/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-ama: {}
+          properties:
+            displayName: Deploy the Azure Monitor Agent
+            policyDefinitionId: /providers/Microsoft.Authorization/policySetDefinitions/924bfe3a-762f-40e7-86dd-5c8b95eb09e6
+        Deploy-Diag:
+          name: Deploy-Diag
+          identity:
+            type: UserAssigned
+            userAssignedIdentities:
+              /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mgmt/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-ama: {}
+          properties:
+            displayName: Deploy diagnostic settings
+            policyDefinitionId: /providers/Microsoft.Authorization/policySetDefinitions/0884adba-2312-4468-abeb-5422caed1038
+  policy_role_assignments:
+    - management_group_id: alz
+      policy_assignment_name: Deploy-MDFC
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/fb1c8493-542b-48eb-b624-b4c8fea62acd
+      scope: /providers/Microsoft.Management/managementGroups/alz
+    - management_group_id: alz
+      policy_assignment_name: Deploy-MDFC
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c
+      scope: /subscriptions/0000aaaa-0000-0000-0000-000000000003/resourceGroups/rg-security
+    - management_group_id: alz
+      policy_assignment_name: Audit-Old
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7
+      scope: /providers/Microsoft.Management/managementGroups/alz
+    - management_group_id: corp
+      policy_assignment_name: Deploy-AMA
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/92aaf0da-9dab-42b6-94a3-d43ce8d16293
+      scope: /providers/Microsoft.Management/managementGroups/corp
+    - management_group_id: corp
+      policy_assignment_name: Deploy-Diag
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa
+      scope: /providers/Microsoft.Management/managementGroups/corp
+    - management_group_id: corp
+      policy_assignment_name: Deploy-Diag
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa
+      scope: /subscriptions/0000aaaa-0000-0000-0000-000000000003
+    - management_group_id: corp
+      policy_assignment_name: Deploy-Diag
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/749f88d5-cbae-40b8-bcfc-e573ddc772fa
+      scope: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/placeholder

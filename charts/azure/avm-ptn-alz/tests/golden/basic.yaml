@@ -1,0 +1,221 @@
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroup
+metadata:
+  name: basic-mg-alz
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_group:alz"
+spec:
+  azureName: "alz"
+  displayName: "Azure Landing Zones"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroup
+metadata:
+  name: basic-mg-landingzones
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_group:landingzones"
+spec:
+  azureName: "landingzones"
+  details:
+    parent:
+      reference:
+        group: management.azure.hfl.dev
+        kind: ManagementGroup
+        name: basic-mg-alz
+  displayName: "Landing zones"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  name: basic-pa-alz-enforce-network-e84fd7d2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_assignment:alz/Enforce-Network"
+spec:
+  azureName: "Enforce-Network"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: basic-mg-alz
+  location: "eastus2"
+  definitionVersion: "1.*.*"
+  description: "Enforces the network guardrails."
+  displayName: "Enforce network guardrails"
+  enforcementMode: "Default"
+  identity:
+    type: SystemAssigned
+  metadata:
+    createdBy: ""
+    createdOn: ""
+    updatedBy: ""
+    updatedOn: ""
+  nonComplianceMessages:
+    - message: Network guardrails must be followed.
+  parameters:
+    effect:
+      value: Deny
+  policyDefinitionReference:
+    armId: "/providers/Microsoft.Management/managementGroups/alz/providers/Microsoft.Authorization/policySetDefinitions/Enforce-Network"
+  operatorSpec:
+    configMapExpressions:
+      - name: basic-pa-alz-enforce-network-e84fd7d2-principal
+        key: principalId
+        value: "self.status.identity.principalId"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyDefinition
+metadata:
+  name: basic-pd-alz-deny-public-ip-6dd79a4e
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_definition:alz/Deny-Public-IP"
+spec:
+  azureName: "Deny-Public-IP"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: basic-mg-alz
+  description: Denies public IP addresses.
+  displayName: Deny public IP addresses
+  metadata:
+    category: Network
+    version: 1.0.0
+  mode: Indexed
+  policyRule:
+    if:
+      equals: Microsoft.Network/publicIPAddresses
+      field: type
+    then:
+      effect: '[parameters(''effect'')]'
+  policyType: Custom
+  parameters:
+    effect:
+      allowedValues:
+      - Audit
+      - Deny
+      - Disabled
+      defaultValue: Deny
+      metadata:
+        description: The effect
+        displayName: Effect
+      type: String
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicySetDefinition
+metadata:
+  name: basic-psd-alz-enforce-network-57c8ef83
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_set_definition:alz/Enforce-Network"
+spec:
+  azureName: "Enforce-Network"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: basic-mg-alz
+  displayName: Enforce network guardrails
+  metadata:
+    category: Network
+    version: 1.0.0
+  policyType: Custom
+  parameters:
+    effect:
+      defaultValue: Deny
+      metadata:
+        additionalProperties:
+          deprecated: false
+          portalReview: "true"
+        displayName: Effect
+      type: String
+  policyDefinitionGroups:
+    - displayName: Network
+      name: network
+  policyDefinitions:
+    - policyDefinitionReference:
+        armId: "/providers/Microsoft.Management/managementGroups/alz/providers/Microsoft.Authorization/policyDefinitions/Deny-Public-IP"
+      groupNames:
+      - network
+      parameters:
+        effect:
+          value: '[parameters(''effect'')]'
+      policyDefinitionReferenceId: Deny-Public-IP
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: basic-pra-4640a37a-71a6-50d7-b143-fda11debc85d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_role_assignment:4640a37a-71a6-50d7-b143-fda11debc85d"
+spec:
+  azureName: "4640a37a-71a6-50d7-b143-fda11debc85d"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/alz"
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: basic-pa-alz-enforce-network-e84fd7d2-principal
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleDefinition
+metadata:
+  name: basic-rd-alz-network-ops-87c4238d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role_definition:alz/Network-Ops"
+spec:
+  azureName: "0b3e8f1a-6f4e-5d2b-9c1a-2a3b4c5d6e7f"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/alz"
+  assignableScopesReferences:
+    - armId: "/providers/Microsoft.Management/managementGroups/alz"
+  description: "Network operations across the estate."
+  permissions:
+    - actions:
+      - Microsoft.Network/*
+      dataActions: []
+      notActions: []
+      notDataActions: []
+  roleName: "Network-Operations (alz)"
+  type: "CustomRole"
