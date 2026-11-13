@@ -513,6 +513,10 @@ real gap.
 | --- | --- |
 | Bastion host | `network/BastionHost` (2025-03-01). Covered |
 
+Covered. Chart `charts/azure/avm-res-network-bastionhost` (2026-11-12):
+21 of 21 variables, every SKU (Developer as the network-only host), the
+public IP it makes as a `PublicIPAddress`.
+
 ### Just below the top 25
 
 | Module | ASO coverage |
