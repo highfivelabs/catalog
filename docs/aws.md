@@ -625,6 +625,22 @@ Config Connector. What differs:
 | `charts/aws/dynamodb-table` | `terraform-aws-dynamodb-table` v5.5.2 | partial: one `Table` with keys, attributes, billing and throughput, streams, TTL, point-in-time recovery, encryption, both kinds of secondary index, on-demand limits, replicas (region and KMS key) and the resource policy inline; autoscaling not ported yet (applicationautoscaling-controller); import, restore, warm throughput, the witness region, replicas' other settings and ignoring GSI changes are gaps |
 | `charts/aws/rds` | `terraform-aws-rds` v7.2.2 | partial: the DB instance with its subnet and parameter groups (by reference), log groups, enhanced monitoring role, managed master password and final snapshot (ACK's annotations); the option group and role associations through ack-extensions (`allow_alpha`); secret rotation, a password in values, point-in-time and S3 restores, blue/green updates and fields ACK's `DBInstance` lacks are refused |
 | `charts/aws/step-functions` | `terraform-aws-step-functions` v5.1.1 | partial: the state machine (logging, X-Ray, publish), its role with the module's 41 service integration policies carried as data, the JSON, statement and logs policies and policy ARNs, and its log group; the log group's ARN is built from `account_id` and `region` (`StateMachine` takes it by ARN only); `encryption_configuration` is refused (no field on ACK's `StateMachine`), as are Terraform's timeouts. Passed on AWS Emulator, moto unused (`off-catalog-1113025827-6910`) |
+| `charts/aws/eks-pod-identity` | `terraform-aws-eks-pod-identity` v2.10.0 | partial: the role trusting EKS Pod Identity, the custom policy (source, statements, override merged by Sid), policy ARNs, and the pod identity associations (`roleRef`); the module's preset policies (63 variables) are not ported yet. Passed on AWS Emulator, moto unused (`off-catalog-1113030542-23849`; the associations untested there: they need an EKS cluster) |
+
+**notify-slack has no chart** (2026-11-12). The module is a Lambda
+function (its `functions/notify_slack.py`, packaged by terraform-aws-lambda
+from a local `source_path` into a zip, uploaded inline or to S3) subscribed
+to an SNS topic, with the function's role, policy, log group and
+permission for SNS. Everything but the package has a stable kind
+(`lambda/Function`, `sns/Topic`, `sns/Subscription`, `iam/Role`,
+`cloudwatchlogs/LogGroup`) or an ack-extensions one (`lambda.aws.hfl.dev`
+`Permission`), but a chart cannot build the package: Helm renders text,
+and ACK's `Function` takes code as an S3 object or zip bytes. Without the
+function the topic notifies nothing, so a chart of the rest would mislead.
+What it needs is a published package (an S3 object a chart names by
+bucket and key, built once per module release by a build step outside the
+chart, or an image for `packageType: Image`); the lambda module's local
+packaging is the same gap.
 
 The iam module is tracked per submodule (`upstream/modules.yaml`: `aws/iam-role`
 and `aws/iam-policy`, ranked after the 40), since its root declares no
