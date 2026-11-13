@@ -49,6 +49,7 @@ The module's variables, with the same names, types and defaults.
 | `dns_policy` | `DNSPolicy` |
 | `psa_configs` | a global `ComputeAddress` per range and a `ServiceNetworkingConnection` per producer |
 | `firewall_policy_associations.global` | `ComputeNetworkFirewallPolicyAssociation` |
+| `network_attachments` | a config-connector-extensions `ComputeNetworkAttachment` (`compute.gcp.hfl.dev/v1beta1`, as `net-address` renders it; Config Connector's own is `v1alpha1`) per attachment, named by its key, on a subnet of this chart (`REGION/NAME`, given by its URL), with `description` (fabric's default `Terraform-managed.`), the connection preference and the producer accept and reject lists |
 | `allow_alpha` | not a fabric variable: accepts the features below that need an alpha Config Connector kind (see "Alpha") |
 | `deletion_policy` | not a fabric net-vpc variable; `ABANDON` keeps every cloud resource |
 
@@ -80,7 +81,6 @@ applied to a cloud, real or fake.
 
 | Variable | Renders |
 | --- | --- |
-| `network_attachments` | `ComputeNetworkAttachment` per attachment, on a subnet of this chart (`description` is not supported) |
 | `psa_configs[].export_routes`, `import_routes` | `ComputeNetworkPeeringRoutesConfig` (only for `servicenetworking.googleapis.com`, whose peering name is known) |
 | `psa_configs[].peered_domains` | `ServiceNetworkingPeeredDNSDomain` per domain |
 
@@ -105,8 +105,8 @@ Refused when set:
 These are fabric's declared outputs, selected (docs/design.md,
 "Outputs"). Not outputs: `network_id` and `internal_ipv6_range`
 (`ComputeNetwork` does not report them: field gaps), the maps of internal
-ranges, service connection policies and network attachments (those
-features are alpha or refused), and fabric's whole-object outputs
+ranges, service connection policies and network attachments (the first
+two are alpha or refused; network attachments' map is not ported yet), and fabric's whole-object outputs
 (`network`, `subnets`). Where fabric's output is a map of whole subnet
 objects (`subnets_proxy_only`, `subnets_psc`, `subnets_private_nat`) the
 output is the self link, the field consumers take. `name` and
@@ -137,6 +137,12 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Changes
 
+- **0.4.0** (2026-11-13): `network_attachments` render config-connector-extensions'
+  `ComputeNetworkAttachment` (`compute.gcp.hfl.dev/v1beta1`) instead of
+  Config Connector's `v1alpha1` one: no `allow_alpha`, and `description`
+  is supported. The object changes kind, so an attachment made with 0.3
+  is deleted and made again (use `deletion_policy: ABANDON` and adopt it to
+  keep it).
 - **0.3.0** (2026-11-10): `names` (`names.network`, `names.dnsPolicy`) sets cloud names in full;
   `labels` and `tags` go on every object; `namePrefix` is an optional
   convenience that never touches a name set in full.
