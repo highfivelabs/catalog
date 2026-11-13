@@ -1,0 +1,30 @@
+# fabric's README "Minimal Example": two regions, a zonal NEG with one VM
+# endpoint in each. fabric's $context lookups are written as the values
+# they stand for.
+name: ilb-proxy-test
+project_id: my-project
+port: 80
+vpc_config:
+  network: projects/my-project/global/networks/my-vpc
+  subnetworks:
+    europe-west1: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+    europe-west4: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
+neg_configs:
+  neg-a:
+    gce:
+      zone: europe-west1-b
+      network: projects/my-project/global/networks/my-vpc
+      subnetwork: projects/my-project/regions/europe-west1/subnetworks/my-subnet-1
+      endpoints:
+        vm-a: {instance: my-vm-a, ip_address: 10.0.0.2, port: 80}
+  neg-b:
+    gce:
+      zone: europe-west4-a
+      network: projects/my-project/global/networks/my-vpc
+      subnetwork: projects/my-project/regions/europe-west4/subnetworks/my-subnet-2
+      endpoints:
+        vm-b: {instance: my-vm-b, ip_address: 10.0.1.2, port: 80}
+backend_service_config:
+  backends:
+    - {group: neg-a, max_connections: {per_endpoint: 100}}
+    - {group: neg-b, max_connections: {per_endpoint: 100}}

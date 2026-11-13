@@ -1,0 +1,118 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-network-firewallpolicy (v0.3.4): same names, types and defaults,
+# so a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-res-network-firewallpolicy
+# (variables.tf and modules/rule_collection_groups/variables.tf, v0.3.4),
+# Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The firewall policy's name in full, {firewallPolicy}. A name set here
+# takes no prefix; one not set is name, with the namePrefix in front. Rule
+# collection groups are named by their entries.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the policy's name
+# (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's azurerm provider knows its subscription; ASO's owner is an
+# Azure resource ID. Not needed when resource_group_name is a resource
+# group's ID (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+# The module's rule_collection_groups submodule, one call per entry, its
+# firewall_policy_id this policy. Not a variable of the root module. Each
+# entry takes the submodule's variables without their
+# firewall_policy_rule_collection_group_ prefix: {name, priority (100 to
+# 65000), application_rule_collection, nat_rule_collection,
+# network_rule_collection, timeouts (refused)}. A collection is {name,
+# priority, action (Allow or Deny; Dnat for NAT), rule: [...]}:
+#   application rule: {name, description, destination_addresses,
+#     destination_fqdn_tags, destination_fqdns, destination_urls,
+#     source_addresses, source_ip_groups, terminate_tls, web_categories,
+#     http_headers [{name, value}], protocols [{port, type (Http, Https)}]}
+#   NAT rule: {name, description, protocols (TCP, UDP),
+#     destination_address, destination_ports, source_addresses,
+#     source_ip_groups, translated_address, translated_fqdn, translated_port}
+#   network rule: {name, description, protocols (Any, TCP, UDP, ICMP),
+#     destination_ports, destination_addresses, destination_fqdns,
+#     destination_ip_groups, source_addresses, source_ip_groups}
+rule_collection_groups: {}
+
+# A map of diagnostic settings to create on the firewall policy.
+# Each: {name (default diag-<name>), log_categories, log_groups
+# (["allLogs"]), metric_categories (["AllMetrics"]),
+# log_analytics_destination_type ("Dedicated"), workspace_resource_id,
+# storage_account_resource_id, event_hub_authorization_rule_resource_id,
+# event_hub_name, marketplace_partner_resource_id}.
+diagnostic_settings: {}
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# (Optional) Whether enable auto learn private ip range.
+firewall_policy_auto_learn_private_ranges_enabled: null
+# (Optional) The ID of the base Firewall Policy.
+firewall_policy_base_policy_id: null
+# {proxy_enabled (default false), servers}: DNS proxy and custom DNS
+# servers of the firewalls attached to this policy.
+firewall_policy_dns: null
+# {enable_pac_file, enabled, http_port, https_port, pac_file (a SAS URL),
+# pac_file_port}: the explicit proxy.
+firewall_policy_explicit_proxy: null
+# {identity_ids, type (UserAssigned)}: the policy's managed identity.
+firewall_policy_identity: null
+# {default_log_analytics_workspace_id, enabled, retention_in_days,
+# log_analytics_workspace: [{firewall_location, id}]}: policy analytics.
+firewall_policy_insights: null
+# {mode (Off, Alert or Deny), private_ranges, signature_overrides: [{id,
+# state}], traffic_bypass: [{name, protocol (ANY, TCP, ICMP, UDP),
+# description, destination_addresses, destination_ip_groups,
+# destination_ports, source_addresses, source_ip_groups}]}: intrusion
+# detection (Premium).
+firewall_policy_intrusion_detection: null
+# (Optional) A list of private IP ranges to which traffic will not be SNAT.
+firewall_policy_private_ip_ranges: null
+# (Optional) The SKU Tier of the Firewall Policy: Standard, Premium or
+# Basic.
+firewall_policy_sku: null
+# (Optional) Whether SQL Redirect traffic filtering is allowed.
+firewall_policy_sql_redirect_allowed: null
+# {fqdns, ip_addresses}: skipped for threat detection.
+firewall_policy_threat_intelligence_allowlist: null
+# (Optional) The operation mode for Threat Intelligence: Alert, Deny or
+# Off. Defaults to Alert.
+firewall_policy_threat_intelligence_mode: null
+# Refused when set: Azure Service Operator has no per-request timeouts.
+firewall_policy_timeouts: null
+# {key_vault_secret_id, name}: the TLS inspection CA certificate (Premium),
+# by its Key Vault secret's ID.
+firewall_policy_tls_certificate: null
+# (Required) The Azure Region where the Firewall Policy should exist.
+location: ""
+# (Optional) Controls the Resource Lock configuration for this resource.
+# {kind (CanNotDelete or ReadOnly), name (default lock-<kind>)}
+lock: null
+# (Required) The name which should be used for this Firewall Policy.
+name: null
+# (Required) The name of the Resource Group where the Firewall Policy
+# should exist (or its ID).
+resource_group_name: ""
+# (Optional) A map of role assignments to create on this resource.
+# Each: {role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+role_assignments: {}
+# (Optional) A mapping of tags to assign to the resource.
+tags: null

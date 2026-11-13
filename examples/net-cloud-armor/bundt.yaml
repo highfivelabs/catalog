@@ -1,0 +1,51 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-cloud-armor
+spec:
+  version: "1.0.0"
+  components:
+    - name: policy
+      package:
+        name: gcp-net-cloud-armor
+        version: "0.1.0"
+      inputs:
+        name: test-premium
+        parent_id:
+          project_id: project-1
+        rules:
+          deny-ip:
+            action: deny(403)
+            match:
+              src_ip_ranges:
+                - 10.0.0.0/8
+            priority: 1000
+          throttle:
+            action: throttle
+            match:
+              src_ip_ranges:
+                - '*'
+            priority: 2000
+            rate_limit_options:
+              enforce_on_key: IP
+              exceed_action: deny(429)
+              rate_limit_threshold:
+                count: 100
+                interval_sec: 60
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-cloud-armor
+  scope: my-team
+spec:
+  template: net-cloud-armor
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-cloud-armor-dev
+  scope: my-team/dev
+spec:
+  stack: net-cloud-armor
+  version: "1.0.0"

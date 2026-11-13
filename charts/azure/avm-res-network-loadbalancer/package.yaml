@@ -1,0 +1,34 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). name and resource_id are the load
+# balancer's. The module's azurerm_public_ip, azurerm_lb_backend_address_pool
+# and azurerm_lb_nat_rule outputs are maps of whole azurerm objects: here
+# they are maps of the same keys (a frontend's key, a pool's key, a NAT
+# rule's name) to the fields consumers take (docs/design.md, "Outputs"): a
+# pool's and a rule's ARM ID (the load balancer's ID and the child's name)
+# and name, a public IP's ID, name and address. The module's resource and
+# azurerm_lb outputs (the whole azurerm object) are not outputs.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-network-loadbalancer
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.load_balancer.spec.azureName
+    resource_id: resources.load_balancer.status.id
+    azurerm_public_ip: >-
+      resources.transformMapEntry(k, v, k.startsWith('public_ip:'),
+      {k.substring(10): {'id': v.status.id, 'name': v.spec.azureName, 'ip_address': 'ipAddress' in v.status ? v.status.ipAddress : null}})
+    azurerm_lb_backend_address_pool: >-
+      inputs.backend_address_pools.transformMapEntry(k, v,
+      {k: {'id': resources.load_balancer.status.id + '/backendAddressPools/' + ('name' in v && v.name != null ? v.name : 'bepool-1'),
+      'name': 'name' in v && v.name != null ? v.name : 'bepool-1'}})
+    azurerm_lb_nat_rule: >-
+      inputs.lb_nat_rules.transformMapEntry(k, v,
+      {v.name: {'id': resources.load_balancer.status.id + '/inboundNatRules/' + v.name, 'name': v.name}})
