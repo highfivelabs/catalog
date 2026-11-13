@@ -133,7 +133,10 @@ and the refusals in `tests/*.fail.yaml`.
 Fake cloud (`task test-mock`, `tests/mock.values.yaml`, with the network
 and subnets in `tests/mock.needs.yaml`): the policy, a URL list, two rules
 (one on the list through its context), the gateway and a service
-attachment on it. Not yet run.
+attachment on it. On 2026-11-13 (offload VM
+`off-catalog-1113085828-15296`, config-connector-extensions `d54a2075`)
+all six objects became Ready, the outputs evaluated and all six were
+deleted.
 
 Not applied live: the Network Services API is off in the live-test
 project (config-connector-extensions' own live test of the kind skips for
