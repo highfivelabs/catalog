@@ -1,0 +1,103 @@
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: dedicated-ipsec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated-ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "address"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "pool-vlan-605"
+  location: "europe-west8"
+  addressType: INTERNAL
+  purpose: IPSEC_INTERCONNECT
+  address: "10.255.255.0"
+  prefixLength: 29
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeInterconnectAttachment
+metadata:
+  name: dedicated-ipsec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated-ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-605"
+  projectRef:
+    external: "my-project"
+  description: "vlan-605"
+  region: "europe-west8"
+  router: "projects/my-project/regions/europe-west8/routers/router-1"
+  type: DEDICATED
+  interconnect: "projects/my-project/global/interconnects/interconnect-a"
+  bandwidth: "BPS_10G"
+  vlanTag8021q: 605
+  candidateCloudRouterIpAddress: "169.254.1.1/29"
+  candidateCustomerRouterIpAddress: "169.254.1.2/29"
+  adminEnabled: true
+  encryption: IPSEC
+  ipsecInternalAddresses:
+    - "projects/my-project/regions/europe-west8/addresses/pool-vlan-605"
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: dedicated-ipsec-intf
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated-ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "router_interface"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-605-intf"
+  region: "europe-west8"
+  routerRef:
+    external: projects/my-project/regions/europe-west8/routers/router-1
+  ipRange: "169.254.1.1/29"
+  interconnectAttachmentRef:
+    external: "vlan-605"
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: dedicated-ipsec-peer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated-ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "router_peer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-605-peer"
+  region: "europe-west8"
+  routerRef:
+    external: "router-1"
+  routerInterfaceRef:
+    name: dedicated-ipsec-intf
+  peerIpAddress: "169.254.1.2"
+  peerAsn: 65000
+  advertiseMode: CUSTOM
+  advertisedIpRanges:
+    - range: "10.255.255.0/29"
+      description: "gateways"

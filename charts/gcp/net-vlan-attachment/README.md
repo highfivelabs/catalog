@@ -1,14 +1,15 @@
 # net-vlan-attachment
 
-A Partner Interconnect VLAN attachment, the Cloud Router it is on
+A Partner or Dedicated Interconnect VLAN attachment, the Cloud Router it is on
 (encrypted, with the IPsec address pool, for IPsec over Interconnect) and
-the router's BGP route policies, as Config Connector objects. A port of
+the router's BGP route policies, and for a dedicated attachment the
+router interface and BGP peer, as Config Connector objects. A port of
 Cloud Foundation Fabric's
 [`modules/net-vlan-attachment`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/f706bc3b6166787df01402f73a96f1de57097477/modules/net-vlan-attachment)
 at v60.0.0 (`f706bc3b`), Apache-2.0, Copyright Google LLC. Bundt Package
 `gcp-net-vlan-attachment` (`package.yaml`). Checked against Config
-Connector v1.160.0 and config-connector-extensions (route policies).
-Dedicated Interconnect attachments are refused (below).
+Connector v1.160.0 and config-connector-extensions (route policies, the
+dedicated attachment).
 
 ## Example
 
@@ -43,8 +44,8 @@ The module's variables, with the same names, types and defaults.
 | `ipsec_gateway_ip_ranges` | the ranges the encrypted router advertises (fabric's map of description to range) |
 | `router_config` | `create` (default true) makes the `ComputeRouter`: without IPsec `name` (fabric's default `router`), with `asn` (default 65001), `keepalive` and `custom_advertise`; with IPsec the encrypted router (`asn` only, as fabric). `create: false` puts the attachment on the router `name` names. `route_policies` need `allow_alpha` (below). `md5_authentication_key` is refused: it configures a dedicated attachment's BGP peer, and `ComputeRouterPeer` has no `md5AuthenticationKey` |
 | `route_policies` in `router_config` | one config-connector-extensions `ComputeRouterRoutePolicy` (`compute.gcp.hfl.dev/v1alpha1`) per key, named by it, on the router: `IMPORT` or `EXPORT`, its terms with their match and actions; fabric's checks (priority range, unique priorities, the type) |
-| `bgp_peer`, `peer_asn` | accepted; fabric uses them only for a dedicated attachment's BGP peer, so on a partner attachment they change nothing, as in fabric |
-| `dedicated_interconnect_config` | refused, a gap: fabric gives a dedicated attachment a router interface and a BGP peer whose addresses are the attachment's assigned `cloudRouterIpAddress` and `customerRouterIpAddress`. Config Connector cannot pass a status field into another object in one render, and `ComputeInterconnectAttachment` has no `candidateCloudRouterIpAddress` or `candidateCustomerRouterIpAddress` to fix them beforehand; `ComputeRouterPeer` also has no `md5AuthenticationKey`, `importPolicies`, `exportPolicies` or `customLearnedIpRanges` |
+| `bgp_peer`, `peer_asn` | a dedicated attachment's BGP peer, as fabric's: `custom_advertise` (a `CUSTOM` advertise mode, `ALL_SUBNETS`, its ranges), `bfd`; without `bgp_peer`, `CUSTOM` with `ipsec_gateway_ip_ranges`. `export_policies`, `import_policies`, `custom_learned_ip_ranges` and `md5_authentication_key` are refused: `ComputeRouterPeer` has no such fields. On a partner attachment they change nothing, as in fabric |
+| `dedicated_interconnect_config` | a `DEDICATED` attachment, config-connector-extensions' `ComputeInterconnectAttachment` (`compute.gcp.hfl.dev/v1beta1`: Config Connector's has no candidate addresses), on the router by its URL: `interconnect`, `bandwidth` (default `BPS_10G`, fabric's check), `vlan_tag`, `bgp_range` (its `candidateSubnets`) and the candidate Cloud Router and customer addresses; and fabric's router interface `<name>-intf` (`ipRange` the candidate Cloud Router address) and BGP peer `<name>-peer` (`peerIpAddress` the candidate customer address, `peerAsn`, `bgp_priority`). Both candidate addresses are required: fabric reads the addresses the attachment is assigned, which a chart cannot read before apply, so the chart fixes them in advance |
 | `context` | refused, by design: Bundt replaces fabric's `$context` lookups with `${...}` expressions in the component's inputs |
 | `deletion_policy` | not a fabric variable; `ABANDON` keeps the cloud resources |
 
@@ -60,7 +61,9 @@ whole objects (`attachment`, `router`, `router_interface`;
 ## From Terraform
 
 A `module "x" { source = ".../modules/net-vlan-attachment" ... }` block's
-arguments become the values unchanged for a partner attachment. To adopt
+arguments become the values unchanged for a partner attachment; a
+dedicated one also needs the candidate addresses (the ones the attachment
+has, to adopt it). To adopt
 an existing attachment and router, keep their names: Config Connector
 acquires the resources of those names (`docs/design.md`, "From
 Terraform").
@@ -70,12 +73,16 @@ Terraform").
 Found porting this module, for config-connector-extensions:
 
 - `ComputeInterconnectAttachment` (v1.160.0) has no
-  `candidateCloudRouterIpAddress` or `candidateCustomerRouterIpAddress`.
+  `candidateCloudRouterIpAddress` or `candidateCustomerRouterIpAddress`
+  (config-connector-extensions' has, and the chart uses it for a
+  dedicated attachment).
 - `ComputeRouterPeer` has no `exportPolicies`/`importPolicies` (so route
   policies cannot be attached to a peer), `md5AuthenticationKey` or
   `customLearnedIpRanges`.
-- mockgcp has no interconnect attachments, so this chart has no
-  fake-cloud case.
+- mockgcp has no interconnect attachments: the partner attachment has no
+  fake-cloud case, and a dedicated one's router interface cannot find its
+  attachment there (the attachment itself, config-connector-extensions',
+  is served by its generated kinds' fake).
 
 ## Upstream
 
@@ -90,17 +97,34 @@ with every other module the catalog tracks. To take a newer release, see
 ## Tests
 
 `task test CHART=net-vlan-attachment`: render cases `basic` and `ipsec`
-(fabric's README partner examples), `full` (every value the chart
+(fabric's README partner examples), `dedicated` and `dedicated-ipsec`
+(dedicated attachments, with a peer's custom advertisement and BFD, and
+with IPsec on an existing router), `full` (every value the chart
 carries), `existing-router` and `names`, validated against Config
 Connector v1.160.0's CRD schemas and config-connector-extensions'
 (`ComputeRouterRoutePolicy`), and the refusals in `tests/*.fail.yaml`.
 
-Not applied to the fake cloud: mockgcp (at config-connector-extensions'
-pin) has no interconnect attachments. Not applied live: live runs are
-pending KEYLIVE.
+Applied to the fake cloud on 2026-11-13 on an offload VM (`task
+test-mock MOCK_CHARTS=net-vlan-attachment`, run
+`off-catalog-1113180647-5902`, config-connector-extensions `3de8de68`): a
+dedicated attachment on a new router, with its interface and peer. The
+attachment (config-connector-extensions', served by its generated kinds'
+fake) and the router became Ready, the outputs evaluated (`id`, `name`,
+`router_name`; `pairing_key` null, as for a dedicated attachment), and all
+were deleted. The router interface did not become Ready: Config
+Connector's `ComputeRouterInterface` reads the attachment from mockgcp,
+which has no interconnect attachments (404), and the peer waits on the
+interface. That is the fake's limit, not the chart's; the case is not
+kept as `tests/mock.values.yaml`, which would fail every run, so the
+interface and peer are render-tested only. The partner attachment
+(Config Connector's) has no fake-cloud case for the same reason. Not
+applied live: live runs are pending KEYLIVE.
 
 ## Changes
 
+- **0.2.0** (2026-11-13): `dedicated_interconnect_config`: a dedicated
+  attachment (config-connector-extensions' `ComputeInterconnectAttachment`
+  with the candidate addresses), its router interface and BGP peer.
 - **0.1.0** (2026-11-13): the port: a partner VLAN attachment, its router
   (encrypted, with the IPsec address pool, for IPsec over Interconnect)
   and its route policies.
