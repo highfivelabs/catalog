@@ -1,0 +1,71 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules'
+# ssm-parameter module (v2.1.2): same names, types and defaults, so a module
+# block's arguments become a values file one to one. values.schema.json
+# carries the types. A variable the chart cannot carry stays here and stops
+# the render when set (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# The parameter's name in full, {parameter}. A name set here takes no
+# namePrefix. Unset, the parameter is named name.
+names: {}
+# An optional convenience: the namePrefix in the parameter's name (a
+# hierarchical name, /a/b, becomes /<namePrefix>-a/b; a flat one
+# <namePrefix>-name; never one set under names). Empty (the default)
+# changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# DELETE (default): deleting the component deletes the parameter. ABANDON
+# keeps it (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# Regular expression used to validate the parameter value
+allowed_pattern: null
+# Whether to create SSM Parameter
+create: true
+# Data type of the parameter. Valid values: `text`, `aws:ssm:integration`
+# and `aws:ec2:image` for AMI format
+data_type: null
+# Description of the parameter
+description: null
+# Whether to create SSM Parameter and ignore changes in value
+# Not supported (gap): ACK's controller sets the value in the spec on every
+# sync.
+ignore_value_changes: false
+# KMS key ID or ARN for encrypting a parameter (when type is SecureString)
+key_id: null
+# Name of SSM parameter
+name: null
+# Overwrite an existing parameter
+# Not supported (gap): ACK's Parameter has no overwrite field.
+overwrite: null
+# Region where the resource(s) will be managed. Defaults to the Region set in
+# the provider configuration (on ACK: the namespace's or the controller's)
+region: null
+# Whether the type of the value should be considered as secure or not
+secure_type: false
+# A mapping of tags to assign to resources
+tags: {}
+# Parameter tier to assign to the parameter. Valid tiers are Standard,
+# Advanced, and Intelligent-Tiering
+tier: null
+# Type of the parameter. Valid types are `String`, `StringList` and
+# `SecureString`
+type: null
+# Value of the parameter
+value: null
+# Value of the parameter (version of the write-only value). ACK has no
+# write-only values: a changed value is applied whenever the spec changes,
+# so this is accepted and has no effect.
+value_wo_version: null
+# List of values of the parameter (will be jsonencoded to store as string
+# natively in SSM)
+values: []

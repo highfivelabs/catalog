@@ -1,0 +1,39 @@
+---
+# Source: dynamodb-table/templates/table.yaml
+apiVersion: dynamodb.services.k8s.aws/v1alpha1
+kind: Table
+metadata:
+  name: on-demand-table
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "on-demand"
+    app.kubernetes.io/name: dynamodb-table
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table"
+spec:
+  tableName: "on-demand"
+  billingMode: "PAY_PER_REQUEST"
+  attributeDefinitions:
+    - attributeName: "pk"
+      attributeType: "S"
+    - attributeName: "gk"
+      attributeType: "S"
+  keySchema:
+    - attributeName: "pk"
+      keyType: HASH
+  globalSecondaryIndexes:
+    - indexName: "ByG"
+      keySchema:
+        - attributeName: "gk"
+          keyType: HASH
+      projection:
+        projectionType: "KEYS_ONLY"
+      onDemandThroughput:
+        maxReadRequestUnits: 10
+  onDemandThroughput:
+    maxReadRequestUnits: 100
+    maxWriteRequestUnits: 50
+  tags:
+    - key: "Name"
+      value: "on-demand"
