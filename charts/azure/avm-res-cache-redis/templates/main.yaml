@@ -1,0 +1,316 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-cache-redis main.rediscache.tf,
+main.accesspolicies.tf, main.firewallrules.tf, main.linkedservers.tf,
+main.privateendpoint.tf, main.roleassignments.tf,
+main.diagnosticsettings.tf and locals.tf (v0.5.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azurerm_redis_cache.this: one ASO Redis (cache.azure.com/v20241101), owned
+by the resource group resource_group_name names; its patch_schedule blocks
+as one RedisPatchSchedule (the cache's patchSchedules/default). Its
+children, owned by it: azurerm_redis_cache_access_policy as
+RedisAccessPolicy, azurerm_redis_cache_access_policy_assignment as
+RedisAccessPolicyAssignment, azurerm_redis_firewall_rule as
+RedisFirewallRule, azurerm_redis_linked_server as RedisLinkedServer.
+azurerm_private_endpoint (either of the module's two) as PrivateEndpoint
+(network.azure.com/v20250301), with a PrivateEndpointsPrivateDnsZoneGroup
+when it manages the zone group, and the application security group
+associations as the endpoint's applicationSecurityGroups; an endpoint's
+role assignments and lock as RoleAssignment and ManagementLock objects on
+it. azurerm_management_lock: an aso-extensions ManagementLock.
+azurerm_role_assignment: one ASO RoleAssignment each.
+azurerm_monitor_diagnostic_setting: one ASO DiagnosticSetting each. The
+telemetry deployment and the data source the system_assigned_mi_principal_id
+output reads (ASO's status has the identity) are not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $rc := $v.redis_configuration | default dict }}
+{{- $secret := "a storage connection string carries the storage account's key, a secret value, which does not belong in a component's inputs (the builder's decision); ASO's redisConfiguration takes it only as a plain string" }}
+{{- range $f := list "aof_storage_connection_string_0" "aof_storage_connection_string_1" "rdb_storage_connection_string" }}
+{{- include "aso.unsupported" (list $ (printf "redis_configuration.%s" $f) (index $rc $f) $secret) }}
+{{- end }}
+{{- include "aso.names" (list $ (list "redisCache")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail (printf "%s: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" $chart) }}
+{{- end }}
+{{- $sku := $v.sku_name | default "Premium" }}
+{{- $family := ternary "C" "P" (or (eq $sku "Basic") (eq $sku "Standard")) }}
+{{- $cap := int $v.capacity }}
+{{- if and (eq $family "C") (or (lt $cap 0) (gt $cap 6)) }}
+{{- fail (printf "%s: capacity %d: Basic and Standard caches take 0 to 6" $chart $cap) }}
+{{- end }}
+{{- if and (eq $family "P") (or (lt $cap 1) (gt $cap 5)) }}
+{{- fail (printf "%s: capacity %d: Premium caches take 1 to 5" $chart $cap) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "redis") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $cacheName := include "aso.resourceName" (list $ "redisCache" "Redis cache" $v.name 63 "^[A-Za-z0-9]([-A-Za-z0-9]{0,61}[A-Za-z0-9])?$") }}
+{{- $owner := dict "group" "cache.azure.com" "kind" "Redis" "name" $obj }}
+---
+apiVersion: cache.azure.com/v20241101
+kind: Redis
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "cache" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $cacheName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  sku:
+    name: {{ $sku }}
+    family: {{ $family }}
+    capacity: {{ $cap }}
+  {{- if not (kindIs "invalid" $v.access_keys_authentication_enabled) }}
+  disableAccessKeyAuthentication: {{ not $v.access_keys_authentication_enabled }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.enable_non_ssl_port) }}
+  enableNonSslPort: {{ $v.enable_non_ssl_port }}
+  {{- end }}
+  {{- $mi := $v.managed_identities | default dict }}
+  {{- $uai := $mi.user_assigned_resource_ids | default list }}
+  {{- if or $mi.system_assigned $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned, UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" (eq $mi.system_assigned true) | quote }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.minimum_tls_version }}
+  minimumTlsVersion: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.public_network_access_enabled) }}
+  publicNetworkAccess: {{ ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
+  {{- end }}
+  {{- /* The redis_configuration block, as azurerm sends it: each value
+  set, as the string Azure takes; enable_authentication false is
+  authnotrequired "true". */}}
+  {{- $conf := dict }}
+  {{- range $pair := list (list "aof_backup_enabled" "aof-backup-enabled") (list "active_directory_authentication_enabled" "aad-enabled") (list "maxmemory_reserved" "maxmemory-reserved") (list "maxmemory_delta" "maxmemory-delta") (list "maxfragmentationmemory_reserved" "maxfragmentationmemory-reserved") (list "maxmemory_policy" "maxmemory-policy") (list "data_persistence_authentication_method" "preferred-data-persistence-auth-method") (list "rdb_backup_enabled" "rdb-backup-enabled") (list "rdb_backup_frequency" "rdb-backup-frequency") (list "rdb_backup_max_snapshot_count" "rdb-backup-max-snapshot-count") (list "storage_account_subscription_resource_id" "storage-subscription-id") (list "notify_keyspace_events" "notify-keyspace-events") }}
+  {{- $val := index $rc (index $pair 0) }}
+  {{- if not (kindIs "invalid" $val) }}
+  {{- if kindIs "float64" $val }}{{ $val = int64 $val }}{{ end }}
+  {{- $_ := set $conf (index $pair 1) (toString $val) }}
+  {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $rc.enable_authentication) }}
+  {{- $_ := set $conf "authnotrequired" (toString (not $rc.enable_authentication)) }}
+  {{- end }}
+  {{- with $conf }}
+  redisConfiguration:
+    {{- range $k := (keys . | sortAlpha) }}
+    {{ $k }}: {{ get $conf $k | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.redis_version) }}
+  redisVersion: {{ toString $v.redis_version | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.replicas_per_master) }}
+  replicasPerMaster: {{ int $v.replicas_per_master }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.replicas_per_primary) }}
+  replicasPerPrimary: {{ int $v.replicas_per_primary }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.shard_count) }}
+  shardCount: {{ int $v.shard_count }}
+  {{- end }}
+  {{- with $v.private_static_ip_address }}
+  staticIP: {{ . | quote }}
+  {{- end }}
+  {{- with $v.subnet_resource_id }}
+  subnetReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.tenant_settings }}
+  tenantSettings:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.zones }}
+  zones:
+    {{- range $z := . }}
+    - {{ $z | quote }}
+    {{- end }}
+  {{- end }}
+{{- with $v.patch_schedule }}
+---
+apiVersion: cache.azure.com/v20241101
+kind: RedisPatchSchedule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "patch")) "id" "patch_schedule" "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  scheduleEntries:
+    {{- range $e := . }}
+    - dayOfWeek: {{ $e.day_of_week | default "Saturday" }}
+      maintenanceWindow: {{ $e.maintenance_window | default "PT5H" | quote }}
+      startHourUtc: {{ int ($e.start_hour_utc | default 0) }}
+    {{- end }}
+{{- end }}
+{{- range $k, $p := $v.cache_access_policies }}
+---
+apiVersion: cache.azure.com/v20241101
+kind: RedisAccessPolicy
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "policy" $k)) "id" (printf "access_policy:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.name | quote }}
+  owner:
+    name: {{ $obj }}
+  permissions: {{ $p.permissions | quote }}
+{{- end }}
+{{- range $k, $a := $v.cache_access_policy_assignments }}
+---
+apiVersion: cache.azure.com/v20241101
+kind: RedisAccessPolicyAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "assign" $k)) "id" (printf "access_policy_assignment:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $a.name | quote }}
+  owner:
+    name: {{ $obj }}
+  accessPolicyName: {{ $a.access_policy_name | quote }}
+  objectId: {{ $a.object_id | quote }}
+  objectIdAlias: {{ $a.object_id_alias | quote }}
+{{- end }}
+{{- range $k, $r := $v.cache_firewall_rules }}
+---
+apiVersion: cache.azure.com/v20241101
+kind: RedisFirewallRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "fw" $k)) "id" (printf "firewall_rule:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | quote }}
+  owner:
+    name: {{ $obj }}
+  startIP: {{ $r.start_ip | quote }}
+  endIP: {{ $r.end_ip | quote }}
+{{- end }}
+{{- range $k, $l := $v.linked_redis_caches }}
+{{- $linked := include "aso.owner" (list $ (printf "linked_redis_caches.%s.linked_redis_cache_resource_id" $k) $l.linked_redis_cache_resource_id) | fromYaml }}
+---
+apiVersion: cache.azure.com/v20241101
+kind: RedisLinkedServer
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "link" $k)) "id" (printf "linked_redis_cache:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- /* azurerm names the link by the linked cache's name. */}}
+  azureName: {{ splitList "/" $linked.armId | last | quote }}
+  owner:
+    name: {{ $obj }}
+  linkedRedisCacheLocation: {{ $l.linked_redis_cache_location | quote }}
+  linkedRedisCacheReference:
+    armId: {{ $linked.armId | quote }}
+  serverRole: {{ $l.server_role }}
+{{- end }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peRg := toString ($p.resource_group_name | default $rg) }}
+{{- $peParent := $parent }}
+{{- if hasPrefix "/" $peRg }}
+{{- $peParent = $peRg }}
+{{- else if $p.resource_group_name }}
+{{- if not $v.subscription_id }}{{ fail (printf "%s: private_endpoints.%s.resource_group_name is a name: set subscription_id too" $chart $k) }}{{ end }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $peRg }}
+{{- end }}
+{{- $sub := $p.subresource_name | default "redisCache" }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pep-%s" $v.name)) 80 false) | quote }}
+  {{- /* The module places every endpoint in the cache's location; an
+  entry's location is accepted and not used, as there. */}}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [{{ $sub | quote }}]
+      privateLinkServiceReference:
+        group: cache.azure.com
+        kind: Redis
+        name: {{ $obj }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: {{ $sub | quote }}
+      {{- /* The module's two endpoint resources default the member name
+      differently. */}}
+      memberName: {{ $ic.member_name | default (ternary "Azure redis cache" "redisCache" (eq $v.private_endpoints_manage_dns_zone_group true)) | quote }}
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $id := (values . | uniq | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe }}
+{{- with $p.lock }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (dict "kind" .kind "name" .name "notes" .notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" ($p.role_assignments | default dict)) }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- /* The module always sends log_analytics_destination_type as null
+(main.diagnosticsettings.tf): an entry's value is accepted and not sent. */}}
+{{- $diag := dict }}
+{{- range $k, $d := ($v.diagnostic_settings | default dict) }}
+{{- $_ := set $diag $k (merge (dict "log_analytics_destination_type" "Dedicated") (omit $d "log_analytics_destination_type")) }}
+{{- end }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $diag "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}

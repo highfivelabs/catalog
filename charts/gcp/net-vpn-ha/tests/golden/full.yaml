@@ -1,0 +1,164 @@
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  name: full-peer-aws
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "external_gateway:aws"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-full-aws"
+  description: "Terraform managed external VPN gateway"
+  redundancyType: "FOUR_IPS_REDUNDANCY"
+  interface:
+    - id: 0
+      ipAddress: "1.1.1.1"
+    - id: 1
+      ipAddress: "1.1.1.2"
+    - id: 2
+      ipAddress: "1.1.1.3"
+    - id: 3
+      ipAddress: "1.1.1.4"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  name: full-peer-onprem
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "external_gateway:onprem"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "onprem-gw"
+  description: "On-premises routers"
+  redundancyType: "TWO_IPS_REDUNDANCY"
+  interface:
+    - id: 0
+      ipAddress: "8.8.8.8"
+    - id: 1
+      ipAddress: "8.8.4.4"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-full"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  bgp:
+    asn: 64514
+    advertiseMode: CUSTOM
+    advertisedIpRanges:
+      - range: "10.0.0.0/8"
+        description: "all"
+      - range: "192.168.0.0/16"
+        description: "lab"
+    keepaliveInterval: 25
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: full-route-policy-export-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:export-all"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "export-all"
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  routerRef:
+    name: full
+  type: ROUTE_POLICY_TYPE_EXPORT
+  terms:
+    - priority: 10
+      match:
+        expression: "destination == '10.10.0.0/16'"
+        location: "here"
+      actions:
+        - expression: "med.set(100)"
+          title: "med"
+          description: "set the MED"
+          location: "here"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: full-route-policy-import-onprem
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:import-onprem"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "import-onprem"
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  routerRef:
+    name: full
+  type: ROUTE_POLICY_TYPE_IMPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "destination == '10.0.0.0/8'"
+        title: "onprem"
+        description: "on-premises range"
+      actions:
+        - expression: "drop()"
+    - priority: 2
+      match:
+        expression: "destination == '0.0.0.0/0'"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-full"
+  description: "My HA VPN"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  stackType: IPV4_IPV6

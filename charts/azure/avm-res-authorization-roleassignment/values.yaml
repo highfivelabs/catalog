@@ -1,0 +1,147 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-authorization-roleassignment (v0.3.1): same names, types and
+# defaults, so a module block's arguments become this file one to one.
+# values.schema.json carries the types. README.md maps each one to Azure
+# Service Operator (ASO) and aso-extensions.
+#
+# Descriptions quoted or cut down from
+# terraform-azurerm-avm-res-authorization-roleassignment (variables*.tf,
+# v0.3.1), Copyright (c) Microsoft Corporation, MIT.
+#
+# The module looks principals up in Microsoft Entra (azuread data sources)
+# and resources in Resource Manager; a render reads neither. So principals
+# are taken by object ID (the *_by_object_id and *_by_principal_id maps),
+# and every lookup by name, mail, employee ID or client ID is refused,
+# naming the gap.
+
+# Not Terraform variables.
+#
+# The subscription the module's provider is configured for: the
+# subscription of role_assignments_for_resources, and of
+# role_assignments_for_resource_groups and _for_subscriptions entries that
+# give none. Required when one of those is used.
+subscription_id: null
+# Names in full: this chart gives none (a role assignment's name is a GUID
+# ASO makes, a directory role assignment's the ID Graph gives it), so any
+# key is refused.
+names: {}
+# Accepted with no effect: this chart names no Azure resource (a role
+# assignment's name is a GUID ASO makes).
+namePrefix: ""
+# Azure tags: refused when set. Role assignments and directory role
+# assignments take no tags (and the module has no tags variable).
+tags: null
+# Kubernetes labels on every object. ASO never copies them to Azure.
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every assignment in Azure
+# and Entra when the component is deleted (ASO's reconcile-policy
+# detach-on-delete). PREVENT is refused.
+deletion_policy: null
+
+# Module variables (alphabetical).
+
+# (Optional) Entra ID application registrations by client ID. Refused when
+# set: the module looks up the service principal in Entra.
+app_registrations_by_client_id: {}
+# (Optional) Entra ID application registrations by display name. Refused
+# when set: the module looks the application up in Entra.
+app_registrations_by_display_name: {}
+# (Optional) Entra ID application registrations by the application's
+# object ID. Refused when set: the module reads its client ID, then its
+# service principal, from Entra.
+app_registrations_by_object_id: {}
+# (Optional) Entra ID application registrations: the key is something
+# unique to you, the value the principal ID (object ID) of the service
+# principal backing the application registration.
+app_registrations_by_principal_id: {}
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# (Optional) Entra ID role definitions to reference in role assignments,
+# each {template_id, display_name}. template_id is mapped; display_name is
+# refused (the module looks the role up in Entra).
+entra_id_role_definitions: {}
+# (Optional) Entra ID groups by display name. Refused when set.
+groups_by_display_name: {}
+# (Optional) Entra ID groups by mail nickname. Refused when set.
+groups_by_mail_nickname: {}
+# (Optional) Entra ID groups: the key is something unique to you, the value
+# the group's object ID.
+groups_by_object_id: {}
+# Basic Azure Resource Manager role assignments, each {role_definition_id
+# or role_definition_name, principal_type, principal_id, scope, condition,
+# condition_version, delegated_managed_identity_resource_id, description,
+# skip_service_principal_aad_check}.
+role_assignments_azure_resource_manager: {}
+# Entra ID directory role assignments, each {app_scope_id,
+# directory_scope_id, principal_object_id, role_id}.
+role_assignments_entra_id: {}
+# Role assignments to Entra ID directory roles, each {role_assignments:
+# {<key>: {role_definition (a key of entra_id_role_definitions), users,
+# groups, app_registrations, system_assigned_managed_identities,
+# user_assigned_managed_identities, any_principals}}}.
+role_assignments_for_entra_id: {}
+# Role assignments at management groups, each {management_group_id,
+# management_group_display_name (refused), role_assignments}. A role
+# assignment is {role_definition (a key of role_definitions), users,
+# groups, app_registrations, system_assigned_managed_identities,
+# user_assigned_managed_identities, any_principals,
+# skip_service_principal_aad_check}.
+role_assignments_for_management_groups: {}
+# Role assignments at resource groups, each {resource_group_name,
+# subscription_id, role_assignments}.
+role_assignments_for_resource_groups: {}
+# Role assignments at resources, each {resource_name, resource_group_name,
+# resource_type, role_assignments}. resource_type (such as
+# Microsoft.Storage/storageAccounts) is not a module field: the module
+# finds the resource by name in Resource Manager, which a render cannot
+# read, so the chart needs its type.
+role_assignments_for_resources: {}
+# Role assignments at any scope (an ARM ID), each {scope,
+# role_assignments}.
+role_assignments_for_scopes: {}
+# Role assignments at subscriptions, each {subscription_id,
+# role_assignments}.
+role_assignments_for_subscriptions: {}
+# (Optional) Azure Resource Manager role definitions to reference in role
+# assignments, each {id (a role definition GUID), name (a role name, which
+# ASO resolves), scope (refused)}.
+role_definitions: {}
+# Deprecated in the module and unused there. Accepted with no effect.
+skip_service_principal_aad_check: false
+# (Optional) System assigned managed identities by client ID. Refused when
+# set.
+system_assigned_managed_identities_by_client_id: {}
+# (Optional) System assigned managed identities by display name. Refused
+# when set.
+system_assigned_managed_identities_by_display_name: {}
+# (Optional) System assigned managed identities: the key is something
+# unique to you, the value the principal ID (object ID) of the identity.
+system_assigned_managed_identities_by_principal_id: {}
+# (Optional) User assigned managed identities by client ID. Refused when
+# set.
+user_assigned_managed_identities_by_client_id: {}
+# (Optional) User assigned managed identities by display name. Refused
+# when set.
+user_assigned_managed_identities_by_display_name: {}
+# (Optional) User assigned managed identities: the key is something unique
+# to you, the value the principal ID (object ID) of the identity.
+user_assigned_managed_identities_by_principal_id: {}
+# (Optional) User assigned managed identities by resource group and name,
+# each {resource_group_name, name}. Refused when set: the module reads the
+# identity's principal ID from Resource Manager.
+user_assigned_managed_identities_by_resource_group_and_name: {}
+# (Optional) Entra ID users by employee ID. Refused when set.
+users_by_employee_id: {}
+# (Optional) Entra ID users by mail. Refused when set.
+users_by_mail: {}
+# (Optional) Entra ID users by mail nickname. Refused when set.
+users_by_mail_nickname: {}
+# (Optional) Entra ID users: the key is something unique to you, the value
+# the user's object ID.
+users_by_object_id: {}
+# (Optional) Entra ID users by user principal name. Refused when set.
+users_by_user_principal_name: {}

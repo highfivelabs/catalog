@@ -1,0 +1,242 @@
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroup
+metadata:
+  name: mock-mg-catalog-mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_group:catalog-mock"
+spec:
+  azureName: "catalog-mock"
+  displayName: "Catalog mock root"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroup
+metadata:
+  name: mock-mg-catalog-mock-child
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_group:catalog-mock-child"
+spec:
+  azureName: "catalog-mock-child"
+  details:
+    parent:
+      reference:
+        group: management.azure.hfl.dev
+        kind: ManagementGroup
+        name: mock-mg-catalog-mock
+  displayName: "Catalog mock child"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSetting
+metadata:
+  name: mock-hierarchy-settings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "hierarchy_settings"
+spec:
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/11111111-2222-3333-4444-555555555555"
+  defaultManagementGroup: "/providers/Microsoft.Management/managementGroups/catalog-mock"
+  requireAuthorizationForGroupCreation: true
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: management.azure.hfl.dev/v20230401
+kind: ManagementGroupsSubscription
+metadata:
+  name: mock-placement-catalog
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "subscription_placement:catalog"
+spec:
+  azureName: "00000000-0000-0000-0000-000000000000"
+  owner:
+    name: mock-mg-catalog-mock-child
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyAssignment
+metadata:
+  name: mock-pa-catalog-mock-audit-network-760b4d95
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_assignment:catalog-mock/Audit-Network"
+spec:
+  azureName: "Audit-Network"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: mock-mg-catalog-mock
+  location: "eastus2"
+  definitionVersion: "1.*.*"
+  displayName: "Audit network"
+  enforcementMode: "DoNotEnforce"
+  identity:
+    type: SystemAssigned
+  metadata:
+    createdBy: ""
+    createdOn: ""
+    updatedBy: ""
+    updatedOn: ""
+  policyDefinitionReference:
+    armId: "/providers/Microsoft.Management/managementGroups/catalog-mock/providers/Microsoft.Authorization/policySetDefinitions/Audit-Network"
+  operatorSpec:
+    configMapExpressions:
+      - name: mock-pa-catalog-mock-audit-network-760b4d95-principal
+        key: principalId
+        value: "self.status.identity.principalId"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicyDefinition
+metadata:
+  name: mock-pd-catalog-mock-audit-public-ip-2770a1c7
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_definition:catalog-mock/Audit-Public-IP"
+spec:
+  azureName: "Audit-Public-IP"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: mock-mg-catalog-mock
+  displayName: Audit public IP addresses
+  mode: Indexed
+  policyRule:
+    if:
+      equals: Microsoft.Network/publicIPAddresses
+      field: type
+    then:
+      effect: '[parameters(''effect'')]'
+  policyType: Custom
+  parameters:
+    effect:
+      allowedValues:
+      - Audit
+      - Disabled
+      defaultValue: Audit
+      metadata:
+        displayName: Effect
+      type: String
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v20260701
+kind: PolicySetDefinition
+metadata:
+  name: mock-psd-catalog-mock-audit-network-ce4505a2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_set_definition:catalog-mock/Audit-Network"
+spec:
+  azureName: "Audit-Network"
+  owner:
+    group: management.azure.hfl.dev
+    kind: ManagementGroup
+    name: mock-mg-catalog-mock
+  displayName: Audit network
+  policyType: Custom
+  policyDefinitions:
+    - policyDefinitionReference:
+        armId: "/providers/Microsoft.Management/managementGroups/catalog-mock/providers/Microsoft.Authorization/policyDefinitions/Audit-Public-IP"
+      policyDefinitionReferenceId: Audit-Public-IP
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: mock-pra-7211cf53-ea06-5b34-ac66-281e967926e9
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_role_assignment:7211cf53-ea06-5b34-ac66-281e967926e9"
+spec:
+  azureName: "7211cf53-ea06-5b34-ac66-281e967926e9"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/catalog-mock"
+  description: "Created by ALZ Terraform provider. Assignment required for Azure Policy."
+  principalIdFromConfig:
+    name: mock-pa-catalog-mock-audit-network-760b4d95-principal
+    key: principalId
+  principalType: ServicePrincipal
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: mock-mgra-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "management_group_role_assignment:reader"
+spec:
+  azureName: "1480b74a-69fe-55be-ae95-a217e54faf5b"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/catalog-mock"
+  principalId: "0a0a0a0a-0000-4000-8000-000000000001"
+  principalType: "User"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7"
+---
+# Source: avm-ptn-alz/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleDefinition
+metadata:
+  name: mock-rd-catalog-mock-catalog-reader-1ff1fa7b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-ptn-alz
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role_definition:catalog-mock/Catalog-Reader"
+spec:
+  azureName: "6a1e9b4c-0d2f-5e3a-8b7c-1d2e3f4a5b6c"
+  owner:
+    armId: "/providers/Microsoft.Management/managementGroups/catalog-mock"
+  assignableScopesReferences:
+    - armId: "/providers/Microsoft.Management/managementGroups/catalog-mock"
+  description: "Reads networks."
+  permissions:
+    - actions:
+      - Microsoft.Network/*/read
+  roleName: "Catalog-Reader (catalog-mock)"
+  type: "CustomRole"

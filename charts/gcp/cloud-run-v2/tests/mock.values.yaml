@@ -1,0 +1,20 @@
+# The fake-cloud case (hack/mock-apply.sh): a small service with the
+# service account the chart makes (one project role), a role on the
+# service, an environment variable, limits, ingress and scaling.
+project_id: mock-project
+region: us-central1
+name: cat-mock-run
+labels: {env: test}
+containers:
+  hello:
+    image: us-docker.pkg.dev/cloudrun/container/hello
+    env: {GREETING: hello}
+    resources:
+      limits: {cpu: "1", memory: 512Mi}
+service_config:
+  ingress: INGRESS_TRAFFIC_ALL
+  scaling: {max_instance_count: 2}
+service_account_config:
+  roles: [roles/logging.logWriter]
+iam:
+  roles/run.invoker: ["group:callers@example.com"]

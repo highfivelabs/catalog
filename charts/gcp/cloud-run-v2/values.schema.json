@@ -1,0 +1,1198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "cloud-run-v2 values (fabric cloud-run-v2 v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "project_id",
+    "region"
+  ],
+  "properties": {
+    "names": {
+      "description": "Cloud names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 49,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "job": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 49,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "workerPool": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 49,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "serviceAccount": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 30,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])$"
+        },
+        "vpcConnector": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 25,
+          "pattern": "^[a-z][-a-z0-9]*[a-z0-9]$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name, never a name set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label. fabric's labels.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "allow_alpha": {
+      "description": "Accept the v1alpha1 kind RunWorkerPool (type WORKERPOOL). Not a fabric variable.",
+      "type": "boolean"
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    },
+    "binary_authorization": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "breakglass_justification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policy": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "use_default": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "description": "Binary Authorization configuration. policy is refused."
+    },
+    "containers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "image": {
+            "type": "string",
+            "minLength": 1
+          },
+          "depends_on": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "command": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "args": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "env": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "env_from_key": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "secret": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "secret",
+                "version"
+              ]
+            }
+          },
+          "liveness_probe": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "grpc": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "port": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "service": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "http_get": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "http_headers": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "path": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "port": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "failure_threshold": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "initial_delay_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "period_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "timeout_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "ports": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "container_port": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "resources": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "limits": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "cpu_idle": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "startup_cpu_boost": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "startup_probe": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "grpc": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "port": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "service": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "http_get": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "http_headers": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "path": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "port": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "tcp_socket": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "port": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "failure_threshold": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "initial_delay_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "period_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "timeout_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "volume_mounts": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "image"
+        ]
+      },
+      "description": "Containers in name => attributes format."
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "deletion_protection": {
+      "description": "Deletion protection setting for this Cloud Run service. Accepted and not rendered (README.md, \"Differences from the module\").",
+      "type": [
+        "string",
+        "boolean",
+        "null"
+      ]
+    },
+    "encryption_key": {
+      "description": "The full resource name of the Cloud KMS CryptoKey.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "iam": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "IAM bindings for the Cloud Run resource in {ROLE => [MEMBERS]} format."
+    },
+    "job_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_retries": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "task_count": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "timeout": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "s$"
+        }
+      },
+      "description": "Cloud Run Job specific configuration. timeout is a number of seconds with up to nine fractional digits, ending with 's' (3.5s)."
+    },
+    "launch_stage": {
+      "description": "The launch stage as defined by Google Cloud Platform Launch Stages.",
+      "enum": [
+        "UNIMPLEMENTED",
+        "PRELAUNCH",
+        "EARLY_ACCESS",
+        "ALPHA",
+        "BETA",
+        "GA",
+        "DEPRECATED",
+        null
+      ]
+    },
+    "managed_revision": {
+      "description": "Whether the module controls the deployment of revisions. false is refused.",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "Name used for Cloud Run service.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project id used for all resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region used for all resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gpu_zonal_redundancy_disabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "labels": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "node_selector": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "accelerator": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "accelerator"
+          ]
+        },
+        "vpc_access": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "connector": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "egress": {
+              "enum": [
+                "ALL_TRAFFIC",
+                "PRIVATE_RANGES_ONLY",
+                null
+              ]
+            },
+            "network": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subnet": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tags": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "timeout": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gen2_execution_environment": {},
+        "job": {},
+        "max_concurrency": {},
+        "max_instance_count": {},
+        "min_instance_count": {}
+      },
+      "description": "Revision template configurations. gen2_execution_environment, job, max_concurrency, max_instance_count and min_instance_count are deprecated and refused, as fabric refuses them."
+    },
+    "service_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "custom_audiences": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "default_uri_disabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "eventarc_triggers": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "audit_log": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "method": {
+                    "type": "string"
+                  },
+                  "service": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "method",
+                  "service"
+                ]
+              }
+            },
+            "pubsub": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "storage": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "bucket": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "bucket"
+                ]
+              }
+            },
+            "service_account_email": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "gen2_execution_environment": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "iap_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "iam": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "iam_additive": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "ingress": {
+          "enum": [
+            "INGRESS_TRAFFIC_ALL",
+            "INGRESS_TRAFFIC_INTERNAL_ONLY",
+            "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
+            null
+          ]
+        },
+        "invoker_iam_disabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "max_concurrency": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "multi_region_settings": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "regions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "regions"
+          ]
+        },
+        "scaling": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "max_instance_count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min_instance_count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "timeout": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "traffic": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "percent": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 100
+              },
+              "revision": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tag": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 3,
+                "maxLength": 47
+              },
+              "type": {
+                "enum": [
+                  "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST",
+                  "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        "workload_identity_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "certificate_enabled": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "identity": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "identity_type": {
+              "enum": [
+                "IDENTITY_TYPE_SERVICE_ACCOUNT",
+                "IDENTITY_TYPE_WORKLOAD_IDENTITY",
+                "IDENTITY_TYPE_AGENT_IDENTITY",
+                null
+              ]
+            }
+          }
+        }
+      },
+      "description": "Cloud Run service specific configuration options. default_uri_disabled, iap_config, invoker_iam_disabled, multi_region_settings and workload_identity_config are refused."
+    },
+    "service_account_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "roles": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Service account configurations."
+    },
+    "tag_bindings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Tag bindings for this service, in key => tag value id format."
+    },
+    "type": {
+      "description": "Type of Cloud Run resource to deploy: JOB, SERVICE or WORKERPOOL (WORKERPOOL needs allow_alpha).",
+      "enum": [
+        "JOB",
+        "WORKERPOOL",
+        "SERVICE"
+      ]
+    },
+    "volumes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "secret": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "default_mode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "cloud_sql_instances": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "empty_dir_size": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gcs": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "bucket": {
+                "type": "string"
+              },
+              "is_read_only": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "bucket"
+            ]
+          },
+          "nfs": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "server": {
+                "type": "string"
+              },
+              "path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "is_read_only": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "server"
+            ]
+          }
+        }
+      },
+      "description": "Named volumes in containers in name => attributes format. gcs is refused, and nfs for a SERVICE."
+    },
+    "vpc_connector_create": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ip_cidr_range": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "machine_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "network": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "instances": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "throughput": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        "subnet": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "project_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "description": "VPC connector network configuration. Must be provided if new VPC connector is being created."
+    },
+    "workerpool_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scaling": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "manual_instance_count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_instance_count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min_instance_count": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "description": "Cloud Run Worker Pool specific configuration. scaling.mode, max_instance_count and min_instance_count are refused."
+    }
+  }
+}

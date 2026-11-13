@@ -1,0 +1,73 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/bigquery-dataset/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+Without dataset_access (fabric's default), each access rule and authorized
+view or dataset is its own entry in the dataset's access list:
+google_bigquery_dataset_access.{domain,group_by_email,special_group,user_by_email}:
+one BigQueryDatasetAccess per rule;
+google_bigquery_dataset_access.authorized_views: one per view (the view
+rules and authorized_views);
+google_bigquery_dataset_access.authorized_datasets: one per dataset.
+BigQueryDatasetAccess is v1alpha1, so all of them need allow_alpha.
+google_bigquery_dataset_access.authorized_routines is refused: the kind has
+no routine (dataset_access: true carries routines in the dataset's list).
+*/ -}}
+{{- $v := .Values }}
+{{- if not $v.dataset_access }}
+{{- include "kcc.alpha" (list $ "access" $v.access "BigQueryDatasetAccess") }}
+{{- include "kcc.alpha" (list $ "authorized_views" $v.authorized_views "BigQueryDatasetAccess") }}
+{{- include "kcc.alpha" (list $ "authorized_datasets" $v.authorized_datasets "BigQueryDatasetAccess") }}
+{{- include "kcc.unsupported" (list $ "authorized_routines without dataset_access: true" $v.authorized_routines "BigQueryDatasetAccess has no routine: set dataset_access: true to put the routines in the dataset's own access list") }}
+{{- $access := include "bigqueryDataset.access" . | fromJson }}
+{{- $dataset := include "bigqueryDataset.name" . }}
+{{- range $k := keys $access.members | sortAlpha }}
+{{- $m := index $access.members $k }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1alpha1
+kind: BigQueryDatasetAccess
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "access" $k)) "id" (printf "access:%s" $k) "project" $v.project_id) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  datasetId: {{ $dataset | quote }}
+  role: {{ $m.role | quote }}
+  {{ $m.field }}: {{ $m.identity | quote }}
+{{- end }}
+{{- range $k := keys $access.views | sortAlpha }}
+{{- $view := index $access.views $k }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1alpha1
+kind: BigQueryDatasetAccess
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "authorized-view" $k)) "id" (printf "authorized-view:%s" $k) "project" $v.project_id) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  datasetId: {{ $dataset | quote }}
+  view:
+    projectId: {{ $view.project_id | quote }}
+    datasetId: {{ $view.dataset_id | quote }}
+    tableId: {{ $view.table_id | quote }}
+{{- end }}
+{{- range $k := keys $access.datasets | sortAlpha }}
+{{- $d := index $access.datasets $k }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1alpha1
+kind: BigQueryDatasetAccess
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "authorized-dataset" $k)) "id" (printf "authorized-dataset:%s" $k) "project" $v.project_id) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  datasetId: {{ $dataset | quote }}
+  dataset:
+    dataset:
+      projectId: {{ $d.project_id | quote }}
+      datasetId: {{ $d.dataset_id | quote }}
+    targetTypes: ["VIEWS"]
+{{- end }}
+{{- end }}

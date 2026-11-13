@@ -1,0 +1,809 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "folder values (fabric folder v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "names": {
+      "description": "The folder's display name in full (not a Terraform variable; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "folder": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "asset_feeds": {
+      "description": "Cloud Asset Inventory feeds; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "asset_search": {
+      "description": "Cloud Asset Inventory search configurations; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "assured_workload_config": {
+      "description": "Assured Workloads folder configuration; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "autokey_config": {
+      "description": "Enable autokey support for this folder's children.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "project"
+      ],
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "cloud_armor_policy": {
+      "description": "Hierarchical Cloud Armor policy association {name, policy_id, excluded_folders, excluded_projects}: ComputeOrganizationSecurityPolicyAssociation (v1alpha1, allow_alpha) on an existing folder; the exclusions are refused.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "contacts": {
+      "description": "Essential contacts, EMAIL -> [NOTIFICATION_TYPES].",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "deletion_protection": {
+      "description": "Deletion protection setting for this folder; true is refused.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "factories_config": {
+      "description": "Paths to data files for fabric's factories; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "firewall_policy": {
+      "description": "Hierarchical firewall policy to associate to this folder.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "policy"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        }
+      }
+    },
+    "folder_create": {
+      "description": "Create folder. When set to false, uses id to reference an existing folder.",
+      "type": "boolean"
+    },
+    "iam": {
+      "description": "Authoritative IAM, {ROLE => [MEMBERS]}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "iam_bindings": {
+      "description": "Authoritative IAM bindings, {KEY => {role, members, condition}}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "expression",
+              "title"
+            ],
+            "properties": {
+              "expression": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "iam_bindings_additive": {
+      "description": "Additive IAM bindings, {KEY => {role, member, condition}}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "member"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "member": {
+            "type": "string"
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "expression",
+              "title"
+            ],
+            "properties": {
+              "expression": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "iam_by_principals": {
+      "description": "Authoritative IAM, {PRINCIPAL => [ROLES]}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "iam_by_principals_additive": {
+      "description": "Additive IAM, {PRINCIPAL => [ROLES]}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "iam_by_principals_conditional": {
+      "description": "Authoritative conditional IAM, {PRINCIPAL => {roles, condition}}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "roles"
+        ],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "expression",
+              "title"
+            ],
+            "properties": {
+              "expression": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "iam_deny_policies": {
+      "description": "IAM deny policies, keyed by policy ID: {display_name, rules: [{description, denied_principals, denied_permissions, denial_condition, exception_principals, exception_permissions}]}.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Folder ID in case you use folder_create=false.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "logging_data_access": {
+      "description": "Data access logs, {SERVICE => {ADMIN_READ, DATA_READ, DATA_WRITE}}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ADMIN_READ": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "exempted_members": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "DATA_READ": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "exempted_members": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "DATA_WRITE": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "exempted_members": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "logging_exclusions": {
+      "description": "Logging exclusions, {NAME => FILTER}.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "logging_settings": {
+      "description": "Default settings for logging resources; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "logging_sinks": {
+      "description": "Logging sinks to create for the folder.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "destination",
+          "type"
+        ],
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "bq_partitioned_table": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "exclusions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "filter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iam": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "include_children": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "intercept_children": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "name": {
+      "description": "Folder name (its display name).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "org_policies": {
+      "description": "Organization policies applied to this folder keyed by policy name.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inherit_from_parent": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "reset": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allow": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "all": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "values": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "deny": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "all": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "values": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "enforce": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "condition": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "expression": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "parameters": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pam_entitlements": {
+      "description": "Privileged Access Manager entitlements.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "max_request_duration",
+          "eligible_users",
+          "privileged_access"
+        ],
+        "properties": {
+          "max_request_duration": {
+            "type": "string"
+          },
+          "eligible_users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "privileged_access": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "role"
+              ],
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "condition": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "requester_justification_config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "not_mandatory": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "unstructured": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "manual_approvals": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "require_approver_justification",
+              "steps"
+            ],
+            "properties": {
+              "require_approver_justification": {
+                "type": "boolean"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "approvers"
+                  ],
+                  "properties": {
+                    "approvers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "approvals_needed": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "approver_email_recipients": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "additional_notification_targets": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "admin_email_recipients": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "requester_email_recipients": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "parent": {
+      "description": "Parent in folders/folder_id or organizations/org_id format.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scc_mute_configs": {
+      "description": "Security Command Center mute configs; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "scc_sha_custom_modules": {
+      "description": "Security Health Analytics custom modules; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "service_agents_config": {
+      "description": "Service agents configuration; refused when set (README.md).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "tag_bindings": {
+      "description": "Tag bindings for this folder, in key => tag value id format.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    },
+    "allow_alpha": {
+      "description": "Accept features that need an alpha Config Connector kind: cloud_armor_policy (not a Terraform variable).",
+      "type": "boolean"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# Monitoring for a cluster whose name makes the module's MSProm-<location>-
+# <name> longer than 44 characters (cut and hashed as the module does), and
+# a private endpoint in another resource group whose DNS zone group is left
+# to others (Azure Policy).
+name: aks-platform-shared-services-prod-001
+location: westeurope
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks
+addon_profile_oms_agent:
+  enabled: true
+  config: {log_analytics_workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law}
+onboard_monitoring: true
+prometheus_workspace_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.Monitor/accounts/amw
+tags: {env: prod}
+private_endpoints_manage_dns_zone_group: false
+private_endpoints:
+  mgmt:
+    name: pe-aks-mgmt
+    resource_group_name: rg-net
+    location: northeurope
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe
+    private_service_connection_name: psc-aks
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.westeurope.azmk8s.io]
+    lock: {kind: CanNotDelete}

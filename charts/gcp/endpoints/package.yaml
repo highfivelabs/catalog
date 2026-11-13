@@ -1,0 +1,23 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs").
+# service_name from the rendered service; endpoints from the service's
+# status (the active configuration's endpoints, [] until it reports them);
+# endpoints_service is the whole Terraform object in fabric, here the
+# service's name, its ID, the field a consumer takes.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-endpoints
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    endpoints: >-
+      has(resources.service.status.observedState) && has(resources.service.status.observedState.endpoints)
+      ? dyn(resources.service.status.observedState.endpoints) : dyn([])
+    endpoints_service: resources.service.spec.resourceID
+    service_name: resources.service.spec.resourceID

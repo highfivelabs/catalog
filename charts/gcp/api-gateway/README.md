@@ -121,14 +121,17 @@ config-connector-extensions' CRDs (`crds/config-connector-extensions`), and
 the refusals in `tests/*.fail.yaml`.
 
 Fake cloud (`task test-mock`, `tests/mock.values.yaml`): the API, the
-config on a service account the chart makes, and the gateway. On
-2026-11-12 (offload VM `off-catalog-1113002414-5046`,
-config-connector-extensions `11baa460`) all four objects became Ready,
-the outputs evaluated (`default_hostname` null: mockgcp's gateway reports
-none) and all four were deleted. The case has no `iam`: in an earlier run
-(`off-catalog-1113001035-9748`) the `IAMBinding` on the API became Ready,
-but mockgcp answered `getIamPolicy` on the config and on the gateway with
-404, so the bindings on those two are only render-tested.
+config on a service account the chart makes, the gateway, and a role on
+each of the three (`iam`). On 2026-11-13 (offload VM
+`off-catalog-1113062359-5622`, config-connector-extensions `35833eb8`,
+whose fake cloud serves `getIamPolicy` on a config and a gateway) all
+seven objects became Ready, the outputs evaluated (`default_hostname`
+null: mockgcp's gateway reports none) and all seven were deleted. In the
+run before it (`off-catalog-1113061109-28826`, with four other charts)
+the `IAMBinding` on the API was not deleted: the API went first, and the
+binding's delete stopped on "reference APIGatewayAPI ... is not ready".
+Deleting every object at once makes this a race in the binding's
+controller, not in the chart.
 
 Not applied live: the API Gateway API is not enabled in the live-test
 project, and neither live-test service account has an API Gateway role.

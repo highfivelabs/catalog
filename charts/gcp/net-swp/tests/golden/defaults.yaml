@@ -1,0 +1,47 @@
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  name: defaults-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "defaults"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway_security_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  description: "Managed by Terraform."
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  name: defaults
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "defaults"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  type: SECURE_WEB_GATEWAY
+  description: "Managed by Terraform."
+  ports:
+    - 443
+  gatewaySecurityPolicy: "projects/my-project/locations/europe-west4/gatewaySecurityPolicies/secure-web-proxy"
+  network: "projects/my-project/global/networks/my-network"
+  subnetwork: "projects/my-project/regions/europe-west4/subnetworks/my-subnetwork"
+  routingMode: EXPLICIT_ROUTING_MODE

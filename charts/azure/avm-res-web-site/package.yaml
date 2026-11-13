@@ -1,0 +1,52 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the inputs:
+# the site's name, resource ID, default hostname (resource_uri) and custom
+# domain verification ID (null until Azure reports them, as the module's
+# try()); its system-assigned identity's principal ID under both the
+# module's names (null without one); kind, location and os_type as given.
+# active_slot is the site's ID: app_service_active_slot (a slot swap) is
+# refused. deployment_slots is the module's map of each slot's name and
+# resource ID, system_assigned_mi_principal_id_slots each slot's identity's
+# principal ID (only slots that have one), private_endpoints each
+# endpoint's ID (the module gives whole resources; consumers take the ID).
+# Not an output: resource (the whole site, which the module marks
+# sensitive).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-web-site
+spec:
+  version: 0.2.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    name: resources.site.spec.azureName
+    resource_id: resources.site.status.id
+    active_slot: resources.site.status.id
+    kind: inputs.kind
+    location: resources.site.spec.location
+    os_type: inputs.os_type
+    resource_uri: >-
+      'defaultHostName' in resources.site.status ? resources.site.status.defaultHostName : null
+    custom_domain_verification_id: >-
+      'customDomainVerificationId' in resources.site.status ? resources.site.status.customDomainVerificationId : null
+    system_assigned_mi_principal_id: >-
+      'identity' in resources.site.status && 'principalId' in resources.site.status.identity
+      ? resources.site.status.identity.principalId : null
+    identity_principal_id: >-
+      'identity' in resources.site.status && 'principalId' in resources.site.status.identity
+      ? resources.site.status.identity.principalId : null
+    deployment_slots: >-
+      inputs.deployment_slots == null || size(inputs.deployment_slots) == 0 ? null :
+      dyn(resources.transformMapEntry(k, v, k.startsWith('slot:') && !k.contains('/'),
+        {k.substring(5): {'name': v.spec.azureName, 'resource_id': v.status.id}}))
+    system_assigned_mi_principal_id_slots: >-
+      resources.transformMapEntry(k, v, k.startsWith('slot:') && !k.contains('/')
+        && 'identity' in v.status && 'principalId' in v.status.identity,
+        {k.substring(5): v.status.identity.principalId})
+    private_endpoints: >-
+      inputs.private_endpoints == null || size(inputs.private_endpoints) == 0 ? null :
+      dyn(resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): v.status.id}))

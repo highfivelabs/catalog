@@ -1,0 +1,66 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/cloud-run-v2
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/cloud-run-v2
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-run-v2
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (a
+# v1alpha1 kind, accepted with allow_alpha: true) or by-design (Bundt
+# replaces it). partial: the variable is accepted, the reason says what is
+# refused.
+refused:
+  - variable: context
+    kind: by-design
+    reason: "Bundt replaces fabric's $context lookups with ${...} expressions and valueFrom in the component's inputs"
+  - variable: type
+    kind: alpha
+    reason: "WORKERPOOL is a RunWorkerPool, which is v1alpha1: needs allow_alpha: true. SERVICE and JOB need nothing"
+    partial: true
+    needs_allow_alpha: true
+  - variable: managed_revision
+    kind: gap
+    reason: "false is refused: Config Connector has no ignore_changes, so it would put back the containers, revision name and labels of every revision deployed outside Bundt. true, the default, is accepted"
+    partial: true
+  - variable: binary_authorization
+    kind: gap
+    reason: "policy is refused: RunService, RunJob and RunWorkerPool have no binaryAuthorization.policy"
+    partial: true
+    fields: [policy]
+  - variable: containers
+    kind: gap
+    reason: "startup_probe.grpc is refused for a JOB: RunJob's startupProbe has no grpc"
+    partial: true
+  - variable: revision
+    kind: gap
+    reason: "gpu_zonal_redundancy_disabled is refused (no kind has it); node_selector is refused for a SERVICE or JOB (only RunWorkerPool has nodeSelector); labels are refused for a JOB or WORKERPOOL (RunJob and RunWorkerPool have no template labels)"
+    partial: true
+    fields: [gpu_zonal_redundancy_disabled]
+  - variable: service_config
+    kind: gap
+    reason: "default_uri_disabled, iap_config, invoker_iam_disabled, multi_region_settings and workload_identity_config are refused: RunService has no defaultUriDisabled, iapEnabled, invokerIamDisabled, multiRegionSettings or workloadIdentityConfig"
+    partial: true
+    fields: [default_uri_disabled, iap_config, invoker_iam_disabled, multi_region_settings, workload_identity_config]
+  - variable: volumes
+    kind: gap
+    reason: "gcs is refused (RunService has no gcs volume; RunJob and RunWorkerPool send bucketRef.external, which must be projects/<p>/buckets/<b> or gs://<b>, to Cloud Run as the bucket name); nfs is refused for a SERVICE (RunService has no nfs volume)"
+    partial: true
+    fields: [gcs]
+  - variable: workerpool_config
+    kind: gap
+    reason: "scaling.mode, scaling.max_instance_count and scaling.min_instance_count are refused: RunWorkerPool's scaling has manualInstanceCount only"
+    partial: true
+    fields: [mode, max_instance_count, min_instance_count]

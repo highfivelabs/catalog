@@ -1,0 +1,189 @@
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: full-authz-policy-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "prod"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "iap_policy"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway-authz"
+  action: CUSTOM
+  policyProfile: REQUEST_AUTHZ
+  target:
+    resources:
+      - "projects/my-project-id/locations/europe-west1/agentGateways/my-gateway"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/my-project-id/locations/europe-west1/authzExtensions/my-gateway-authz"
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: full-authz-policy-ma
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "prod"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "model_armor_policy"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway-armor"
+  action: CUSTOM
+  policyProfile: CONTENT_AUTHZ
+  target:
+    resources:
+      - "projects/my-project-id/locations/europe-west1/agentGateways/my-gateway"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/my-project-id/locations/europe-west1/authzExtensions/my-gateway-armor"
+  httpRules:
+    - to:
+        operations:
+          - hosts:
+              - exact: "api.example.com"
+              - exact: "mcp.example.com"
+---
+# Source: geap-agent-gateway/templates/connectivity-template.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentConnectivityTemplate
+metadata:
+  name: full-template
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "prod"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "connectivity_template"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-template"
+  accessPath: CLIENT_TO_AGENT
+  accessTypes:
+    - "PRIVATE"
+    - "PUBLIC"
+  description: "PSC-I to the shared VPC."
+  labels:
+    env: "prod"
+    purpose: "agents"
+    team: "platform"
+  egressNetworkConfig:
+    networkAttachment: "projects/my-project-id/regions/europe-west1/networkAttachments/my-na"
+    vpcEgress: "PRIVATE_RANGES_ONLY"
+---
+# Source: geap-agent-gateway/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentGateway
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "prod"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway"
+  agentConnectivityTemplate: "projects/1234567890/locations/europe-west1/agentConnectivityTemplates/my-template"
+  description: "Agent egress for the platform team."
+  labels:
+    env: "prod"
+    team: "platform"
+  registries:
+    - "//agentregistry.googleapis.com/projects/my-project-id/locations/global"
+    - "//agentregistry.googleapis.com/projects/my-project-id/locations/europe-west1"
+  googleManaged:
+    governedAccessPath: CLIENT_TO_AGENT
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: full-authz-extension-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "prod"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "iap_extension"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway-authz"
+  service: "iap.googleapis.com"
+  failOpen: true
+  timeout: "1s"
+  metadata:
+    iamEnforcementMode: "DRY_RUN"
+    iapPolicyVersion: "V1"
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: full-authz-extension-ma
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    env: "prod"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "model_armor_extension"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway-armor"
+  service: "modelarmor.europe-west1.rep.googleapis.com"
+  failOpen: true
+  timeout: "5s"
+  metadata:
+    model_armor_settings: "[{\"request_template_id\":\"projects/my-project-id/locations/europe-west1/templates/req-template\",\"response_template_id\":\"projects/other-project/locations/europe-west1/templates/resp-template\"}]"

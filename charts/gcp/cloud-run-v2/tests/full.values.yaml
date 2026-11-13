@@ -1,0 +1,92 @@
+# Every field the chart carries for a service.
+project_id: my-project
+region: europe-west1
+name: full-service
+labels: {env: test, hfl.dev/team: shop}
+tags: {cost-center: c1}
+deletion_policy: ABANDON
+binary_authorization:
+  breakglass_justification: incident 42
+  use_default: true
+encryption_key: projects/my-project/locations/europe-west1/keyRings/kr/cryptoKeys/k
+launch_stage: BETA
+deletion_protection: "true"
+containers:
+  app:
+    image: europe-docker.pkg.dev/my-project/repo/app:1.0
+    command: [/app]
+    args: [--port, "8080"]
+    depends_on: [proxy]
+    env: {MODE: prod}
+    env_from_key:
+      TOKEN: {secret: token, version: latest}
+    ports:
+      http: {container_port: 8080, name: h2c}
+    resources:
+      limits: {cpu: "2", memory: 1Gi}
+      cpu_idle: false
+      startup_cpu_boost: true
+    liveness_probe:
+      grpc: {port: 8081, service: health}
+      failure_threshold: 3
+      initial_delay_seconds: 5
+      period_seconds: 10
+      timeout_seconds: 2
+    startup_probe:
+      tcp_socket: {port: 8080}
+      failure_threshold: 10
+    volume_mounts:
+      cloudsql: /cloudsql
+      cache: /cache
+      creds: /creds
+  proxy:
+    image: europe-docker.pkg.dev/my-project/repo/proxy:1.0
+    liveness_probe:
+      http_get:
+        path: /healthz
+        port: 9000
+        http_headers: {X-Probe: "1", Accept: text/plain}
+    startup_probe:
+      grpc: {port: 9001}
+iam:
+  roles/run.invoker: ["group:callers@example.com", "user:a@example.com"]
+  roles/run.developer: ["group:devs@example.com"]
+revision:
+  name: v1
+  labels: {rev: one}
+  timeout: 300s
+  vpc_access:
+    connector: projects/my-project/locations/europe-west1/connectors/c1
+    egress: PRIVATE_RANGES_ONLY
+service_config:
+  custom_audiences: [https://app.example.com]
+  eventarc_triggers:
+    audit_log:
+      setiam: {method: SetIamPolicy, service: cloudresourcemanager.googleapis.com}
+    pubsub:
+      orders: projects/other-project/topics/orders
+    storage:
+      uploads: {bucket: uploads-bucket}
+    service_account_email: trigger@my-project.iam.gserviceaccount.com
+  gen2_execution_environment: true
+  ingress: INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER
+  invoker_iam_disabled: false
+  max_concurrency: 40
+  scaling: {max_instance_count: 10, min_instance_count: 1}
+  timeout: 120s
+  traffic:
+    - type: TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST
+      percent: 100
+      tag: latest
+service_account_config:
+  name: full-runner
+  display_name: Full service runner
+  roles: [roles/logging.logWriter]
+tag_bindings:
+  env: tagValues/1234
+volumes:
+  cache: {empty_dir_size: 128Mi}
+  creds:
+    secret: {name: creds, default_mode: "292", path: creds.json, version: "2", mode: "256"}
+  cloudsql:
+    cloud_sql_instances: ["my-project:europe-west1:db1", "my-project:europe-west1:db2"]

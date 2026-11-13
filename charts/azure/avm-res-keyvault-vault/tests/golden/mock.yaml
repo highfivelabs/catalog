@@ -1,5 +1,56 @@
 ---
 # Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: mock-kv-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+spec:
+  azureName: "pe-catalog-kv-001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-catalog-kv-001"
+      groupIds: ["vault"]
+      privateLinkServiceReference:
+        group: keyvault.azure.com
+        kind: Vault
+        name: mock-kv
+  ipConfigurations: []
+  applicationSecurityGroups: []
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: mock-kv-pe-pe-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-keyvault-vault
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: mock-kv-pe-pe
+  privateDnsZoneConfigs:
+    - name: "privatelink.vaultcore.azure.net"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
+---
+# Source: avm-res-keyvault-vault/templates/main.yaml
 apiVersion: keyvault.azure.com/v1api20230701
 kind: Vault
 metadata:
@@ -8,7 +59,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "vault"
 spec:
@@ -43,7 +94,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: avm-res-keyvault-vault
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "key:k"
 spec:

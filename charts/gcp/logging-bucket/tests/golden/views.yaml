@@ -1,0 +1,108 @@
+---
+# Source: logging-bucket/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: views-view-myview-iam-roles-logging-viewaccessor-08bfbf05
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "views"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "view:myview:iam:roles/logging.viewAccessor"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/locations/global/buckets/mybucket/views/myview
+    kind: LoggingLogView
+  role: "roles/logging.viewAccessor"
+  members:
+    - "user:user@example.com"
+---
+# Source: logging-bucket/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: views-view-myview-iam-binding-conditional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "views"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "view:myview:iam-binding:conditional"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/locations/global/buckets/mybucket/views/myview
+    kind: LoggingLogView
+  role: "roles/logging.viewAccessor"
+  members:
+    - "group:auditors@example.com"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp(\"2027-01-01T00:00:00Z\")"
+---
+# Source: logging-bucket/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  name: views-view-myview-iam-member-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "views"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "view:myview:iam-member:one"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceRef:
+    external: projects/my-project/locations/global/buckets/mybucket/views/myview
+    kind: LoggingLogView
+  role: "roles/logging.viewer"
+  member: "serviceAccount:reader@my-project.iam.gserviceaccount.com"
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogBucket
+metadata:
+  name: views
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "views"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "global"
+  resourceID: "mybucket"
+  retentionDays: 30
+  enableAnalytics: false
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogView
+metadata:
+  name: views-view-myview
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "views"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "view:myview"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  bucketRef:
+    name: views
+  resourceID: "myview"
+  location: "global"
+  filter: "LOG_ID(\"stdout\")"

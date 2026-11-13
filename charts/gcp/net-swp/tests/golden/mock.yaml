@@ -1,0 +1,155 @@
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: mock-psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "service_attachment"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-swp"
+  description: "Service attachment for SWP cat-mock-swp"
+  targetServiceRef:
+    external: "projects/mock-project/locations/us-central1/gateways/cat-mock-swp"
+  natSubnets:
+    - external: "projects/mock-project/regions/us-central1/subnetworks/cat-mock-swp-psc"
+  connectionPreference: ACCEPT_MANUAL
+  enableProxyProtocol: false
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  name: mock-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "gateway_security_policy"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-swp"
+  description: "Managed by Terraform."
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: mock-rule-allow-list
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "policy_rule:allow-list"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  gatewaySecurityPolicy: "cat-mock-swp"
+  resourceID: "allow-list"
+  description: "Managed by Terraform."
+  enabled: true
+  priority: 1000
+  basicProfile: ALLOW
+  sessionMatcher: "inUrlList(host(), 'projects/mock-project/locations/us-central1/urlLists/cat-mock-swp-allow')"
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: mock-rule-deny-google
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "policy_rule:deny-google"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  gatewaySecurityPolicy: "cat-mock-swp"
+  resourceID: "deny-google"
+  description: "Managed by Terraform."
+  enabled: true
+  priority: 1001
+  basicProfile: DENY
+  sessionMatcher: "host() == 'google.com'"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityURLList
+metadata:
+  name: mock-url-list-cat-mock-swp-allow
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "url_list:cat-mock-swp-allow"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-swp-allow"
+  description: "Managed by Terraform."
+  values:
+    - "example.com"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "projects/mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-swp"
+  type: SECURE_WEB_GATEWAY
+  description: "Managed by Terraform."
+  labels:
+    env: "test"
+  addresses:
+    - 10.10.0.10
+  ports:
+    - 443
+  gatewaySecurityPolicy: "projects/mock-project/locations/us-central1/gatewaySecurityPolicies/cat-mock-swp"
+  network: "projects/mock-project/global/networks/cat-mock-swp-net"
+  subnetwork: "projects/mock-project/regions/us-central1/subnetworks/cat-mock-swp-subnet"
+  routingMode: EXPLICIT_ROUTING_MODE

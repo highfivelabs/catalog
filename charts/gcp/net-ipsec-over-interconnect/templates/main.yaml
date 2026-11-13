@@ -1,0 +1,95 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-ipsec-over-interconnect
+/main.tf and route-policies.tf (v60.0.0), Copyright 2023 and 2026 Google
+LLC, Apache-2.0.
+
+google_compute_ha_vpn_gateway.default: a ComputeVPNGateway, vpn-gw-<name>,
+with its two interfaces on the VLAN attachments a and b.
+google_compute_external_vpn_gateway.default (peer_gateway_config.create):
+a ComputeExternalVPNGateway, peer_gateway_config.name or
+peer-vpn-gw-<name>. google_compute_router.default (router_config.create):
+a ComputeRouter, router_config.name or router-<name>.
+google_compute_router_route_policy.default: a config-connector-extensions
+ComputeRouterRoutePolicy per policy (v1alpha1: allow_alpha).
+google_compute_vpn_tunnel.default, google_compute_router_interface.default
+and google_compute_router_peer.default are not rendered: tunnels is
+refused (README.md), and fabric makes one interface and one peer per
+tunnel.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "gateway" "peer_gateway" "router")) }}
+{{- include "kcc.unsupported" (list $ "tunnels" $v.tunnels "a tunnel's shared secret would be in the rendered manifest, and the chart does not take one from a Kubernetes Secret yet (README.md, \"Values\"); ComputeRouterPeer has no md5AuthenticationKey, importPolicies or exportPolicies") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $api := "https://www.googleapis.com/compute/v1/" }}
+{{- $network := trimPrefix $api $v.network }}
+{{- $pg := $v.peer_gateway_config }}
+{{- $pgCreate := eq (toString $pg.create) "true" }}
+{{- $ifs := $pg.interfaces | default list }}
+{{- if not (or (and (not $pgCreate) $pg.id) (and $pgCreate (or (eq (len $ifs) 1) (eq (len $ifs) 2)))) }}
+{{- fail "net-ipsec-over-interconnect: When using an existing gateway, an ID must be provided. When not, the gateway can have one or two interfaces." }}
+{{- end }}
+{{- $rc := $v.router_config }}
+{{- $rcCreate := ne (toString $rc.create) "false" }}
+{{- $routerObject := include "kcc.name" (list .Release.Name) }}
+{{- $router := dict }}
+{{- if $rcCreate }}
+{{- if kindIs "invalid" $rc.asn }}
+{{- fail "net-ipsec-over-interconnect: router_config.asn is required to create a router (ComputeRouter's bgp.asn); to reuse one, set router_config.create to false and its name" }}
+{{- end }}
+{{- $_ := set $router "name" $routerObject }}
+{{- else }}
+{{- if not $rc.name }}
+{{- fail "net-ipsec-over-interconnect: router_config.name is required when router_config.create is false" }}
+{{- end }}
+{{- $_ := set $router "external" (printf "projects/%s/regions/%s/routers/%s" $v.project_id $v.region $rc.name) }}
+{{- end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "gateway" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "gateway" "VPN gateway" (printf "vpn-gw-%s" $v.name) 63 "letter") | quote }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  vpnInterfaces:
+    - id: 0
+      interconnectAttachmentRef:
+        external: {{ trimPrefix $api $v.interconnect_attachments.a | quote }}
+    - id: 1
+      interconnectAttachmentRef:
+        external: {{ trimPrefix $api $v.interconnect_attachments.b | quote }}
+{{- if $pgCreate }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "peer")) "id" "external_gateway" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "peer_gateway" "external VPN gateway" ($pg.name | default (printf "peer-vpn-gw-%s" $v.name)) 63 "letter") | quote }}
+  description: {{ ternary "Terraform managed IPSec over Interconnect VPN gateway" $pg.description (kindIs "invalid" $pg.description) | quote }}
+  redundancyType: {{ ternary "TWO_IPS_REDUNDANCY" "SINGLE_IP_INTERNALLY_REDUNDANT" (eq (len $ifs) 2) }}
+  interface:
+    {{- range $i, $ip := $ifs }}
+    - id: {{ $i }}
+      ipAddress: {{ $ip | quote }}
+    {{- end }}
+{{- end }}
+{{- if $rcCreate }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $routerObject "id" "router" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ "router" "router" ($rc.name | default (printf "router-%s" $v.name)) 63 "letter") | quote }}
+  region: {{ $v.region | quote }}
+  networkRef:
+    external: {{ $network | quote }}
+  bgp:
+    {{- include "router.bgp" $rc | nindent 4 }}
+{{- end }}
+{{- include "router.policies" (dict "root" $ "policies" ($rc.route_policies | default dict) "router" $router "abandon" $abandon) }}

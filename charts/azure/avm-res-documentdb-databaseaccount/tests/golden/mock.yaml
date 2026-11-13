@@ -1,0 +1,220 @@
+---
+# Source: avm-res-documentdb-databaseaccount/templates/main.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: DatabaseAccount
+metadata:
+  name: mock-cosmos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "catalog-cosmos"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  backupPolicy:
+    continuous:
+      type: Continuous
+      continuousModeProperties:
+        tier: Continuous30Days
+  capabilities:
+    - name: "EnableServerless"
+  capacity:
+    totalThroughputLimit: -1
+  consistencyPolicy:
+    defaultConsistencyLevel: BoundedStaleness
+    maxIntervalInSeconds: 5
+    maxStalenessPrefix: 100
+  databaseAccountOfferType: Standard
+  defaultIdentity: FirstPartyIdentity
+  disableKeyBasedMetadataWriteAccess: true
+  disableLocalAuth: false
+  enableAnalyticalStorage: false
+  enableAutomaticFailover: true
+  enableBurstCapacity: false
+  enableFreeTier: false
+  enableMultipleWriteLocations: false
+  enablePartitionMerge: false
+  isVirtualNetworkFilterEnabled: false
+  kind: GlobalDocumentDB
+  locations:
+    - locationName: "eastus2"
+      failoverPriority: 0
+      isZoneRedundant: false
+  minimalTlsVersion: Tls12
+  networkAclBypass: None
+  publicNetworkAccess: Enabled
+  tags:
+    catalog: mock
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabase
+metadata:
+  name: mock-cosmos-gremlindb-graphs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_database:graphs"
+spec:
+  azureName: "graphs"
+  owner:
+    name: mock-cosmos
+  resource:
+    id: "graphs"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/gremlin.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsGremlinDatabasesGraph
+metadata:
+  name: mock-cosmos-graph-graphs-people
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gremlin_graph:graphs/people"
+spec:
+  azureName: "people"
+  owner:
+    name: mock-cosmos-gremlindb-graphs
+  resource:
+    id: "people"
+    partitionKey:
+      kind: Hash
+      paths: ["/pk"]
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.hfl.dev/v20240815
+kind: DatabaseAccountsService
+metadata:
+  name: mock-cosmos-gateway
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_dedicated_gateway"
+spec:
+  azureName: SqlDedicatedGateway
+  owner:
+    name: mock-cosmos
+  properties:
+    sqlDedicatedGateway:
+      serviceType: SqlDedicatedGateway
+      instanceCount: 1
+      instanceSize: Cosmos.D4s
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabase
+metadata:
+  name: mock-cosmos-sqldb-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_database:app"
+spec:
+  azureName: "app"
+  owner:
+    name: mock-cosmos
+  resource:
+    id: "app"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainer
+metadata:
+  name: mock-cosmos-sqlc-app-items
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_container:app/items"
+spec:
+  azureName: "items"
+  owner:
+    name: mock-cosmos-sqldb-app
+  resource:
+    id: "items"
+    partitionKey:
+      kind: Hash
+      paths:
+        - "/tenant"
+      version: 2
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerStoredProcedure
+metadata:
+  name: mock-cosmos-sqlsp-app-items-hello
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_stored_procedure:app/items/hello"
+spec:
+  azureName: "hello"
+  owner:
+    name: mock-cosmos-sqlc-app-items
+  resource:
+    id: "hello"
+    body: "function hello() { getContext().getResponse().setBody('hello'); }"
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerTrigger
+metadata:
+  name: mock-cosmos-sqlt-app-items-stamp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_trigger:app/items/stamp"
+spec:
+  azureName: "stamp"
+  owner:
+    name: mock-cosmos-sqlc-app-items
+  resource:
+    id: "stamp"
+    body: "function stamp() { }"
+    triggerOperation: Create
+    triggerType: Pre
+---
+# Source: avm-res-documentdb-databaseaccount/templates/sql.yaml
+apiVersion: documentdb.azure.com/v1api20240815
+kind: SqlDatabaseContainerUserDefinedFunction
+metadata:
+  name: mock-cosmos-sqlf-app-items-upper
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-documentdb-databaseaccount
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sql_function:app/items/upper"
+spec:
+  azureName: "upper"
+  owner:
+    name: mock-cosmos-sqlc-app-items
+  resource:
+    id: "upper"
+    body: "function upper(s) { return s.toUpperCase(); }"

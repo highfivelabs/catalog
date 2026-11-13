@@ -1,0 +1,105 @@
+# Most of the module: the database example's database (retention
+# policies), the elastic pool example's Standard pool with a database in
+# it, the TDE example's customer-managed key and user-assigned identity, a
+# serverless database with threat detection and TDE off, firewall rules,
+# the express vulnerability assessment, the connection policy, a private endpoint with its DNS zone group, and
+# the interfaces on the server, a database and the pool.
+name: sql-full
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data
+server_version: "12.0"
+administrator_login: sqladmin
+azuread_administrator:
+  azuread_authentication_only: true
+  login_username: sql-admins
+  object_id: 33333333-4444-5555-6666-777777777777
+connection_policy: Redirect
+outbound_network_restriction_enabled: true
+express_vulnerability_assessment_enabled: true
+public_network_access_enabled: true
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-sql]
+primary_user_assigned_identity_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-sql
+transparent_data_encryption_key_vault_key_id: https://kv-sql.vault.azure.net/keys/tde/0123456789abcdef0123456789abcdef
+tags: {environment: sample, cost_centre: demo}
+databases:
+  my_sample_db:
+    name: my_sample_db
+    create_mode: Default
+    collation: SQL_Latin1_General_CP1_CI_AS
+    license_type: LicenseIncluded
+    max_size_gb: 50
+    sku_name: S0
+    maintenance_configuration_name: SQL_EastUS2_DB_1
+    short_term_retention_policy: {retention_days: 1, backup_interval_in_hours: 24}
+    long_term_retention_policy: {weekly_retention: P2W1D, monthly_retention: P1M, yearly_retention: P1Y, week_of_year: 10}
+    transparent_data_encryption_key_vault_key_id: https://kv-sql.vault.azure.net/keys/tde/0123456789abcdef0123456789abcdef
+    transparent_data_encryption_key_automatic_rotation_enabled: true
+    managed_identities:
+      system_assigned: true
+      user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-sql]
+    lock: {kind: CanNotDelete}
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 44444444-5555-6666-7777-888888888888, principal_type: Group}
+    diagnostic_settings:
+      law: {workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law}
+    tags: {environment: sample}
+  serverless:
+    name: serverless
+    sku_name: GP_S_Gen5_1
+    auto_pause_delay_in_minutes: 60
+    min_capacity: 0.5
+    storage_account_type: Local
+    ledger_enabled: true
+    zone_redundant: false
+    read_scale: false
+    transparent_data_encryption_enabled: false
+    threat_detection_policy:
+      state: Enabled
+      disabled_alerts: [Sql_Injection]
+      email_account_admins: Enabled
+      email_addresses: [dba@example.com]
+      retention_days: 30
+      storage_endpoint: https://stsqlaudit.blob.core.windows.net/
+  pooled:
+    name: db-standard-pool
+    elastic_pool_key: standard_pool
+    sku_name: ElasticPool
+    short_term_retention_policy: {retention_days: 1}
+elastic_pools:
+  standard_pool:
+    name: standard_pool
+    sku: {name: StandardPool, capacity: 50, tier: Standard, family: null}
+    per_database_settings: {min_capacity: 0, max_capacity: 50}
+    zone_redundant: false
+    license_type: LicenseIncluded
+    max_size_gb: 4.8828125
+    lock: {kind: ReadOnly, name: keep-pool}
+    role_assignments:
+      contributor: {role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c, principal_id: 44444444-5555-6666-7777-888888888888}
+    diagnostic_settings:
+      law: {name: pool-to-law, workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law, log_groups: [], metric_categories: [Basic]}
+    tags: {tier: standard}
+firewall_rules:
+  office: {start_ip_address: 203.0.113.10, end_ip_address: 203.0.113.20}
+  azure: {start_ip_address: 0.0.0.0, end_ip_address: 0.0.0.0}
+private_endpoints:
+  hub:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pe
+    subresource_name: sqlServer
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net]
+    network_interface_name: nic-pe-sql-full
+    application_security_group_associations:
+      app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-app
+    ip_configurations:
+      a: {name: ipconfig1, private_ip_address: 10.0.0.10}
+    tags: {endpoint: hub}
+    lock: {kind: CanNotDelete}
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 44444444-5555-6666-7777-888888888888}
+lock: {kind: CanNotDelete}
+role_assignments:
+  sql-contrib: {role_definition_id_or_name: SQL Server Contributor, principal_id: 44444444-5555-6666-7777-888888888888, description: DBAs}
+diagnostic_settings:
+  law: {workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ops/providers/Microsoft.OperationalInsights/workspaces/law}

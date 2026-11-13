@@ -1,0 +1,173 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-gateway/iam.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_iam_project_access_policy.default: an IAMAccessPolicy of
+config-connector-extensions (iam.gcp.hfl.dev/v1beta1) per entry of
+access_policies with rules, in the gateway's project, global, named by its
+key: each rule's principals (IAM v1 prefixes turned into IAM v3
+principals, as fabric does), permissions and the condition fabric builds
+from registry, agent_id, endpoint_id, mcp_server_id and condition.
+google_iam_projects_policy_binding.default: an IAMPolicyBinding
+(iam.gcp.hfl.dev/v1alpha1: allow_alpha, which the gateway needs anyway)
+per entry with bind, ACCESS, binding that policy (by name) or policy_reuse
+(by its resource name) to the project, the gateway or a resource URI.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := $v.project_id }}
+{{- $region := $v.region }}
+{{- /* fabric's registry_locations: the location segment of each governed
+registry, else the gateway's region. */}}
+{{- $regLocs := list }}
+{{- range $r := $v.registries | default list }}
+{{- $m := regexFind "/locations/[^/]+/?$" $r }}
+{{- if $m }}{{ $regLocs = append $regLocs ($m | trimPrefix "/locations/" | trimSuffix "/") }}{{ end }}
+{{- end }}
+{{- $regLocs = uniq $regLocs }}
+{{- if not $regLocs }}{{ $regLocs = list $region }}{{ end }}
+{{- $regDefault := "" }}
+{{- if eq (len $regLocs) 1 }}
+{{- $regDefault = printf "destination.is_registered == true && destination.agent_registry.location == '%s'" (first $regLocs) }}
+{{- else }}
+{{- $quoted := list }}
+{{- range $regLocs }}{{ $quoted = append $quoted (printf "'%s'" .) }}{{ end }}
+{{- $regDefault = printf "destination.is_registered == true && destination.agent_registry.location in [%s]" (join ", " $quoted) }}
+{{- end }}
+{{- range $key := keys ($v.access_policies | default dict) | sortAlpha }}
+{{- $p := index $v.access_policies $key }}
+{{- $rules := $p.rules | default dict }}
+{{- /* fabric's validations, with its messages. */}}
+{{- if not (or (and (kindIs "invalid" $p.policy_reuse) (gt (len $rules) 0)) (and (not (kindIs "invalid" $p.policy_reuse)) (eq (len $rules) 0))) }}
+{{- fail "geap-agent-gateway: Each access policy must either define at least one rule in 'rules' or set 'policy_reuse' (not both)." }}
+{{- end }}
+{{- range $rk, $r := $rules }}
+{{- if not (has ($r.effect | default "ALLOW") (list "ALLOW" "DENY")) }}
+{{- fail "geap-agent-gateway: Rule effect must be 'ALLOW' or 'DENY'." }}
+{{- end }}
+{{- if gt (len (compact (list ($r.agent_id | default "") ($r.endpoint_id | default "") ($r.mcp_server_id | default "") (ternary "registry" "" (eq (toString $r.registry) "true"))))) 1 }}
+{{- fail "geap-agent-gateway: Set at most one of 'agent_id', 'endpoint_id', 'mcp_server_id', or 'registry' per rule." }}
+{{- end }}
+{{- end }}
+{{- $policyObject := include "kcc.name" (list $.Release.Name "access-policy" $key) }}
+{{- if kindIs "invalid" $p.policy_reuse }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMAccessPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $policyObject "id" (printf "access_policy:%s" $key) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "access policy" $key 63) | quote }}
+  projectRef:
+    external: {{ $project | quote }}
+  location: global
+  {{- with $p.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $p.annotations }}
+  annotations:
+    {{- range $k := keys . | sortAlpha }}
+    {{ $k | quote }}: {{ index $p.annotations $k | quote }}
+    {{- end }}
+  {{- end }}
+  details:
+    rules:
+      {{- range $rk := keys $rules | sortAlpha }}
+      {{- $r := index $rules $rk }}
+      {{- $loc := $r.location | default $region }}
+      {{- $terms := list }}
+      {{- if eq (toString $r.registry) "true" }}
+      {{- $terms = append $terms (ternary (printf "destination.is_registered == true && destination.agent_registry.location == '%s'" (toString $r.location)) $regDefault (not (kindIs "invalid" $r.location))) }}
+      {{- end }}
+      {{- range $f := list (list "agent_id" "agent" "agents") (list "endpoint_id" "endpoint" "endpoints") (list "mcp_server_id" "mcp_server" "mcpServers") }}
+      {{- $id := index $r (index $f 0) }}
+      {{- if $id }}
+      {{- $name := ternary $id (printf "projects/%s/locations/%s/%s/%s" $project $loc (index $f 2) $id) (or (hasPrefix "projects/" $id) (hasPrefix "/projects/" $id)) }}
+      {{- $terms = append $terms (printf "destination.agent_registry.%s.name == '%s'" (index $f 1) $name) }}
+      {{- end }}
+      {{- end }}
+      {{- with $r.condition }}{{ $terms = append $terms . }}{{ end }}
+      - effect: {{ $r.effect | default "ALLOW" | quote }}
+        {{- with $r.description }}
+        description: {{ . | quote }}
+        {{- end }}
+        principals:
+          {{- range $r.principals }}
+          - {{ include "geapAgentGateway.principal" . | quote }}
+          {{- end }}
+        {{- with $r.excluded_principals }}
+        excludedPrincipals:
+          {{- range . }}
+          - {{ include "geapAgentGateway.principal" . | quote }}
+          {{- end }}
+        {{- end }}
+        operation:
+          permissions:
+            {{- range (kindIs "invalid" $r.permissions | ternary (list "iap.googleapis.com/resources.egressViaIAP") $r.permissions) }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- with $r.excluded_permissions }}
+          excludedPermissions:
+            {{- range . }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+        {{- if $terms }}
+        conditions:
+          {{ $r.condition_service | default "iap.googleapis.com" | quote }}:
+            expression: {{ join " && " $terms | quote }}
+        {{- end }}
+      {{- end }}
+{{- end }}
+{{- if ne (toString $p.bind) "false" }}
+{{- $target := $p.target_resource | default "project" }}
+{{- if eq $target "project" }}
+{{- $target = printf "//cloudresourcemanager.googleapis.com/projects/%s" $project }}
+{{- else if eq $target "gateway" }}
+{{- $target = printf "//networkservices.googleapis.com/projects/%s/locations/%s/agentGateways/%s" $project $region (include "geapAgentGateway.gateway" $) }}
+{{- end }}
+---
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMPolicyBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "policy-binding" $key)) "id" (printf "policy_binding:%s" $key) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "policy binding" ($p.binding_id | default $key) 63) | quote }}
+  projectRef:
+    external: {{ $project | quote }}
+  location: global
+  policyKind: ACCESS
+  policyRef:
+    {{- if kindIs "invalid" $p.policy_reuse }}
+    name: {{ $policyObject }}
+    {{- else }}
+    external: {{ $p.policy_reuse | quote }}
+    {{- end }}
+  target:
+    resource: {{ $target | quote }}
+  {{- with $p.display_name }}
+  displayName: {{ . | quote }}
+  {{- end }}
+  {{- with $p.annotations }}
+  annotations:
+    {{- range $k := keys . | sortAlpha }}
+    {{ $k | quote }}: {{ index $p.annotations $k | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.binding_condition }}
+  condition:
+    expression: {{ .expression | quote }}
+    {{- with .title }}
+    title: {{ . | quote }}
+    {{- end }}
+    {{- with .description }}
+    description: {{ . | quote }}
+    {{- end }}
+    {{- with .location }}
+    location: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

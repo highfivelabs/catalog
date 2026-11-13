@@ -1,0 +1,673 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-app-managedenvironment main.tf,
+main.<child>.tf, locals.tf and modules/<child> (v0.6.0), Copyright (c)
+Microsoft Corporation, MIT.
+
+azapi_resource.this: one ASO ManagedEnvironment (app.azure.com/v20250101),
+owned by the resource group parent_id or resource_group_name names, its
+body as the module builds it (local.resource_body), with the deprecated
+inputs folded in as the module's effective_* locals fold them.
+The child modules: aso-extensions kinds (app.azure.hfl.dev), each owned by
+the environment: ManagedEnvironmentsCertificate (certificates),
+ManagedEnvironmentsDaprComponent (dapr_components),
+ManagedEnvironmentsDaprSubscription (dapr_subscriptions),
+ManagedEnvironmentsStorage (storages), ManagedEnvironmentsManagedCertificate
+(managed_certificates), ManagedEnvironmentsJavaComponent (java_components),
+ManagedEnvironmentsDotNetComponent (dot_net_components),
+ManagedEnvironmentsHttpRouteConfig (http_route_configs) and
+ManagedEnvironmentsMaintenanceConfiguration (maintenance_configurations).
+azapi_resource.lock: an aso-extensions ManagementLock, with the module's
+name and notes.
+azapi_resource.role_assignments: ASO RoleAssignments.
+azapi_resource.diagnostic_settings: ASO DiagnosticSettings.
+time_sleep.lock_removal, the role definition lookup, the workspace's
+customer ID and shared key lookups and the telemetry are not ported.
+Secret values (the shared key, certificate passwords and blobs, connection
+strings, keys) and what ASO v2.22.0 and aso-extensions have no field or
+kind for are refused (upstream.yaml).
+*/ -}}
+{{- define "cae.set" -}}
+{{- if not (kindIs "invalid" .) -}}
+{{- if or (kindIs "map" .) (kindIs "slice" .) (kindIs "string" .) -}}
+{{- if not (empty .) }}true{{ end -}}
+{{- else -}}true{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- define "cae.identityRef" -}}
+{{- if hasPrefix "/" . -}}
+armId: {{ . | quote }}
+{{- else -}}
+wellKnownName: {{ . | quote }}
+{{- end -}}
+{{- end -}}
+{{- define "cae.workloadProfiles" -}}
+{{- $what := index . 0 }}{{ $list := index . 1 -}}
+{{- $types := list "Consumption" "Flex" "D4" "D8" "D16" "D32" "E4" "E8" "E16" "E32" "DC4" "DC8" "DC16" "DC32" "DC48" "DC64" "DC96" "NC24-A100" "NC48-A100" "NC96-A100" "Consumption-GPU-NC24-A100" "Consumption-GPU-NC8as-T4" -}}
+{{- range $list -}}
+{{- if not (regexMatch "^[a-zA-Z][a-zA-Z0-9_-]{0,13}[a-zA-Z0-9]$" (toString .name)) -}}
+{{- fail "avm-res-app-managedenvironment: Invalid value for workload profile name. It must start with a letter, contain only letters, numbers, underscores, or dashes, and not end with an underscore or dash. Maximum 15 characters." -}}
+{{- end -}}
+{{- if not (has .workload_profile_type $types) -}}
+{{- fail "avm-res-app-managedenvironment: Invalid value for workload_profile_type. Valid options are 'Consumption', 'Flex', 'D4', 'D8', 'D16', 'D32', 'E4', 'E8', 'E16', 'E32', 'DC4', 'DC8', 'DC16', 'DC32', 'DC48', 'DC64', 'DC96', 'NC24-A100', 'NC48-A100', 'NC96-A100', 'Consumption-GPU-NC24-A100', and 'Consumption-GPU-NC8as-T4'." -}}
+{{- end -}}
+{{- if and (eq .workload_profile_type "Flex") (ne (toString .name) "Flex") -}}
+{{- fail (printf "avm-res-app-managedenvironment: When workload_profile_type is 'Flex', %s name must be 'Flex'." $what) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.names" (list $ (list "managedEnvironment")) }}
+{{- if not $v.name }}{{ fail "avm-res-app-managedenvironment: name is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-app-managedenvironment: location is required" }}{{ end }}
+{{- /* The azapi provider's mechanics. */ -}}
+{{- $ibc := false }}
+{{- range $_, $x := ($v.ignore_body_changes | default dict) }}
+{{- if kindIs "map" $x }}{{ range $_, $paths := $x }}{{ if $paths }}{{ $ibc = true }}{{ end }}{{ end }}
+{{- else if include "cae.set" $x }}{{ $ibc = true }}{{ end }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" $ibc "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- /* What ASO's ManagedEnvironment (2025-01-01) has no field for, and the
+child types with no kind. */ -}}
+{{- $newer := "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no %s (the module sends 2025-10-02-preview)" }}
+{{- include "aso.unsupported" (list $ "app_insights_configuration" (include "cae.set" $v.app_insights_configuration) (printf $newer "appInsightsConfiguration")) }}
+{{- include "aso.unsupported" (list $ "availability_zones" (include "cae.set" $v.availability_zones) (printf $newer "availabilityZones")) }}
+{{- include "aso.unsupported" (list $ "disk_encryption_configuration" (include "cae.set" $v.disk_encryption_configuration) (printf $newer "diskEncryptionConfiguration")) }}
+{{- include "aso.unsupported" (list $ "ingress_configuration" (include "cae.set" $v.ingress_configuration) (printf $newer "ingressConfiguration")) }}
+{{- include "aso.unsupported" (list $ "open_telemetry_configuration" (include "cae.set" $v.open_telemetry_configuration) (printf $newer "openTelemetryConfiguration")) }}
+{{- include "aso.unsupported" (list $ "public_network_access" (include "cae.set" $v.public_network_access) (printf $newer "publicNetworkAccess")) }}
+{{- include "aso.unsupported" (list $ "public_network_access_enabled" (include "cae.set" $v.public_network_access_enabled) (printf $newer "publicNetworkAccess")) }}
+{{- include "aso.unsupported" (list $ "connection_string" (include "cae.set" $v.connection_string) (printf $newer "appInsightsConfiguration")) }}
+{{- include "aso.unsupported" (list $ "connection_string_version" (include "cae.set" $v.connection_string_version) (printf $newer "appInsightsConfiguration")) }}
+{{- include "aso.unsupported" (list $ "key" (include "cae.set" $v.key) (printf $newer "openTelemetryConfiguration")) }}
+{{- include "aso.unsupported" (list $ "key_version" (include "cae.set" $v.key_version) (printf $newer "openTelemetryConfiguration")) }}
+{{- /* Secret values: the builder's decision (docs/azure.md, "Charts"). */ -}}
+{{- $secret := "%s is a secret value, which would sit in the component's inputs; how a component supplies one (a Kubernetes Secret for ASO's SecretReference) is not settled" }}
+{{- range $n := list "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
+{{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf $secret $n)) }}
+{{- end }}
+{{- range $n := list "certificate_password_version" "certificate_value_version" "dapr_ai_connection_string_version" "dapr_ai_instrumentation_key_version" "shared_key_version" }}
+{{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf "it tracks %s, a secret value the chart does not take" (trimSuffix "_version" $n))) }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace" (include "cae.set" $v.log_analytics_workspace) "the module reads the workspace's primary shared key and sends it, a secret value the chart does not take; send logs to Azure Monitor (app_logs_configuration.destination azure-monitor and diagnostic_settings) instead") }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_customer_id" (include "cae.set" $v.log_analytics_workspace_customer_id) "a Log Analytics destination needs the workspace's shared key, a secret value the chart does not take; send logs to Azure Monitor instead") }}
+{{- /* The resource group. */ -}}
+{{- $parent := "" }}
+{{- if $v.parent_id }}
+{{- $parent = toString $v.parent_id }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$" $parent) }}{{ fail "avm-res-app-managedenvironment: `parent_id` must be a valid Azure resource group resource ID, or null." }}{{ end }}
+{{- else }}
+{{- $rg := toString $v.resource_group_name }}
+{{- if not $rg }}{{ fail "avm-res-app-managedenvironment: resource_group_name is required" }}{{ end }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-app-managedenvironment: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or parent_id" }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "cae") }}
+{{- $envName := include "aso.resourceName" (list $ "managedEnvironment" "Container Apps environment" $v.name 60 "^[a-z][a-z0-9-]{0,58}[a-z0-9]$") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- /* local.effective_app_logs_configuration: app_logs_configuration, else
+the deprecated log_analytics_workspace_destination (the workspace and its
+customer ID are refused above). */ -}}
+{{- $alc := $v.app_logs_configuration }}
+{{- if and (kindIs "invalid" $alc) $v.log_analytics_workspace_destination }}
+{{- $alc = dict "destination" $v.log_analytics_workspace_destination }}
+{{- end }}
+{{- if not (kindIs "invalid" $alc) }}
+{{- if and $alc.destination (not (has $alc.destination (list "log-analytics" "azure-monitor"))) }}
+{{- fail "avm-res-app-managedenvironment: app_logs_configuration.destination must be \"log-analytics\" or \"azure-monitor\". Omit app_logs_configuration to disable app logs." }}
+{{- end }}
+{{- if eq (toString $alc.destination) "log-analytics" }}
+{{- fail "avm-res-app-managedenvironment: app_logs_configuration: destination log-analytics is not supported: it needs the workspace's shared key, a secret value the chart does not take; use azure-monitor and diagnostic_settings (docs/azure.md, \"Charts\")" }}
+{{- end }}
+{{- end }}
+{{- /* local.effective_custom_domain_configuration. */ -}}
+{{- $cdc := $v.custom_domain_configuration }}
+{{- if and (kindIs "invalid" $cdc) (or $v.custom_domain_dns_suffix $v.custom_domain_certificate_key_vault_url $v.custom_domain_certificate_key_vault_identity) }}
+{{- $cdc = dict "dns_suffix" $v.custom_domain_dns_suffix }}
+{{- if or $v.custom_domain_certificate_key_vault_url $v.custom_domain_certificate_key_vault_identity }}
+{{- $_ := set $cdc "certificate_key_vault_properties" (dict "key_vault_url" $v.custom_domain_certificate_key_vault_url "identity" $v.custom_domain_certificate_key_vault_identity) }}
+{{- end }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $cdc)) (include "cae.set" $cdc.certificate_value) }}
+{{- fail (printf "avm-res-app-managedenvironment: custom_domain_configuration: certificate_value is not supported: %s (docs/azure.md, \"Charts\")" (printf $secret "a certificate's blob")) }}
+{{- end }}
+{{- /* local.effective_vnet_configuration. */ -}}
+{{- $vnet := $v.vnet_configuration }}
+{{- if and (kindIs "invalid" $vnet) (or (not (kindIs "invalid" $v.internal_load_balancer_enabled)) $v.infrastructure_subnet_id) }}
+{{- $vnet = dict "infrastructure_subnet_id" $v.infrastructure_subnet_id "internal" $v.internal_load_balancer_enabled }}
+{{- end }}
+{{- /* local.effective_peer_authentication and _traffic_configuration. */ -}}
+{{- $pa := $v.peer_authentication }}
+{{- if and (kindIs "invalid" $pa) (not (kindIs "invalid" $v.peer_authentication_enabled)) }}
+{{- $pa = dict "mtls" (dict "enabled" $v.peer_authentication_enabled) }}
+{{- end }}
+{{- $pt := $v.peer_traffic_configuration }}
+{{- if and (kindIs "invalid" $pt) (not (kindIs "invalid" $v.peer_traffic_encryption_enabled)) }}
+{{- $pt = dict "encryption" (dict "enabled" $v.peer_traffic_encryption_enabled) }}
+{{- end }}
+{{- /* local.workload_profiles: the profiles given, less any Consumption
+one, then the Consumption profile Azure makes itself. */ -}}
+{{- include "cae.workloadProfiles" (list "workload_profiles" ($v.workload_profiles | default list)) }}
+{{- include "cae.workloadProfiles" (list "workload_profile" ($v.workload_profile | default list)) }}
+{{- $wpIn := $v.workload_profiles }}
+{{- if kindIs "invalid" $wpIn }}{{ $wpIn = $v.workload_profile }}{{ end }}
+{{- $zr := $v.zone_redundant }}
+{{- if kindIs "invalid" $zr }}{{ $zr = $v.zone_redundancy_enabled }}{{ end }}
+{{- $irg := $v.infrastructure_resource_group | default $v.infrastructure_resource_group_name }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := $mi.user_assigned_resource_ids | default list }}
+{{- $idType := "" }}
+{{- if and $mi.system_assigned $uai }}{{ $idType = "SystemAssigned,UserAssigned" }}{{ else if $mi.system_assigned }}{{ $idType = "SystemAssigned" }}{{ else if $uai }}{{ $idType = "UserAssigned" }}{{ end }}
+---
+apiVersion: app.azure.com/v20250101
+kind: ManagedEnvironment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "managed_environment" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $envName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "the resource group" $parent) | nindent 4 }}
+  {{- with $v.kind }}
+  kind: {{ . | quote }}
+  {{- end }}
+  {{- with $idType }}
+  identity:
+    type: {{ . }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $alc) }}
+  {{- with $alc.destination }}
+  appLogsConfiguration:
+    destination: {{ . | quote }}
+  {{- else }}
+  appLogsConfiguration: {}
+  {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $cdc) }}
+  {{- $c := dict }}
+  {{- with $cdc.certificate_key_vault_properties }}
+  {{- $kv := dict }}
+  {{- with .identity }}{{ $_ := set $kv "identityReference" (include "cae.identityRef" . | fromYaml) }}{{ end }}
+  {{- with .key_vault_url }}{{ $_ := set $kv "keyVaultUrl" . }}{{ end }}
+  {{- $_ := set $c "certificateKeyVaultProperties" $kv }}
+  {{- end }}
+  {{- with $cdc.dns_suffix }}{{ $_ := set $c "dnsSuffix" . }}{{ end }}
+  customDomainConfiguration:
+    {{- if $c }}
+    {{- toYaml $c | nindent 4 }}
+    {{- else }} {}
+    {{- end }}
+  {{- end }}
+  {{- with $irg }}
+  infrastructureResourceGroup: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $pa) }}
+  {{- $p := dict }}
+  {{- if not (kindIs "invalid" $pa.mtls) }}
+  {{- $m := dict }}
+  {{- if not (kindIs "invalid" $pa.mtls.enabled) }}{{ $_ := set $m "enabled" $pa.mtls.enabled }}{{ end }}
+  {{- $_ := set $p "mtls" $m }}
+  {{- end }}
+  peerAuthentication: {{ toJson $p }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $pt) }}
+  {{- $p := dict }}
+  {{- if not (kindIs "invalid" $pt.encryption) }}
+  {{- $e := dict }}
+  {{- if not (kindIs "invalid" $pt.encryption.enabled) }}{{ $_ := set $e "enabled" $pt.encryption.enabled }}{{ end }}
+  {{- $_ := set $p "encryption" $e }}
+  {{- end }}
+  peerTrafficConfiguration: {{ toJson $p }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $vnet) }}
+  vnetConfiguration:
+    {{- $n := dict }}
+    {{- with $vnet.docker_bridge_cidr }}{{ $_ := set $n "dockerBridgeCidr" . }}{{ end }}
+    {{- with $vnet.infrastructure_subnet_id }}{{ $_ := set $n "infrastructureSubnetReference" (dict "armId" .) }}{{ end }}
+    {{- if not (kindIs "invalid" $vnet.internal) }}{{ $_ := set $n "internal" $vnet.internal }}{{ end }}
+    {{- with $vnet.platform_reserved_cidr }}{{ $_ := set $n "platformReservedCidr" . }}{{ end }}
+    {{- with $vnet.platform_reserved_dns_ip }}{{ $_ := set $n "platformReservedDnsIP" . }}{{ end }}
+    {{- if $n }}
+    {{- toYaml $n | nindent 4 }}
+    {{- else }} {}
+    {{- end }}
+  {{- end }}
+  {{- if $wpIn }}
+  workloadProfiles:
+    {{- range $wpIn }}
+    {{- if ne .workload_profile_type "Consumption" }}
+    - name: {{ .name | quote }}
+      workloadProfileType: {{ .workload_profile_type | quote }}
+      {{- if not (kindIs "invalid" .minimum_count) }}
+      minimumCount: {{ .minimum_count | int }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .maximum_count) }}
+      maximumCount: {{ .maximum_count | int }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    - name: Consumption
+      workloadProfileType: Consumption
+  {{- end }}
+  {{- if not (kindIs "invalid" $zr) }}
+  zoneRedundant: {{ $zr }}
+  {{- end }}
+{{- /* The child modules, each owned by the environment. */ -}}
+{{- $envOwner := dict "name" $obj }}
+{{- range $k, $c := ($v.certificates | default dict) }}
+{{- if not $c.name }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a name" $k) }}{{ end }}
+{{- if not $c.location }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a location" $k) }}{{ end }}
+{{- if include "cae.set" $c.password }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s: password is not supported: %s (docs/azure.md, \"Charts\")" $k (printf $secret "a certificate's password")) }}{{ end }}
+{{- if include "cae.set" $c.value }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s: value is not supported: %s; reference a Key Vault secret (certificate_key_vault_properties) instead (docs/azure.md, \"Charts\")" $k (printf $secret "a certificate's blob")) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsCertificate
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "cert" $k)) "id" (printf "certificate:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  location: {{ $c.location | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $c.certificate_key_vault_properties }}
+  properties:
+    certificateKeyVaultProperties:
+      {{- with .identity }}
+      identityReference:
+        {{- include "cae.identityRef" . | nindent 8 }}
+      {{- end }}
+      {{- with .key_vault_url }}
+      keyVaultUrl: {{ . | quote }}
+      {{- end }}
+  {{- end }}
+  {{- with $c.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- range $k, $d := ($v.dapr_components | default dict) }}
+{{- if not $d.name }}{{ fail (printf "avm-res-app-managedenvironment: dapr_components.%s needs a name" $k) }}{{ end }}
+{{- if and $d.secrets (kindIs "invalid" $d.secrets_version) }}{{ fail "avm-res-app-managedenvironment: When secrets is set, secrets_version must also be set." }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsDaprComponent
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "dapr" $k)) "id" (printf "dapr_component:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $d.component_type }}
+  componentType: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $d.ignore_errors) }}
+  ignoreErrors: {{ $d.ignore_errors }}
+  {{- end }}
+  {{- with $d.init_timeout }}
+  initTimeout: {{ . | quote }}
+  {{- end }}
+  {{- with $d.metadata }}
+  metadata:
+    {{- range . }}
+    - {{- with .name }} name: {{ . | quote }}{{ end }}
+      {{- with .secret_ref }}
+      secretRef: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .value) }}
+      value: {{ .value | toString | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $d.scopes }}
+  scopes: {{ toJson . }}
+  {{- end }}
+  {{- with $d.secret_store_component }}
+  secretStoreComponent: {{ . | quote }}
+  {{- end }}
+  {{- with $d.secrets }}
+  secrets:
+    {{- range . }}
+    {{- if include "cae.set" .value }}{{ fail (printf "avm-res-app-managedenvironment: dapr_components.%s: a secret's value is not supported: %s; reference a Key Vault secret (key_vault_url and identity) instead (docs/azure.md, \"Charts\")" $k (printf $secret "a Dapr secret's value")) }}{{ end }}
+    - {{- with .name }} name: {{ . | quote }}{{ end }}
+      {{- with .identity }}
+      identityReference:
+        {{- include "cae.identityRef" . | nindent 8 }}
+      {{- end }}
+      {{- with .key_vault_url }}
+      keyVaultUrl: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $d.dapr_components_version }}
+  version: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- range $k, $d := ($v.dapr_subscriptions | default dict) }}
+{{- if not $d.name }}{{ fail (printf "avm-res-app-managedenvironment: dapr_subscriptions.%s needs a name" $k) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsDaprSubscription
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "daprsub" $k)) "id" (printf "dapr_subscription:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $d.bulk_subscribe }}
+  {{- $b := dict }}
+  {{- if not (kindIs "invalid" .enabled) }}{{ $_ := set $b "enabled" .enabled }}{{ end }}
+  {{- if not (kindIs "invalid" .max_await_duration_ms) }}{{ $_ := set $b "maxAwaitDurationMs" (.max_await_duration_ms | int) }}{{ end }}
+  {{- if not (kindIs "invalid" .max_messages_count) }}{{ $_ := set $b "maxMessagesCount" (.max_messages_count | int) }}{{ end }}
+  bulkSubscribe:
+    {{- toYaml $b | nindent 4 }}
+  {{- end }}
+  {{- with $d.dead_letter_topic }}
+  deadLetterTopic: {{ . | quote }}
+  {{- end }}
+  {{- with $d.metadata }}
+  metadata:
+    {{- range $mk, $mv := . }}
+    {{ $mk | quote }}: {{ $mv | toString | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $d.pubsub_name }}
+  pubsubName: {{ . | quote }}
+  {{- end }}
+  {{- with $d.routes }}
+  {{- $r := dict }}
+  {{- with .default }}{{ $_ := set $r "default" . }}{{ end }}
+  {{- with .rules }}
+  {{- $rules := list }}
+  {{- range . }}
+  {{- $rule := dict }}
+  {{- with .match }}{{ $_ := set $rule "match" . }}{{ end }}
+  {{- with .path }}{{ $_ := set $rule "path" . }}{{ end }}
+  {{- $rules = append $rules $rule }}
+  {{- end }}
+  {{- $_ := set $r "rules" $rules }}
+  {{- end }}
+  routes:
+    {{- toYaml $r | nindent 4 }}
+  {{- end }}
+  {{- with $d.scopes }}
+  scopes: {{ toJson . }}
+  {{- end }}
+  {{- with $d.topic }}
+  topic: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- range $k, $s := ($v.storages | default dict) }}
+{{- if not $s.name }}{{ fail (printf "avm-res-app-managedenvironment: storages.%s needs a name" $k) }}{{ end }}
+{{- if or (include "cae.set" $s.account_key) (and $s.azure_file (include "cae.set" $s.azure_file.account_key)) }}
+{{- fail (printf "avm-res-app-managedenvironment: storages.%s: account_key is not supported: %s (docs/azure.md, \"Charts\")" $k (printf $secret "a storage account key")) }}
+{{- end }}
+---
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "storage" $k)) "id" (printf "storage:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $s.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- $p := dict }}
+  {{- with $s.azure_file }}
+  {{- $f := dict }}
+  {{- with .access_mode }}{{ $_ := set $f "accessMode" . }}{{ end }}
+  {{- with .account_key_vault_properties }}
+  {{- $kv := dict }}
+  {{- with .identity }}{{ $_ := set $kv "identityReference" (include "cae.identityRef" . | fromYaml) }}{{ end }}
+  {{- with .key_vault_url }}{{ $_ := set $kv "keyVaultUrl" . }}{{ end }}
+  {{- $_ := set $f "accountKeyVaultProperties" $kv }}
+  {{- end }}
+  {{- with .account_name }}{{ $_ := set $f "accountName" . }}{{ end }}
+  {{- with .share_name }}{{ $_ := set $f "shareName" . }}{{ end }}
+  {{- $_ := set $p "azureFile" $f }}
+  {{- end }}
+  {{- with $s.nfs_azure_file }}
+  {{- $f := dict }}
+  {{- with .access_mode }}{{ $_ := set $f "accessMode" . }}{{ end }}
+  {{- with .server }}{{ $_ := set $f "server" . }}{{ end }}
+  {{- with .share_name }}{{ $_ := set $f "shareName" . }}{{ end }}
+  {{- $_ := set $p "nfsAzureFile" $f }}
+  {{- end }}
+  {{- with $p }}
+  properties:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- range $k, $m := ($v.managed_certificates | default dict) }}
+{{- if not $m.name }}{{ fail (printf "avm-res-app-managedenvironment: managed_certificates.%s needs a name" $k) }}{{ end }}
+{{- if not $m.location }}{{ fail (printf "avm-res-app-managedenvironment: managed_certificates.%s needs a location" $k) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsManagedCertificate
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "mcert" $k)) "id" (printf "managed_certificate:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $m.name | quote }}
+  location: {{ $m.location | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- if or $m.domain_control_validation $m.subject_name }}
+  properties:
+    {{- with $m.domain_control_validation }}
+    domainControlValidation: {{ . | quote }}
+    {{- end }}
+    {{- with $m.subject_name }}
+    subjectName: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $m.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- $javaTypes := dict "Nacos" "nacos" "SpringBootAdmin" "springBootAdmin" "SpringCloudConfig" "springCloudConfig" "SpringCloudEureka" "springCloudEureka" "SpringCloudGateway" "springCloudGateway" }}
+{{- range $k, $j := ($v.java_components | default dict) }}
+{{- if not $j.name }}{{ fail (printf "avm-res-app-managedenvironment: java_components.%s needs a name" $k) }}{{ end }}
+{{- if not (has $j.component_type (list "Nacos" "SpringBootAdmin" "SpringCloudConfig" "SpringCloudEureka" "SpringCloudGateway")) }}
+{{- fail "avm-res-app-managedenvironment: component_type must be one of: [\"Nacos\", \"SpringBootAdmin\", \"SpringCloudConfig\", \"SpringCloudEureka\", \"SpringCloudGateway\"]." }}
+{{- end }}
+{{- if not (kindIs "invalid" $j.ingress) }}
+{{- fail (printf "avm-res-app-managedenvironment: java_components.%s: ingress is not supported: aso-extensions' ManagedEnvironmentsJavaComponent (ARM API version 2026-03-02-preview) has no ingress in its spec (the module sends an empty object; its one property, fqdn, is read-only) (docs/azure.md, \"Charts\")" $k) }}
+{{- end }}
+{{- $p := dict "componentType" $j.component_type }}
+{{- with $j.configurations }}
+{{- $cs := list }}
+{{- range . }}
+{{- $c := dict }}
+{{- with .property_name }}{{ $_ := set $c "propertyName" . }}{{ end }}
+{{- if not (kindIs "invalid" .value) }}{{ $_ := set $c "value" (toString .value) }}{{ end }}
+{{- $cs = append $cs $c }}
+{{- end }}
+{{- $_ := set $p "configurations" $cs }}
+{{- end }}
+{{- with $j.scale }}
+{{- $sc := dict }}
+{{- if not (kindIs "invalid" .max_replicas) }}{{ $_ := set $sc "maxReplicas" (.max_replicas | int) }}{{ end }}
+{{- if not (kindIs "invalid" .min_replicas) }}{{ $_ := set $sc "minReplicas" (.min_replicas | int) }}{{ end }}
+{{- $_ := set $p "scale" $sc }}
+{{- end }}
+{{- with $j.service_binds }}
+{{- $sb := list }}
+{{- range . }}
+{{- $b := dict }}
+{{- with .name }}{{ $_ := set $b "name" . }}{{ end }}
+{{- with .service_id }}{{ $_ := set $b "serviceReference" (dict "armId" .) }}{{ end }}
+{{- $sb = append $sb $b }}
+{{- end }}
+{{- $_ := set $p "serviceBinds" $sb }}
+{{- end }}
+---
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "java" $k)) "id" (printf "java_component:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $j.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  properties:
+    {{ get $javaTypes $j.component_type }}:
+      {{- toYaml $p | nindent 6 }}
+{{- end }}
+{{- range $k, $c := ($v.dot_net_components | default dict) }}
+{{- if not $c.name }}{{ fail (printf "avm-res-app-managedenvironment: dot_net_components.%s needs a name" $k) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ManagedEnvironmentsDotNetComponent
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "dotnet" $k)) "id" (printf "dot_net_component:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $c.component_type }}
+  componentType: {{ . | quote }}
+  {{- end }}
+  {{- with $c.configurations }}
+  configurations:
+    {{- range . }}
+    - {{- with .property_name }} propertyName: {{ . | quote }}{{ end }}
+      {{- if not (kindIs "invalid" .value) }}
+      value: {{ .value | toString | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $c.service_binds }}
+  serviceBinds:
+    {{- range . }}
+    - {{- with .name }} name: {{ . | quote }}{{ end }}
+      {{- with .service_id }}
+      serviceReference:
+        armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- range $k, $h := ($v.http_route_configs | default dict) }}
+{{- if not $h.name }}{{ fail (printf "avm-res-app-managedenvironment: http_route_configs.%s needs a name" $k) }}{{ end }}
+{{- $p := dict }}
+{{- with $h.custom_domains }}
+{{- $ds := list }}
+{{- range . }}
+{{- $d := dict "name" .name }}
+{{- with .binding_type }}{{ $_ := set $d "bindingType" . }}{{ end }}
+{{- with .certificate_id }}{{ $_ := set $d "certificateReference" (dict "armId" .) }}{{ end }}
+{{- $ds = append $ds $d }}
+{{- end }}
+{{- $_ := set $p "customDomains" $ds }}
+{{- end }}
+{{- with $h.rules }}
+{{- $rs := list }}
+{{- range . }}
+{{- $r := dict }}
+{{- with .description }}{{ $_ := set $r "description" . }}{{ end }}
+{{- with .routes }}
+{{- $routes := list }}
+{{- range . }}
+{{- $rt := dict }}
+{{- with .action }}
+{{- $a := dict }}
+{{- with .prefix_rewrite }}{{ $_ := set $a "prefixRewrite" . }}{{ end }}
+{{- $_ := set $rt "action" $a }}
+{{- end }}
+{{- with .match }}
+{{- $mt := dict }}
+{{- if not (kindIs "invalid" .case_sensitive) }}{{ $_ := set $mt "caseSensitive" .case_sensitive }}{{ end }}
+{{- with .path }}{{ $_ := set $mt "path" . }}{{ end }}
+{{- with .path_separated_prefix }}{{ $_ := set $mt "pathSeparatedPrefix" . }}{{ end }}
+{{- with .prefix }}{{ $_ := set $mt "prefix" . }}{{ end }}
+{{- $_ := set $rt "match" $mt }}
+{{- end }}
+{{- $routes = append $routes $rt }}
+{{- end }}
+{{- $_ := set $r "routes" $routes }}
+{{- end }}
+{{- with .targets }}
+{{- $ts := list }}
+{{- range . }}
+{{- $t := dict "containerApp" .container_app }}
+{{- with .label }}{{ $_ := set $t "label" . }}{{ end }}
+{{- with .revision }}{{ $_ := set $t "revision" . }}{{ end }}
+{{- $ts = append $ts $t }}
+{{- end }}
+{{- $_ := set $r "targets" $ts }}
+{{- end }}
+{{- $rs = append $rs $r }}
+{{- end }}
+{{- $_ := set $p "rules" $rs }}
+{{- end }}
+---
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsHttpRouteConfig
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "route" $k)) "id" (printf "http_route_config:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $h.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  {{- with $p }}
+  properties:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- range $k, $m := ($v.maintenance_configurations | default dict) }}
+{{- if not $m.name }}{{ fail (printf "avm-res-app-managedenvironment: maintenance_configurations.%s needs a name" $k) }}{{ end }}
+---
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsMaintenanceConfiguration
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "maint" $k)) "id" (printf "maintenance_configuration:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $m.name | quote }}
+  owner:
+    {{- toYaml $envOwner | nindent 4 }}
+  scheduledEntries:
+    {{- range $m.scheduled_entries }}
+    - durationHours: {{ .duration_hours | int }}
+      startHourUtc: {{ .start_hour_utc | int }}
+      weekDay: {{ .week_day | quote }}
+    {{- end }}
+{{- end }}
+{{- $owner := dict "group" "app.azure.com" "kind" "ManagedEnvironment" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" .kind)) "notes" (.notes | default $notes))) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- with $r.delegated_managed_identity_resource_id }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.ManagedIdentity/userAssignedIdentities/[^/]+$" .) }}
+{{- fail "avm-res-app-managedenvironment: Each `role_assignments[*].delegated_managed_identity_resource_id` must be a valid user-assigned managed identity resource ID, or null." }}
+{{- end }}
+{{- end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}

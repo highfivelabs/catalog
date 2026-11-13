@@ -1,0 +1,477 @@
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsForwardingRule
+metadata:
+  name: full-rule-primary-corp-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:primary-rs-corp-corp"
+spec:
+  azureName: "corp"
+  owner:
+    name: full-frs-primary-corp
+  domainName: "corp.contoso.com."
+  forwardingRuleState: Enabled
+  metadata:
+    site: dc1
+  targetDnsServers:
+    - ipAddress: "10.10.0.4"
+      port: 53
+    - ipAddress: "10.10.0.5"
+      port: 53
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsForwardingRule
+metadata:
+  name: full-rule-primary-corp-legacy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:primary-rs-corp-legacy"
+spec:
+  azureName: "legacy"
+  owner:
+    name: full-frs-primary-corp
+  domainName: "legacy.contoso.com."
+  forwardingRuleState: Disabled
+  targetDnsServers:
+    - ipAddress: "192.168.1.10"
+      port: 5353
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsVirtualNetworkLink
+metadata:
+  name: full-dlink-primary-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network_link:primary-rs-corp"
+spec:
+  azureName: "default-rs-corp"
+  owner:
+    name: full-frs-primary-corp
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsVirtualNetworkLink
+metadata:
+  name: full-vlink-primary-corp-spoke1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network_link:primary-rs-corp-spoke1"
+spec:
+  azureName: "link-spoke1"
+  owner:
+    name: full-frs-primary-corp
+  metadata:
+    spoke: "1"
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke1"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleSetsVirtualNetworkLink
+metadata:
+  name: full-vlink-primary-corp-spoke2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_network_link:primary-rs-corp-spoke2"
+spec:
+  azureName: "additional-primary-rs-corp-c4e7c9"
+  owner:
+    name: full-frs-primary-corp
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-spoke/providers/Microsoft.Network/virtualNetworks/vnet-spoke2"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleset
+metadata:
+  name: full-frs-primary-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_ruleset:primary-rs-corp"
+spec:
+  azureName: "rs-corp"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub"
+  dnsResolverOutboundEndpoints:
+    - reference:
+        group: network.azure.com
+        kind: DnsResolversOutboundEndpoint
+        name: full-out-primary
+  tags:
+    environment: prod
+    ruleset: corp
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsForwardingRuleset
+metadata:
+  name: full-frs-secondary-onprem
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_ruleset:secondary-ruleset-secondary-onprem"
+spec:
+  azureName: "ruleset-secondary-onprem"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub"
+  dnsResolverOutboundEndpoints:
+    - reference:
+        group: network.azure.com
+        kind: DnsResolversOutboundEndpoint
+        name: full-out-secondary
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolver
+metadata:
+  name: full-dnsr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "dns_resolver"
+spec:
+  azureName: "dnspr-hub"
+  location: "westeurope"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub"
+  tags:
+    environment: prod
+  virtualNetwork:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversInboundEndpoint
+metadata:
+  name: full-in-dynamic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "inbound_endpoint:dynamic"
+spec:
+  azureName: "in-dynamic-dnsResolver-inbound"
+  location: "westeurope"
+  owner:
+    name: full-dnsr
+  ipConfigurations:
+    - privateIpAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-inbound"
+  tags:
+    own: only
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversInboundEndpoint
+metadata:
+  name: full-in-static
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "inbound_endpoint:static"
+spec:
+  azureName: "in-static"
+  location: "westeurope"
+  owner:
+    name: full-dnsr
+  ipConfigurations:
+    - privateIpAllocationMethod: Static
+      privateIpAddress: "10.0.0.4"
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-inbound"
+  tags:
+    environment: prod
+    tier: inbound
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversOutboundEndpoint
+metadata:
+  name: full-out-primary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "outbound_endpoint:primary"
+spec:
+  azureName: "out-primary"
+  location: "westeurope"
+  owner:
+    name: full-dnsr
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-outbound"
+  tags:
+    environment: prod
+    tier: outbound
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: network.azure.com/v1api20220701
+kind: DnsResolversOutboundEndpoint
+metadata:
+  name: full-out-secondary
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "outbound_endpoint:secondary"
+spec:
+  azureName: "out-secondary-dnsResolver-outbound"
+  location: "westeurope"
+  owner:
+    name: full-dnsr
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/snet-outbound2"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-frs-primary-corp-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/primary-rs-corp/lock"
+spec:
+  azureName: "lock-primary-rs-corp"
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: full-frs-primary-corp
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-frs-secondary-onprem-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/secondary-ruleset-secondary-onprem/lock"
+spec:
+  azureName: "lock-secondary-ruleset-secondary-onprem"
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: full-frs-secondary-onprem
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-dnsr-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: DnsResolver
+    name: full-dnsr
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-frs-primary-corp-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/primary-rs-corp/role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: full-frs-primary-corp
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-frs-primary-corp-role-dnsops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/primary-rs-corp/role-assignment-dnsops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: full-frs-primary-corp
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "DNS Resolver Contributor"
+  description: "DNS operators"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-frs-secondary-onprem-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/secondary-ruleset-secondary-onprem/role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: full-frs-secondary-onprem
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-frs-secondary-onprem-role-dnsops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "ruleset/secondary-ruleset-secondary-onprem/role-assignment-dnsops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DnsForwardingRuleset
+    name: full-frs-secondary-onprem
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "DNS Resolver Contributor"
+  description: "DNS operators"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-dnsr-role-deployer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-deployer"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DnsResolver
+    name: full-dnsr
+  principalId: "7d3c1f0e-2b4a-4c6d-8e9f-1a2b3c4d5e6f"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+---
+# Source: avm-res-network-dnsresolver/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-dnsr-role-dnsops
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-dnsresolver
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-dnsops"
+spec:
+  owner:
+    group: network.azure.com
+    kind: DnsResolver
+    name: full-dnsr
+  principalId: "4179302c-702e-4de7-a061-beacd0a1be09"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "DNS Resolver Contributor"
+  description: "DNS operators"

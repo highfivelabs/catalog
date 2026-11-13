@@ -1,0 +1,78 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-swp/policy-rules.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_network_security_gateway_security_policy_rule.default: one
+NetworkSecurityGatewaySecurityPolicyRule (config-connector-extensions,
+networksecurity.gcp.hfl.dev/v1beta1) per rule of policy_rules and
+factories_data.policy_rules, its matchers formatted with matcher_args
+looked up in policy_rules_contexts and the chart's URL lists, as fabric's
+locals do. fabric's replace_triggered_by (rules recreated with a new
+policy) is Config Connector's: a new policy name is a new
+gatewaySecurityPolicy, immutable, so the rule is replaced.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := printf "projects/%s" $v.project_id }}
+{{- $rules := dict }}
+{{- range $k, $r := ($v.policy_rules | default dict) }}
+{{- /* optional(bool, true): a null takes the default, as Terraform's
+optional() does; the factory's lookup(v, "allow", true) keeps a null. */}}
+{{- $_ := set $rules $k (dict "priority" $r.priority "allow" (ternary true $r.allow (kindIs "invalid" $r.allow)) "description" $r.description "enabled" (ternary true $r.enabled (kindIs "invalid" $r.enabled)) "application_matcher" $r.application_matcher "session_matcher" $r.session_matcher "tls_inspect" $r.tls_inspect "matcher_args" ($r.matcher_args | default dict)) }}
+{{- end }}
+{{- range $k, $r := (($v.factories_data | default dict).policy_rules | default dict) }}
+{{- $_ := set $rules $k (dict "priority" $r.priority "allow" (ternary true $r.allow (not (hasKey $r "allow"))) "description" $r.description "enabled" (ternary true $r.enable (kindIs "invalid" $r.enable)) "application_matcher" $r.application_matcher "session_matcher" $r.session_matcher "tls_inspect" $r.tls_inspect "matcher_args" ($r.matcher_args | default dict)) }}
+{{- end }}
+{{- $ctx := $v.policy_rules_contexts | default dict }}
+{{- $urlLists := dict }}
+{{- range $k, $id := ($ctx.url_lists | default dict) }}{{ $_ := set $urlLists $k $id }}{{ end }}
+{{- range $k, $_ := (include "netswp.urlLists" . | fromJson) }}
+{{- $_ := set $urlLists $k (printf "%s/locations/%s/urlLists/%s" $project $v.region (include "netswp.urlListName" (list $ $k))) }}
+{{- end }}
+{{- $contexts := dict "secure_tag" ($ctx.secure_tags | default dict) "service_account" ($ctx.service_accounts | default dict) "url_list" $urlLists }}
+{{- range $k := keys $rules | sortAlpha }}
+{{- $r := index $rules $k }}
+{{- $matchers := dict }}
+{{- range $m := list "application" "session" }}
+{{- $matcher := index $r (printf "%s_matcher" $m) }}
+{{- if not (kindIs "invalid" $matcher) }}
+{{- $args := list }}
+{{- range $a := (index $r.matcher_args $m | default list) }}
+{{- $ctxName := regexReplaceAll ":.*$" $a "" }}
+{{- $val := trimPrefix (printf "%s:" $ctxName) $a }}
+{{- $table := index $contexts $ctxName }}
+{{- $args = append $args (ternary (index $table $val) $val (hasKey $table $val)) }}
+{{- end }}
+{{- $_ := set $matchers $m (include "netswp.format" (list $ (printf "policy_rules.%s.%s_matcher" $k $m) $matcher $args)) }}
+{{- end }}
+{{- end }}
+{{- if not (hasKey $matchers "session") }}
+{{- fail (printf "net-swp: policy_rules.%s.session_matcher is required: the API needs a session matcher on every rule (Terraform's google_network_security_gateway_security_policy_rule requires it too)" $k) }}
+{{- end }}
+---
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "rule" $k)) "id" (printf "policy_rule:%s" $k) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  gatewaySecurityPolicy: {{ include "netswp.policy" $ | quote }}
+  resourceID: {{ $k | quote }}
+  {{- with (include "netswp.description" (list $ $r.description)) }}
+  description: {{ . | quote }}
+  {{- end }}
+  enabled: {{ $r.enabled }}
+  priority: {{ $r.priority | int }}
+  basicProfile: {{ ternary "BASIC_PROFILE_UNSPECIFIED" (ternary "ALLOW" "DENY" (eq (toString $r.allow) "true")) (kindIs "invalid" $r.allow) }}
+  sessionMatcher: {{ $matchers.session | quote }}
+  {{- with $matchers.application }}
+  applicationMatcher: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $r.tls_inspect) }}
+  tlsInspectionEnabled: {{ $r.tls_inspect }}
+  {{- end }}
+{{- end }}

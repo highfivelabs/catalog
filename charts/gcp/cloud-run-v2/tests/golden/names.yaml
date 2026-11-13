@@ -1,0 +1,167 @@
+---
+# Source: cloud-run-v2/templates/eventarc.yaml
+apiVersion: eventarc.cnrm.cloud.google.com/v1beta1
+kind: EventarcTrigger
+metadata:
+  name: names-pubsub-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "trigger:pubsub:orders"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "pubsub-orders"
+  matchingCriteria:
+    - attribute: type
+      value: google.cloud.pubsub.topic.v1.messagePublished
+  transport:
+    pubsub:
+      topicRef:
+        external: "projects/my-project/topics/orders"
+  destination:
+    cloudRunService:
+      serviceRef:
+        external: "projects/my-project/locations/europe-west1/services/shop-dev-hello"
+      region: "europe-west1"
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: names-sa-roles-logging-logwriter-39ce3988
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: names-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: names-sa-roles-monitoring-metricwriter-bd9fca53
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: names-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: names-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-hello-run"
+  displayName: "hello"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunService
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "shop-dev-hello"
+  template:
+    executionEnvironment: EXECUTION_ENVIRONMENT_GEN1
+    vpcAccess:
+      connectorRef:
+        external: "projects/my-project/locations/europe-west1/connectors/shop-dev-hello"
+    serviceAccountRef:
+      external: "shop-dev-hello-run@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "hello"
+        image: "us-docker.pkg.dev/cloudrun/container/hello"
+---
+# Source: cloud-run-v2/templates/vpcconnector.yaml
+apiVersion: vpcaccess.cnrm.cloud.google.com/v1beta1
+kind: VPCAccessConnector
+metadata:
+  name: names-connector
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "vpc_connector"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "shop-dev-hello"
+  ipCidrRange: "10.10.10.0/28"
+  networkRef:
+    external: "vpc"

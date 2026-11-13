@@ -1,0 +1,24 @@
+# Applied to the fake cloud by hack/mock-apply.sh: a folder under an
+# organization with an authoritative role, an additive member, a logging
+# exclusion and an IAM deny policy (config-connector-extensions'
+# IAMDenyPolicy, which deletes by its recorded name once the Folder object
+# is gone, since config-connector-extensions c2f0c7d2). No org policy: an
+# OrgPolicyPolicy on a new Folder cannot be deleted once the Folder object
+# is gone, which the fake cloud's delete-everything-at-once step hits
+# (README.md, "Config Connector bugs").
+parent: organizations/123450000000
+name: catalog-mock-folder
+iam:
+  roles/viewer: ["group:viewers@example.com"]
+iam_bindings_additive:
+  browser: {role: roles/browser, member: "user:one@example.com"}
+logging_exclusions:
+  no-gce: resource.type=gce_instance
+iam_deny_policies:
+  no-sa-keys:
+    display_name: No service account keys
+    rules:
+      - description: Nobody but the admins creates keys.
+        denied_principals: ["principalSet://goog/public:all"]
+        denied_permissions: ["iam.googleapis.com/serviceAccountKeys.create"]
+        exception_principals: ["principalSet://goog/group/admins@example.com"]

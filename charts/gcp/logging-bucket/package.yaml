@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"). id is
+# the bucket's full name, from its parent, location and ID (the kind
+# reports no name): projects/<p>, folders/<f>, organizations/<o> or
+# billingAccounts/<b>, then /locations/<l>/buckets/<id>. view_ids maps each
+# view the chart makes to its full name; fabric's also lists the bucket's
+# automatic _AllLogs view, which is <id>/views/_AllLogs (README.md,
+# "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-logging-bucket
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      (has(resources.bucket.spec.projectRef) ? 'projects/' + resources.bucket.spec.projectRef.external
+      : has(resources.bucket.spec.folderRef) ? (resources.bucket.spec.folderRef.external.startsWith('folders/') ? '' : 'folders/') + resources.bucket.spec.folderRef.external
+      : has(resources.bucket.spec.organizationRef) ? (resources.bucket.spec.organizationRef.external.startsWith('organizations/') ? '' : 'organizations/') + resources.bucket.spec.organizationRef.external
+      : (resources.bucket.spec.billingAccountRef.external.startsWith('billingAccounts/') ? '' : 'billingAccounts/') + resources.bucket.spec.billingAccountRef.external)
+      + '/locations/' + resources.bucket.spec.location + '/buckets/' + resources.bucket.spec.resourceID
+    view_ids: >-
+      resources.transformMapEntry(k, v, v.kind == 'LoggingLogView',
+        {k.substring(5): (has(resources.bucket.spec.projectRef) ? 'projects/' + resources.bucket.spec.projectRef.external
+      : has(resources.bucket.spec.folderRef) ? (resources.bucket.spec.folderRef.external.startsWith('folders/') ? '' : 'folders/') + resources.bucket.spec.folderRef.external
+      : has(resources.bucket.spec.organizationRef) ? (resources.bucket.spec.organizationRef.external.startsWith('organizations/') ? '' : 'organizations/') + resources.bucket.spec.organizationRef.external
+      : (resources.bucket.spec.billingAccountRef.external.startsWith('billingAccounts/') ? '' : 'billingAccounts/') + resources.bucket.spec.billingAccountRef.external)
+      + '/locations/' + resources.bucket.spec.location + '/buckets/' + resources.bucket.spec.resourceID + '/views/' + v.spec.resourceID})

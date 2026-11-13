@@ -1,0 +1,87 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/geap-agent-gateway/main.tf
+(v60.0.0), Copyright 2026 Google LLC, Apache-2.0.
+
+google_network_services_agent_gateway.default: one
+NetworkServicesAgentGateway (config-connector-extensions,
+networkservices.gcp.hfl.dev/v1alpha1: the chart renders only with
+allow_alpha).
+
+authz.tf (iap_config, model_armor_config) is templates/authz.yaml, iam.tf
+(access_policies) is templates/access-policies.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- $nc := $v.networking_config | default dict }}
+{{- include "kcc.names" (list $ (list "gateway" "connectivityTemplate" "iap" "modelArmor")) }}
+{{- include "kcc.alpha" (list $ "name" $v.name "NetworkServicesAgentGateway (config-connector-extensions)") }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- /* fabric's validations, with its messages. */}}
+{{- if and $v.is_google_managed (kindIs "invalid" $v.access_path) }}
+{{- fail "geap-agent-gateway: You must specify var.access_path if var.is_google_managed = true." }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.access_path) }}
+{{- if not (or (has (lower (toString $v.access_path)) (list "egress" "ingress")) (has (toString $v.access_path) (list "CLIENT_TO_AGENT" "AGENT_TO_ANYWHERE"))) }}
+{{- fail "geap-agent-gateway: access_path can be one of the following: ingress (or CLIENT_TO_AGENT), egress (or AGENT_TO_ANYWHERE)." }}
+{{- end }}
+{{- end }}
+{{- if and (not $v.is_google_managed) (not $v.proxy_uri) }}
+{{- fail "geap-agent-gateway: You must specify var.proxy_uri if var.is_google_managed = false." }}
+{{- end }}
+{{- if and $nc.psc_i_network_attachment_id $nc.connectivity_template_reuse }}
+{{- fail "geap-agent-gateway: Specify at most one of psc_i_network_attachment_id or connectivity_template_reuse." }}
+{{- end }}
+{{- if and $nc.dns_peering_config (not $nc.psc_i_network_attachment_id) }}
+{{- fail "geap-agent-gateway: The dns_peering_config attribute configures the connectivity template managed here, and needs psc_i_network_attachment_id." }}
+{{- end }}
+{{- if and $nc.dns_peering_config (not $nc.dns_peering_config.domains) }}
+{{- fail "geap-agent-gateway: Specify at least one domain in dns_peering_config.domains." }}
+{{- end }}
+{{- if and $nc.psc_i_network_attachment_id (kindIs "invalid" $v.access_path) }}
+{{- fail "geap-agent-gateway: You must specify var.access_path when managing a connectivity template." }}
+{{- end }}
+{{- if and $nc.psc_i_network_attachment_id (not $v.project_number) }}
+{{- fail "geap-agent-gateway: project_number is required with networking_config.psc_i_network_attachment_id: the gateway references the connectivity template by the project's number, and a chart cannot read it (fabric's google_project data source); pass it, from the project component's outputs or a Bundt expression" }}
+{{- end }}
+{{- $template := "" }}
+{{- if $nc.psc_i_network_attachment_id }}
+{{- $template = printf "projects/%s/locations/%s/agentConnectivityTemplates/%s" (toString $v.project_number) $v.region (include "geapAgentGateway.template" .) }}
+{{- else if $nc.connectivity_template_reuse }}
+{{- $template = $nc.connectivity_template_reuse }}
+{{- end }}
+{{- $cloud := include "geapAgentGateway.cloudLabels" (list . dict) | fromJson }}
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "gateway" "project" $v.project_id "abandon" (include "kcc.abandon" .)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "geapAgentGateway.gateway" . | quote }}
+  {{- with $template }}
+  agentConnectivityTemplate: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  {{- with $cloud }}
+  labels:
+    {{- range $k, $l := . }}
+    {{ $k }}: {{ $l | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.registries }}
+  registries:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if $v.is_google_managed }}
+  googleManaged:
+    governedAccessPath: {{ include "geapAgentGateway.accessPath" . }}
+  {{- else }}
+  selfManaged:
+    resourceUri: {{ $v.proxy_uri | quote }}
+  {{- end }}

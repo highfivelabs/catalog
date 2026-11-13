@@ -1,0 +1,90 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): one
+# management group under the fake tenant's root group and a child group
+# beneath it (applied together: the child's parent is not there at first),
+# a custom policy definition, set definition and role definition at the
+# first, an assignment of the set with a system-assigned identity and its
+# policy role assignment (the principal goes through a ConfigMap the
+# aso-extensions manager writes), a management group role assignment, the
+# fake's subscription placed in the child group, and hierarchy settings on
+# the tenant root group.
+architecture_name: catalog-mock
+location: eastus2
+parent_resource_id: 11111111-2222-3333-4444-555555555555
+tenant_id: 11111111-2222-3333-4444-555555555555
+management_group_role_assignments:
+  reader:
+    management_group_name: catalog-mock
+    role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7
+    principal_id: 0a0a0a0a-0000-4000-8000-000000000001
+    principal_type: User
+management_group_hierarchy_settings:
+  default_management_group_name: catalog-mock
+  require_authorization_for_group_creation: true
+subscription_placement:
+  catalog:
+    subscription_id: 00000000-0000-0000-0000-000000000000
+    management_group_name: catalog-mock-child
+architecture:
+  name: catalog-mock
+  management_groups:
+    - id: catalog-mock
+      display_name: Catalog mock root
+      parent_id: 11111111-2222-3333-4444-555555555555
+      level: 0
+      exists: false
+      policy_definitions:
+        Audit-Public-IP:
+          name: Audit-Public-IP
+          properties:
+            displayName: Audit public IP addresses
+            policyType: Custom
+            mode: Indexed
+            parameters:
+              effect:
+                type: String
+                allowedValues: [Audit, Disabled]
+                defaultValue: Audit
+                metadata: {displayName: Effect}
+            policyRule:
+              if: {field: type, equals: Microsoft.Network/publicIPAddresses}
+              then: {effect: "[parameters('effect')]"}
+      policy_set_definitions:
+        Audit-Network:
+          name: Audit-Network
+          location: eastus2
+          identity: {type: SystemAssigned}
+          properties:
+            displayName: Audit network
+            policyType: Custom
+            policyDefinitions:
+              - policyDefinitionReferenceId: Audit-Public-IP
+                policyDefinitionId: /providers/Microsoft.Management/managementGroups/catalog-mock/providers/Microsoft.Authorization/policyDefinitions/Audit-Public-IP
+      policy_assignments:
+        Audit-Network:
+          name: Audit-Network
+          location: eastus2
+          identity: {type: SystemAssigned}
+          properties:
+            displayName: Audit network
+            enforcementMode: DoNotEnforce
+            policyDefinitionId: /providers/Microsoft.Management/managementGroups/catalog-mock/providers/Microsoft.Authorization/policySetDefinitions/Audit-Network
+      role_definitions:
+        Catalog-Reader:
+          name: 6a1e9b4c-0d2f-5e3a-8b7c-1d2e3f4a5b6c
+          properties:
+            roleName: Catalog-Reader (catalog-mock)
+            description: Reads networks.
+            type: CustomRole
+            permissions:
+              - actions: ["Microsoft.Network/*/read"]
+            assignableScopes: [/providers/Microsoft.Management/managementGroups/catalog-mock]
+    - id: catalog-mock-child
+      display_name: Catalog mock child
+      parent_id: catalog-mock
+      level: 1
+      exists: false
+  policy_role_assignments:
+    - management_group_id: catalog-mock
+      policy_assignment_name: Audit-Network
+      role_definition_id: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7
+      scope: /providers/Microsoft.Management/managementGroups/catalog-mock

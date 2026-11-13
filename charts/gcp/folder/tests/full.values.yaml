@@ -1,0 +1,85 @@
+# Every value the chart carries on a new folder: IAM in each form, contacts,
+# org policies (boolean, list, conditional, dry run), a firewall policy
+# association, Autokey, tag bindings, data access logs, exclusions, sinks of
+# each destination type, and a PAM entitlement.
+parent: organizations/123456789012
+name: Full folder
+deletion_protection: false
+iam:
+  roles/viewer: ["group:viewers@example.org"]
+iam_bindings:
+  admins:
+    role: roles/resourcemanager.folderAdmin
+    members: ["group:admins@example.org"]
+    condition: {title: expires, expression: "request.time < timestamp('2027-01-01T00:00:00Z')", description: until 2027}
+iam_bindings_additive:
+  browser: {role: roles/browser, member: "user:one@example.org"}
+iam_by_principals:
+  "group:auditors@example.org": [roles/iam.securityReviewer]
+iam_by_principals_additive:
+  "user:two@example.org": [roles/browser]
+iam_by_principals_conditional:
+  "user:three@example.org":
+    roles: [roles/storage.admin]
+    condition: {title: test, expression: "resource.matchTag('123/env', 'test')"}
+contacts:
+  "admins@example.org": [ALL]
+  "security@example.org": [SECURITY, TECHNICAL]
+org_policies:
+  compute.disableGuestAttributesAccess:
+    rules: [{enforce: true}]
+  iam.allowedPolicyMemberDomains:
+    rules:
+      - allow: {values: [C0xxxxxxx]}
+      - allow: {all: true}
+        condition: {title: test, expression: "resource.matchTag('1234567890/environment', 'dev')"}
+  "dry_run:compute.restrictCloudNATUsage":
+    rules: [{deny: {all: true}}]
+  compute.restrictCloudNATUsage:
+    rules: [{allow: {all: true}}]
+firewall_policy: {name: default, policy: locations/global/firewallPolicies/12345}
+autokey_config: {project: kms-project}
+tag_bindings:
+  env-prod: tagValues/1234567890
+logging_data_access:
+  allServices:
+    ADMIN_READ: {exempted_members: ["group:organization-admins@example.org"]}
+  storage.googleapis.com:
+    DATA_READ: {}
+    DATA_WRITE: {}
+logging_exclusions:
+  no-gce-instances: resource.type=gce_instance
+logging_sinks:
+  warnings:
+    destination: my-bucket
+    type: storage
+    filter: severity=WARNING
+  info:
+    destination: projects/my-project/topics/info
+    type: pubsub
+    filter: severity=INFO
+    disabled: true
+    include_children: false
+  notice:
+    destination: projects/my-project/locations/global/buckets/notice
+    type: logging
+    exclusions: {no-compute: resource.type=gce_instance}
+  debug:
+    destination: projects/my-project/datasets/debug
+    type: bigquery
+    bq_partitioned_table: true
+    iam: false
+pam_entitlements:
+  net-admins:
+    max_request_duration: 3600s
+    eligible_users: ["group:net-admins@example.org"]
+    privileged_access:
+      - role: roles/compute.networkAdmin
+      - role: roles/compute.admin
+        condition: "resource.name.startsWith('projects/p')"
+    manual_approvals:
+      require_approver_justification: true
+      steps:
+        - approvers: ["group:approvers@example.org"]
+    additional_notification_targets:
+      admin_email_recipients: [admins@example.org]

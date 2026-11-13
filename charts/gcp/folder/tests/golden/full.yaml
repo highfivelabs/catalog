@@ -1,0 +1,565 @@
+---
+# Source: folder/templates/folder.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeFirewallPolicyAssociation
+metadata:
+  name: full-firewall-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "firewall_policy"
+spec:
+  resourceID: "default"
+  attachmentTargetRef:
+    kind: Folder
+    name: full
+  firewallPolicyRef:
+    external: "locations/global/firewallPolicies/12345"
+---
+# Source: folder/templates/folder.yaml
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  name: full-contact-admins-example-org-93e1eede
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "contact:admins@example.org"
+spec:
+  folderRef:
+    name: full
+  email: "admins@example.org"
+  languageTag: en
+  notificationCategorySubscriptions: ["ALL"]
+---
+# Source: folder/templates/folder.yaml
+apiVersion: essentialcontacts.cnrm.cloud.google.com/v1beta1
+kind: EssentialContactsContact
+metadata:
+  name: full-contact-security-example-org-67954944
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "contact:security@example.org"
+spec:
+  folderRef:
+    name: full
+  email: "security@example.org"
+  languageTag: en
+  notificationCategorySubscriptions: ["SECURITY","TECHNICAL"]
+---
+# Source: folder/templates/folder.yaml
+apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+kind: Folder
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "folder"
+spec:
+  displayName: "Full folder"
+  organizationRef:
+    external: "123456789012"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: full-audit-allservices-1bb88750
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "data-access:allServices"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  service: "allServices"
+  auditLogConfigs:
+    - logType: "ADMIN_READ"
+      exemptedMembers: ["group:organization-admins@example.org"]
+---
+# Source: folder/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMAuditConfig
+metadata:
+  name: full-audit-storage-googleapis-com-5c79d877
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "data-access:storage.googleapis.com"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  service: "storage.googleapis.com"
+  auditLogConfigs:
+    - logType: "DATA_READ"
+    - logType: "DATA_WRITE"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam-binding-admins"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  role: "roles/resourcemanager.folderAdmin"
+  members:
+    - "group:admins@example.org"
+  condition:
+    title: "expires"
+    expression: "request.time < timestamp('2027-01-01T00:00:00Z')"
+    description: "until 2027"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: full-iam-binding-iam-bpc-roles-storage-admin-test-1c06e571
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam-binding-iam-bpc:roles/storage.admin-test"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  role: "roles/storage.admin"
+  members:
+    - "user:three@example.org"
+  condition:
+    title: "test"
+    expression: "resource.matchTag('123/env', 'test')"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: full-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  bindings:
+    - role: "roles/iam.securityReviewer"
+      members:
+        - member: "group:auditors@example.org"
+    - role: "roles/viewer"
+      members:
+        - member: "group:viewers@example.org"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-browser
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam-additive-browser"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  role: "roles/browser"
+  member: "user:one@example.org"
+---
+# Source: folder/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-iam-iam-bpa-user-two-example-org-roles-browser-ce81c12d
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "iam-additive-iam-bpa:user:two@example.org-roles/browser"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Folder
+    name: full
+  role: "roles/browser"
+  member: "user:two@example.org"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sink-writer-info
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:info"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: full-sink-info
+  role: roles/pubsub.publisher
+  resourceRef:
+    apiVersion: pubsub.cnrm.cloud.google.com/v1beta1
+    kind: PubSubTopic
+    external: "projects/my-project/topics/info"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sink-writer-notice
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:notice"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: full-sink-notice
+  role: roles/logging.bucketWriter
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  condition:
+    title: "notice bucket writer"
+    description: "Grants bucketWriter to the writer identity used by log sink notice on Full folder"
+    expression: "resource.name.endsWith('locations/global/buckets/notice')"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: full-sink-writer-warnings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink-writer:warnings"
+spec:
+  memberFrom:
+    logSinkRef:
+      name: full-sink-warnings
+  role: roles/storage.objectCreator
+  resourceRef:
+    apiVersion: storage.cnrm.cloud.google.com/v1beta1
+    kind: StorageBucket
+    external: "my-bucket"
+---
+# Source: folder/templates/folder.yaml
+apiVersion: kms.cnrm.cloud.google.com/v1beta1
+kind: KMSAutokeyConfig
+metadata:
+  name: full-autokey
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "autokey_config"
+spec:
+  folderRef:
+    name: full
+  keyProject:
+    external: "kms-project"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: full-exclusion-no-gce-instances
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce-instances"
+spec:
+  resourceID: "no-gce-instances"
+  folderRef:
+    name: full
+  description: "no-gce-instances (Terraform-managed)."
+  filter: "resource.type=gce_instance"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-debug
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink:debug"
+spec:
+  resourceID: "debug"
+  folderRef:
+    name: full
+  description: "debug (Terraform-managed)."
+  destination:
+    bigQueryDatasetRef:
+      external: "projects/my-project/datasets/debug"
+  includeChildren: true
+  disabled: false
+  bigqueryOptions:
+    usePartitionedTables: true
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-info
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink:info"
+spec:
+  resourceID: "info"
+  folderRef:
+    name: full
+  description: "info (Terraform-managed)."
+  destination:
+    pubSubTopicRef:
+      external: "projects/my-project/topics/info"
+  filter: "severity=INFO"
+  includeChildren: false
+  disabled: true
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-notice
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink:notice"
+spec:
+  resourceID: "notice"
+  folderRef:
+    name: full
+  description: "notice (Terraform-managed)."
+  destination:
+    loggingLogBucketRef:
+      external: "projects/my-project/locations/global/buckets/notice"
+  includeChildren: true
+  disabled: false
+  exclusions:
+    - name: "no-compute"
+      filter: "resource.type=gce_instance"
+---
+# Source: folder/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogSink
+metadata:
+  name: full-sink-warnings
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "logging-sink:warnings"
+spec:
+  resourceID: "warnings"
+  folderRef:
+    name: full
+  description: "warnings (Terraform-managed)."
+  destination:
+    storageBucketRef:
+      external: "my-bucket"
+  filter: "severity=WARNING"
+  includeChildren: true
+  disabled: false
+---
+# Source: folder/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-compute-disableguestattributesaccess-db3913ec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.disableGuestAttributesAccess"
+spec:
+  resourceID: compute.disableGuestAttributesAccess
+  folderRef:
+    name: full
+  spec:
+    rules:
+    - enforce: true
+---
+# Source: folder/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-compute-restrictcloudnatusage-a3deb7a0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "org_policy:compute.restrictCloudNATUsage"
+spec:
+  resourceID: compute.restrictCloudNATUsage
+  folderRef:
+    name: full
+  spec:
+    rules:
+    - allowAll: true
+  dryRunSpec:
+    rules:
+    - denyAll: true
+---
+# Source: folder/templates/org-policies.yaml
+apiVersion: orgpolicy.cnrm.cloud.google.com/v1beta1
+kind: OrgPolicyPolicy
+metadata:
+  name: full-org-policy-iam-allowedpolicymemberdomains-e70775ed
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "org_policy:iam.allowedPolicyMemberDomains"
+spec:
+  resourceID: iam.allowedPolicyMemberDomains
+  folderRef:
+    name: full
+  spec:
+    rules:
+    - values:
+        allowedValues:
+        - C0xxxxxxx
+    - allowAll: true
+      condition:
+        expression: resource.matchTag('1234567890/environment', 'dev')
+        title: test
+---
+# Source: folder/templates/pam.yaml
+apiVersion: privilegedaccessmanager.cnrm.cloud.google.com/v1beta1
+kind: PrivilegedAccessManagerEntitlement
+metadata:
+  name: full-pam-net-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "pam-entitlement:net-admins"
+spec:
+  resourceID: "net-admins"
+  folderRef:
+    name: full
+  location: global
+  maxRequestDuration: "3600s"
+  eligibleUsers:
+    - principals: ["group:net-admins@example.org"]
+  privilegedAccess:
+    gcpIAMAccess:
+      roleBindings:
+        - role: "roles/compute.networkAdmin"
+        - role: "roles/compute.admin"
+          conditionExpression: "resource.name.startsWith('projects/p')"
+  requesterJustificationConfig:
+    unstructured: {}
+  approvalWorkflow:
+    manualApprovals:
+      requireApproverJustification: true
+      steps:
+        - approvers:
+            - principals: ["group:approvers@example.org"]
+          approvalsNeeded: 1
+  additionalNotificationTargets:
+    adminEmailRecipients: ["admins@example.org"]
+---
+# Source: folder/templates/folder.yaml
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  name: full-tag-env-prod
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: folder
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "tag-binding:env-prod"
+spec:
+  parentRef:
+    kind: Folder
+    name: full
+  tagValueRef:
+    external: "tagValues/1234567890"

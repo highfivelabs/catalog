@@ -1,0 +1,134 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-web-site
+repo: https://github.com/Azure/terraform-azurerm-avm-res-web-site
+path: .
+version: v0.24.1
+commit: 56c704e9f44002a46a71226d3c19f3915e1865c0
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-web-site/tree/v0.24.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-web-site/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field), not-ported, or by-design (Bundt replaces it). partial: the
+# variable is accepted, the reason says what is refused.
+refused:
+  # The azapi provider's mechanics.
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: ignore_body_changes
+    kind: by-design
+    reason: "Azure Service Operator owns every field it is given; it cannot leave one to another writer"
+  - variable: resource_types
+    kind: by-design
+    reason: "the API versions are the kinds' (ASO Site 2025-05-01; aso-extensions SitesSlot, SitesHostNameBinding, SitesSlotsHostNameBinding and Certificate 2026-07-15)"
+  - variable: zip_deploy_file
+    kind: by-design
+    reason: "a zip deploy uploads a local file to the site's Kudu (extensions/zipDeploy): application code, which a Package does not carry"
+  # Secret values: the builder decides how a component supplies one (SECV).
+  - variable: application_insights_connection_string
+    kind: not-ported
+    reason: "a secret value (the module marks it sensitive); how a component supplies one is the builder's decision"
+  - variable: application_insights_key
+    kind: not-ported
+    reason: "a secret value (the module marks it sensitive); how a component supplies one is the builder's decision"
+  - variable: storage_account_access_key
+    kind: not-ported
+    reason: "a secret value (the module marks it sensitive) the module writes into the AzureWebJobsStorage connection string; how a component supplies one is the builder's decision. Use storage_uses_managed_identity"
+  - variable: slot_sensitive_app_settings
+    kind: not-ported
+    reason: "secret values (the module marks them sensitive); how a component supplies one is the builder's decision"
+  - variable: slots_storage_shares_to_mount_sensitive_values
+    kind: not-ported
+    reason: "storage account access keys, secret values (the module marks them sensitive); how a component supplies one is the builder's decision"
+  - variable: connection_strings
+    kind: not-ported
+    reason: "a connection string's value is a secret (ASO's siteConfig.connectionStrings takes it in plain text); how a component supplies one is the builder's decision"
+  - variable: storage_shares_to_mount
+    kind: not-ported
+    reason: "each mount needs the storage account's access key, a secret value (ASO's siteConfig.azureStorageAccounts takes it from a Kubernetes Secret); how a component supplies one is the builder's decision"
+  # Logic Apps: the module always writes the storage account key into an app setting.
+  - variable: kind
+    kind: not-ported
+    reason: "webapp and functionapp are accepted; logicapp is refused: the module writes the storage account's access key into the AzureWebJobsStorage and WEBSITE_CONTENTAZUREFILECONNECTIONSTRING app settings (a secret value, the builder's decision)"
+    partial: true
+  - variable: logic_app_node_version
+    kind: not-ported
+    reason: "only a Logic App reads it (WEBSITE_NODE_DEFAULT_VERSION), and kind logicapp is refused; accepted at its default"
+  - variable: logic_app_runtime_version
+    kind: not-ported
+    reason: "only a Logic App reads it (FUNCTIONS_EXTENSION_VERSION), and kind logicapp is refused; accepted at its default"
+  - variable: bundle_version
+    kind: not-ported
+    reason: "only a Logic App reads it (the extension bundle's version), and kind logicapp is refused; accepted at its default"
+  - variable: use_extension_bundle
+    kind: not-ported
+    reason: "only a Logic App reads it, and kind logicapp is refused; accepted at its default (true)"
+  - variable: storage_account_share_name
+    kind: not-ported
+    reason: "only a Logic App reads it (WEBSITE_CONTENTSHARE beside a connection string with the account key), and kind logicapp is refused"
+  # Kinds Azure Service Operator and aso-extensions (3d9ba27) do not have.
+  - variable: auth_settings
+    kind: gap
+    reason: "Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind"
+  - variable: auth_settings_v2
+    kind: gap
+    reason: "Microsoft.Web/sites/config (authsettingsV2) has no Azure Service Operator or aso-extensions kind"
+  - variable: backup
+    kind: gap
+    reason: "Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (its storage_account_url is a SAS URL, a secret, as well)"
+  - variable: logs
+    kind: gap
+    reason: "Microsoft.Web/sites/config (logs) has no Azure Service Operator or aso-extensions kind"
+  - variable: sticky_settings
+    kind: gap
+    reason: "Microsoft.Web/sites/config (slotConfigNames) has no Azure Service Operator or aso-extensions kind"
+  - variable: app_service_active_slot
+    kind: gap
+    reason: "a slot swap is an action (POST Microsoft.Web/sites/slotsswap), which no Azure Service Operator or aso-extensions kind performs"
+  - variable: ftp_publish_basic_authentication_enabled
+    kind: gap
+    reason: "accepted as true only; false, the module's default, writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (ftp) with allow false, which has no Azure Service Operator or aso-extensions kind"
+    partial: true
+  - variable: scm_publish_basic_authentication_enabled
+    kind: gap
+    reason: "accepted as true (the default) only; false writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (scm), which has no Azure Service Operator or aso-extensions kind"
+    partial: true
+  - variable: delete_empty_service_plan
+    kind: gap
+    reason: "accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter"
+    partial: true
+  # Accepted in part.
+  - variable: site_config
+    kind: not-ported
+    reason: "accepted, but application_insights_connection_string and application_insights_key are refused: the Application Insights connection string and key, which the module marks sensitive at the root (a secret value, the builder's decision)"
+    partial: true
+    fields: [application_insights_connection_string, application_insights_key]
+  - variable: deployment_slots
+    kind: not-ported
+    reason: "accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused"
+    partial: true
+    fields: [ftp_publish_basic_authentication_enabled, webdeploy_publish_basic_authentication_enabled, connection_strings, storage_shares_to_mount, zip_deploy_file, site_config.application_insights_connection_string, site_config.application_insights_key, custom_domains.certificate_key]
+  - variable: certificates
+    kind: not-ported
+    reason: "accepted as aso-extensions Certificate from Key Vault (key_vault_id, key_vault_secret_name), but pfx_blob and password are refused: secret material, the builder's decision"
+    partial: true
+    fields: [pfx_blob, password]
+  - variable: custom_domains
+    kind: not-ported
+    reason: "accepted as aso-extensions SitesHostNameBinding with a thumbprint, but certificate_key is refused: the binding takes the certificate's thumbprint, which Azure computes when it makes the certificate and a render cannot read"
+    partial: true
+    fields: [certificate_key]

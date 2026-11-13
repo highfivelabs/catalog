@@ -1,0 +1,364 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-vpn-ha values (fabric net-vpn-ha v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "network",
+    "project_id",
+    "region",
+    "router_config"
+  ],
+  "properties": {
+    "names": {
+      "description": "The HA VPN gateway's and router's names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gateway": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "router": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "allow_alpha": {
+      "description": "Accept the v1alpha1 kind route policies need, config-connector-extensions' ComputeRouterRoutePolicy (not a fabric variable).",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "context": {
+      "description": "fabric's context interpolations; refused when set (Bundt replaces them with ${...} expressions).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "VPN Gateway name (if an existing VPN Gateway is not used), and prefix used for dependent resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "network": {
+      "description": "VPC used for the gateway and routes.",
+      "type": "string",
+      "minLength": 1
+    },
+    "peer_gateways": {
+      "description": "Configuration of the (external or GCP) peer gateway, keyed.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "external": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "redundancy_type",
+              "interfaces"
+            ],
+            "properties": {
+              "redundancy_type": {
+                "type": "string",
+                "enum": [
+                  "SINGLE_IP_INTERNALLY_REDUNDANT",
+                  "TWO_IPS_REDUNDANCY",
+                  "FOUR_IPS_REDUNDANCY"
+                ]
+              },
+              "interfaces": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "gcp": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "project_id": {
+      "description": "Project where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region used for resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "router_config": {
+      "description": "Cloud Router configuration. To reuse an existing router, set create to false and name it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "asn": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "keepalive": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "custom_advertise": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "all_subnets",
+            "ip_ranges"
+          ],
+          "properties": {
+            "all_subnets": {
+              "type": "boolean"
+            },
+            "ip_ranges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "route_policies": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "terms"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "IMPORT",
+                  "EXPORT"
+                ]
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "priority",
+                    "match",
+                    "actions"
+                  ],
+                  "properties": {
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "match": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "expression"
+                      ],
+                      "properties": {
+                        "expression": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "location": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "expression"
+                        ],
+                        "properties": {
+                          "expression": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "description": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "location": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "BGP route policies on the router, keyed by name (ComputeRouterRoutePolicy, v1alpha1: allow_alpha)."
+        },
+        "override_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Accepted; fabric does not use it."
+        }
+      }
+    },
+    "tunnels": {
+      "description": "VPN tunnel configurations; refused when set (README.md, \"Values\").",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "vpn_gateway": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "HA VPN Gateway self link of an existing gateway; used when vpn_gateway_create is null."
+    },
+    "vpn_gateway_create": {
+      "description": "Create the HA VPN Gateway. Set to null to use vpn_gateway.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ipv6": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

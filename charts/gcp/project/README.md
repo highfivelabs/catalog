@@ -151,13 +151,20 @@ only. And for 0.8.0: a tag key with a value added, all 18 objects
 Ready and deleted; tag IAM and network tags are render-tested only. And for 0.9.0: a PAM entitlement, a BigQuery reservation and a
 KMS key handle added, all 21 objects Ready and deleted, outputs
 evaluated. Workload identity pools (mockgcp has none) and reservation
-assignments are render-tested only. Log
+assignments are render-tested only. And for 0.9.1 (run
+`off-catalog-1113182916-6965`, config-connector-extensions `3de8de68`):
+all 21 objects Ready and deleted, `tag_keys` `tagKeys/<n>` and
+`tag_values` `tagValues/<n>`. Log
 scopes (alpha) are render-tested only. No live run: the project chart's
 live case waits for the test provisioner (`docs/design.md`, "The test
 provisioner").
 
 ## Changes
 
+- **0.9.1** (2026-11-13): `tag_keys`, `tag_values`, `network_tag_keys` and
+  `network_tag_values` are `tagKeys/<n>` and `tagValues/<n>`, as documented:
+  `TagsTagKey`'s and `TagsTagValue`'s `status.name` is the bare number,
+  which they returned before (as the `organization` chart found).
 - **0.9.0** (2026-11-12): `workload_identity_pools` (pools and AWS and
   OIDC providers, fabric's templates; SAML and `jwks_json` refused),
   `pam_entitlements`, `bigquery_reservations` (with assignments) and

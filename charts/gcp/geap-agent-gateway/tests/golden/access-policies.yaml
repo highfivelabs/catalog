@@ -1,0 +1,199 @@
+---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMAccessPolicy
+metadata:
+  name: access-policies-access-policy-agents
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-policies"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "access_policy:agents"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  resourceID: "agents"
+  projectRef:
+    external: "my-project-id"
+  location: global
+  displayName: "Agents egress"
+  annotations:
+    "owner": "platform"
+  details:
+    rules:
+      - effect: "ALLOW"
+        principals:
+          - "principalSet://goog/public:all"
+        operation:
+          permissions:
+            - "iap.googleapis.com/resources.egressViaIAP"
+        conditions:
+          "iap.googleapis.com":
+            expression: "request.time < timestamp('2027-01-01T00:00:00Z')"
+      - effect: "DENY"
+        principals:
+          - "principalSet://goog/public:all"
+        excludedPrincipals:
+          - "principal://goog/subject/two@example.com"
+        operation:
+          permissions:
+            - "iap.googleapis.com/resources.egressViaIAP"
+          excludedPermissions:
+            - "iap.googleapis.com/resources.other"
+        conditions:
+          "iap.googleapis.com":
+            expression: "destination.agent_registry.mcp_server.name == 'projects/other/locations/us-central1/mcpServers/tools'"
+      - effect: "ALLOW"
+        description: "One agent."
+        principals:
+          - "principal://goog/subject/one@example.com"
+        operation:
+          permissions:
+            - "iap.googleapis.com/resources.egressViaIAP"
+        conditions:
+          "iap.googleapis.com":
+            expression: "destination.agent_registry.agent.name == 'projects/my-project-id/locations/europe-west1/agents/my-agent'"
+      - effect: "ALLOW"
+        principals:
+          - "principalSet://goog/group/agents@example.com"
+          - "principal://iam.googleapis.com/projects/-/serviceAccounts/agent@my-project-id.iam.gserviceaccount.com"
+        operation:
+          permissions:
+            - "iap.googleapis.com/resources.egressViaIAP"
+        conditions:
+          "iap.googleapis.com":
+            expression: "destination.is_registered == true && destination.agent_registry.location in ['europe-west1', 'us-central1']"
+---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMAccessPolicy
+metadata:
+  name: access-policies-access-policy-gateway-only
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-policies"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "access_policy:gateway-only"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  resourceID: "gateway-only"
+  projectRef:
+    external: "my-project-id"
+  location: global
+  details:
+    rules:
+      - effect: "ALLOW"
+        principals:
+          - "principalSet://goog/group/agents@example.com"
+        operation:
+          permissions:
+            - "iap.googleapis.com/resources.egressViaIAP"
+        conditions:
+          "iap.googleapis.com":
+            expression: "destination.is_registered == true && destination.agent_registry.location == 'europe-west1'"
+---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMPolicyBinding
+metadata:
+  name: access-policies-policy-binding-agents
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-policies"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "policy_binding:agents"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  resourceID: "agents"
+  projectRef:
+    external: "my-project-id"
+  location: global
+  policyKind: ACCESS
+  policyRef:
+    name: access-policies-access-policy-agents
+  target:
+    resource: "//cloudresourcemanager.googleapis.com/projects/my-project-id"
+  displayName: "Agents egress"
+  annotations:
+    "owner": "platform"
+---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMPolicyBinding
+metadata:
+  name: access-policies-policy-binding-corp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-policies"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "policy_binding:corp"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  resourceID: "corp"
+  projectRef:
+    external: "my-project-id"
+  location: global
+  policyKind: ACCESS
+  policyRef:
+    external: "organizations/123456789012/locations/global/accessPolicies/corp-guardrails"
+  target:
+    resource: "//cloudresourcemanager.googleapis.com/projects/my-project-id"
+---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMPolicyBinding
+metadata:
+  name: access-policies-policy-binding-gateway-only
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-policies"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "policy_binding:gateway-only"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  resourceID: "gw-binding"
+  projectRef:
+    external: "my-project-id"
+  location: global
+  policyKind: ACCESS
+  policyRef:
+    name: access-policies-access-policy-gateway-only
+  target:
+    resource: "//networkservices.googleapis.com/projects/my-project-id/locations/europe-west1/agentGateways/my-gateway"
+  condition:
+    expression: "true"
+    title: "always"
+---
+# Source: geap-agent-gateway/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentGateway
+metadata:
+  name: access-policies
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "access-policies"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway"
+  description: "Terraform managed."
+  registries:
+    - "projects/my-project-id/locations/europe-west1"
+    - "projects/my-project-id/locations/us-central1"
+  googleManaged:
+    governedAccessPath: AGENT_TO_ANYWHERE

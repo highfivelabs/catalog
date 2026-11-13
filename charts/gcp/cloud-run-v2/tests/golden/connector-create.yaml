@@ -1,0 +1,114 @@
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: connector-create-sa-roles-logging-logwriter-91c85d4b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "connector-create"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: connector-create-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: connector-create-sa-roles-monitoring-metricwriter-7d5730aa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "connector-create"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: connector-create-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: connector-create-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "connector-create"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "example-hello"
+  displayName: "example-hello"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunService
+metadata:
+  name: connector-create
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "connector-create"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "example-hello"
+  template:
+    executionEnvironment: EXECUTION_ENVIRONMENT_GEN1
+    vpcAccess:
+      connectorRef:
+        external: "projects/my-project/locations/europe-west1/connectors/example-hello"
+    serviceAccountRef:
+      external: "example-hello@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "hello"
+        image: "us-docker.pkg.dev/cloudrun/container/hello"
+---
+# Source: cloud-run-v2/templates/vpcconnector.yaml
+apiVersion: vpcaccess.cnrm.cloud.google.com/v1beta1
+kind: VPCAccessConnector
+metadata:
+  name: connector-create-connector
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "connector-create"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "vpc_connector"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "example-hello"
+  ipCidrRange: "10.10.10.0/28"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc"
+  maxInstances: 10
+  minInstances: 3

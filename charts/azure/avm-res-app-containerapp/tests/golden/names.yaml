@@ -1,0 +1,39 @@
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: ContainerApp
+metadata:
+  name: names-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "container_app"
+spec:
+  azureName: "ca-shop-dev-web"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  environmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.App/managedEnvironments/cae-shop-dev"
+  managedEnvironmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev/providers/Microsoft.App/managedEnvironments/cae-shop-dev"
+  configuration:
+    activeRevisionsMode: Single
+    maxInactiveRevisions: 0
+  template:
+    containers:
+      - name: "web"
+        image: "mcr.microsoft.com/k8se/quickstart:latest"
+        resources:
+          cpu: 0.5
+          memory: "1Gi"
+    scale:
+      cooldownPeriod: 300
+      maxReplicas: 10
+      pollingInterval: 30
+  tags:
+    team: shop

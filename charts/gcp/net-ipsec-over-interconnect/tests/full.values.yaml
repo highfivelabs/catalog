@@ -1,0 +1,28 @@
+# Every value the chart carries: attachments as self links, a named peer
+# gateway with one interface, a named router with keepalive and custom
+# advertisements, and route policies (allow_alpha).
+allow_alpha: true
+project_id: my-project
+region: europe-west8
+network: https://www.googleapis.com/compute/v1/projects/my-project/global/networks/my-network
+name: vpn-full
+interconnect_attachments:
+  a: https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west8/interconnectAttachments/vlan-a
+  b: https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west8/interconnectAttachments/vlan-b
+peer_gateway_config:
+  create: true
+  name: onprem-gw
+  description: On-premises router
+  interfaces: [172.16.0.1]
+router_config:
+  asn: 64514
+  name: my-router
+  keepalive: 20
+  custom_advertise: {all_subnets: true, ip_ranges: {10.0.0.0/8: all}}
+  route_policies:
+    import:
+      type: IMPORT
+      terms:
+        - priority: 1
+          match: {expression: "destination == '10.0.0.0/8'", title: t, description: d, location: l}
+          actions: [{expression: "drop()"}]

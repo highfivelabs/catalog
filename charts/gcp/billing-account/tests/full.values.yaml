@@ -1,0 +1,31 @@
+# Every accepted variable and field.
+allow_alpha: true
+id: 012345-6789AB-CDEF01
+deletion_policy: ABANDON
+labels: {hfl.dev/team: shop}
+tags: {team: shop}
+factories_config: {budgets_data_path: data/billing-budgets}
+iam:
+  roles/billing.viewer: ["group:viewers@example.com"]
+budget_notification_channels:
+  ops:
+    project_id: my-project
+    type: email
+    description: Ops.
+    enabled: false
+    force_delete: true
+    labels: {email_address: ops@example.com}
+    user_labels: {owner: ops}
+budgets:
+  b:
+    display_name: Budget
+    amount: {currency_code: EUR, units: 1000, nanos: 500000000}
+    filter:
+      credit_types_treatment: {exclude_all: true}
+    update_rules:
+      ops:
+        monitoring_notification_channels: ["$notification_channels:ops"]
+logging_sinks:
+  all:
+    destination: my-bucket
+    type: storage

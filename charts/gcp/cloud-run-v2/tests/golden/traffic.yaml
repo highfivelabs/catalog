@@ -1,0 +1,90 @@
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: traffic-sa-roles-logging-logwriter-0d0be9d6
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "traffic"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: traffic-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: traffic-sa-roles-monitoring-metricwriter-493b07fd
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "traffic"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: traffic-sa
+---
+# Source: cloud-run-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: traffic-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "traffic"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "example-traffic"
+  displayName: "example-traffic"
+---
+# Source: cloud-run-v2/templates/main.yaml
+apiVersion: run.cnrm.cloud.google.com/v1beta1
+kind: RunService
+metadata:
+  name: traffic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "traffic"
+    app.kubernetes.io/name: cloud-run-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "resource"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "example-traffic"
+  traffic:
+    - {"percent":90,"revision":"example-traffic-v1","type":"TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"}
+    - {"percent":10,"revision":"example-traffic-v2","tag":"candidate","type":"TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"}
+  template:
+    executionEnvironment: EXECUTION_ENVIRONMENT_GEN1
+    serviceAccountRef:
+      external: "example-traffic@my-project.iam.gserviceaccount.com"
+    containers:
+      - name: "hello"
+        image: "us-docker.pkg.dev/cloudrun/container/hello"

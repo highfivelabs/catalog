@@ -1,6 +1,8 @@
 # For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
 # Free-tier cluster with one small node, an OIDC issuer and a user agent
-# pool, in the fake cloud's resource group.
+# pool, a private endpoint with a DNS zone group, and the module's
+# monitoring and alerting (the fake keeps the references as sent), in the
+# fake cloud's resource group.
 name: catalog-aks
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -15,3 +17,14 @@ maintenanceconfiguration:
   default:
     name: default
     time_in_week: [{day: Sunday, hour_slots: [2, 3]}]
+addon_profile_oms_agent:
+  enabled: true
+  config: {log_analytics_workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.OperationalInsights/workspaces/catalog-law}
+onboard_monitoring: true
+prometheus_workspace_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Monitor/accounts/catalog-amw
+onboard_alerts: true
+alert_email: ops@example.com
+private_endpoints:
+  mgmt:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.eastus2.azmk8s.io]

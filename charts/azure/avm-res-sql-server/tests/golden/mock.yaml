@@ -1,0 +1,194 @@
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: Server
+metadata:
+  name: mock-sql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "catalog-sql"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  administrators:
+    administratorType: ActiveDirectory
+    azureADOnlyAuthentication: true
+    login: "catalog-aso"
+    sid: "22222222-3333-4444-5555-666666666666"
+    tenantId: "11111111-2222-3333-4444-555555555555"
+  minimalTlsVersion: "1.2"
+  publicNetworkAccess: Enabled
+  tags:
+    catalog: mock
+  version: "12.0"
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersConnectionPolicy
+metadata:
+  name: mock-sql-connection-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "connection_policy"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: mock-sql
+  connectionType: Default
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabase
+metadata:
+  name: mock-sql-db-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "database:app"
+spec:
+  azureName: "app"
+  location: "eastus2"
+  owner:
+    name: mock-sql
+  createMode: Default
+  isLedgerOn: false
+  requestedBackupStorageRedundancy: Local
+  sku:
+    name: "Basic"
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabase
+metadata:
+  name: mock-sql-db-dw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "database:dw"
+spec:
+  azureName: "dw"
+  location: "eastus2"
+  owner:
+    name: mock-sql
+  createMode: Default
+  isLedgerOn: false
+  requestedBackupStorageRedundancy: Geo
+  sku:
+    name: "DW100c"
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersDatabasesBackupShortTermRetentionPolicy
+metadata:
+  name: mock-sql-db-app-str
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "database:app/short_term_retention_policy"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: mock-sql-db-app
+  diffBackupIntervalInHours: 12
+  retentionDays: 7
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.hfl.dev/v20250101
+kind: ServersDatabasesGeoBackupPolicy
+metadata:
+  name: mock-sql-db-dw-geo
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "database:dw/geo_backup_policy"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: mock-sql-db-dw
+  state: Disabled
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersElasticPool
+metadata:
+  name: mock-sql-pool-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "elastic_pool:pool"
+spec:
+  azureName: "pool"
+  location: "eastus2"
+  owner:
+    name: mock-sql
+  maintenanceConfigurationId: "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Maintenance/publicMaintenanceConfigurations/SQL_Default"
+  perDatabaseSettings:
+    maxCapacity: 5
+    minCapacity: 0
+  sku:
+    capacity: 50
+    name: "BasicPool"
+    tier: "Basic"
+  zoneRedundant: false
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.com/v20250101
+kind: ServersFirewallRule
+metadata:
+  name: mock-sql-fw-office
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "firewall_rule:office"
+spec:
+  azureName: "office"
+  owner:
+    name: mock-sql
+  startIpAddress: "203.0.113.10"
+  endIpAddress: "203.0.113.10"
+---
+# Source: avm-res-sql-server/templates/main.yaml
+apiVersion: sql.azure.hfl.dev/v20250101
+kind: ServersSqlVulnerabilityAssessment
+metadata:
+  name: mock-sql-va
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-sql-server
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "express_vulnerability_assessment"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  owner:
+    name: mock-sql
+  state: Enabled

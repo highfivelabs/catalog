@@ -1,0 +1,49 @@
+---
+# Source: organization/templates/iam.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPartialPolicy
+metadata:
+  name: names-iam
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iam"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    external: "123456789012"
+    kind: Organization
+  bindings:
+    - role: "roles/viewer"
+      members:
+        - member: "group:viewers@example.org"
+---
+# Source: organization/templates/logging.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogExclusion
+metadata:
+  name: names-exclusion-no-gce
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "logging-exclusion:no-gce"
+spec:
+  resourceID: "no-gce"
+  organizationRef:
+    external: "organizations/123456789012"
+  description: "no-gce (Terraform-managed)."
+  filter: "resource.type=gce_instance"

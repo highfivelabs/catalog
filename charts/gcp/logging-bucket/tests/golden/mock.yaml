@@ -1,0 +1,87 @@
+---
+# Source: logging-bucket/templates/iam.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  name: mock-view-stdout-iam-roles-logging-viewaccessor-685ee658
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "view:stdout:iam:roles/logging.viewAccessor"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceRef:
+    external: projects/mock-project/locations/us-central1/buckets/cat-mock-logs/views/stdout
+    kind: LoggingLogView
+  role: "roles/logging.viewAccessor"
+  members:
+    - "group:auditors@example.com"
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLink
+metadata:
+  name: mock-link
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "link"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  loggingLogBucketRef:
+    external: "projects/mock-project/locations/us-central1/buckets/cat-mock-logs"
+  resourceID: "cat_mock_logs"
+  description: "Log Analytics Dataset"
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogBucket
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "bucket"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  resourceID: "cat-mock-logs"
+  retentionDays: 30
+  enableAnalytics: true
+---
+# Source: logging-bucket/templates/main.yaml
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogView
+metadata:
+  name: mock-view-stdout
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: logging-bucket
+    app.kubernetes.io/version: "0.1.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "view:stdout"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  bucketRef:
+    name: mock
+  resourceID: "stdout"
+  location: "us-central1"
+  filter: "LOG_ID(\"stdout\")"

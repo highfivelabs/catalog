@@ -1,0 +1,575 @@
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-cae-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-cae-full"
+  owner:
+    group: app.azure.com
+    kind: ManagedEnvironment
+    name: full-cae
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-cae-diag-named
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-named"
+spec:
+  azureName: "to-storage"
+  owner:
+    group: app.azure.com
+    kind: ManagedEnvironment
+    name: full-cae
+  logAnalyticsDestinationType: "AzureDiagnostics"
+  logs:
+    - category: "ContainerAppConsoleLogs"
+      enabled: true
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stexample"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: ManagedEnvironment
+metadata:
+  name: full-cae
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "managed_environment"
+spec:
+  azureName: "cae-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "containerapps"
+  identity:
+    type: SystemAssigned,UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae"
+  appLogsConfiguration:
+    destination: "azure-monitor"
+  customDomainConfiguration:
+    certificateKeyVaultProperties:
+      identityReference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+      keyVaultUrl: https://kv-example.vault.azure.net/secrets/wildcard
+    dnsSuffix: apps.example.com
+  infrastructureResourceGroup: "ME_cae-full"
+  peerAuthentication: {"mtls":{"enabled":true}}
+  peerTrafficConfiguration: {"encryption":{"enabled":true}}
+  tags:
+    env: test
+    owner: platform
+  vnetConfiguration:
+    dockerBridgeCidr: 10.2.0.1/16
+    infrastructureSubnetReference:
+      armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/cae
+    internal: true
+    platformReservedCidr: 10.1.0.0/16
+    platformReservedDnsIP: 10.1.0.2
+  workloadProfiles:
+    - name: "Dedicated"
+      workloadProfileType: "D4"
+      minimumCount: 1
+      maximumCount: 3
+    - name: Consumption
+      workloadProfileType: Consumption
+  zoneRedundant: true
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsCertificate
+metadata:
+  name: full-cert-wildcard
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "certificate:wildcard"
+spec:
+  azureName: "wildcard"
+  location: "eastus2"
+  owner:
+    name: full-cae
+  properties:
+    certificateKeyVaultProperties:
+      identityReference:
+        wellKnownName: "System"
+      keyVaultUrl: "https://kv-example.vault.azure.net/secrets/wildcard"
+  tags:
+    cert: "yes"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsDaprComponent
+metadata:
+  name: full-dapr-pubsub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "dapr_component:pubsub"
+spec:
+  azureName: "pubsub"
+  owner:
+    name: full-cae
+  componentType: "pubsub.azure.servicebus.topics"
+  secretStoreComponent: "secretstore"
+  version: "v1"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsDaprComponent
+metadata:
+  name: full-dapr-state
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "dapr_component:state"
+spec:
+  azureName: "statestore"
+  owner:
+    name: full-cae
+  componentType: "state.azure.blobstorage"
+  ignoreErrors: false
+  initTimeout: "30s"
+  metadata:
+    - name: "accountName"
+      value: "stexample"
+    - name: "containerName"
+      value: "state"
+    - name: "accountKey"
+      secretRef: "account-key"
+  scopes: ["api","worker"]
+  secrets:
+    - name: "account-key"
+      identityReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae"
+      keyVaultUrl: "https://kv-example.vault.azure.net/secrets/account-key"
+  version: "v1"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsDaprSubscription
+metadata:
+  name: full-daprsub-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "dapr_subscription:orders"
+spec:
+  azureName: "orders"
+  owner:
+    name: full-cae
+  bulkSubscribe:
+    enabled: true
+    maxAwaitDurationMs: 500
+    maxMessagesCount: 100
+  deadLetterTopic: "orders-dead"
+  metadata:
+    "rawPayload": "true"
+  pubsubName: "pubsub"
+  routes:
+    default: /orders
+    rules:
+    - match: event.type == 'priority'
+      path: /orders/priority
+  scopes: ["worker"]
+  topic: "orders"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ManagedEnvironmentsDotNetComponent
+metadata:
+  name: full-dotnet-aspire
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "dot_net_component:aspire"
+spec:
+  azureName: "aspire-dashboard"
+  owner:
+    name: full-cae
+  componentType: "AspireDashboard"
+  configurations:
+    - propertyName: "DASHBOARD__OTLP__AUTHMODE"
+      value: "Unsecured"
+  serviceBinds:
+    - name: "eureka"
+      serviceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/eureka"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsHttpRouteConfig
+metadata:
+  name: full-route-api
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "http_route_config:api"
+spec:
+  azureName: "api"
+  owner:
+    name: full-cae
+  properties:
+    customDomains:
+    - bindingType: SniEnabled
+      certificateReference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/managedCertificates/www-example-com
+      name: api.example.com
+    rules:
+    - description: api to the api app
+      routes:
+      - action:
+          prefixRewrite: /
+        match:
+          caseSensitive: false
+          prefix: /api
+      - match:
+          path: /health
+      targets:
+      - containerApp: api
+        label: blue
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: full-java-config
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "java_component:config"
+spec:
+  azureName: "config"
+  owner:
+    name: full-cae
+  properties:
+    springCloudConfig:
+      componentType: SpringCloudConfig
+      configurations:
+      - propertyName: spring.cloud.config.server.git.uri
+        value: https://github.com/example/config
+      scale:
+        maxReplicas: 1
+        minReplicas: 1
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: full-java-eureka
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "java_component:eureka"
+spec:
+  azureName: "eureka"
+  owner:
+    name: full-cae
+  properties:
+    springCloudEureka:
+      componentType: SpringCloudEureka
+      serviceBinds:
+      - name: config
+        serviceReference:
+          armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/config
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: full-java-gateway
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "java_component:gateway"
+spec:
+  azureName: "gateway"
+  owner:
+    name: full-cae
+  properties:
+    springCloudGateway:
+      componentType: SpringCloudGateway
+      scale:
+        maxReplicas: 2
+        minReplicas: 1
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: full-java-nacos
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "java_component:nacos"
+spec:
+  azureName: "nacos"
+  owner:
+    name: full-cae
+  properties:
+    nacos:
+      componentType: Nacos
+      configurations:
+      - propertyName: nacos.core.auth.enabled
+        value: "false"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsMaintenanceConfiguration
+metadata:
+  name: full-maint-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "maintenance_configuration:default"
+spec:
+  azureName: "default"
+  owner:
+    name: full-cae
+  scheduledEntries:
+    - durationHours: 8
+      startHourUtc: 2
+      weekDay: "Sunday"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsManagedCertificate
+metadata:
+  name: full-mcert-www
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "managed_certificate:www"
+spec:
+  azureName: "www-example-com"
+  location: "eastus2"
+  owner:
+    name: full-cae
+  properties:
+    domainControlValidation: "CNAME"
+    subjectName: "www.example.com"
+  tags:
+    cert: managed
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: full-storage-files
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "storage:files"
+spec:
+  azureName: "files"
+  owner:
+    name: full-cae
+  properties:
+    azureFile:
+      accessMode: ReadOnly
+      accountName: stexample
+      shareName: share
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: full-storage-files-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "storage:files-kv"
+spec:
+  azureName: "files-kv"
+  owner:
+    name: full-cae
+  properties:
+    azureFile:
+      accessMode: ReadWrite
+      accountKeyVaultProperties:
+        identityReference:
+          armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+        keyVaultUrl: https://kv-example.vault.azure.net/secrets/storage-key
+      accountName: stexample
+      shareName: share2
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: full-storage-nfs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "storage:nfs"
+spec:
+  azureName: "nfs"
+  owner:
+    name: full-cae
+  properties:
+    nfsAzureFile:
+      accessMode: ReadWrite
+      server: stexample.file.core.windows.net
+      shareName: /stexample/nfs
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-cae-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: app.azure.com
+    kind: ManagedEnvironment
+    name: full-cae
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-cae-role-owner
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "role-assignment-owner"
+spec:
+  azureName: "22222222-2222-2222-2222-222222222222"
+  owner:
+    group: app.azure.com
+    kind: ManagedEnvironment
+    name: full-cae
+  principalId: "33333333-3333-3333-3333-333333333333"
+  principalType: "Group"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+  description: "owners"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-cae-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+    team: "platform"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    group: app.azure.com
+    kind: ManagedEnvironment
+    name: full-cae
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

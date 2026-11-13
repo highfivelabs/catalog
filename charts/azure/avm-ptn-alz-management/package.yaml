@@ -1,0 +1,53 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>), each null (or
+# its fields null) where the module's try() gives null: a resource the
+# inputs do not make. Not outputs: automation_account_dsc_keys and
+# log_analytics_workspace_keys (secret values, sensitive in the module,
+# which do not belong in outputs). automation_account's
+# dsc_server_endpoint is derived from the account's hybrid service URL
+# (https://<id>.jrds.<region>.azure-automation.net/automationAccounts/<id>
+# becomes https://<id>.agentsvc.<region>.azure-automation.net/accounts/<id>),
+# the endpoint azurerm reads from agentRegistrationInformation; outputs
+# read the objects a chart renders, not the ConfigMap aso-extensions'
+# AutomationAccount can export it to (operatorSpec.configMaps).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-ptn-alz-management
+spec:
+  version: 0.2.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    automation_account: >-
+      'automation_account' in resources
+      ? {'dsc_server_endpoint': 'automationHybridServiceUrl' in resources.automation_account.status
+      ? dyn(resources.automation_account.status.automationHybridServiceUrl.replace('.jrds.', '.agentsvc.').replace('/automationAccounts/', '/accounts/')) : null,
+      'hybrid_service_url': 'automationHybridServiceUrl' in resources.automation_account.status ? resources.automation_account.status.automationHybridServiceUrl : null,
+      'id': resources.automation_account.status.id,
+      'name': resources.automation_account.spec.azureName,
+      'identity': {
+      'tenant_id': 'identity' in resources.automation_account.status && 'tenantId' in resources.automation_account.status.identity ? resources.automation_account.status.identity.tenantId : null,
+      'principal_id': 'identity' in resources.automation_account.status && 'principalId' in resources.automation_account.status.identity ? resources.automation_account.status.identity.principalId : null}}
+      : {'dsc_server_endpoint': null, 'hybrid_service_url': null, 'id': null, 'name': null, 'identity': {'tenant_id': null, 'principal_id': null}}
+    data_collection_rule_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('data_collection_rule:'), {k.substring(21): {'id': v.status.id}})
+    log_analytics_workspace: >-
+      'log_analytics_workspace' in resources
+      ? {'id': resources.log_analytics_workspace.status.id,
+      'name': resources.log_analytics_workspace.spec.azureName,
+      'workspace_id': 'customerId' in resources.log_analytics_workspace.status ? resources.log_analytics_workspace.status.customerId : null}
+      : {'id': null, 'name': null, 'workspace_id': null}
+    resource_group: >-
+      'resource_group' in resources
+      ? {'id': resources.resource_group.status.id, 'name': resources.resource_group.spec.azureName}
+      : (inputs.resource_group_name.startsWith('/')
+      ? {'id': inputs.resource_group_name, 'name': inputs.resource_group_name.split('/')[4]}
+      : {'id': '/subscriptions/' + inputs.subscription_id + '/resourceGroups/' + inputs.resource_group_name, 'name': inputs.resource_group_name})
+    resource_id: >-
+      'log_analytics_workspace' in resources ? resources.log_analytics_workspace.status.id : null
+    user_assigned_identity_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('user_assigned_identity:'), {k.substring(23): {'id': v.status.id}})

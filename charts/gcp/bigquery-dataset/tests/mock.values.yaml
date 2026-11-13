@@ -1,0 +1,37 @@
+# The fake-cloud case (hack/mock-apply.sh): a dataset with a table, a view,
+# a routine, a role on the dataset and, with allow_alpha, an access entry
+# and an additive member.
+allow_alpha: true
+project_id: mock-project
+id: cat_mock_dataset
+location: US
+labels: {env: test}
+options:
+  delete_contents_on_destroy: true
+access:
+  readers: {role: READER, type: group}
+access_identities:
+  readers: readers@example.com
+iam:
+  roles/bigquery.dataEditor: ["group:editors@example.com"]
+iam_bindings_additive:
+  viewer:
+    role: roles/bigquery.dataViewer
+    member: user:viewer@example.com
+tables:
+  countries:
+    schema: '[{"name":"country","type":"STRING"},{"name":"population","type":"INT64"}]'
+    partitioning:
+      time: {type: DAY}
+views:
+  population:
+    query: SELECT SUM(population) AS total FROM cat_mock_dataset.countries
+    use_legacy_sql: false
+routines:
+  add_one:
+    routine_type: SCALAR_FUNCTION
+    language: SQL
+    definition_body: x + 1
+    arguments:
+      x: {data_type: '{"typeKind":"INT64"}'}
+    return_type: '{"typeKind":"INT64"}'

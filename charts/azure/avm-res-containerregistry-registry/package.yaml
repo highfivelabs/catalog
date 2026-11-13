@@ -12,16 +12,17 @@
 # {<key>: {name, resource_id, principal_id, tenant_id}} (the set's
 # system-assigned identity, from aso-extensions' status); scope_maps is
 # {<key>: {name, resource_id, id, registry_tokens: {<key>: {name, id}}}},
-# the scope-map submodule's outputs without its token passwords (refused).
-# Not outputs: the admin user's name and password (secrets: ASO can write
-# them to a Kubernetes Secret, which is not an output), private_endpoints
-# (refused).
+# the scope-map submodule's outputs without its token passwords (refused);
+# private_endpoints is {<key>: {id, name, location, subnet_id}} (the module
+# gives the whole azurerm object). Not outputs: the admin user's name and
+# password (secrets: ASO can write them to a Kubernetes Secret, which is
+# not an output).
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
   name: azure-avm-res-containerregistry-registry
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [aso]
   outputs:
@@ -41,3 +42,5 @@ spec:
       resources.transformMapEntry(k, v, k.startsWith('credential_set:'), {k.substring(15): {'name': v.spec.azureName, 'resource_id': v.status.id, 'principal_id': 'identity' in v.status && 'principalId' in v.status.identity ? v.status.identity.principalId : null, 'tenant_id': 'identity' in v.status && 'tenantId' in v.status.identity ? v.status.identity.tenantId : null}})
     scope_maps: >-
       resources.transformMapEntry(k, v, k.startsWith('scope_map:') && !k.contains(':token:'), {k.substring(10): {'name': v.spec.azureName, 'resource_id': v.status.id, 'id': v.status.id, 'registry_tokens': resources.transformMapEntry(tk, tv, tk.startsWith(k + ':token:'), {tk.substring(size(k) + 7): {'name': tv.spec.azureName, 'id': tv.status.id}})}})
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): {'id': v.status.id, 'name': v.spec.azureName, 'location': v.spec.location, 'subnet_id': v.spec.subnet.reference.armId}})

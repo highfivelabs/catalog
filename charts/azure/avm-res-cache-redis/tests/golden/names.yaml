@@ -1,0 +1,55 @@
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-redis-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "lock"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "keep"
+  owner:
+    group: cache.azure.com
+    kind: Redis
+    name: names-redis
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."
+---
+# Source: avm-res-cache-redis/templates/main.yaml
+apiVersion: cache.azure.com/v20241101
+kind: Redis
+metadata:
+  name: names-redis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-cache-redis
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "cache"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "redis-shop-dev-eus2"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  sku:
+    name: Standard
+    family: C
+    capacity: 1
+  disableAccessKeyAuthentication: true
+  enableNonSslPort: false
+  minimumTlsVersion: "1.2"
+  publicNetworkAccess: Enabled
+  redisConfiguration:
+    aad-enabled: "true"
+  tags:
+    team: shop

@@ -3,9 +3,10 @@
 #
 # The Bundt Package for this chart. Outputs are the module's declared
 # outputs, selected from the live objects (resources.<id>). resource_id is
-# the workspace's ARM ID from ASO's status. Not outputs: resource (the
-# module's whole azurerm object, sensitive there for its shared keys) and
-# private_endpoints (refused). customer_id, the workspace ID agents and
+# the workspace's ARM ID from ASO's status; private_endpoints is {<key>:
+# {id, name, location, subnet_id}} (the module gives the whole azurerm
+# object). Not output: resource (the module's whole azurerm object,
+# sensitive there for its shared keys). customer_id, the workspace ID agents and
 # queries take, is added from status.customerId; it is the field consumers
 # take from resource.
 apiVersion: hfl.dev/v1
@@ -13,9 +14,11 @@ kind: Package
 metadata:
   name: azure-avm-res-operationalinsights-workspace
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [aso]
   outputs:
     resource_id: resources.workspace.status.id
     customer_id: resources.workspace.status.customerId
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): {'id': v.status.id, 'name': v.spec.azureName, 'location': v.spec.location, 'subnet_id': v.spec.subnet.reference.armId}})

@@ -1,0 +1,109 @@
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeInterconnectAttachment
+metadata:
+  name: dedicated
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-603"
+  projectRef:
+    external: "my-project"
+  description: "vlan-603"
+  region: "europe-west8"
+  router: "projects/my-project/regions/europe-west8/routers/router-1"
+  type: DEDICATED
+  interconnect: "projects/my-project/global/interconnects/interconnect-a"
+  bandwidth: "BPS_10G"
+  vlanTag8021q: 603
+  candidateSubnets:
+    - "169.254.0.0/30"
+  candidateCloudRouterIpAddress: "169.254.0.1/30"
+  candidateCustomerRouterIpAddress: "169.254.0.2/30"
+  adminEnabled: true
+  mtu: 1500
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: dedicated
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "router-1"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  bgp:
+    asn: 16550
+    advertiseMode: DEFAULT
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterInterface
+metadata:
+  name: dedicated-intf
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "router_interface"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-603-intf"
+  region: "europe-west8"
+  routerRef:
+    name: dedicated
+  ipRange: "169.254.0.1/30"
+  interconnectAttachmentRef:
+    external: "vlan-603"
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouterPeer
+metadata:
+  name: dedicated-peer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "dedicated"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "router_peer"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-603-peer"
+  region: "europe-west8"
+  routerRef:
+    name: dedicated
+  routerInterfaceRef:
+    name: dedicated-intf
+  peerIpAddress: "169.254.0.2"
+  peerAsn: 65000
+  advertisedRoutePriority: 100
+  advertiseMode: CUSTOM
+  advertisedGroups: [ALL_SUBNETS]
+  advertisedIpRanges:
+    - range: "10.0.0.0/8"
+      description: "on-prem"
+  bfd:
+    sessionInitializationMode: "ACTIVE"
+    minReceiveInterval: 1000
+    minTransmitInterval: 1000
+    multiplier: 5

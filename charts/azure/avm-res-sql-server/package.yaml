@@ -1,0 +1,41 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs). resource_id is the server's ARM ID from
+# ASO's status; resource_name is its Azure name as the chart computes it.
+# resource is the part of the module's azurerm_mssql_server object ASO's
+# spec and status carry (id, name, location, version and
+# fully_qualified_domain_name), with azurerm's attribute names.
+# resource_databases and resource_elasticpools are keyed like the
+# databases and elastic_pools values, each entry the submodule's name and
+# resource_id with its resource cut down the same way. private_endpoints
+# is each endpoint's ID and name, keyed like the value (the module gives
+# the whole azurerm object). Not outputs: generated_administrator_login_password
+# and administrator_login_password_key_vault_secret, secret values the
+# chart refuses to make (upstream.yaml).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-sql-server
+spec:
+  version: 0.3.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    resource_name: >-
+      ('server' in inputs.names && inputs.names.server != '' ? inputs.names.server : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+    resource_id: resources.server.status.id
+    resource: >-
+      {'id': resources.server.status.id,
+       'name': resources.server.spec.azureName,
+       'location': resources.server.spec.location,
+       'version': resources.server.spec.version,
+       'fully_qualified_domain_name': 'fullyQualifiedDomainName' in resources.server.status ? resources.server.status.fullyQualifiedDomainName : null}
+    resource_databases: >-
+      resources.transformMapEntry(k, v, k.startsWith('database:') && !k.contains('/'), {k.substring(9): {'name': v.spec.azureName, 'resource_id': v.status.id, 'resource': {'id': v.status.id, 'name': v.spec.azureName, 'server_id': resources.server.status.id}}})
+    resource_elasticpools: >-
+      resources.transformMapEntry(k, v, k.startsWith('elastic_pool:') && !k.contains('/'), {k.substring(13): {'name': v.spec.azureName, 'resource_id': v.status.id, 'resource': {'id': v.status.id, 'name': v.spec.azureName, 'server_name': resources.server.spec.azureName}}})
+    private_endpoints: >-
+      resources.transformMapEntry(k, v, k.startsWith('private_endpoint:') && !k.contains('/'), {k.substring(17): {'id': v.status.id, 'name': v.spec.azureName}})

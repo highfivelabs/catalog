@@ -1,0 +1,90 @@
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: pe-unmanaged-acr-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-acrpe001"
+  owner:
+    group: containerregistry.azure.com
+    kind: Registry
+    name: pe-unmanaged-acr
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: pe-unmanaged-acr-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:pe"
+spec:
+  azureName: "pe-acrpe001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net"
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe"
+  privateLinkServiceConnections:
+    - name: "pse-acrpe001"
+      groupIds: ["registry"]
+      privateLinkServiceReference:
+        group: containerregistry.azure.com
+        kind: Registry
+        name: pe-unmanaged-acr
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.com/v20251101
+kind: Registry
+metadata:
+  name: pe-unmanaged-acr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "pe-unmanaged"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "registry"
+spec:
+  azureName: "acrpe001"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr"
+  adminUserEnabled: false
+  anonymousPullEnabled: false
+  dataEndpointEnabled: false
+  networkRuleBypassAllowedForTasks: false
+  networkRuleBypassOptions: None
+  policies:
+    azureADAuthenticationAsArmPolicy:
+      status: enabled
+    exportPolicy:
+      status: enabled
+    quarantinePolicy:
+      status: disabled
+    retentionPolicy:
+      days: 7
+      status: enabled
+    trustPolicy:
+      status: disabled
+      type: Notary
+  publicNetworkAccess: Disabled
+  roleAssignmentMode: LegacyRegistryPermissions
+  sku:
+    name: Premium
+  zoneRedundancy: Enabled

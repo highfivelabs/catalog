@@ -1,0 +1,80 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/logging-bucket/iam.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_logging_log_view_iam_binding.authoritative: one IAMBinding
+(config-connector-extensions, iam.gcp.hfl.dev/v1beta1) per view and role of
+its iam, exact per role as fabric's.
+google_logging_log_view_iam_binding.bindings: one IAMBinding per entry of a
+view's iam_bindings.
+google_logging_log_view_iam_member.members: one IAMMember
+(config-connector-extensions, iam.gcp.hfl.dev/v1alpha1, so allow_alpha) per
+entry of a view's iam_bindings_additive.
+IAM on a folder's, organization's or billing account's view is refused:
+config-connector-extensions takes a project's log view only.
+*/ -}}
+{{- $v := .Values }}
+{{- $project := include "loggingBucket.project" . }}
+{{- $views := $v.views | default dict }}
+{{- range $vk := keys $views | sortAlpha }}
+{{- $view := index $views $vk }}
+{{- if and (ne ($v.parent_type | default "project") "project") (or $view.iam $view.iam_bindings $view.iam_bindings_additive) }}
+{{- fail (printf "logging-bucket: views.%s IAM is not supported on a %s's log view: config-connector-extensions' IAMBinding and IAMMember take a project's log view only (docs/gcp-inventory.md, \"Gaps\")" $vk $v.parent_type) }}
+{{- end }}
+{{- /* By its full name: config-connector-extensions resolves a log view
+only from external (projects/<p>/locations/<l>/buckets/<b>/views/<v>). */}}
+{{- $ref := dict "kind" "LoggingLogView" "external" (printf "%s/views/%s" (include "loggingBucket.id" $) $vk) }}
+{{- range $role, $members := ($view.iam | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "view" $vk "iam" $role)) "id" (printf "view:%s:iam:%s" $vk $role) "project" $project) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $role | quote }}
+  members:
+  {{- range $m := ($members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $b := ($view.iam_bindings | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "view" $vk "iam-binding" $key)) "id" (printf "view:%s:iam-binding:%s" $vk $key) "project" $project) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $b.role | quote }}
+  members:
+  {{- range $m := ($b.members | uniq | sortAlpha) }}
+    - {{ $m | quote }}
+  {{- end }}
+  {{- with $b.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- include "kcc.alpha" (list $ (printf "views.%s.iam_bindings_additive" $vk) $view.iam_bindings_additive "IAMMember (config-connector-extensions)") }}
+{{- range $key, $b := ($view.iam_bindings_additive | default dict) }}
+---
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMMember
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "view" $vk "iam-member" $key)) "id" (printf "view:%s:iam-member:%s" $vk $key) "project" $project) | nindent 2 }}
+spec:
+  resourceRef:
+    {{- toYaml $ref | nindent 4 }}
+  role: {{ $b.role | quote }}
+  member: {{ $b.member | quote }}
+  {{- with $b.condition }}
+  condition:
+    {{- include "kcc.condition" . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,233 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/bigquery-dataset/main.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_bigquery_table.default: one BigQueryTable per table.
+google_bigquery_table.views: one BigQueryTable with a view per view.
+google_bigquery_table.materialized_view: one BigQueryTable with a
+materializedView per materialized view.
+Each names its dataset by its ID (external), so it can be deleted after
+the dataset's object is gone. deletion_protection is Terraform's own guard
+against destroy and has no Config Connector field: accepted and ignored.
+A table's labels are its object's labels, which Config Connector copies to
+the table.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := $v.project_id }}
+{{- /* The dataset's bare ID: Config Connector's BigQueryTable sends
+datasetRef.external to the API as the dataset ID, so the
+projects/<p>/datasets/<d> form its CRD describes reaches the API as
+datasets/projects/<p>/datasets/<d> and fails with 404 (found by the first
+fake-cloud run). The table's project is its project-id annotation. */}}
+{{- $datasetRef := include "bigqueryDataset.name" . }}
+{{- range $k := keys ($v.tables | default dict) | sortAlpha }}
+{{- $t := index $v.tables $k }}
+{{- $o := $t.options | default dict }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "table" $k)) "id" (printf "table:%s" $k) "project" $project "abandon" $abandon "labels" ($t.labels | default dict)) | nindent 2 }}
+spec:
+  datasetRef:
+    external: {{ $datasetRef | quote }}
+  resourceID: {{ $k | quote }}
+  {{- with $t.friendly_name }}
+  friendlyName: {{ . | quote }}
+  {{- end }}
+  {{- with ($t.description | default "Terraform managed.") }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $o.clustering }}
+  clustering:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $o.expiration_time) }}
+  expirationTime: {{ int64 $o.expiration_time }}
+  {{- end }}
+  {{- with $o.max_staleness }}
+  maxStaleness: {{ . | quote }}
+  {{- end }}
+  {{- with $t.schema }}
+  schema: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $t.require_partition_filter) }}
+  requirePartitionFilter: {{ $t.require_partition_filter }}
+  {{- end }}
+  {{- with $o.encryption_key }}
+  encryptionConfiguration:
+    kmsKeyRef:
+      external: {{ . | quote }}
+  {{- end }}
+  {{- with $t.external_data_configuration }}
+  {{- $e := . }}
+  externalDataConfiguration:
+    autodetect: {{ $e.autodetect }}
+    sourceUris:
+      {{- toYaml $e.source_uris | nindent 6 }}
+    {{- range $f := list (list "compression" "compression") (list "connectionId" "connection_id") (list "fileSetSpecType" "file_set_spec_type") (list "metadataCacheMode" "metadata_cache_mode") (list "objectMetadata" "object_metadata") (list "referenceFileSchemaUri" "reference_file_schema_uri") (list "schema" "schema") (list "sourceFormat" "source_format") }}
+    {{- with index $e (index $f 1) }}
+    {{ index $f 0 }}: {{ . | quote }}
+    {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $e.ignore_unknown_values) }}
+    ignoreUnknownValues: {{ $e.ignore_unknown_values }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $e.max_bad_records) }}
+    maxBadRecords: {{ int64 $e.max_bad_records }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $e.avro_logical_types) }}
+    avroOptions:
+      useAvroLogicalTypes: {{ $e.avro_logical_types }}
+    {{- end }}
+    {{- with $e.csv_options }}
+    csvOptions:
+      quote: {{ .quote | quote }}
+      {{- if not (kindIs "invalid" .allow_jagged_rows) }}
+      allowJaggedRows: {{ .allow_jagged_rows }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .allow_quoted_newlines) }}
+      allowQuotedNewlines: {{ .allow_quoted_newlines }}
+      {{- end }}
+      {{- with .encoding }}
+      encoding: {{ . | quote }}
+      {{- end }}
+      {{- with .field_delimiter }}
+      fieldDelimiter: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .skip_leading_rows) }}
+      skipLeadingRows: {{ int64 .skip_leading_rows }}
+      {{- end }}
+    {{- end }}
+    {{- with $e.json_options_encoding }}
+    jsonOptions:
+      encoding: {{ . | quote }}
+    {{- end }}
+    {{- with $e.google_sheets_options }}
+    googleSheetsOptions:
+      {{- with .range }}
+      range: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .skip_leading_rows) }}
+      skipLeadingRows: {{ int64 .skip_leading_rows }}
+      {{- end }}
+    {{- end }}
+    {{- with $e.hive_partitioning_options }}
+    hivePartitioningOptions:
+      {{- with .mode }}
+      mode: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .require_partition_filter) }}
+      requirePartitionFilter: {{ .require_partition_filter }}
+      {{- end }}
+      {{- with .source_uri_prefix }}
+      sourceUriPrefix: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $e.parquet_options }}
+    parquetOptions:
+      {{- if not (kindIs "invalid" .enum_as_string) }}
+      enumAsString: {{ .enum_as_string }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .enable_list_inference) }}
+      enableListInference: {{ .enable_list_inference }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $t.table_constraints }}
+  tableConstraints:
+    {{- with .primary_key_columns }}
+    primaryKey:
+      columns:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .foreign_keys }}
+    foreignKeys:
+      - referencedTable:
+          projectId: {{ .referenced_table.project_id | quote }}
+          datasetId: {{ .referenced_table.dataset_id | quote }}
+          tableId: {{ .referenced_table.table_id | quote }}
+        columnReferences:
+          referencingColumn: {{ .column_references.referencing_column | quote }}
+          referencedColumn: {{ .column_references.referenced_column | quote }}
+        {{- with .name }}
+        name: {{ . | quote }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $t.partitioning }}
+  {{- include "bigqueryDataset.partitioning" . | trim | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- range $k := keys ($v.views | default dict) | sortAlpha }}
+{{- $t := index $v.views $k }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "view" $k)) "id" (printf "view:%s" $k) "project" $project "abandon" $abandon "labels" ($t.labels | default dict)) | nindent 2 }}
+spec:
+  datasetRef:
+    external: {{ $datasetRef | quote }}
+  resourceID: {{ $k | quote }}
+  {{- with $t.friendly_name }}
+  friendlyName: {{ . | quote }}
+  {{- end }}
+  {{- with ($t.description | default "Terraform managed.") }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $t.schema }}
+  schema: {{ toJson . | quote }}
+  {{- end }}
+  view:
+    query: {{ $t.query | quote }}
+    {{- if not (kindIs "invalid" $t.use_legacy_sql) }}
+    useLegacySql: {{ $t.use_legacy_sql }}
+    {{- end }}
+{{- end }}
+{{- range $k := keys ($v.materialized_views | default dict) | sortAlpha }}
+{{- $t := index $v.materialized_views $k }}
+{{- $o := $t.options | default dict }}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "mview" $k)) "id" (printf "materialized-view:%s" $k) "project" $project "abandon" $abandon "labels" ($t.labels | default dict)) | nindent 2 }}
+spec:
+  datasetRef:
+    external: {{ $datasetRef | quote }}
+  resourceID: {{ $k | quote }}
+  {{- with $t.friendly_name }}
+  friendlyName: {{ . | quote }}
+  {{- end }}
+  {{- with ($t.description | default "Terraform managed.") }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $o.clustering }}
+  clustering:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $o.expiration_time) }}
+  expirationTime: {{ int64 $o.expiration_time }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $t.require_partition_filter) }}
+  requirePartitionFilter: {{ $t.require_partition_filter }}
+  {{- end }}
+  {{- with $t.partitioning }}
+  {{- include "bigqueryDataset.partitioning" . | trim | nindent 2 }}
+  {{- end }}
+  materializedView:
+    query: {{ $t.query | quote }}
+    {{- if not (kindIs "invalid" $t.enable_refresh) }}
+    enableRefresh: {{ $t.enable_refresh }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $t.refresh_interval_ms) }}
+    refreshIntervalMs: {{ int64 $t.refresh_interval_ms }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $t.allow_non_incremental_definition) }}
+    allowNonIncrementalDefinition: {{ $t.allow_non_incremental_definition }}
+    {{- end }}
+{{- end }}

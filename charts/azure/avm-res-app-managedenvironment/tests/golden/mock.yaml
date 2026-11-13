@@ -1,0 +1,285 @@
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: ManagedEnvironment
+metadata:
+  name: mock-cae
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "managed_environment"
+spec:
+  azureName: "catalog-cae"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  appLogsConfiguration:
+    destination: "azure-monitor"
+  tags:
+    catalog: mock
+  workloadProfiles:
+    - name: Consumption
+      workloadProfileType: Consumption
+  zoneRedundant: false
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsCertificate
+metadata:
+  name: mock-cert-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "certificate:kv"
+spec:
+  azureName: "kv-cert"
+  location: "eastus2"
+  owner:
+    name: mock-cae
+  properties:
+    certificateKeyVaultProperties:
+      identityReference:
+        wellKnownName: "System"
+      keyVaultUrl: "https://catalog-kv.vault.azure.net/secrets/cert"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsDaprComponent
+metadata:
+  name: mock-dapr-state
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "dapr_component:state"
+spec:
+  azureName: "statestore"
+  owner:
+    name: mock-cae
+  componentType: "state.azure.blobstorage"
+  metadata:
+    - name: "accountName"
+      value: "catalogst"
+  version: "v1"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsDaprSubscription
+metadata:
+  name: mock-daprsub-orders
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "dapr_subscription:orders"
+spec:
+  azureName: "orders"
+  owner:
+    name: mock-cae
+  pubsubName: "pubsub"
+  routes:
+    default: /orders
+  topic: "orders"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ManagedEnvironmentsDotNetComponent
+metadata:
+  name: mock-dotnet-aspire
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "dot_net_component:aspire"
+spec:
+  azureName: "aspire-dashboard"
+  owner:
+    name: mock-cae
+  componentType: "AspireDashboard"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsHttpRouteConfig
+metadata:
+  name: mock-route-api
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "http_route_config:api"
+spec:
+  azureName: "api"
+  owner:
+    name: mock-cae
+  properties:
+    rules:
+    - routes:
+      - match:
+          prefix: /api
+      targets:
+      - containerApp: api
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: mock-java-eureka
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "java_component:eureka"
+spec:
+  azureName: "eureka"
+  owner:
+    name: mock-cae
+  properties:
+    springCloudEureka:
+      componentType: SpringCloudEureka
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260302preview
+kind: ManagedEnvironmentsJavaComponent
+metadata:
+  name: mock-java-gateway
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "java_component:gateway"
+spec:
+  azureName: "gateway"
+  owner:
+    name: mock-cae
+  properties:
+    springCloudGateway:
+      componentType: SpringCloudGateway
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsMaintenanceConfiguration
+metadata:
+  name: mock-maint-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "maintenance_configuration:default"
+spec:
+  azureName: "default"
+  owner:
+    name: mock-cae
+  scheduledEntries:
+    - durationHours: 8
+      startHourUtc: 2
+      weekDay: "Sunday"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsManagedCertificate
+metadata:
+  name: mock-mcert-www
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "managed_certificate:www"
+spec:
+  azureName: "www-example-com"
+  location: "eastus2"
+  owner:
+    name: mock-cae
+  properties:
+    domainControlValidation: "CNAME"
+    subjectName: "www.example.com"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: mock-storage-files-kv
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "storage:files-kv"
+spec:
+  azureName: "files-kv"
+  owner:
+    name: mock-cae
+  properties:
+    azureFile:
+      accessMode: ReadOnly
+      accountKeyVaultProperties:
+        identityReference:
+          wellKnownName: System
+        keyVaultUrl: https://catalog-kv.vault.azure.net/secrets/storage-key
+      accountName: catalogst
+      shareName: share
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: mock-storage-nfs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "storage:nfs"
+spec:
+  azureName: "nfs"
+  owner:
+    name: mock-cae
+  properties:
+    nfsAzureFile:
+      accessMode: ReadWrite
+      server: catalogst.file.core.windows.net
+      shareName: /catalogst/nfs
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-cae-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: app.azure.com
+    kind: ManagedEnvironment
+    name: mock-cae
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."

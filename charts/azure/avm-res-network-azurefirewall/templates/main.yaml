@@ -1,0 +1,168 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-azurefirewall main.tf and
+locals.tf (v0.5.0), Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this: one ASO AzureFirewall (network.azure.com/v20250301),
+owned by the resource group parent_id or resource_group_name names, its
+body as the module builds it (local.firewall_body). The classic rule
+collections and threatIntelMode, which the module sends as placeholders
+and then ignores, are not sent.
+azapi_resource.lock: an aso-extensions ManagementLock, with the module's
+name and notes.
+azapi_resource.role_assignments: ASO RoleAssignments.
+azapi_resource.diagnostic_settings: ASO DiagnosticSettings.
+time_sleep.lock_removal, the role definition lookup and the telemetry are
+not ported (ASO resolves a role by name itself). ignore_body_changes,
+resource_types, retry, timeouts and firewall_timeouts are refused
+(upstream.yaml).
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.names" (list $ (list "azureFirewall")) }}
+{{- if not $v.name }}{{ fail "avm-res-network-azurefirewall: name is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-network-azurefirewall: location is required" }}{{ end }}
+{{- if not $v.firewall_sku_name }}{{ fail "avm-res-network-azurefirewall: firewall_sku_name is required" }}{{ end }}
+{{- if not $v.firewall_sku_tier }}{{ fail "avm-res-network-azurefirewall: firewall_sku_tier is required" }}{{ end }}
+{{- $ibc := false }}
+{{- range $_, $paths := ($v.ignore_body_changes | default dict) }}{{ if $paths }}{{ $ibc = true }}{{ end }}{{ end }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" $ibc "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's kinds fix the API versions (AzureFirewall 2025-03-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.unsupported" (list $ "firewall_timeouts" $v.firewall_timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- $parent := "" }}
+{{- if $v.parent_id }}
+{{- $parent = toString $v.parent_id }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$" $parent) }}{{ fail "avm-res-network-azurefirewall: `parent_id` must be a valid Azure resource group resource ID, or null." }}{{ end }}
+{{- else }}
+{{- $rg := toString $v.resource_group_name }}
+{{- if not $rg }}{{ fail "avm-res-network-azurefirewall: resource_group_name is required" }}{{ end }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-network-azurefirewall: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or parent_id" }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "fw") }}
+{{- $fwName := include "aso.resourceName" (list $ "azureFirewall" "firewall" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- /* The deprecated list first, then the map in key order, as the module
+orders them (local.firewall_ip_configurations). */ -}}
+{{- if and $v.ip_configurations $v.firewall_ip_configuration }}
+{{- fail "avm-res-network-azurefirewall: The `firewall_ip_configuration` variable is deprecated and should not be used alongside `ip_configurations`. Please use `ip_configurations` instead." }}
+{{- end }}
+{{- $ipcs := list }}
+{{- range ($v.firewall_ip_configuration | default list) }}{{ $ipcs = append $ipcs . }}{{ end }}
+{{- $withSubnet := 0 }}
+{{- range $k, $c := ($v.ip_configurations | default dict) }}
+{{- $ipcs = append $ipcs $c }}
+{{- if $c.subnet_id }}{{ $withSubnet = add1 $withSubnet }}{{ end }}
+{{- end }}
+{{- if and $v.ip_configurations (ne $withSubnet 1) }}
+{{- fail "avm-res-network-azurefirewall: At least one and only one IP configuration may contain a subnet_id." }}
+{{- end }}
+{{- range $ipcs }}
+{{- if and .subnet_id (not (hasSuffix "/subnets/AzureFirewallSubnet" .subnet_id)) }}
+{{- fail "avm-res-network-azurefirewall: The subnet of the firewall must be named `AzureFirewallSubnet`." }}
+{{- end }}
+{{- end }}
+{{- with $v.firewall_management_ip_configuration }}
+{{- if not (hasSuffix "/subnets/AzureFirewallManagementSubnet" (toString .subnet_id)) }}
+{{- fail "avm-res-network-azurefirewall: The management subnet of the firewall must be named `AzureFirewallManagementSubnet`." }}
+{{- end }}
+{{- end }}
+{{- with $v.firewall_virtual_hub }}
+{{- if and (not (kindIs "invalid" .public_ip_count)) (lt (int .public_ip_count) 1) }}
+{{- fail "avm-res-network-azurefirewall: `firewall_virtual_hub.public_ip_count` must be at least 1." }}
+{{- end }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: AzureFirewall
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "azure_firewall" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $fwName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "the resource group" $parent) | nindent 4 }}
+  {{- with $v.firewall_private_ip_ranges }}
+  additionalProperties:
+    Network.SNAT.PrivateRanges: {{ join "," (uniq . | sortAlpha) | quote }}
+  {{- end }}
+  {{- with $v.firewall_policy_id }}
+  firewallPolicy:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- with $v.firewall_virtual_hub }}
+  hubIPAddresses:
+    publicIPs:
+      count: {{ ternary 1 .public_ip_count (kindIs "invalid" .public_ip_count) | int }}
+  {{- end }}
+  {{- with $ipcs }}
+  ipConfigurations:
+    {{- range . }}
+    - name: {{ .name | quote }}
+      {{- with .public_ip_address_id }}
+      publicIPAddress:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+      {{- with .subnet_id }}
+      subnet:
+        reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.firewall_management_ip_configuration }}
+  managementIpConfiguration:
+    name: {{ .name | quote }}
+    publicIPAddress:
+      reference:
+        armId: {{ .public_ip_address_id | quote }}
+    subnet:
+      reference:
+        armId: {{ .subnet_id | quote }}
+  {{- end }}
+  sku:
+    name: {{ $v.firewall_sku_name }}
+    tier: {{ $v.firewall_sku_tier }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.firewall_virtual_hub }}
+  virtualHub:
+    reference:
+      armId: {{ .virtual_hub_id | quote }}
+  {{- end }}
+  {{- $zones := list }}
+  {{- range ($v.firewall_zones | default list) }}{{ $zones = append $zones (toString .) }}{{ end }}
+  {{- with $zones }}
+  zones:
+    {{- toYaml (uniq . | sortAlpha) | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "AzureFirewall" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" .kind)) "notes" (.notes | default $notes))) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- with $r.delegated_managed_identity_resource_id }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.ManagedIdentity/userAssignedIdentities/[^/]+$" .) }}
+{{- fail "avm-res-network-azurefirewall: Each `role_assignments[*].delegated_managed_identity_resource_id` must be a valid user-assigned managed identity resource ID, or null." }}
+{{- end }}
+{{- end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}

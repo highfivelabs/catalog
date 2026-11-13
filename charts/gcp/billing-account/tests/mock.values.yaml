@@ -1,0 +1,32 @@
+# The fake-cloud case (hack/mock-apply.sh): a role on the billing account,
+# an email channel, a budget alerting it, and (allow_alpha) a log sink to
+# a bucket.
+allow_alpha: true
+id: 012345-6789AB-CDEF01
+labels: {env: test}
+iam:
+  roles/billing.viewer: ["group:billing-viewers@example.com"]
+iam_bindings_additive:
+  user:
+    role: roles/billing.user
+    member: user:user@example.com
+budget_notification_channels:
+  ops:
+    project_id: mock-project
+    type: email
+    labels: {email_address: ops@example.com}
+budgets:
+  monthly:
+    display_name: Monthly
+    amount: {units: 100}
+    filter:
+      period: {calendar: MONTH}
+    threshold_rules:
+      - percent: 0.5
+    update_rules:
+      ops:
+        monitoring_notification_channels: ["$notification_channels:ops"]
+logging_sinks:
+  gcs:
+    destination: cat-mock-billing-logs
+    type: storage

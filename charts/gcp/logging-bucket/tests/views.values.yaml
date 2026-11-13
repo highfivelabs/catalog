@@ -1,0 +1,21 @@
+# fabric's README example "views", its context lookup resolved, with
+# iam_bindings and (allow_alpha) iam_bindings_additive on the view.
+allow_alpha: true
+parent: my-project
+name: mybucket
+views:
+  myview:
+    filter: LOG_ID("stdout")
+    iam:
+      roles/logging.viewAccessor: ["user:user@example.com"]
+    iam_bindings:
+      conditional:
+        role: roles/logging.viewAccessor
+        members: ["group:auditors@example.com"]
+        condition:
+          title: expires
+          expression: request.time < timestamp("2027-01-01T00:00:00Z")
+    iam_bindings_additive:
+      one:
+        role: roles/logging.viewer
+        member: serviceAccount:reader@my-project.iam.gserviceaccount.com

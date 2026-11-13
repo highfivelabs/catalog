@@ -1,0 +1,265 @@
+---
+# Source: avm-res-web-site/templates/domains.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: Certificate
+metadata:
+  name: mock-cert-www
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "certificate:www"
+spec:
+  azureName: "catalog-app-www"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  serverFarmReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Web/serverfarms/catalog-asp"
+  keyVaultReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.KeyVault/vaults/catalog-kv"
+  keyVaultSecretName: "www-catalog-example"
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-site-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: web.azure.com
+    kind: Site
+    name: mock-site
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-site-slot-staging-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:staging/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: web.azure.hfl.dev
+    kind: SitesSlot
+    name: mock-site-slot-staging
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-site-slot-staging-pe-pe-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:staging/private_endpoint:pe/lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: PrivateEndpoint
+    name: mock-site-slot-staging-pe-pe
+  level: CanNotDelete
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: mock-site-slot-staging-pe-pe
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:staging/private_endpoint:pe"
+spec:
+  azureName: "pep-sites-staging-51565276-04d9-575d-9b36-ddccfbfc258f"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  customNetworkInterfaceName: "nic-pep-sites-staging-51565276-04d9-575d-9b36-ddccfbfc258f"
+  privateLinkServiceConnections:
+    - name: "pcon-pep-sites-staging-51565276-04d9-575d-9b36-ddccfbfc258f"
+      groupIds:
+        - "sites-staging"
+      privateLinkServiceReference:
+        group: web.azure.com
+        kind: Site
+        name: mock-site
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/snet-pe"
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  name: mock-site-slot-staging-pe-pe-dns
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:staging/private_endpoint:pe/dns_zone_group"
+spec:
+  azureName: "default"
+  owner:
+    name: mock-site-slot-staging-pe-pe
+  privateDnsZoneConfigs:
+    - name: "default"
+      privateDnsZoneReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net"
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: web.azure.com/v20250501
+kind: Site
+metadata:
+  name: mock-site
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "site"
+spec:
+  azureName: "catalog-app"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  kind: "app,linux"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  enabled: true
+  httpsOnly: true
+  identity:
+    type: SystemAssigned
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Enabled
+  reserved: true
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Web/serverfarms/catalog-asp
+  siteConfig:
+    alwaysOn: false
+    appSettings:
+    - name: CATALOG
+      value: mock
+    ftpsState: FtpsOnly
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    linuxFxVersion: PYTHON|3.12
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    use32BitWorkerProcess: false
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+  tags:
+    catalog: mock
+---
+# Source: avm-res-web-site/templates/domains.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesHostNameBinding
+metadata:
+  name: mock-site-host-www
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "hostname_binding:www"
+spec:
+  azureName: "www.catalog.example"
+  owner:
+    name: mock-site
+---
+# Source: avm-res-web-site/templates/slots.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesSlot
+metadata:
+  name: mock-site-slot-staging
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "slot:staging"
+spec:
+  azureName: "staging"
+  location: "eastus2"
+  owner:
+    name: mock-site
+  kind: "app,linux"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  clientCertMode: Required
+  enabled: true
+  httpsOnly: true
+  identity:
+    type: SystemAssigned
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Disabled
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Web/serverfarms/catalog-asp
+  siteConfig:
+    alwaysOn: false
+    appSettings:
+    - name: CATALOG
+      value: mock-staging
+    ftpsState: FtpsOnly
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    scmType: None
+    use32BitWorkerProcess: false
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+  tags:
+    catalog: mock

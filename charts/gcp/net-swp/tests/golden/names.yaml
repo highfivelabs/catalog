@@ -1,0 +1,141 @@
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  name: names-psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "service_attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "shop-dev-swp-psc"
+  description: "Service attachment for SWP secure-web-proxy"
+  targetServiceRef:
+    external: "projects/my-project/locations/europe-west4/gateways/shop-dev-swp"
+  natSubnets:
+    - external: "projects/my-project/regions/europe-west4/subnetworks/my-psc-subnetwork"
+  connectionPreference: ACCEPT_MANUAL
+  enableProxyProtocol: false
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  name: names-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "gateway_security_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "shop-dev-swp-policy"
+  description: "Managed by Terraform."
+  tlsInspectionPolicy: "projects/my-project/locations/europe-west4/tlsInspectionPolicies/shop-dev-swp-tls"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityTLSInspectionPolicy
+metadata:
+  name: names-tls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "tls_inspection_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "shop-dev-swp-tls"
+  description: "Managed by Terraform."
+  caPool: "projects/my-project/locations/europe-west4/caPools/swp"
+  excludePublicCaSet: false
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityURLList
+metadata:
+  name: names-url-list-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "url_list:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "default"
+  description: "Managed by Terraform."
+  values:
+    - "example.org"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "shop-dev-swp"
+  type: SECURE_WEB_GATEWAY
+  description: "Managed by Terraform."
+  labels:
+    environment: "dev"
+    team: "shop"
+  ports:
+    - 443
+  gatewaySecurityPolicy: "projects/my-project/locations/europe-west4/gatewaySecurityPolicies/shop-dev-swp-policy"
+  network: "projects/my-project/global/networks/my-network"
+  subnetwork: "projects/my-project/regions/europe-west4/subnetworks/my-subnetwork"
+  routingMode: EXPLICIT_ROUTING_MODE

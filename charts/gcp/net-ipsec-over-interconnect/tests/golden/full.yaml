@@ -1,0 +1,105 @@
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  name: full-peer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "external_gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "onprem-gw"
+  description: "On-premises router"
+  redundancyType: SINGLE_IP_INTERNALLY_REDUNDANT
+  interface:
+    - id: 0
+      ipAddress: "172.16.0.1"
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-router"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  bgp:
+    asn: 64514
+    advertiseMode: CUSTOM
+    advertisedGroups: [ALL_SUBNETS]
+    advertisedIpRanges:
+      - range: "10.0.0.0/8"
+        description: "all"
+    keepaliveInterval: 20
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: full-route-policy-import
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:import"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "import"
+  projectRef:
+    external: "my-project"
+  region: "europe-west8"
+  routerRef:
+    name: full
+  type: ROUTE_POLICY_TYPE_IMPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "destination == '10.0.0.0/8'"
+        title: "t"
+        description: "d"
+        location: "l"
+      actions:
+        - expression: "drop()"
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-gw-vpn-full"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  vpnInterfaces:
+    - id: 0
+      interconnectAttachmentRef:
+        external: "projects/my-project/regions/europe-west8/interconnectAttachments/vlan-a"
+    - id: 1
+      interconnectAttachmentRef:
+        external: "projects/my-project/regions/europe-west8/interconnectAttachments/vlan-b"

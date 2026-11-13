@@ -1,0 +1,51 @@
+# fabric's "Secure Web Proxy with rules" example.
+project_id: my-project
+region: europe-west4
+name: secure-web-proxy
+network: projects/my-project/global/networks/my-network
+subnetwork: projects/my-project/regions/europe-west4/subnetworks/my-subnetwork
+certificates:
+  - projects/my-project/locations/europe-west4/certificates/secure-web-proxy-cert
+gateway_config:
+  addresses: ["10.142.68.3"]
+  ports: [80, 443]
+  labels:
+    example: value
+policy_rules:
+  host-0:
+    priority: 1000
+    allow: false
+    session_matcher: "host() == 'google.com'"
+  secure-tag-0:
+    priority: 1001
+    session_matcher: |
+      source.matchTag('tagValues/281484836404786') && host() == 'example.com'
+  secure-tag-1:
+    priority: 1002
+    session_matcher: |
+      source.matchTag('tagValues/281484836404786') && host() != 'google.com'
+  service-account-0:
+    priority: 1003
+    session_matcher: |
+      source.matchServiceAccount('%s') && host() == 'example.com'
+    matcher_args:
+      session: ["service_account:foo"]
+  url-list-0:
+    priority: 1004
+    session_matcher: |
+      inUrlList(
+        host(),
+        'projects/my-project/locations/europe-west4/urlLists/my-url-list'
+      )
+  url-list-1:
+    priority: 1005
+    session_matcher: "inUrlList(host(), '%s')"
+    matcher_args:
+      session:
+        - url_list:projects/my-project/locations/europe-west4/urlLists/default
+policy_rules_contexts:
+  service_accounts:
+    foo: foo@my-prj.iam.gserviceaccount.com
+url_lists:
+  default:
+    values: ["example.org"]

@@ -1,0 +1,53 @@
+---
+# Source: geap-agent-gateway/templates/connectivity-template.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentConnectivityTemplate
+metadata:
+  name: psc-template
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "psc"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "connectivity_template"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway"
+  accessPath: AGENT_TO_ANYWHERE
+  accessTypes:
+    - "PRIVATE"
+  description: "Terraform managed."
+  egressNetworkConfig:
+    networkAttachment: "projects/my-project-id/regions/europe-west1/networkAttachments/my-na"
+    vpcEgress: "ALL_TRAFFIC"
+    dnsPeeringConfig:
+      domains:
+        - "corp.internal."
+      targetNetwork: "projects/my-project-id/global/networks/my-vpc"
+---
+# Source: geap-agent-gateway/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentGateway
+metadata:
+  name: psc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "psc"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway"
+  agentConnectivityTemplate: "projects/1234567890/locations/europe-west1/agentConnectivityTemplates/my-gateway"
+  description: "Terraform managed."
+  googleManaged:
+    governedAccessPath: AGENT_TO_ANYWHERE

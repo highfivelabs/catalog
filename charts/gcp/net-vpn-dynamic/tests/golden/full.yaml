@@ -1,0 +1,177 @@
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-esp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "esp"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-full-esp"
+  location: "europe-west1"
+  ipProtocol: ESP
+  ipAddress:
+    ip: "34.1.2.3"
+  target:
+    targetVPNGatewayRef:
+      name: full
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-udp-500
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "udp_500"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-full-udp-500"
+  location: "europe-west1"
+  ipProtocol: UDP
+  portRange: "500"
+  ipAddress:
+    ip: "34.1.2.3"
+  target:
+    targetVPNGatewayRef:
+      name: full
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: full-udp-4500
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "udp_4500"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-vpn-full-udp-4500"
+  location: "europe-west1"
+  ipProtocol: UDP
+  portRange: "4500"
+  ipAddress:
+    ip: "34.1.2.3"
+  target:
+    targetVPNGatewayRef:
+      name: full
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "my-router"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  bgp:
+    asn: 64514
+    advertiseMode: CUSTOM
+    advertisedGroups: [ALL_SUBNETS]
+    advertisedIpRanges:
+      - range: "10.0.0.0/8"
+        description: "all"
+    keepaliveInterval: 30
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: full-route-policy-export-all
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:export-all"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "export-all"
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  routerRef:
+    name: full
+  type: ROUTE_POLICY_TYPE_EXPORT
+  terms:
+    - priority: 0
+      match:
+        expression: "true"
+      actions:
+        - expression: "accept()"
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: full-route-policy-import-onprem
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:import-onprem"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "import-onprem"
+  projectRef:
+    external: "my-project"
+  region: "europe-west1"
+  routerRef:
+    name: full
+  type: ROUTE_POLICY_TYPE_IMPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "destination == '10.0.0.0/8'"
+        title: "onprem"
+        description: "on-premises range"
+        location: "here"
+      actions:
+        - expression: "drop()"
+          title: "drop"
+---
+# Source: net-vpn-dynamic/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetVPNGateway
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: net-vpn-dynamic
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-full"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"

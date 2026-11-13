@@ -1,0 +1,72 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): an
+# environment in the fake cloud's resource group with one of each child
+# kind the chart maps (the fake keeps any body: the Key Vault references
+# and the share are not read), and a lock.
+name: catalog-cae
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+zone_redundant: false
+tags: {catalog: mock}
+app_logs_configuration: {destination: azure-monitor}
+workload_profiles:
+  - {name: Consumption, workload_profile_type: Consumption}
+certificates:
+  kv:
+    name: kv-cert
+    location: eastus2
+    certificate_key_vault_properties:
+      identity: System
+      key_vault_url: https://catalog-kv.vault.azure.net/secrets/cert
+dapr_components:
+  state:
+    name: statestore
+    component_type: state.azure.blobstorage
+    dapr_components_version: v1
+    metadata:
+      - {name: accountName, value: catalogst}
+dapr_subscriptions:
+  orders:
+    name: orders
+    pubsub_name: pubsub
+    topic: orders
+    routes: {default: /orders}
+storages:
+  files-kv:
+    name: files-kv
+    azure_file:
+      access_mode: ReadOnly
+      account_name: catalogst
+      share_name: share
+      account_key_vault_properties: {identity: System, key_vault_url: "https://catalog-kv.vault.azure.net/secrets/storage-key"}
+  nfs:
+    name: nfs
+    nfs_azure_file: {access_mode: ReadWrite, server: catalogst.file.core.windows.net, share_name: /catalogst/nfs}
+managed_certificates:
+  www:
+    name: www-example-com
+    location: eastus2
+    subject_name: www.example.com
+    domain_control_validation: CNAME
+java_components:
+  eureka:
+    name: eureka
+    component_type: SpringCloudEureka
+  gateway:
+    name: gateway
+    component_type: SpringCloudGateway
+dot_net_components:
+  aspire:
+    name: aspire-dashboard
+    component_type: AspireDashboard
+http_route_configs:
+  api:
+    name: api
+    rules:
+      - routes: [{match: {prefix: /api}}]
+        targets: [{container_app: api}]
+maintenance_configurations:
+  default:
+    name: default
+    scheduled_entries:
+      - {week_day: Sunday, start_hour_utc: 2, duration_hours: 8}
+lock: {kind: CanNotDelete}

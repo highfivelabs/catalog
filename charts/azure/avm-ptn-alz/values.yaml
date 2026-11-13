@@ -1,0 +1,148 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-ptn-alz (v0.22.0): same names, types and defaults, so a module
+# block's arguments become this file one to one. values.schema.json
+# carries the types. README.md maps each one to Azure Service Operator
+# (ASO) and aso-extensions.
+#
+# Descriptions quoted or cut down from terraform-azurerm-avm-ptn-alz
+# (variables*.tf, v0.22.0), Copyright (c) Microsoft Corporation, MIT.
+#
+# The module reads its architecture (management groups and the policy
+# definitions, set definitions, assignments and role definitions of each)
+# from the alz provider's library: the alz_architecture data source, which
+# fetches the library when Terraform plans. A render fetches nothing, so the
+# architecture is given resolved, in `architecture`: that data source's
+# result. The data source's own arguments (policy_assignments_to_modify's
+# changes, policy_default_values, the non-compliance message settings and
+# the assignPermissions overrides) shape that result and are refused here.
+
+# Not Terraform variables.
+#
+# The alz_architecture data source's result for architecture_name (the
+# provider's output, as `terraform console` prints
+# data.alz_architecture.<name>, or the module's resolved library): {name,
+# management_groups: [{id, display_name, parent_id, exists, level,
+# policy_definitions, policy_set_definitions, policy_assignments,
+# role_definitions}], policy_role_assignments: [{management_group_id,
+# policy_assignment_name, role_definition_id, scope}]}. The four maps take
+# each resource's JSON as a string (as the data source gives it) or as an
+# object. Required.
+architecture: null
+# The tenant's ID: the tenant root management group's name, where the
+# hierarchy settings live (the module reads it from azapi_client_config).
+# Required with management_group_hierarchy_settings; a management group
+# whose parent is the tenant root is made without a parent, which puts it
+# there.
+tenant_id: null
+# Names in full: none (the names are the architecture's), so any key is
+# refused.
+names: {}
+# Accepted with no effect: a management group's ID is the architecture's,
+# and the architecture's own resource IDs (policy definition IDs, scopes)
+# name it, so the chart cannot prefix it.
+namePrefix: ""
+# Azure tags: refused when set. Management groups, policy and role
+# resources take no tags (and the module has no tags variable).
+tags: null
+# Kubernetes labels on every object. ASO never copies them to Azure.
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused.
+deletion_policy: null
+
+# Module variables (alphabetical).
+
+# The name of the architecture to create (one of the library's
+# *.alz_architecture_definition files). Required by the module; here it
+# must equal architecture.name: the render does not resolve it.
+architecture_name: ""
+# DEPRECATED in the module: delays after management groups and policy
+# definitions. Accepted with no effect: ASO retries until what an object
+# needs exists.
+delays: {}
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# The default location for resources in this management group. Used for
+# policy managed identities (each policy assignment's location).
+location: ""
+# The hierarchy settings: {default_management_group_name,
+# require_authorization_for_group_creation (default true),
+# update_existing (default false)}.
+management_group_hierarchy_settings: null
+# Role assignments at management groups, each {management_group_name,
+# role_definition_id_or_name, principal_id, description,
+# skip_service_principal_aad_check, condition, condition_version,
+# delegated_managed_identity_resource_id, principal_type}.
+management_group_role_assignments: {}
+# Ordering hints for Terraform. Accepted with no effect: ASO retries until
+# what an object needs exists, and Bundt orders components.
+management_groups_dependencies: null
+# The assignPermissions overrides the alz provider applies when it
+# resolves the architecture (the module's default list is applied there).
+# Refused when set: the given architecture is already resolved.
+override_policy_definition_parameter_assign_permissions_set: null
+# Refused when set, as above.
+override_policy_definition_parameter_assign_permissions_unset: null
+# Casing overrides for parent IDs, against Terraform replacing a resource
+# over a casing difference. Accepted with no effect: ASO addresses an
+# owner by its object or ID and does not replace a resource over the case
+# of its parent's ID.
+parent_id_overrides: {}
+# The resource name of the parent management group (the tenant ID for the
+# tenant root group), without the
+# /providers/Microsoft.Management/managementGroups/ prefix.
+parent_resource_id: ""
+# The default non-compliance message settings the alz provider applies
+# when it resolves the architecture. Refused when set: the given
+# architecture is already resolved.
+policy_assignment_non_compliance_message_settings: {}
+# Ordering hints for Terraform. Accepted with no effect.
+policy_assignments_dependencies: null
+# Policy assignments to modify, by management group and assignment name.
+# creation_enabled and role_assignments_enabled are applied (the module
+# reads them itself); the other fields are inputs to the alz provider's
+# resolution, refused.
+policy_assignments_to_modify: {}
+# Default values for policy assignment parameters, applied by the alz
+# provider when it resolves the architecture. Refused when set.
+policy_default_values: null
+# Ordering hints for Terraform. Accepted with no effect.
+policy_role_assignments_dependencies: null
+# AzAPI resource types and API versions. Refused when set: ASO's and
+# aso-extensions' kinds fix the API versions.
+resource_types: {}
+# AzAPI retry settings. Refused when set: ASO retries every failed request
+# itself.
+retries: {}
+# A control to disable the lookup of role definitions by name for
+# management_group_role_assignments; when false, every role must be given
+# by ID.
+role_assignment_definition_lookup_enabled: true
+# A control to use a random UUID for a role assignment's name (ASO's own
+# stable UUID here) instead of the module's deterministic one.
+role_assignment_name_use_random_uuid: false
+# AzAPI schema validation per resource type. true is accepted (ASO's CRD
+# schemas always validate); false is refused.
+schema_validation_enabled: {}
+# Subscriptions to place into management groups, each {subscription_id,
+# management_group_name}.
+subscription_placement: {}
+# What happens to a placed subscription on destroy: default (the tenant's
+# default management group, which deleting the placement does) is
+# accepted, as is intermediate_root when the architecture has no existing
+# intermediate root; parent, custom and a real intermediate_root are
+# refused.
+subscription_placement_destroy_behavior: default
+# The management group subscriptions move to on destroy with custom.
+# Refused when set.
+subscription_placement_destroy_custom_target_management_group_id: null
+# Additional telemetry content. Accepted; the chart never sends telemetry.
+telemetry_additional_content: null
+# AzAPI timeouts. Refused when set: ASO has no per-request timeouts;
+# Bundt sets a component's time limit.
+timeouts: {}

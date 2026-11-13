@@ -1,0 +1,141 @@
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: AzureFirewall
+metadata:
+  name: full-fw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "azure_firewall"
+spec:
+  azureName: "afw-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  additionalProperties:
+    Network.SNAT.PrivateRanges: "100.64.0.0/10,IANAPrivateRanges"
+  firewallPolicy:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/firewallPolicies/afwp-example"
+  ipConfigurations:
+    - name: "ipconfig1"
+      publicIPAddress:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-afw-1"
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/AzureFirewallSubnet"
+    - name: "ipconfig2"
+      publicIPAddress:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-afw-2"
+  managementIpConfiguration:
+    name: "mgmt"
+    publicIPAddress:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-afw-mgmt"
+    subnet:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/AzureFirewallManagementSubnet"
+  sku:
+    name: AZFW_VNet
+    tier: Basic
+  tags:
+    env: test
+  zones:
+    - "1"
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-fw-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-afw-full"
+  owner:
+    group: network.azure.com
+    kind: AzureFirewall
+    name: full-fw
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law-example"
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-fw-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "afw-lock"
+  owner:
+    group: network.azure.com
+    kind: AzureFirewall
+    name: full-fw
+  level: CanNotDelete
+  notes: "Owned by the platform team."
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-fw-role-contributor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-contributor"
+spec:
+  azureName: "9f1c2d3e-0000-4000-8000-000000000001"
+  owner:
+    group: network.azure.com
+    kind: AzureFirewall
+    name: full-fw
+  principalId: "55555555-6666-7777-8888-999999999999"
+  principalType: "ServicePrincipal"
+  roleDefinitionReference:
+    armId: "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+  description: "network contributor for the pipeline"
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-fw-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: AzureFirewall
+    name: full-fw
+  principalId: "44444444-5555-6666-7777-888888888888"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

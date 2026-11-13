@@ -1,0 +1,75 @@
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: ipsec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "address"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "pool-vlan-a"
+  location: "europe-west8"
+  addressType: INTERNAL
+  purpose: IPSEC_INTERCONNECT
+  address: "10.255.255.0"
+  prefixLength: 29
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInterconnectAttachment
+metadata:
+  name: ipsec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-a"
+  description: "vlan-a"
+  region: "europe-west8"
+  routerRef:
+    name: ipsec
+  type: PARTNER
+  adminEnabled: true
+  edgeAvailabilityDomain: "AVAILABILITY_DOMAIN_1"
+  encryption: IPSEC
+  ipsecInternalAddresses:
+    - name: ipsec
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: ipsec
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "ipsec"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-a-underlay"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  encryptedInterconnectRouter: true
+  bgp:
+    asn: 16550
+    advertiseMode: DEFAULT
+    advertisedIpRanges:
+      - range: "10.255.255.0/29"
+        description: "ipsec-gw"

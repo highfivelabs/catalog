@@ -1,0 +1,71 @@
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  name: basic-peer
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "external_gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "peer-vpn-gw-vpn-ipsec"
+  description: "Terraform managed IPSec over Interconnect VPN gateway"
+  redundancyType: TWO_IPS_REDUNDANCY
+  interface:
+    - id: 0
+      ipAddress: "172.16.0.1"
+    - id: 1
+      ipAddress: "172.16.0.2"
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "router-vpn-ipsec"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  bgp:
+    asn: 64514
+    advertiseMode: DEFAULT
+---
+# Source: net-ipsec-over-interconnect/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-ipsec-over-interconnect
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-gw-vpn-ipsec"
+  region: "europe-west8"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  vpnInterfaces:
+    - id: 0
+      interconnectAttachmentRef:
+        external: "projects/my-project/regions/europe-west8/interconnectAttachments/vlan-a"
+    - id: 1
+      interconnectAttachmentRef:
+        external: "projects/my-project/regions/europe-west8/interconnectAttachments/vlan-b"

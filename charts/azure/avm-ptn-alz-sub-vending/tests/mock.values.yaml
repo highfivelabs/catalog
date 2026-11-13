@@ -1,0 +1,100 @@
+# For an apply against the fake cloud (docs/azure.md, "8. Charts"): the
+# fake's subscription with its tags updated, a locked resource group made
+# by the chart and in it a network security group with a rule, a route
+# table with a route, an identity with a GitHub federated credential and a
+# Reader role assignment on the group, a role assignment by ID, a budget,
+# and two networks meshed, one with a subnet in the group's network
+# security group and route table.
+location: eastus2
+subscription_id: 00000000-0000-0000-0000-000000000000
+subscription_update_existing: true
+subscription_tags:
+  catalog: mock
+resource_group_creation_enabled: true
+resource_groups:
+  vending:
+    name: rg-subv-mock
+    lock_enabled: true
+network_security_group_enabled: true
+network_security_groups:
+  app:
+    name: nsg-subv-mock
+    resource_group_key: vending
+    security_rules:
+      https:
+        name: allow-https
+        access: Allow
+        direction: Inbound
+        priority: 100
+        protocol: Tcp
+        source_address_prefix: "*"
+        source_port_range: "*"
+        destination_address_prefix: "*"
+        destination_port_range: "443"
+route_table_enabled: true
+route_tables:
+  egress:
+    name: rt-subv-mock
+    location: eastus2
+    resource_group_key: vending
+    routes:
+      internet:
+        name: internet
+        address_prefix: 0.0.0.0/0
+        next_hop_type: Internet
+umi_enabled: true
+user_managed_identities:
+  deploy:
+    name: id-subv-mock
+    resource_group_key: vending
+    role_assignments:
+      reader:
+        definition: Reader
+        resource_group_scope_key: vending
+        principal_type: ServicePrincipal
+    federated_credentials_github:
+      main:
+        organization: contoso
+        repository: infra
+        entity: branch
+        value: main
+role_assignment_enabled: true
+role_assignments:
+  contributor:
+    principal_id: 0a0a0a0a-0000-4000-8000-000000000001
+    definition: /providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c
+    resource_group_scope_key: vending
+    principal_type: User
+budget_enabled: true
+budgets:
+  monthly:
+    name: budget-subv-mock
+    amount: 100
+    time_grain: Monthly
+    time_period_start: "2026-12-01T00:00:00Z"
+    time_period_end: "2027-11-30T00:00:00Z"
+    resource_group_key: vending
+    notifications:
+      eighty:
+        enabled: true
+        operator: GreaterThan
+        threshold: 80
+        contact_emails: [finops@example.com]
+virtual_network_enabled: true
+virtual_networks:
+  one:
+    name: vnet-subv-mock-1
+    address_space: ["10.10.0.0/24"]
+    resource_group_key: vending
+    mesh_peering_enabled: true
+    subnets:
+      app:
+        name: snet-app
+        address_prefix: 10.10.0.0/26
+        network_security_group: {key_reference: app}
+        route_table: {key_reference: egress}
+  two:
+    name: vnet-subv-mock-2
+    address_space: ["10.10.1.0/24"]
+    resource_group_key: vending
+    mesh_peering_enabled: true

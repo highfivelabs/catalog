@@ -1,0 +1,75 @@
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: iap-dry-run-authz-policy-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iap-dry-run"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "iap_policy"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway-iap"
+  action: CUSTOM
+  policyProfile: REQUEST_AUTHZ
+  target:
+    resources:
+      - "projects/my-project-id/locations/europe-west1/agentGateways/my-gateway"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/my-project-id/locations/europe-west1/authzExtensions/my-gateway-iap"
+---
+# Source: geap-agent-gateway/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1alpha1
+kind: NetworkServicesAgentGateway
+metadata:
+  name: iap-dry-run
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iap-dry-run"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway"
+  description: "Terraform managed."
+  googleManaged:
+    governedAccessPath: AGENT_TO_ANYWHERE
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: iap-dry-run-authz-extension-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "iap-dry-run"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "iap_extension"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "my-gateway-iap"
+  service: "iap.googleapis.com"
+  failOpen: false
+  timeout: "2s"
+  metadata:
+    iamEnforcementMode: "DRY_RUN"
+    iapPolicyVersion: "V2"

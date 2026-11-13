@@ -1,0 +1,33 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/net-vpn-dynamic
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/net-vpn-dynamic
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-dynamic
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: router_config
+    kind: alpha
+    reason: "accepted; route_policies need config-connector-extensions' v1alpha1 ComputeRouterRoutePolicy: set allow_alpha: true"
+    partial: true
+    alpha_fields: [route_policies]
+  - variable: tunnels
+    kind: not-ported
+    reason: "a tunnel needs a shared secret: one given here would be in the rendered manifest, and Terraform's random_id has no Config Connector equivalent; ComputeVPNTunnel takes it from a Kubernetes Secret (sharedSecret.valueFrom), which the chart does not take yet (the SECV question). With no tunnel there is no router interface or BGP peer either; ComputeVPNTunnel also has no cipherSuite field, and ComputeRouterPeer no md5AuthenticationKey, importPolicies, exportPolicies or customLearnedIpRanges (gaps)"

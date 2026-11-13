@@ -1,0 +1,76 @@
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeExternalVPNGateway
+metadata:
+  name: names-peer-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "external_gateway:default"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "mynet-to-onprem-default"
+  description: "Terraform managed external VPN gateway"
+  redundancyType: "SINGLE_IP_INTERNALLY_REDUNDANT"
+  interface:
+    - id: 0
+      ipAddress: "8.8.8.8"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-cr"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  bgp:
+    asn: 64514
+    advertiseMode: DEFAULT
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-vpn"
+  description: "Terraform managed external VPN gateway"
+  region: "europe-west1"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  stackType: IPV4_ONLY

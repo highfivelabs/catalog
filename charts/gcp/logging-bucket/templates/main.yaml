@@ -1,0 +1,93 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/logging-bucket/main.tf
+(v60.0.0), Copyright 2023 Google LLC, Apache-2.0.
+
+google_logging_{project,folder,organization,billing_account}_bucket_config.bucket:
+one LoggingLogBucket, its parent by parent_type. kms_key_name (cmek_settings)
+is refused: the kind has no cmekSettings.
+google_logging_linked_dataset.dataset: one LoggingLink, for a project
+bucket with log_analytics.dataset_link_id.
+google_logging_log_view.views: one LoggingLogView per view.
+google_tags_tag_binding.binding: one TagsTagBinding per tag binding.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "bucket")) }}
+{{- include "kcc.unsupported" (list $ "context" $v.context "use Bundt expressions (${...}) and valueFrom in the component's inputs instead") }}
+{{- include "kcc.unsupported" (list $ "kms_key_name" $v.kms_key_name "LoggingLogBucket has no cmekSettings") }}
+{{- $type := $v.parent_type | default "project" }}
+{{- if and (ne $type "project") (not (kindIs "invalid" $v.locked)) }}
+{{- fail "logging-bucket: The 'locked' attribute can only be set for project-level buckets." }}
+{{- end }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := include "loggingBucket.project" . }}
+{{- $la := $v.log_analytics | default dict }}
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogBucket
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "bucket" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- include "loggingBucket.parentRef" . | nindent 2 }}
+  location: {{ $v.location | quote }}
+  resourceID: {{ include "loggingBucket.name" . | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.retention) }}
+  retentionDays: {{ $v.retention }}
+  {{- end }}
+  {{- if eq $type "project" }}
+  enableAnalytics: {{ $la.enable | default false }}
+  {{- if not (kindIs "invalid" $v.locked) }}
+  locked: {{ $v.locked }}
+  {{- end }}
+  {{- end }}
+{{- if and $la.dataset_link_id (eq $type "project") }}
+---
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLink
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "link")) "id" "link" "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- /* By its full name, so the link can be deleted after the bucket's
+  object is gone (Config Connector resolves a name reference on delete). */}}
+  loggingLogBucketRef:
+    external: {{ include "loggingBucket.id" . | quote }}
+  resourceID: {{ $la.dataset_link_id | quote }}
+  {{- with $la.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- $views := $v.views | default dict }}
+{{- range $key := keys $views | sortAlpha }}
+{{- $view := index $views $key }}
+---
+apiVersion: logging.cnrm.cloud.google.com/v1beta1
+kind: LoggingLogView
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "view" $key)) "id" (printf "view:%s" $key) "project" $project "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- include "loggingBucket.parentRef" $ | nindent 2 }}
+  bucketRef:
+    name: {{ $.Release.Name }}
+  resourceID: {{ $key | quote }}
+  location: {{ $view.location | default $v.location | quote }}
+  filter: {{ $view.filter | quote }}
+  {{- with $view.description }}
+  description: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- $tags := $v.tag_bindings | default dict }}
+{{- range $tk := keys $tags | sortAlpha }}
+---
+apiVersion: tags.cnrm.cloud.google.com/v1beta1
+kind: TagsTagBinding
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tag" $tk)) "id" (printf "tag:%s" $tk) "project" $project) | nindent 2 }}
+spec:
+  parentRef:
+    external: {{ printf "//logging.googleapis.com/%s" (include "loggingBucket.id" $) | quote }}
+  tagValueRef:
+    external: {{ index $tags $tk | quote }}
+{{- end }}

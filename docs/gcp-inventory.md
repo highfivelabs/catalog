@@ -223,10 +223,10 @@ not have. Each is refused by the chart when set.
 | 82 | [gcve-private-cloud](#gcve-private-cloud) | full, with alpha | S | 337 | 5 | 0 / 5 / 0 |
 | 83 | [looker-core](#looker-core) | none | M | 435 | 15 | 0 / 0 / 1 |
 | 84 | [ai-applications](#ai-applications) | partial | L | 1666 | 8 | 2 / 8 / 1 |
-| 85 | [geap-agent-gateway](#geap-agent-gateway) | partial | L | 920 | 15 | 0 / 3 / 3 |
+| 85 | [geap-agent-gateway](#geap-agent-gateway) | partial | L | 920 | 15 | 0 / 0 / 6 |
 | 86 | [geap-agent-runtime](#geap-agent-runtime) | partial | L | 1132 | 14 | 3 / 0 / 2 |
 | 87 | [geap-workbench](#geap-workbench) | partial | M | 668 | 30 | 1 / 1 / 1 |
-| 88 | [secops-rules](#secops-rules) | partial | S | 180 | 5 | 0 / 2 / 1 |
+| 88 | [secops-rules](#secops-rules) | partial | S | 180 | 5 | 0 / 0 / 3 |
 | 89 | [container-registry](#container-registry) | none | S | 113 | 3 | 1 / 0 / 1 |
 | 90 | [projects-data-source](#projects-data-source) | n/a | S | 169 | 5 | 0 / 0 / 0 |
 | 91 | [cloud-config-container](#cloud-config-container) | n/a | L | 1954 | 72 | 0 / 0 / 0 |
@@ -1059,7 +1059,7 @@ Rank 47. Terraform module: [`modules/net-swp`](https://github.com/GoogleCloudPla
 | `google_network_security_gateway_security_policy_rule` | NetworkSecurityGatewaySecurityPolicyRule (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_network_security_tls_inspection_policy` | NetworkSecurityTLSInspectionPolicy (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_network_security_url_lists` | NetworkSecurityURLList (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
-| `google_network_services_gateway` | none | **gap** |
+| `google_network_services_gateway` | NetworkServicesGateway (networkservices.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### net-lb-app-ext-regional
 
@@ -1530,7 +1530,7 @@ Rank 79. Terraform module: [`modules/endpoints`](https://github.com/GoogleCloudP
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_endpoints_service` | none | **gap** |
+| `google_endpoints_service` | EndpointsService (servicemanagement.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_endpoints_service_iam_binding` | IAMBinding (iam.gcp.hfl.dev/v1beta1) on EndpointsService | gap kind (config-connector-extensions) |
 
 ### cloud-function-v1
@@ -1617,12 +1617,12 @@ Rank 85. Terraform module: [`modules/geap-agent-gateway`](https://github.com/Goo
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_iam_project_access_policy` | IAMAccessPolicy | alpha only |
-| `google_iam_projects_policy_binding` | none | **gap** |
-| `google_network_security_authz_policy` | NetworkSecurityAuthzPolicy | alpha only |
+| `google_iam_project_access_policy` | IAMAccessPolicy (iam.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_iam_projects_policy_binding` | IAMPolicyBinding (iam.gcp.hfl.dev) | gap kind (config-connector-extensions) |
+| `google_network_security_authz_policy` | NetworkSecurityAuthzPolicy (networksecurity.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_network_services_agent_connectivity_template` | NetworkServicesAgentConnectivityTemplate (networkservices.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_network_services_agent_gateway` | NetworkServicesAgentGateway (networkservices.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
-| `google_network_services_authz_extension` | NetworkServicesAuthzExtension | alpha only |
+| `google_network_services_authz_extension` | NetworkServicesAuthzExtension (networkservices.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 
 ### geap-agent-runtime
 
@@ -1658,9 +1658,9 @@ Rank 88. Terraform module: [`modules/secops-rules`](https://github.com/GoogleClo
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_chronicle_reference_list` | ChronicleReferenceList | alpha only |
-| `google_chronicle_rule` | ChronicleRule | alpha only |
-| `google_chronicle_rule_deployment` | none | **gap** |
+| `google_chronicle_reference_list` | ChronicleReferenceList (chronicle.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_chronicle_rule` | ChronicleRule (chronicle.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
+| `google_chronicle_rule_deployment` | ChronicleRuleDeployment (chronicle.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 
 ### container-registry
 

@@ -1,0 +1,180 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-swp/main.tf (v60.0.0),
+Copyright 2023 Google LLC, Apache-2.0.
+
+google_network_security_gateway_security_policy.default: one
+NetworkSecurityGatewaySecurityPolicy (config-connector-extensions,
+networksecurity.gcp.hfl.dev/v1beta1), on tls_inspection_config.id or the
+TLS inspection policy the chart makes.
+google_network_security_tls_inspection_policy.default: one
+NetworkSecurityTLSInspectionPolicy (config-connector-extensions, v1beta1)
+with tls_inspection_config.create_config.
+google_network_security_url_lists.default: one NetworkSecurityURLList
+(config-connector-extensions, v1beta1) per URL list, from url_lists and
+factories_data.url_lists.
+google_network_services_gateway.default: one NetworkServicesGateway
+(config-connector-extensions, networkservices.gcp.hfl.dev/v1beta1) of type
+SECURE_WEB_GATEWAY.
+google_compute_service_attachment.default: one ComputeServiceAttachment
+(Config Connector, v1beta1) with service_attachment, its target the
+gateway.
+The policy rules are in policy-rules.yaml.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "gateway" "policy" "tlsInspectionPolicy" "serviceAttachment")) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $project := printf "projects/%s" $v.project_id }}
+{{- $loc := printf "%s/locations/%s" $project $v.region }}
+{{- $gw := $v.gateway_config | default dict }}
+{{- $tls := $v.tls_inspection_config | default dict }}
+{{- if and $tls.create_config $tls.id }}
+{{- fail "net-swp: You can't assign values both to `create.config.ca_pool` and `id`." }}
+{{- end }}
+{{- $tlsPolicy := "" }}
+{{- if $tls.id }}{{ $tlsPolicy = $tls.id }}{{ else if $tls.create_config }}{{ $tlsPolicy = printf "%s/tlsInspectionPolicies/%s" $loc (include "netswp.tlsPolicy" .) }}{{ end }}
+{{- $cloudLabels := dict }}
+{{- range $k, $l := (include "kcc.labels" (list $ dict) | fromJson) }}
+{{- if not (contains "/" $k) }}{{ $_ := set $cloudLabels $k $l }}{{ end }}
+{{- end }}
+{{- range $k, $l := ($gw.labels | default dict) }}{{ $_ := set $cloudLabels $k $l }}{{ end }}
+---
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name "policy")) "id" "gateway_security_policy" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "netswp.policy" . | quote }}
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $tlsPolicy }}
+  tlsInspectionPolicy: {{ . | quote }}
+  {{- end }}
+{{- with $tls.create_config }}
+{{- if not .ca_pool }}
+{{- fail "net-swp: tls_inspection_config.create_config.ca_pool is required: the API needs a CA pool for a TLS inspection policy (NetworkSecurityTLSInspectionPolicy's caPool)" }}
+{{- end }}
+---
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityTLSInspectionPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "tls")) "id" "tls_inspection_policy" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "netswp.tlsPolicy" $ | quote }}
+  {{- with (include "netswp.description" (list $ .description)) }}
+  description: {{ . | quote }}
+  {{- end }}
+  caPool: {{ .ca_pool | quote }}
+  excludePublicCaSet: {{ eq (toString .exclude_public_ca_set) "true" }}
+{{- end }}
+{{- $lists := include "netswp.urlLists" . | fromJson }}
+{{- range $k := keys $lists | sortAlpha }}
+{{- $l := index $lists $k }}
+---
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityURLList
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "url-list" $k)) "id" (printf "url_list:%s" $k) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "netswp.urlListName" (list $ $k) | quote }}
+  {{- with (include "netswp.description" (list $ $l.description)) }}
+  description: {{ . | quote }}
+  {{- end }}
+  values:
+    {{- range $l.values }}
+    - {{ . | quote }}
+    {{- end }}
+{{- end }}
+---
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" .Release.Name "id" "gateway" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "netswp.gateway" . | quote }}
+  type: SECURE_WEB_GATEWAY
+  {{- with $v.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $cloudLabels }}
+  labels:
+    {{- range $k := keys . | sortAlpha }}
+    {{ $k }}: {{ index $cloudLabels $k | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $gw.addresses }}
+  addresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  ports:
+    {{- range ($gw.ports | default (list 443)) }}
+    - {{ . | int }}
+    {{- end }}
+  {{- with $gw.scope }}
+  scope: {{ . | quote }}
+  {{- end }}
+  {{- with $v.certificates }}
+  certificateUrls:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  gatewaySecurityPolicy: {{ printf "%s/gatewaySecurityPolicies/%s" $loc (include "netswp.policy" .) | quote }}
+  network: {{ $v.network | quote }}
+  subnetwork: {{ $v.subnetwork | quote }}
+  {{- /* fabric leaves routing_mode null unless next_hop_routing_mode, and
+  the API then takes EXPLICIT_ROUTING_MODE; the kind requires it set. */}}
+  routingMode: {{ ternary "NEXT_HOP_ROUTING_MODE" "EXPLICIT_ROUTING_MODE" (eq (toString $gw.next_hop_routing_mode) "true") }}
+{{- with $v.service_attachment }}
+{{- include "kcc.unsupported" (list $ "service_attachment.domain_name" .domain_name "ComputeServiceAttachment has no domainNames field") }}
+{{- include "kcc.unsupported" (list $ "service_attachment.reconcile_connections" (kindIs "bool" .reconcile_connections) "ComputeServiceAttachment has no reconcileConnections field") }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeServiceAttachment
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "psc")) "id" "service_attachment" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.region | quote }}
+  resourceID: {{ include "netswp.serviceAttachment" $ | quote }}
+  {{- /* fabric's own description, not service_attachment.description,
+  which it declares and does not use. */}}
+  description: {{ printf "Service attachment for SWP %s" $v.name | quote }}
+  targetServiceRef:
+    external: {{ printf "%s/gateways/%s" $loc (include "netswp.gateway" $) | quote }}
+  natSubnets:
+    {{- range .nat_subnets }}
+    - external: {{ trimPrefix "https://www.googleapis.com/compute/v1/" . | quote }}
+    {{- end }}
+  connectionPreference: {{ ternary "ACCEPT_AUTOMATIC" "ACCEPT_MANUAL" (eq (toString .automatic_connection) "true") }}
+  {{- with .consumer_accept_lists }}
+  consumerAcceptLists:
+    {{- range $p := keys . | sortAlpha }}
+    - projectRef:
+        external: {{ printf "projects/%s" $p | quote }}
+      connectionLimit: {{ index $v.service_attachment.consumer_accept_lists $p | int }}
+    {{- end }}
+  {{- end }}
+  {{- with .consumer_reject_lists }}
+  consumerRejectLists:
+    {{- range . }}
+    - external: {{ printf "projects/%s" . | quote }}
+    {{- end }}
+  {{- end }}
+  enableProxyProtocol: {{ eq (toString .enable_proxy_protocol) "true" }}
+{{- end }}

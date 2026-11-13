@@ -1,0 +1,49 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-sql-server
+repo: https://github.com/Azure/terraform-azurerm-avm-res-sql-server
+path: .
+version: v0.2.1
+commit: dd3461fc43de092133eea999eb21efba31983079
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-sql-server/tree/v0.2.1
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-sql-server/azurerm
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+refused:
+  - variable: administrator_login_password
+    kind: by-design
+    reason: "a password is a secret value, which does not belong in a component's inputs; ASO's administratorLoginPassword is a reference to a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open). Use Entra-only authentication (azuread_administrator with azuread_authentication_only: true)"
+  - variable: administrator_login_password_wo
+    kind: by-design
+    reason: "a write-only password is a secret value, refused as administrator_login_password is"
+  - variable: administrator_login_password_wo_version
+    kind: by-design
+    reason: "the version of administrator_login_password_wo, which is refused"
+  - variable: generate_administrator_login_password
+    kind: by-design
+    reason: "a generated password is a secret value, refused as administrator_login_password is (the module's random_password is not ported)"
+  - variable: administrator_login_password_key_vault_configuration
+    kind: by-design
+    reason: "it stores the administrator password, a secret value the chart does not take, in Key Vault; aso-extensions' VaultSecret takes its value from a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open)"
+  - variable: databases
+    kind: gap
+    reason: "accepted, except import (a .bacpac import is a POST action with a storage key and an administrator password, secret values, and no ASO kind) and threat_detection_policy.storage_account_access_key (a secret value; ASO takes it only from a Kubernetes Secret). geo_backup_enabled false on a DataWarehouse (DW) SKU is aso-extensions' ServersDatabasesGeoBackupPolicy (Disabled). managed_identities.system_assigned is accepted and ignored, as the module ignores it"
+    partial: true
+    fields: [import, threat_detection_policy.storage_account_access_key]
+  - variable: firewall_rules
+    kind: by-design
+    reason: "accepted, but a rule's timeouts are refused: Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+    partial: true
+    fields: [timeouts]
