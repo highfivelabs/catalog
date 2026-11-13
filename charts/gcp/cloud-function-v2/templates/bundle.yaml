@@ -1,0 +1,38 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/cloud-function-v2/bundle.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_storage_bucket.bucket (bucket_config set): a StorageBucket
+<prefix>-<bucket_name>, uniform access, in bucket_config.location or the
+region; with lifecycle_delete_age_days, a Delete rule for archived
+versions and versioning on; force_destroy as Config Connector's
+force-destroy annotation.
+data.archive_file.bundle and google_storage_bucket_object.bundle (a local
+bundle_config.path) are refused in main.yaml: the chart has no files.
+*/ -}}
+{{- $v := .Values }}
+{{- with $v.bucket_config }}
+{{- $annotations := dict }}
+{{- if .force_destroy }}{{ $_ := set $annotations "cnrm.cloud.google.com/force-destroy" "true" }}{{ end }}
+---
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageBucket
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "bucket")) "id" "bucket" "project" $v.project_id "annotations" $annotations "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ include "cloudFunctionV2.bucket" $ | quote }}
+  location: {{ .location | default $v.region | quote }}
+  uniformBucketLevelAccess: true
+  {{- if not (kindIs "invalid" .lifecycle_delete_age_days) }}
+  lifecycleRule:
+    - action:
+        type: Delete
+      condition:
+        age: {{ int .lifecycle_delete_age_days }}
+        withState: ARCHIVED
+  versioning:
+    enabled: true
+  {{- end }}
+{{- end }}

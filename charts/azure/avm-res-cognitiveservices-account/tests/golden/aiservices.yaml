@@ -1,0 +1,81 @@
+---
+# Source: avm-res-cognitiveservices-account/templates/main.yaml
+apiVersion: cognitiveservices.azure.com/v20250601
+kind: Account
+metadata:
+  name: aiservices-account
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "aiservices"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "account"
+spec:
+  azureName: "ais-example"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "AIServices"
+  sku:
+    name: "S0"
+  identity:
+    type: "SystemAssigned"
+  properties:
+    allowProjectManagement: true
+    amlWorkspace:
+      identityClientId: "77777777-7777-7777-7777-777777777777"
+      resourceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.MachineLearningServices/workspaces/aml"
+    associatedProjects:
+      - proj-a
+    customSubDomainName: "ais-example"
+    defaultProject: "proj-a"
+    dynamicThrottlingEnabled: true
+    networkInjections:
+      - scenario: "agent"
+        subnetArmReference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-agents"
+        useMicrosoftManagedNetwork: true
+    raiMonitorConfig:
+      adxStorageResourceReference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Kusto/clusters/adx"
+    disableLocalAuth: false
+    encryption:
+      keySource: Microsoft.KeyVault
+      keyVaultProperties:
+        keyName: ais-key
+        keyVaultUri: https://hsm-example.managedhsm.azure.net/
+        keyVersion: fedcba9876543210fedcba9876543210
+    publicNetworkAccess: Enabled
+    restrictOutboundNetworkAccess: false
+---
+# Source: avm-res-cognitiveservices-account/templates/privateendpoints.yaml
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  name: aiservices-account-pe-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "aiservices"
+    app.kubernetes.io/name: avm-res-cognitiveservices-account
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "private_endpoint:hub"
+spec:
+  azureName: "pep-account-5e531fd7-87a8-5ffe-ab40-e7cccb500485"
+  location: "westus3"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub"
+  customNetworkInterfaceName: "nic-pep-account-5e531fd7-87a8-5ffe-ab40-e7cccb500485"
+  privateLinkServiceConnections:
+    - name: "pcon-pep-account-5e531fd7-87a8-5ffe-ab40-e7cccb500485"
+      groupIds:
+        - account
+      privateLinkServiceReference:
+        group: cognitiveservices.azure.com
+        kind: Account
+        name: aiservices-account
+  subnet:
+    reference:
+      armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-hub/providers/Microsoft.Network/virtualNetworks/hub/subnets/snet-pe"

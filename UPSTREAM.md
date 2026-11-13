@@ -38,7 +38,7 @@ charts use are copied in `crds/ack-extensions`.
 | ACK controller | Release | Commit | Kinds the charts use |
 | --- | --- | --- | --- |
 | `ec2-controller` | `v1.23.1` | `9303654c2cffad05147e4260105439149f7c81bf` | VPC, Subnet, RouteTable, InternetGateway, NATGateway, ElasticIPAddress, NetworkACL, DHCPOptions, SecurityGroup |
-| `rds-controller` | `v1.14.2` | `8ee2451cc31ed4c6a1c313d3697437aca7b660e2` | DBSubnetGroup |
+| `rds-controller` | `v1.14.2` | `8ee2451cc31ed4c6a1c313d3697437aca7b660e2` | DBSubnetGroup, DBInstance, DBParameterGroup |
 | `elasticache-controller` | `v1.12.0` | `c1c4c0897b82bd77bcc2370aa53b044c23bbfca7` | CacheSubnetGroup |
 | `s3-controller` | `v1.15.0` | `e679633287f9f95ec71f0ce5a26a415636fd5b25` | Bucket |
 | `kms-controller` | `v1.7.0` | `57250fba83d58aeb84a3ec2770cf3e9b45708895` | Key, Alias, Grant |
@@ -49,6 +49,9 @@ charts use are copied in `crds/ack-extensions`.
 | `sns-controller` | `v1.13.0` | `a1f0e5b19582a199ae3e6fbb071ced23b40d9655` | Topic, Subscription |
 | `ssm-controller` | `v1.8.0` | `d07ea0193aef939118ac220a60ff3d3f9d496f46` | Parameter |
 | `dynamodb-controller` | `v1.14.2` | `2fcea71a4f8d6049c9e03d729561a26735245346` | Table |
+| `sfn-controller` | `v1.9.1` | `8de3cc822d99a9fd8682789a21dd65acb0ecc3de` | StateMachine |
+| `cloudwatchlogs-controller` | `v1.10.0` | `01e3ea012e97a2bb079e8cd4c9c5036bb33ef217` | LogGroup |
+| `eks-controller` | `v1.26.0` | `2549d1be1a9f1841aaf3a4303a0d5696ea941473` | PodIdentityAssociation |
 
 To move a controller: change its row, run `task test` (it re-fetches the
 CRDs and re-validates every AWS render), and re-read the gaps in

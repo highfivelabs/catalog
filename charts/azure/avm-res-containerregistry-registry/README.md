@@ -1,7 +1,7 @@
 # avm-res-containerregistry-registry
 
-An Azure container registry with its geo-replications and cache rules,
-and its lock, role assignments and diagnostic settings, as Azure Service
+An Azure container registry with its geo-replications, cache rules,
+credential sets, scope maps and tokens, and its lock, role assignments and diagnostic settings, as Azure Service
 Operator (ASO) objects. A port of the Azure Verified Module
 [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/7f2dc78bb5dbfc6e05809963410be844006f9490)
 at v0.9.0 (`7f2dc78b`), MIT, Copyright (c) Microsoft Corporation
@@ -28,10 +28,13 @@ policy on, admin user off (`tests/golden/basic.yaml`).
 | `azurerm_container_registry.this` | always | `Registry` (`containerregistry.azure.com/v20251101`), `registry`, owned by the resource group |
 | its `georeplications` blocks | one per entry | `RegistryReplication`, `georeplication:<location>`, named for its location (as azurerm names it), owned by the registry |
 | `module.cache_rule` (`registries/cacheRules`) | one per `cache_rules` entry | `RegistryCacheRule`, `cache_rule:<key>`, owned by the registry |
+| `module.credential_set` (`registries/credentialSets`) | one per `credential_sets` entry | `RegistriesCredentialSet` (aso-extensions, `containerregistry.azure.hfl.dev/v20251101`), `credential_set:<key>`, owned by the registry, with a system-assigned identity as the module gives it |
+| `module.scope_maps`: `azurerm_container_registry_scope_map` | one per `scope_maps` entry | `RegistriesScopeMap` (aso-extensions), `scope_map:<key>`, owned by the registry |
+| `module.scope_maps`: `azurerm_container_registry_token` | one per `registry_tokens` entry | `RegistriesToken` (aso-extensions), `scope_map:<key>:token:<key>`, owned by the registry, its `scopeMapReference` the scope map's object |
 | `azurerm_management_lock.this` | `lock` set | `ManagementLock` (aso-extensions), `lock` |
 | `azurerm_role_assignment.this` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azurerm_monitor_diagnostic_setting.this` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
-| credential sets, scope maps and tokens, the customer-managed key, private endpoints | when set | refused (below) |
+| a token's passwords (`azurerm_container_registry_token_password`), the customer-managed key, private endpoints | when set | refused (below) |
 | telemetry | never | not ported |
 
 ASO v2.22.0 carries the registry at ARM API version 2025-11-01, the
@@ -58,7 +61,9 @@ Every module variable is a value of the same name, type and default
 | `role_assignment_mode` | `roleAssignmentMode` |
 | `managed_identities` | `identity` (`SystemAssigned`, `UserAssigned` or both; identities by `armId`) |
 | `georeplications` | one replication each: `location` (its name too), `regional_endpoint_enabled` (`regionEndpointEnabled`), `zone_redundancy_enabled`, `tags` |
-| `cache_rules` | one cache rule each: `name`, `source_repository`, `target_repository`, `credential_set_resource_id` (`credentialSetResourceReference.armId`); `credential_set_key` is refused |
+| `cache_rules` | one cache rule each: `name`, `source_repository`, `target_repository`; `credential_set_key` or `credential_set_resource_id` as `credentialSetResourceReference.armId` (a key's set by the ARM ID it will have, computed from the registry's: ASO cannot reference an aso-extensions object by name, and retries until the set exists) |
+| `credential_sets` | one credential set each: `name` (`azureName`), `login_server`, `auth_credentials` (`name`, default `Credential1`; the Key Vault secret URIs, not their values); `identity` `SystemAssigned` |
+| `scope_maps` | one scope map each: `name`, `actions`, `description`; one token per `registry_tokens` entry: `name`, `enabled` (`status` `enabled` or `disabled`); `passwords` is refused |
 | `tags` | `spec.tags` of the registry |
 | `lock` | the AVM lock interface, named `lock-<name>` unless named, with the module's notes |
 | `role_assignments` | the AVM interface; `skip_service_principal_aad_check` without a `principal_type` sends `ServicePrincipal`, as azurerm does |
@@ -68,13 +73,16 @@ Every module variable is a value of the same name, type and default
 
 Azure refuses a cache rule from Docker Hub without credentials ("Cannot
 create cache rule with source repository Docker without credentials",
-found live): with credential sets refused, such a rule needs
-`credential_set_resource_id` (a set made elsewhere); an anonymous source
-such as `mcr.microsoft.com` needs none.
+found live): such a rule needs a credential set (`credential_set_key`, or
+`credential_set_resource_id` for a set made elsewhere) whose identity can
+read the Key Vault secrets; an anonymous source such as
+`mcr.microsoft.com` needs none.
 
 The module's preconditions and validations stop the render with its
-messages: Premium for zone redundancy and a network rule set, and one of a
-cache rule's credential set inputs.
+messages: Premium for zone redundancy and a network rule set, one of a
+cache rule's credential set inputs, and credential set names unique
+ignoring case; a `credential_set_key` that is not a key of
+`credential_sets` stops it too.
 
 ### Not module inputs
 
@@ -90,8 +98,7 @@ cache rule's credential set inputs.
 
 | Variable | Why |
 | --- | --- |
-| `credential_sets`, a cache rule's `credential_set_key` | `Microsoft.ContainerRegistry/registries/credentialSets` has no ASO or aso-extensions kind (gap) |
-| `scope_maps` | `registries/scopeMaps` and `registries/tokens` (and a token's passwords, returned once) have no kind (gap) |
+| a token's `passwords` (`scope_maps.<key>.registry_tokens.<key>.passwords`) | secrets Azure generates and returns once (`generateCredentials`); whether a component may hold one is the builder's decision (not ported) |
 | `customer_managed_key` | ASO's `Registry` takes the key's URI and the identity's client ID; the module looks both up from the vault's and the identity's IDs, which a render cannot (not ported) |
 | `private_endpoints` | ASO has `PrivateEndpoint`; the chart does not map private endpoints yet (not ported) |
 | `resource_types`, `retry`, `timeouts` | ASO's kinds fix the API versions; ASO retries itself; Bundt sets a component's time limit |
@@ -104,10 +111,12 @@ cache rule's credential set inputs.
 | `resource_id`, `login_server`, `data_endpoint_host_names` | the registry's `status.id`, `status.loginServer`, `status.dataEndpointHostNames` |
 | `system_assigned_mi_principal_id`, `system_assigned_mi_tenant_id` | `status.identity.principalId`, `tenantId` (null without a system-assigned identity) |
 | `cache_rules` | `{<key>: {name, resource_id}}`, as the module builds it |
+| `credential_sets` | `{<key>: {name, resource_id, principal_id, tenant_id}}`: the set's system-assigned identity, to grant read on its Key Vault secrets |
+| `scope_maps` | `{<key>: {name, resource_id, id, registry_tokens: {<key>: {name, id}}}}`: the scope-map submodule's outputs without the token passwords |
 
 Not outputs: `admin_username` and `admin_password` (secrets; ASO can write
-them to a Kubernetes Secret, which is not an output), `credential_sets`,
-`scope_maps` and `private_endpoints` (refused).
+them to a Kubernetes Secret, which is not an output), a token's passwords
+and `private_endpoints` (refused).
 
 ## From Terraform
 

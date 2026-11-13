@@ -1,0 +1,91 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf: the role (aws_iam_role, iam/Role) trusting pods.eks.amazonaws.com
+(sts:AssumeRole, sts:TagSession) with trust_policy_conditions and
+trust_policy_statements, the policy ARNs it is given
+(additional_policy_arns), and with attach_custom_policy the custom policy
+(aws_iam_policy, iam/Policy): source_policy_documents, policy_statements
+and override_policy_documents merged by Sid, as aws_iam_policy_document
+merges them. The preset policies are refused (refusals.yaml).
+*/ -}}
+{{- include "ack.names" (list $ (list "role")) -}}
+{{- $v := .Values -}}
+{{- if $v.create }}
+{{- $name := include "ack.resourceName" (list $ "role" "IAM role" $v.name 64) }}
+{{- if not $name }}
+{{- fail "eks-pod-identity: name is required: the role's name (or names.role)" }}
+{{- end }}
+{{- $trustStmts := list (dict "effect" "Allow" "actions" (list "sts:AssumeRole" "sts:TagSession") "principals" (list (dict "type" "Service" "identifiers" (list "pods.eks.amazonaws.com"))) "condition" ($v.trust_policy_conditions | default list)) }}
+{{- range $s := $v.trust_policy_statements | default list }}{{ $trustStmts = append $trustStmts $s }}{{ end }}
+{{- $trust := include "epi.document" (list "trust" list $trustStmts list) }}
+{{- $custom := "" }}
+{{- if $v.attach_custom_policy }}
+{{- $custom = include "epi.document" (list "custom" $v.source_policy_documents ($v.policy_statements | default list) $v.override_policy_documents) }}
+{{- if not $custom }}
+{{- fail "eks-pod-identity: attach_custom_policy needs source_policy_documents, policy_statements or override_policy_documents: the custom policy has no statement" }}
+{{- end }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "policy")) "id" "policy") | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+  path: {{ $v.path | default "/" | quote }}
+{{- with $v.custom_policy_description }}
+  description: {{ . | quote }}
+{{- end }}
+  policyDocument: {{ $custom | quote }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- $arns := list }}
+{{- range $k := keys ($v.additional_policy_arns | default dict) | sortAlpha }}{{ $arns = append $arns (index $v.additional_policy_arns $k) }}{{ end }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list .Release.Name "role")) "id" "role") | nindent 2 }}
+spec:
+  name: {{ $name | quote }}
+  path: {{ $v.path | default "/" | quote }}
+{{- with $v.description }}
+  description: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.max_session_duration) }}
+  maxSessionDuration: {{ int64 $v.max_session_duration }}
+{{- end }}
+{{- with $v.permissions_boundary_arn }}
+  permissionsBoundary: {{ . | quote }}
+{{- end }}
+  assumeRolePolicyDocument: {{ $trust | quote }}
+{{- if and $custom $arns }}
+{{- /* ACK takes a role's policies as ARNs or as references, not both: with
+ARNs given, the custom policy's ARN is built, as IAM names it. */}}
+{{- if not $v.account_id }}
+{{- fail "eks-pod-identity: account_id is required to attach the custom policy beside additional_policy_arns (ACK's Role takes policy ARNs or references, not both): the chart cannot look it up (values.yaml)" }}
+{{- end }}
+  policies:
+    - {{ printf "arn:%s:iam::%s:policy%s%s" $v.partition $v.account_id ($v.path | default "/") $name | quote }}
+{{- range $arns }}
+    - {{ . | quote }}
+{{- end }}
+{{- else if $custom }}
+  policyRefs:
+    - from:
+        name: {{ include "ack.name" (list .Release.Name "policy") }}
+{{- else if $arns }}
+  policies:
+{{- range $arns }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}

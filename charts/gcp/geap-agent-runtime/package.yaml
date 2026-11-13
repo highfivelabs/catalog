@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"). id is the engine's status.externalRef
+# (projects/<p>/locations/<l>/reasoningEngines/<id>), the ID the API
+# assigns at create; null until reported. identity is the service account
+# the engine runs as: the one the chart makes (its status.email), else
+# service_account_config.email, else null (the kind reports no effective
+# identity, and fabric's placeholder for the default service agent is not
+# an address). Not an output: agent, fabric's whole object.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-geap-agent-runtime
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      has(resources.agent.status) && has(resources.agent.status.externalRef)
+      ? dyn(resources.agent.status.externalRef) : null
+    identity: >-
+      'service_account' in resources
+      ? (has(resources.service_account.status) && has(resources.service_account.status.email)
+        ? dyn(resources.service_account.status.email) : null)
+      : dyn(inputs.service_account_config.email)

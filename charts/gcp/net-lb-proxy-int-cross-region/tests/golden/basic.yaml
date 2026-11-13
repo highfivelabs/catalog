@@ -1,0 +1,227 @@
+---
+# Source: net-lb-proxy-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: TCP
+  healthChecks:
+    - healthCheckRef:
+        name: basic
+  sessionAffinity: "NONE"
+  backend:
+    - balancingMode: "CONNECTION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: basic-neg-neg-a
+      maxConnectionsPerEndpoint: 100
+    - balancingMode: "CONNECTION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: basic-neg-neg-b
+      maxConnectionsPerEndpoint: 100
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: basic-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test-europe-west1"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+  target:
+    targetTCPProxyRef:
+      name: basic
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: basic-fr-europe-west4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west4"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test-europe-west4"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+  target:
+    targetTCPProxyRef:
+      name: basic
+---
+# Source: net-lb-proxy-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test"
+  location: global
+  description: "Terraform managed."
+  tcpHealthCheck:
+    portSpecification: USE_SERVING_PORT
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: basic-ep-neg-a-vm-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:neg-a-vm-a"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  networkEndpointGroupRef:
+    name: basic-neg-neg-a
+  zone: "europe-west1-b"
+  ipAddress: "10.0.0.2"
+  instanceRef:
+    external: "my-vm-a"
+  resourceID: "80"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: basic-ep-neg-b-vm-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:neg-b-vm-b"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  networkEndpointGroupRef:
+    name: basic-neg-neg-b
+  zone: "europe-west4-a"
+  ipAddress: "10.0.1.2"
+  instanceRef:
+    external: "my-vm-b"
+  resourceID: "80"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: basic-neg-neg-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:neg-a"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test-neg-a"
+  location: "europe-west1-b"
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: basic-neg-neg-b
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:neg-b"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test-neg-b"
+  location: "europe-west4-a"
+  networkEndpointType: GCE_VM_IP_PORT
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west4/subnetworks/my-subnet-2"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetTCPProxy
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test"
+  location: global
+  description: "Terraform managed."
+  backendServiceRef:
+    name: basic

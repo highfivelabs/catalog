@@ -24,13 +24,16 @@
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
 # artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int,
-# net-lb-ext, net-vpn-static, net-address and net-cloud-armor. Each needs
+# net-lb-ext, net-vpn-static, net-address, net-cloud-armor,
+# net-lb-proxy-int-cross-region and net-lb-app-int-cross-region. Each needs
 # the runner's roles on its resources: the pilot's are catalog-live-tests',
 # artifact-registry needs roles/artifactregistry.admin, net-vpc-firewall
 # roles/compute.securityAdmin (cce-live-tests has both), net-lb-int,
-# net-lb-ext, net-vpn-static and net-address roles/compute.networkAdmin
-# (both have it), net-cloud-armor roles/compute.securityAdmin
-# (cce-live-tests). A chart whose case
+# net-lb-ext, net-vpn-static, net-address, net-lb-proxy-int-cross-region
+# and net-lb-app-int-cross-region roles/compute.networkAdmin (both have
+# it; net-address's case includes a PSC network attachment,
+# config-connector-extensions' ComputeNetworkAttachment), net-cloud-armor
+# roles/compute.securityAdmin (cce-live-tests). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -39,7 +42,10 @@
 # (its manager on the host against a kind cluster holding the CRDs), but
 # against Google Cloud: hack/live/realcloud.go.txt, built in a scratch
 # copy of config-connector-extensions so it uses the same pinned Config
-# Connector. Writes offload-artifacts/live/summary.md.
+# Connector. Beside it, config-connector-extensions' own manager
+# (hack/cce-manager.sh, its cmd/manager from the same copy, acting as the
+# same service account) reconciles the charts' *.gcp.hfl.dev kinds, as
+# the fake cloud does. Writes offload-artifacts/live/summary.md.
 set -o errexit -o nounset -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
@@ -75,9 +81,13 @@ PEER_A="${RUN}-pa"
 PEER_B="${RUN}-pb"
 ILB="${RUN}-ilb"
 NLB="${RUN}-nlb"
+XILB="${RUN}-xilb"
+XALB="${RUN}-xalb"
+REGION2=us-east1
 VPN="${RUN}-vpn"
 ADDR_G="${RUN}-ga"
 ADDR_E="${RUN}-ea"
+NA="${RUN}-na"
 ARMOR="${RUN}-armor"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
@@ -126,11 +136,48 @@ sweep_run() {
   done
   "${G[@]}" compute target-vpn-gateways delete "${r}-vpn" --region "${REGION}" >/dev/null 2>&1 && echo "swept VPN gateway ${r}-vpn" || true
   "${G[@]}" compute addresses delete "vpn-${r}-vpn" --region "${REGION}" >/dev/null 2>&1 && echo "swept address vpn-${r}-vpn" || true
-  for n in "${r}-ilb-psc" "${r}-ilb-sn"; do
+  # net-lb-proxy-int-cross-region: the global forwarding rules, the TCP
+  # proxy, the backend service, the health check, the group and the NEG,
+  # then its subnets (the network goes below).
+  for g in "${REGION}" "${REGION2}"; do
+    "${G[@]}" compute forwarding-rules delete "${r}-xilb-${g}" --global >/dev/null 2>&1 && echo "swept forwarding rule ${r}-xilb-${g}" || true
+  done
+  "${G[@]}" compute target-tcp-proxies delete "${r}-xilb" --global >/dev/null 2>&1 && echo "swept target proxy ${r}-xilb" || true
+  "${G[@]}" compute backend-services delete "${r}-xilb" --global >/dev/null 2>&1 && echo "swept backend service ${r}-xilb" || true
+  "${G[@]}" compute health-checks delete "${r}-xilb" --global >/dev/null 2>&1 && echo "swept health check ${r}-xilb" || true
+  "${G[@]}" compute instance-groups unmanaged delete "${r}-xilb-a" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept instance group ${r}-xilb-a" || true
+  "${G[@]}" compute network-endpoint-groups delete "${r}-xilb-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && echo "swept network endpoint group ${r}-xilb-neg" || true
+  for n in "${r}-xilb-sn1:${REGION}" "${r}-xilb-pr1:${REGION}" "${r}-xilb-sn2:${REGION2}" "${r}-xilb-pr2:${REGION2}"; do
+    "${G[@]}" compute networks subnets delete "${n%%:*}" --region "${n#*:}" >/dev/null 2>&1 && echo "swept subnet ${n%%:*}" || true
+  done
+  # net-lb-app-int-cross-region: the global forwarding rules, the HTTP
+  # proxy, the URL map, the backend services, the health checks, the
+  # group and the NEG, then its subnets (the network goes below).
+  for g in "${REGION}" "${REGION2}"; do
+    "${G[@]}" compute forwarding-rules delete "${r}-xalb-${g}" --global >/dev/null 2>&1 && echo "swept forwarding rule ${r}-xalb-${g}" || true
+  done
+  "${G[@]}" compute target-http-proxies delete "${r}-xalb" --global >/dev/null 2>&1 && echo "swept target proxy ${r}-xalb" || true
+  "${G[@]}" compute url-maps delete "${r}-xalb" --global >/dev/null 2>&1 && echo "swept URL map ${r}-xalb" || true
+  for b in default groups; do
+    "${G[@]}" compute backend-services delete "${r}-xalb-${b}" --global >/dev/null 2>&1 && echo "swept backend service ${r}-xalb-${b}" || true
+  done
+  for h in default tcp; do
+    "${G[@]}" compute health-checks delete "${r}-xalb-${h}" --global >/dev/null 2>&1 && echo "swept health check ${r}-xalb-${h}" || true
+  done
+  "${G[@]}" compute instance-groups unmanaged delete "${r}-xalb-a" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept instance group ${r}-xalb-a" || true
+  "${G[@]}" compute network-endpoint-groups delete "${r}-xalb-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && echo "swept network endpoint group ${r}-xalb-neg" || true
+  for n in "${r}-xalb-sn1:${REGION}" "${r}-xalb-pr1:${REGION}" "${r}-xalb-sn2:${REGION2}" "${r}-xalb-pr2:${REGION2}"; do
+    "${G[@]}" compute networks subnets delete "${n%%:*}" --region "${n#*:}" >/dev/null 2>&1 && echo "swept subnet ${n%%:*}" || true
+  done
+  # net-address: the network attachment, then its subnet (its network
+  # goes below).
+  "${G[@]}" compute network-attachments describe "${r}-na" --region "${REGION}" >/dev/null 2>&1 \
+    && "${G[@]}" compute network-attachments delete "${r}-na" --region "${REGION}" >/dev/null 2>&1 && echo "swept network attachment ${r}-na" || true
+  for n in "${r}-ilb-psc" "${r}-ilb-sn" "${r}-na-sn"; do
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
   "${G[@]}" compute security-policies delete "${r}-armor" >/dev/null 2>&1 && echo "swept security policy ${r}-armor" || true
-  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net"; do
+  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net" "${r}-xilb-net" "${r}-xalb-net" "${r}-na-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
   "${G[@]}" compute addresses delete "${r}-ga" --global >/dev/null 2>&1 && echo "swept address ${r}-ga" || true
@@ -142,7 +189,7 @@ sweep_old() {
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\)$/\1/p'
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\|xilb-net\|xalb-net\|na-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
     "${G[@]}" compute addresses list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(ga\|ea\)$/\1/p'
     "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-armor$/\1/p'
@@ -162,13 +209,19 @@ list_left() {
   "${G[@]}" compute backend-services list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute health-checks list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute instance-groups list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute target-tcp-proxies list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute target-http-proxies list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute url-maps list --format='value(name)' | grep -E '^cat-' || true
+  "${G[@]}" compute network-endpoint-groups list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute service-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
+  "${G[@]}" compute network-attachments list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
   "${G[@]}" compute target-vpn-gateways list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute addresses list --format='value(name)' | grep -E '^(vpn-)?cat-' || true
   "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
+  [[ -n "${CCE_MANAGER_PID:-}" ]] && kill "${CCE_MANAGER_PID}" 2>/dev/null || true
   kind delete cluster --name catalog-live >/dev/null 2>&1 || true
   echo "== sweep after"; sweep_run "${RUN}"; sweep_old
   echo "== left in ${PROJECT} (nothing should follow)"; left="$(list_left)"; echo "${left}"
@@ -187,6 +240,9 @@ git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
 mkdir -p "${CCE_DIR}/cmd/realcloud"
 cp hack/live/realcloud.go.txt "${CCE_DIR}/cmd/realcloud/main.go"
 (cd "${CCE_DIR}" && GOTOOLCHAIN=auto go build -o "${ROOT}/bin/realcloud" ./cmd/realcloud)
+# shellcheck source=hack/cce-manager.sh
+source hack/cce-manager.sh
+cce_build_manager
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
 export KUBECONFIG="${OUT}/kubeconfig"
@@ -213,6 +269,12 @@ done
 if [[ "${started}" != yes ]]; then
   echo "live-apply: the manager did not start:" >&2; grep -v round_trippers "${OUT}/manager.log" | tail -15 >&2
   { echo; echo "The manager did not start; nothing was applied."; } >>"${OUT}/summary.md" 2>/dev/null || true
+  exit 1
+fi
+# config-connector-extensions' manager, for the *.gcp.hfl.dev kinds.
+cce_install_crds
+if ! cce_start_manager "${OUT}/cce-manager.log"; then
+  { echo; echo "config-connector-extensions' manager did not start; nothing was applied."; } >>"${OUT}/summary.md" 2>/dev/null || true
   exit 1
 fi
 NS=catalog-live
@@ -414,7 +476,35 @@ global_addresses:
   ${ADDR_G}: {description: catalog live test ${RUN}}
 external_addresses:
   ${ADDR_E}: {region: ${REGION}, tier: STANDARD, description: catalog live test ${RUN}}
+network_attachments:
+  ${NA}:
+    subnet_self_link: projects/${PROJECT}/regions/${REGION}/subnetworks/${NA}-sn
+    description: catalog live test ${RUN}
 VALUES
+# The network attachment's network and subnet.
+cat >"${OUT}/net-address.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-na-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${NA}-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-na-sn
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${NA}-sn
+  region: ${REGION}
+  ipCidrRange: 10.251.0.0/28
+  networkRef: {name: live-na-net}
+  description: catalog live test ${RUN}
+NEEDS
 
 cat >"${OUT}/net-cloud-armor.values.yaml" <<VALUES
 name: ${ARMOR}
@@ -430,11 +520,150 @@ rules:
     rate_limit_options: {exceed_action: deny(429), rate_limit_threshold: {count: 100, interval_sec: 60}, enforce_on_key: IP}
 VALUES
 
+# The cross-region proxy: forwarding rules in two regions, each beside a
+# GLOBAL_MANAGED_PROXY subnet; a zonal NEG as the backend and an instance
+# group beside it (the API refuses a backend service with both instance
+# groups and NEGs as backends: seen live, run cat-11130131-7401). No endpoints: ComputeNetworkEndpoint is config-connector-
+# extensions', whose controllers this harness does not run (the fake cloud
+# covers it).
+cat >"${OUT}/net-lb-proxy-int-cross-region.values.yaml" <<VALUES
+project_id: ${PROJECT}
+name: ${XILB}
+port: 80
+labels: {catalog-run: ${RUN}}
+vpc_config:
+  network: projects/${PROJECT}/global/networks/${XILB}-net
+  subnetworks:
+    ${REGION}: projects/${PROJECT}/regions/${REGION}/subnetworks/${XILB}-sn1
+    ${REGION2}: projects/${PROJECT}/regions/${REGION2}/subnetworks/${XILB}-sn2
+group_configs:
+  a: {zone: ${REGION}-a, named_ports: {tcp: 80}}
+neg_configs:
+  neg:
+    gce:
+      zone: ${REGION2}-b
+      network: projects/${PROJECT}/global/networks/${XILB}-net
+      subnetwork: projects/${PROJECT}/regions/${REGION2}/subnetworks/${XILB}-sn2
+backend_service_config:
+  backends:
+    - {group: neg, max_connections: {per_endpoint: 100}}
+VALUES
+cat >"${OUT}/net-lb-proxy-int-cross-region.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-xilb-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${XILB}-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-xilb-sn1
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${XILB}-sn1
+  region: ${REGION}
+  ipCidrRange: 10.252.0.0/28
+  networkRef: {name: live-xilb-net}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-xilb-sn2
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${XILB}-sn2
+  region: ${REGION2}
+  ipCidrRange: 10.252.1.0/28
+  networkRef: {name: live-xilb-net}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-xilb-pr1
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${XILB}-pr1
+  region: ${REGION}
+  ipCidrRange: 10.252.2.0/26
+  purpose: GLOBAL_MANAGED_PROXY
+  role: ACTIVE
+  networkRef: {name: live-xilb-net}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-xilb-pr2
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${XILB}-pr2
+  region: ${REGION2}
+  ipCidrRange: 10.252.3.0/26
+  purpose: GLOBAL_MANAGED_PROXY
+  role: ACTIVE
+  networkRef: {name: live-xilb-net}
+NEEDS
+
+# The cross-region application load balancer: forwarding rules in two
+# regions, each beside a GLOBAL_MANAGED_PROXY subnet; an HTTP proxy (no
+# certificates); a URL map sending /groups to a backend service on an
+# instance group and the rest to one on a zonal NEG (the API refuses
+# groups and NEGs in one service); an HTTP and a TCP health check. No
+# endpoints, as for net-lb-proxy-int-cross-region.
+cat >"${OUT}/net-lb-app-int-cross-region.values.yaml" <<VALUES
+project_id: ${PROJECT}
+name: ${XALB}
+labels: {catalog-run: ${RUN}}
+vpc_config:
+  network: projects/${PROJECT}/global/networks/${XALB}-net
+  subnetworks:
+    ${REGION}: projects/${PROJECT}/regions/${REGION}/subnetworks/${XALB}-sn1
+    ${REGION2}: projects/${PROJECT}/regions/${REGION2}/subnetworks/${XALB}-sn2
+group_configs:
+  a: {zone: ${REGION}-a, named_ports: {http: 80}}
+neg_configs:
+  neg:
+    gce:
+      zone: ${REGION2}-b
+      subnetwork: projects/${PROJECT}/regions/${REGION2}/subnetworks/${XALB}-sn2
+health_check_configs:
+  default:
+    http: {port_specification: USE_SERVING_PORT, request_path: /healthz}
+  tcp:
+    tcp: {port: 80}
+backend_service_configs:
+  default:
+    backends:
+      - {group: neg, balancing_mode: RATE, max_rate: {per_endpoint: 100}}
+  groups:
+    port_name: http
+    health_checks: [tcp]
+    backends:
+      - {group: a}
+urlmap_config:
+  default_service: default
+  host_rules:
+    - hosts: ["*"]
+      path_matcher: main
+  path_matchers:
+    main:
+      default_service: default
+      path_rules:
+        - paths: [/groups, /groups/*]
+          service: groups
+VALUES
+sed -e 's/live-xilb-/live-xalb-/g' -e "s/${XILB}-/${XALB}-/g" -e 's#10\.252\.#10.253.#g' \
+  "${OUT}/net-lb-proxy-int-cross-region.needs.yaml" >"${OUT}/net-lb-app-int-cross-region.needs.yaml"
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Project ${PROJECT}, as ${RUNNER}; catalog $(git rev-parse --short HEAD 2>/dev/null || echo unknown); Config Connector at config-connector-extensions' pin."
+  echo "Project ${PROJECT}, as ${RUNNER}; catalog $(git rev-parse --short HEAD 2>/dev/null || echo unknown); Config Connector at config-connector-extensions' pin, and config-connector-extensions' manager, from ${CCE_TARBALL}."
   echo
   echo "| Chart | Object | Ready | Deleted | Gone from Google Cloud | Message |"
   echo "| --- | --- | --- | --- | --- | --- |"
@@ -526,8 +755,38 @@ for chart in ${LIVE_CHARTS}; do
     net-address)
       gone=yes
       "${G[@]}" compute addresses describe "${ADDR_G}" --global >/dev/null 2>&1 && gone=no
-      "${G[@]}" compute addresses describe "${ADDR_E}" --region "${REGION}" >/dev/null 2>&1 && gone=no ;;
+      "${G[@]}" compute addresses describe "${ADDR_E}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute network-attachments describe "${NA}" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks subnets describe "${NA}-sn" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${NA}-net" >/dev/null 2>&1 && gone=no ;;
     net-cloud-armor) "${G[@]}" compute security-policies describe "${ARMOR}" >/dev/null 2>&1 && gone=no || gone=yes ;;
+    net-lb-proxy-int-cross-region)
+      gone=yes
+      for g in "${REGION}" "${REGION2}"; do
+        "${G[@]}" compute forwarding-rules describe "${XILB}-${g}" --global >/dev/null 2>&1 && gone=no
+      done
+      "${G[@]}" compute target-tcp-proxies describe "${XILB}" --global >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute backend-services describe "${XILB}" --global >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute health-checks describe "${XILB}" --global >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute instance-groups unmanaged describe "${XILB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute network-endpoint-groups describe "${XILB}-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${XILB}-net" >/dev/null 2>&1 && gone=no ;;
+    net-lb-app-int-cross-region)
+      gone=yes
+      for g in "${REGION}" "${REGION2}"; do
+        "${G[@]}" compute forwarding-rules describe "${XALB}-${g}" --global >/dev/null 2>&1 && gone=no
+      done
+      "${G[@]}" compute target-http-proxies describe "${XALB}" --global >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute url-maps describe "${XALB}" --global >/dev/null 2>&1 && gone=no
+      for b in default groups; do
+        "${G[@]}" compute backend-services describe "${XALB}-${b}" --global >/dev/null 2>&1 && gone=no
+      done
+      for h in default tcp; do
+        "${G[@]}" compute health-checks describe "${XALB}-${h}" --global >/dev/null 2>&1 && gone=no
+      done
+      "${G[@]}" compute instance-groups unmanaged describe "${XALB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute network-endpoint-groups describe "${XALB}-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${XALB}-net" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do

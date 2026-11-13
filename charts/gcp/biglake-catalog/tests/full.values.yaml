@@ -1,0 +1,32 @@
+# Every variable: two databases, one with two tables and one with none,
+# with and without parameters.
+project_id: my-project
+name: lake
+location: us-central1
+databases:
+  sales:
+    type: HIVE
+    hive_options:
+      location_uri: gs://my-bucket/sales
+      parameters: {owner: sales-team}
+    tables:
+      orders:
+        type: HIVE
+        hive_options:
+          table_type: EXTERNAL_TABLE
+          location_uri: gs://my-bucket/sales/orders
+          input_format: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          output_format: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          parameters: {provider: iceberg}
+      customers:
+        type: HIVE
+        hive_options:
+          table_type: MANAGED_TABLE
+          location_uri: gs://my-bucket/sales/customers
+          input_format: org.apache.hadoop.mapred.SequenceFileInputFormat
+          output_format: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat
+  staging:
+    type: HIVE
+    hive_options:
+      location_uri: gs://my-bucket/staging
+    tables: {}

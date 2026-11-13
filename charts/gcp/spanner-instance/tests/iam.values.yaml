@@ -1,0 +1,39 @@
+# fabric's README example "IAM", with instance IAM added.
+project_id: my-project
+instance:
+  name: my-instance
+  display_name: Regional instance
+  config:
+    name: regional-us-central1
+  num_nodes: 1
+iam:
+  roles/spanner.viewer: ["group:viewers@myorg.com"]
+iam_bindings:
+  admins:
+    role: roles/spanner.admin
+    members: ["group:admins@myorg.com"]
+iam_bindings_additive:
+  reader:
+    role: roles/spanner.databaseReader
+    member: serviceAccount:reader@my-project.iam.gserviceaccount.com
+databases:
+  my-database:
+    version_retention_period: 1d
+    iam:
+      roles/spanner.databaseReader: ["group:group1@myorg.com"]
+    iam_bindings:
+      spanner-database-role-user:
+        role: roles/spanner.databaseRoleUser
+        members: ["group:group2@myorg.com"]
+        condition:
+          title: role-my_role
+          description: Grant permissions on my_role
+          expression: (resource.type == "spanner.googleapis.com/DatabaseRole" && (resource.name.endsWith("/my_role")))
+    iam_bindings_additive:
+      spanner-database-admin:
+        role: roles/spanner.databaseAdmin
+        member: group:group3@myorg.com
+        condition:
+          title: delegated-role-grants
+          description: Delegated role grants.
+          expression: api.getAttribute('iam.googleapis.com/modifiedGrantsByRole', []).hasOnly(['roles/storage.databaseReader'])

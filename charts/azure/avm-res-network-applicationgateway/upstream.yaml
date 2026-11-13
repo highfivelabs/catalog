@@ -1,0 +1,111 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: azure/avm-res-network-applicationgateway
+repo: https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway
+path: .
+version: v0.6.0
+commit: f5961205a9046adc86ea1c85cc490c19e462ecbd
+license: MIT
+copyright: Microsoft Corporation
+module_url: https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway/tree/v0.6.0
+registry_url: https://registry.terraform.io/modules/Azure/avm-res-network-applicationgateway/azurerm
+synced: 2026-11-12
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Azure Service Operator or aso-extensions kind or
+# field; the reason names the type when a kind is missing), not-ported (one
+# exists, the chart does not map it yet) or by-design (Bundt replaces it).
+# partial: the variable is accepted, the reason says what is refused (fields).
+#
+# ASO v2.22.0's ApplicationGateway is at ARM API version 2022-07-01 (the
+# module sends 2025-03-01; docs/azure.md, gap 18): every field the later
+# versions added is refused by name below.
+refused:
+  - variable: entra_jwt_validation_configs
+    kind: gap
+    reason: "ASO's ApplicationGateway is at ARM 2022-07-01, which has no entraJWTValidationConfigs (a later API version's)"
+  - variable: ssl_certificates
+    kind: not-ported
+    reason: "a certificate's data and password are secrets, and key_vault_secret_id is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled (docs/azure.md, section 8)"
+  - variable: authentication_certificates
+    kind: not-ported
+    reason: "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled (docs/azure.md, section 8)"
+  - variable: trusted_client_certificates
+    kind: not-ported
+    reason: "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled (docs/azure.md, section 8)"
+  - variable: trusted_root_certificates
+    kind: not-ported
+    reason: "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference), and key_vault_secret_id is Key Vault secret material; how a component supplies either is not settled (docs/azure.md, section 8)"
+  - variable: ignore_body_changes
+    kind: by-design
+    reason: "ASO applies the whole spec it is given; it cannot leave a field to another writer"
+  - variable: resource_types
+    kind: by-design
+    reason: "the API versions are the ASO kinds': ApplicationGateway 2022-07-01, PublicIPAddress 2025-03-01"
+  - variable: retry
+    kind: by-design
+    reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
+  - variable: timeouts
+    kind: by-design
+    reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
+  - variable: backend_http_settings_collection
+    kind: gap
+    reason: "accepted, except the fields ARM 2022-07-01 lacks (ASO's ApplicationGateway version): dedicated_backend_connection, sni_name, validate_cert_chain_and_expiry, validate_sni"
+    partial: true
+    fields: [dedicated_backend_connection, sni_name, validate_cert_chain_and_expiry, validate_sni]
+  - variable: backend_settings_collection
+    kind: gap
+    reason: "accepted, except enable_l4_client_ip_preservation, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [enable_l4_client_ip_preservation]
+  - variable: listeners
+    kind: gap
+    reason: "accepted, except host_names, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [host_names]
+  - variable: load_distribution_policies
+    kind: gap
+    reason: "accepted, but a target is only a reference by id: ASO's 2022-07-01 loadDistributionTargets carry no name, backend_address_pool or weight_per_server"
+    partial: true
+    fields: [load_distribution_targets.name, load_distribution_targets.backend_address_pool, load_distribution_targets.weight_per_server]
+  - variable: private_link_configurations
+    kind: gap
+    reason: "accepted, except an IP configuration's id: ASO's 2022-07-01 type has none (ARM derives it from the name)"
+    partial: true
+    fields: [ip_configurations.id]
+  - variable: probes
+    kind: gap
+    reason: "accepted, except enable_probe_proxy_protocol_header, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [enable_probe_proxy_protocol_header]
+  - variable: request_routing_rules
+    kind: gap
+    reason: "accepted, except entra_jwt_validation_config, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [entra_jwt_validation_config]
+  - variable: rewrite_rule_sets
+    kind: gap
+    reason: "accepted, except a header configuration's header_value_matcher, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [rewrite_rules.action_set.request_header_configurations.header_value_matcher, rewrite_rules.action_set.response_header_configurations.header_value_matcher]
+  - variable: sku
+    kind: gap
+    reason: "accepted, except family and the Basic name and tier, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [family]
+  - variable: ssl_profiles
+    kind: gap
+    reason: "accepted, except client_auth_configuration.verify_client_auth_mode, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks"
+    partial: true
+    fields: [client_auth_configuration.verify_client_auth_mode]
+  - variable: url_path_maps
+    kind: gap
+    reason: "accepted, except a path rule's id: ASO's 2022-07-01 type has none (ARM derives it from the name)"
+    partial: true
+    fields: [path_rules.id]

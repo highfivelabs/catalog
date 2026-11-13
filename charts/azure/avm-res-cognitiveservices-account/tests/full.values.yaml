@@ -1,0 +1,74 @@
+# An Azure OpenAI account with every input its kind takes: a model
+# deployment using a RAI policy, a named private endpoint with a DNS zone
+# group, a lock and role assignments of its own, a customer managed key
+# (the system-assigned identity's), network ACLs, user-owned storage,
+# allowed FQDNs, and the account's lock, role assignments and diagnostic
+# settings.
+name: cog-full
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+kind: OpenAI
+sku_name: S0
+custom_subdomain_name: cog-full-example
+local_auth_enabled: false
+public_network_access_enabled: false
+outbound_network_access_restricted: true
+dynamic_throttling_enabled: false
+allow_project_management: false
+deployment_serialization_enabled: true
+enable_telemetry: false
+fqdns: [example.com, contoso.com]
+tags: {env: dev}
+labels: {hfl.dev/team: ai}
+managed_identities:
+  system_assigned: true
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cog]
+customer_managed_key:
+  key_vault_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.KeyVault/vaults/kv-example
+  key_name: cog-key
+  key_version: 0123456789abcdef0123456789abcdef
+network_acls:
+  default_action: Deny
+  bypass: AzureServices
+  ip_rules: [203.0.113.0/24, 198.51.100.7]
+  virtual_network_rules:
+    - {subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-app, ignore_missing_vnet_service_endpoint: true}
+storage:
+  - {storage_account_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/stcog, identity_client_id: 44444444-4444-4444-4444-444444444444}
+cognitive_deployments:
+  gpt:
+    name: gpt-4o-mini
+    rai_policy_name: strict
+    version_upgrade_option: NoAutoUpgrade
+    model: {format: OpenAI, name: gpt-4o-mini, version: "2024-07-18"}
+    scale: {type: GlobalStandard, capacity: 10}
+  embed:
+    name: embed
+    model: {format: OpenAI, name: text-embedding-3-small}
+    scale: {type: Standard}
+rai_policies:
+  strict:
+    name: strict
+    base_policy_name: Microsoft.DefaultV2
+    mode: Blocking
+    content_filters:
+      - {name: Hate, blocking: true, enabled: true, severity_threshold: Low, source: Prompt}
+      - {name: Hate, blocking: true, enabled: true, severity_threshold: Low, source: Completion}
+    custom_block_lists:
+      - {source: Prompt, block_list_name: words, blocking: true}
+private_endpoints:
+  pe:
+    name: pe-cog-full
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-pe
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com]
+    application_security_group_associations: {app: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationSecurityGroups/asg-app}
+    ip_configurations: {a: {name: ipconfig-a, private_ip_address: 10.0.2.10}}
+    tags: {role: pe}
+    lock: {kind: CanNotDelete}
+    role_assignments:
+      reader: {role_definition_id_or_name: Reader, principal_id: 55555555-5555-5555-5555-555555555555, name: 66666666-6666-6666-6666-666666666666}
+lock: {kind: CanNotDelete, name: no-delete}
+role_assignments:
+  user: {role_definition_id_or_name: Cognitive Services OpenAI User, principal_id: 11111111-1111-1111-1111-111111111111, principal_type: Group}
+diagnostic_settings:
+  law: {workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law, log_analytics_destination_type: AzureDiagnostics}

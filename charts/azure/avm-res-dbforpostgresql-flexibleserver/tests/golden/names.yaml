@@ -1,0 +1,54 @@
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServer
+metadata:
+  name: names-psql
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "server"
+spec:
+  azureName: "psql-shop-dev-eus2"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shop-dev"
+  authConfig:
+    activeDirectoryAuth: Enabled
+    passwordAuth: Disabled
+  highAvailability:
+    mode: Disabled
+  network:
+    publicNetworkAccess: Disabled
+  sku:
+    name: "Standard_B1ms"
+    tier: Burstable
+  tags:
+    team: shop
+  version: "16"
+---
+# Source: avm-res-dbforpostgresql-flexibleserver/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: names-psql-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: avm-res-dbforpostgresql-flexibleserver
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "keep"
+  owner:
+    group: dbforpostgresql.azure.com
+    kind: FlexibleServer
+    name: names-psql
+  level: ReadOnly
+  notes: "Cannot delete or modify the resource or its child resources."

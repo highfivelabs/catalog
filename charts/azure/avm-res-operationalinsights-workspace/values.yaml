@@ -60,10 +60,12 @@ log_analytics_workspace_cmk_for_query_forced: null
 # (Optional) The workspace daily quota for ingestion in GB (-1:
 # unlimited).
 log_analytics_workspace_daily_quota_gb: null
-# A map of data exports to create. Refused when set: no ASO kind.
+# A map of data exports (aso-extensions WorkspacesDataExport). Each: {name,
+# table_names, destination_resource_id (a storage account, an Event Hubs
+# namespace or an event hub), enabled (true), event_hub_name}.
 log_analytics_workspace_data_exports: {}
-# (Optional) The dedicated cluster to link. Refused when set: the link is
-# a linked service, which has no ASO kind.
+# (Optional) The dedicated cluster to link, through a linked service named
+# Cluster (aso-extensions WorkspacesLinkedService).
 log_analytics_workspace_dedicated_cluster_resource_id: null
 # The workspace's managed identity. {type (SystemAssigned or
 # UserAssigned), identity_ids}
@@ -74,7 +76,10 @@ log_analytics_workspace_internet_ingestion_enabled: "false"
 # (Optional) Querying over the public internet: "true", "false" or
 # "SecuredByPerimeter".
 log_analytics_workspace_internet_query_enabled: "false"
-# A map of linked storage accounts. Refused when set: no ASO kind.
+# A map of linked storage accounts (aso-extensions
+# WorkspacesLinkedStorageAccount, named for its data source type). Each:
+# {data_source_type (CustomLogs, AzureWatson, Query, Ingestion, Alerts),
+# storage_account_ids}.
 log_analytics_workspace_linked_storage_accounts: {}
 # (Optional) Local (shared key) authentication. Defaults to true.
 log_analytics_workspace_local_authentication_enabled: true
@@ -85,24 +90,34 @@ log_analytics_workspace_reservation_capacity_in_gb_per_day: null
 log_analytics_workspace_retention_in_days: null
 # (Optional) The SKU. Defaults to PerGB2018.
 log_analytics_workspace_sku: null
-# Tables to create. Refused when set: no ASO kind.
+# Tables to create (aso-extensions WorkspacesTable). Each: {name,
+# resource_id (another workspace), retention_in_days,
+# total_retention_in_days, plan, schema: {name, description, columns:
+# [{name, type}]}}.
 log_analytics_workspace_tables: {}
-# Tables to update. Refused when set: no ASO kind.
+# Tables to update, such as Heartbeat or Syslog (a WorkspacesTable left in
+# Azure when deleted). Each as log_analytics_workspace_tables.
 log_analytics_workspace_tables_update: {}
 # The timeouts of the workspace. Refused when set: ASO has none; Bundt
 # sets a component's time limit.
 log_analytics_workspace_timeouts: null
-# Monitor Private Link Scopes to create. Refused when set: no ASO kind.
+# Monitor Private Link Scopes to create (aso-extensions PrivateLinkScope,
+# with a scoped resource linking this workspace). Each: {name
+# ("law_pl_scope"), resource_id (its resource group), ingestion_access_mode,
+# query_access_mode ("PrivateOnly"), exclusions, lock}.
 monitor_private_link_scope: {}
-# Existing Monitor Private Link Scopes to join. Refused when set: no ASO
-# kind.
+# Existing Monitor Private Link Scopes to join (a
+# PrivateLinkScopesScopedResource each). Each: {name (the workspace's),
+# resource_id (the scope), exclusions (refused)}.
 monitor_private_link_scoped_resource: {}
-# The scoped service's name. Refused when set: no ASO kind.
+# The name of the workspace's scoped resource in each created scope;
+# required with monitor_private_link_scope.
 monitor_private_link_scoped_service_name: null
 # (Required) The name of the workspace.
 name: null
-# The Network Security Perimeter association. Refused when set: no ASO
-# kind.
+# The Network Security Perimeter association (aso-extensions
+# NetworkSecurityPerimetersResourceAssociation, nsp-assoc-<name>):
+# {resource_id, profile_name, access_mode ("Learning")}.
 network_security_perimeter_association: null
 # Private endpoint extensions. Refused when set: not mapped yet.
 private_endpoint_extensions: {}

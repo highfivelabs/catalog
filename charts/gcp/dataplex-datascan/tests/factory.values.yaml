@@ -1,0 +1,37 @@
+# fabric's README data quality factory, camelCase file
+# (config/data_quality_spec_camel_case.yaml), as data, with a BigQuery
+# export of the results.
+name: datascan
+prefix: test
+project_id: my-project-name
+region: us-central1
+labels: {billing_id: a}
+execution_schedule: TZ=America/New_York 0 1 * * *
+data:
+  resource: //bigquery.googleapis.com/projects/bigquery-public-data/datasets/austin_bikeshare/tables/bikeshare_stations
+incremental_field: modified_date
+factories_config: {data_quality_spec: config/data_quality_spec_camel_case.yaml}
+factories_data:
+  data_quality_spec:
+    samplingPercent: 100
+    rowFilter: station_id > 1000
+    postScanActions:
+      bigqueryExport:
+        resultsTable: //bigquery.googleapis.com/projects/my-project-name/datasets/dq/tables/results
+    rules:
+      - {column: address, dimension: VALIDITY, ignoreNull: null, nonNullExpectation: {}, threshold: 0.99}
+      - column: council_district
+        dimension: VALIDITY
+        ignoreNull: true
+        threshold: 0.9
+        rangeExpectation: {maxValue: '10', minValue: '1', strictMaxEnabled: false, strictMinEnabled: true}
+      - {column: power_type, dimension: VALIDITY, ignoreNull: false, regexExpectation: {regex: .*solar.*}}
+      - {column: property_type, dimension: VALIDITY, ignoreNull: false, setExpectation: {values: [sidewalk, parkland]}}
+      - {column: address, dimension: UNIQUENESS, uniquenessExpectation: {}}
+      - column: number_of_docks
+        dimension: VALIDITY
+        statisticRangeExpectation: {maxValue: '15', minValue: '5', statistic: MEAN, strictMaxEnabled: true, strictMinEnabled: true}
+      - {column: footprint_length, dimension: VALIDITY, rowConditionExpectation: {sqlExpression: footprint_length > 0 AND footprint_length <= 10}}
+      - {dimension: VALIDITY, tableConditionExpectation: {sqlExpression: COUNT(*) > 0}}
+      - dimension: VALIDITY
+        sqlAssertion: {sqlStatement: "SELECT city_asset_number FROM ${data()} GROUP BY 1 HAVING COUNT(*) > 1"}

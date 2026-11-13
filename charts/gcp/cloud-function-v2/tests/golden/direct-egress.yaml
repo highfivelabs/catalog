@@ -1,0 +1,131 @@
+---
+# Source: cloud-function-v2/templates/main.yaml
+apiVersion: cloudfunctions2.gcp.hfl.dev/v1beta1
+kind: CloudFunctions2Function
+metadata:
+  name: direct-egress
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "direct-egress"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "function"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "test-cf-http"
+  description: "Terraform managed."
+  buildConfig:
+    runtime: "python313"
+    entryPoint: "main"
+    onDeployUpdatePolicy: {}
+    source:
+      storageSource:
+        bucket: "my-bucket"
+        object: "bundles/function.zip"
+  serviceConfig:
+    allTrafficOnLatestRevision: true
+    availableCpu: "0.166"
+    availableMemory: "256M"
+    environmentVariables:
+      "LOG_EXECUTION_ID": "true"
+    maxInstanceCount: 1
+    minInstanceCount: 0
+    serviceAccountEmail: "test-cf-http@my-project.iam.gserviceaccount.com"
+    timeoutSeconds: 180
+    vpcConnector: "projects/my-project/locations/europe-west1/connectors/test-cf-http"
+    directVpcEgress: "VPC_EGRESS_PRIVATE_RANGES_ONLY"
+    directVpcNetworkInterface:
+      - network: "projects/my-project/global/networks/vpc"
+        subnetwork: "projects/my-project/regions/europe-west1/subnetworks/apps"
+        tags: ["fn"]
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: direct-egress-sa-roles-logging-logwriter-41260050
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "direct-egress"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/logging.logWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/logging.logWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: direct-egress-sa
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: direct-egress-sa-roles-monitoring-metricwriter-07f41a0a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "direct-egress"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "sa-role:roles/monitoring.metricWriter"
+spec:
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: "projects/my-project"
+  role: "roles/monitoring.metricWriter"
+  memberFrom:
+    serviceAccountRef:
+      name: direct-egress-sa
+---
+# Source: cloud-function-v2/templates/serviceaccount.yaml
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: direct-egress-sa
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "direct-egress"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "service_account"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "test-cf-http"
+  displayName: "test-cf-http"
+---
+# Source: cloud-function-v2/templates/vpcconnector.yaml
+apiVersion: vpcaccess.cnrm.cloud.google.com/v1beta1
+kind: VPCAccessConnector
+metadata:
+  name: direct-egress-connector
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "direct-egress"
+    app.kubernetes.io/name: cloud-function-v2
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "vpc_connector"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  location: "europe-west1"
+  resourceID: "test-cf-http"
+  maxThroughput: 300
+  minThroughput: 200
+  subnet:
+    nameRef:
+      external: "connector-subnet"
+    projectRef:
+      external: "host-project"

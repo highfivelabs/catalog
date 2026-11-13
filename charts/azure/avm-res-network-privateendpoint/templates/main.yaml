@@ -1,0 +1,130 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-privateendpoint main.tf,
+locals.tf, variables.tf and modules/private-dns-zone-group (v0.3.1),
+Copyright (c) Microsoft Corporation, MIT.
+
+azapi_resource.this (Microsoft.Network/privateEndpoints): one ASO
+PrivateEndpoint, owned by the resource group parent_id names, with one
+private link service connection, the static IP configurations, the
+application security groups and the custom network interface name.
+module.private_dns_zone_group: one ASO PrivateEndpointsPrivateDnsZoneGroup
+owned by the endpoint, a zone config per zone named by the zone's last
+segment, as the submodule names them. azapi_resource.lock: an
+aso-extensions ManagementLock with the module's notes.
+azapi_resource.role_assignments: one ASO RoleAssignment each. The network
+interface the module reads for its outputs is Azure's (the endpoint's
+status lists it). The telemetry, the time_sleep that waits for a deleted
+lock and the migration import helper (avm_managed_migration_enabled: ASO
+adopts an existing zone group of the same name) are not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := "avm-res-network-privateendpoint" }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" (include "pe.anySet" $v.ignore_body_changes) "Azure Service Operator applies every property it is given and cannot leave a path to another writer") }}
+{{- include "aso.unsupported" (list $ "resource_types" (include "pe.anySet" $v.resource_types) "ASO's kinds fix the API versions (PrivateEndpoint and PrivateEndpointsPrivateDnsZoneGroup 2025-03-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "privateEndpoint" "networkInterface")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $n) }}{{ end }}
+{{- /* The module's validations. */ -}}
+{{- $rg := "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+" }}
+{{- if not (regexMatch (printf "%s$" $rg) (toString $v.parent_id)) }}
+{{- fail (printf "%s: The parent_id must be a valid Azure resource group resource ID." $n) }}
+{{- end }}
+{{- if not (regexMatch (printf "%s/providers/Microsoft\\.Network/virtualNetworks/[^/]+/subnets/[^/]+$" $rg) (toString $v.subnet_resource_id)) }}
+{{- fail (printf "%s: `subnet_resource_id` must be a valid subnet resource ID." $n) }}
+{{- end }}
+{{- range ($v.application_security_group_association_ids | default list) }}
+{{- if not (regexMatch (printf "%s/providers/Microsoft\\.Network/applicationSecurityGroups/[^/]+$" $rg) .) }}
+{{- fail (printf "%s: Each `application_security_group_association_ids` entry must be a valid application security group resource ID." $n) }}
+{{- end }}
+{{- end }}
+{{- range ($v.private_dns_zone_resource_ids | default list) }}
+{{- if not (regexMatch (printf "%s/providers/Microsoft\\.Network/privateDnsZones/[^/]+$" $rg) .) }}
+{{- fail (printf "%s: Each `private_dns_zone_resource_ids` entry must be a valid private DNS zone resource ID." $n) }}
+{{- end }}
+{{- end }}
+{{- range $_, $r := ($v.role_assignments | default dict) }}
+{{- if and $r.delegated_managed_identity_resource_id (not (regexMatch (printf "%s/providers/Microsoft\\.ManagedIdentity/userAssignedIdentities/[^/]+$" $rg) $r.delegated_managed_identity_resource_id)) }}
+{{- fail (printf "%s: Each `role_assignments[*].delegated_managed_identity_resource_id` must be a valid user-assigned managed identity resource ID, or null." $n) }}
+{{- end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "pe") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "private_endpoint" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "privateEndpoint" "private endpoint" $v.name 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
+  {{- with $v.application_security_group_association_ids }}
+  applicationSecurityGroups:
+    {{- range (uniq . | sortAlpha) }}
+    - reference:
+        armId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if or $v.network_interface_name $v.names.networkInterface }}
+  customNetworkInterfaceName: {{ include "aso.resourceName" (list $ "networkInterface" "network interface" ($v.network_interface_name | default "") 80 "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$") | quote }}
+  {{- end }}
+  {{- with $v.ip_configurations }}
+  ipConfigurations:
+    {{- range $_, $c := . }}
+    - name: {{ $c.name | quote }}
+      groupId: {{ $c.subresource_name | quote }}
+      memberName: {{ $c.member_name | default "default" | quote }}
+      privateIPAddress: {{ $c.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $v.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      {{- if not (kindIs "invalid" $v.subresource_names) }}
+      groupIds:
+        {{- range $v.subresource_names }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      privateLinkServiceReference:
+        armId: {{ $v.private_connection_resource_id | quote }}
+  subnet:
+    reference:
+      armId: {{ $v.subnet_resource_id | quote }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $obj }}
+{{- with $v.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "dns")) "id" "private_dns_zone_group" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $v.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $obj }}
+  privateDnsZoneConfigs:
+    {{- range . }}
+    - name: {{ splitList "/" . | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ . | quote }}
+    {{- end }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := dict "CanNotDelete" "Cannot delete the resource or its child resources." "ReadOnly" "Cannot delete or modify the resource or its child resources." }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" (.notes | default (get $notes (toString .kind))))) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := ($v.role_assignments | default dict) }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}

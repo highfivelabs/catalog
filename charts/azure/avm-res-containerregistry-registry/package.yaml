@@ -8,10 +8,14 @@
 # resource_id, login_server and data_endpoint_host_names are the
 # registry's, from ASO's status; the system-assigned identity's principal
 # and tenant IDs likewise (null without one); cache_rules is {<key>:
-# {name, resource_id}}, as the module builds it. Not outputs: the admin
-# user's name and password (secrets: ASO can write them to a Kubernetes
-# Secret, which is not an output), credential_sets and scope_maps
-# (refused), private_endpoints (refused).
+# {name, resource_id}}, as the module builds it; credential_sets is
+# {<key>: {name, resource_id, principal_id, tenant_id}} (the set's
+# system-assigned identity, from aso-extensions' status); scope_maps is
+# {<key>: {name, resource_id, id, registry_tokens: {<key>: {name, id}}}},
+# the scope-map submodule's outputs without its token passwords (refused).
+# Not outputs: the admin user's name and password (secrets: ASO can write
+# them to a Kubernetes Secret, which is not an output), private_endpoints
+# (refused).
 apiVersion: hfl.dev/v1
 kind: Package
 metadata:
@@ -33,3 +37,7 @@ spec:
       'identity' in resources.registry.status && 'tenantId' in resources.registry.status.identity ? resources.registry.status.identity.tenantId : null
     cache_rules: >-
       resources.transformMapEntry(k, v, k.startsWith('cache_rule:'), {k.substring(11): {'name': v.spec.azureName, 'resource_id': v.status.id}})
+    credential_sets: >-
+      resources.transformMapEntry(k, v, k.startsWith('credential_set:'), {k.substring(15): {'name': v.spec.azureName, 'resource_id': v.status.id, 'principal_id': 'identity' in v.status && 'principalId' in v.status.identity ? v.status.identity.principalId : null, 'tenant_id': 'identity' in v.status && 'tenantId' in v.status.identity ? v.status.identity.tenantId : null}})
+    scope_maps: >-
+      resources.transformMapEntry(k, v, k.startsWith('scope_map:') && !k.contains(':token:'), {k.substring(10): {'name': v.spec.azureName, 'resource_id': v.status.id, 'id': v.status.id, 'registry_tokens': resources.transformMapEntry(tk, tv, tk.startsWith(k + ':token:'), {tk.substring(size(k) + 7): {'name': tv.spec.azureName, 'id': tv.status.id}})}})

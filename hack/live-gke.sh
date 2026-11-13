@@ -94,6 +94,7 @@ list_left() {
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
+  [[ -n "${CCE_MANAGER_PID:-}" ]] && kill "${CCE_MANAGER_PID}" 2>/dev/null || true
   kind delete cluster --name catalog-live-gke >/dev/null 2>&1 || true
   echo "== sweep after"; sweep_run "${RUN}"; sweep_old
   echo "== gcloud container clusters list --project ${PROJECT}"
@@ -105,7 +106,8 @@ trap cleanup EXIT
 echo "== sweep before"; sweep_old; list_left
 
 # config-connector-extensions, its pinned Config Connector, and the
-# manager acting on Google Cloud, as hack/live-apply.sh runs them.
+# manager acting on Google Cloud, and config-connector-extensions' own
+# manager beside it (hack/cce-manager.sh), as hack/live-apply.sh runs them.
 CCE_DIR="${ROOT}/.cache/cce-live"
 rm -rf "${CCE_DIR}" && mkdir -p "${CCE_DIR}"
 gcloud storage cat "${CCE_TARBALL:?set CCE_TARBALL}" | tar -xz -C "${CCE_DIR}"
@@ -115,6 +117,9 @@ git -C "${CCE_DIR}" init -q && git -C "${CCE_DIR}" add -A && \
 mkdir -p "${CCE_DIR}/cmd/realcloud"
 cp hack/live/realcloud.go.txt "${CCE_DIR}/cmd/realcloud/main.go"
 (cd "${CCE_DIR}" && GOTOOLCHAIN=auto go build -o "${ROOT}/bin/realcloud" ./cmd/realcloud)
+# shellcheck source=hack/cce-manager.sh
+source hack/cce-manager.sh
+cce_build_manager
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
 export KUBECONFIG="${OUT}/kubeconfig"
@@ -134,6 +139,8 @@ for _ in $(seq 1 90); do
   sleep 2
 done
 [[ "${started}" == yes ]] || { echo "live-gke: the manager did not start:" >&2; grep -v round_trippers "${OUT}/manager.log" | tail -15 >&2; exit 1; }
+cce_install_crds
+cce_start_manager "${OUT}/cce-manager.log"
 NS=catalog-live-gke
 kubectl create namespace "${NS}" --dry-run=client -o yaml \
   | kubectl annotate --local -f - "cnrm.cloud.google.com/project-id=${PROJECT}" -o yaml | kubectl apply -f - >/dev/null
