@@ -1778,8 +1778,8 @@ aws,vpc,secondary_cidr_blocks,list(string),yes,,
 aws,vpc,single_nat_gateway,bool,yes,,
 aws,vpc,tags,map(string),yes,,
 aws,vpc,use_ipam_pool,bool,no,"VPC.cidrBlocks is required in ACK's VPC, so a VPC cannot take its whole block from an IPAM pool by netmask length; ipv4_ipam_pool_id with cidr is supported",gap
-aws,vpc,vpc_block_public_access_exclusions,map(any),no,"VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)",gap
-aws,vpc,vpc_block_public_access_options,map(string),no,"VPC Block Public Access has no kind (aws_vpc_block_public_access_options, aws_vpc_block_public_access_exclusion)",gap
+aws,vpc,vpc_block_public_access_exclusions,map(any),no,"aws_vpc_block_public_access_exclusion takes this chart's VPC's or subnets' IDs, and ack-extensions' VPCBlockPublicAccessExclusion (Cloud Control) has no reference to either (vpcRef, subnetRef)",gap
+aws,vpc,vpc_block_public_access_options,map(string),partial,"VPCBlockPublicAccessOptions is an ack-extensions kind (Cloud Control, outside ACK's releases): needs allow_alpha: true",alpha
 aws,vpc,vpc_flow_log_iam_policy_name,string,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
 aws,vpc,vpc_flow_log_iam_policy_use_name_prefix,bool,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
 aws,vpc,vpc_flow_log_iam_role_name,string,no,"flow logs are not ported: FlowLog.resourceID takes the VPC's ID, known only after apply, and FlowLog has no reference to a VPC (vpcRef)",gap
@@ -2093,7 +2093,7 @@ aws,security-group,revoke_rules_on_delete,bool,no,ACK's SecurityGroup has no fie
 aws,security-group,tags,map(string),yes,,
 aws,security-group,timeouts,"object({create, delete})",no,"Terraform's create and delete timeouts: ACK retries until the group is synced, and Bundt waits for it",by-design
 aws,security-group,use_name_prefix,bool,partial,"accepted: true (the default) names the group name as given, without Terraform's random suffix (name_prefix), since a render must not change between plans; the namePrefix value keeps two Instances' groups apart",gap
-aws,security-group,vpc_associations,map(object({vpc_id})),no,aws_vpc_security_group_vpc_association has no ACK or ack-extensions kind,gap
+aws,security-group,vpc_associations,map(object({vpc_id})),no,"ack-extensions' SecurityGroupVpcAssociation (Cloud Control) takes the group's ID, with no reference to this chart's group (groupRef), so it cannot be wired in one render",gap
 aws,security-group,vpc_id,string,partial,"accepted when set; unset (Terraform's default, the account's default VPC) is refused: ACK's SecurityGroup needs its VPC's ID (vpcID or vpcRef) and the chart cannot look the default VPC up",gap
 aws,rds,allocated_storage,number,no,,no-chart
 aws,rds,allow_major_version_upgrade,bool,no,,no-chart
