@@ -152,36 +152,24 @@ schemas and the aso-extensions CRDs it renders (`crds/aso-extensions`), and
 the refusals in `tests/*.fail.yaml`.
 
 **Fake cloud** (`tests/mock.values.yaml`: one management group under the
-fake tenant's root, a policy definition, set definition and role
-definition at it, an assignment of the set, a management group role
-assignment and the fake's subscription placed in it), stock ASO and
-aso-extensions' manager at `b9beb5b` against aso-extensions' fakearm,
-offload run `off-catalog-1113111130-6616` on 2026-11-13: 7 objects Ready
-and deleted, outputs evaluated.
+fake tenant's root and a child group beneath it, a policy definition, set
+definition and role definition at the first, an assignment of the set
+with a system-assigned identity and its policy role assignment, a
+management group role assignment, the fake's subscription placed in the
+child group, and hierarchy settings on the tenant root group), stock ASO
+and aso-extensions' manager at `3d9ba27` against aso-extensions' fakearm,
+offload run `off-catalog-1113155314-18721` on 2026-11-13: all 10 objects Ready and deleted,
+outputs evaluated. The child group, applied with its parent, became Ready
+once the parent was there (aso-extensions #82), the policy role
+assignment read its principal from the ConfigMap the manager wrote
+(#80), and the settings went on the fake's tenant root group (#81).
 
-The first run (`off-catalog-1113104126-12280`, with two levels of groups
-and an assignment with a system-assigned identity and its policy role
-assignment) found two gaps of aso-extensions at `b9beb5b`, which the mock
-now leaves out; the chart renders both as the module does:
-
-- **A child management group is not retried.** aso-extensions'
-  `ManagementGroup` resolves its parent reference to the parent's ID
-  without waiting for the parent to exist; the fake answers the first PUT
-  `400 ParentGroupNotFound`, the controller records it as a Warning and
-  does not retry, so the child (and what it owns: a placement, a role
-  assignment there) never becomes Ready. Terraform orders the levels
-  (`management_groups_level_0`..`_6`); the kind should wait for, or retry
-  on, a parent it references.
-- **A policy assignment cannot export its principal.** The manager's
-  ClusterRole (`config/rbac/role.yaml`) has only get, list and watch on
-  ConfigMaps, so `operatorSpec.configMapExpressions` fails ("configmaps is
-  forbidden ... cannot create resource"), and the policy role assignment
-  that reads the principal (`principalIdFromConfig`) waits for a ConfigMap
-  that never comes. The manager needs create and update on ConfigMaps
-  (and Secrets, for `secretExpressions`).
-
-Not run against the fake: hierarchy settings (the fake Resource Manager
-has no tenant root group, which the settings belong to).
+An earlier run (`off-catalog-1113104126-12280`, aso-extensions
+`b9beb5b`) found the two gaps those changes closed (docs/azure.md, section
+5, gaps 20 and 21): a child group was not retried while its parent was
+missing, and the manager could not write the ConfigMap a policy
+assignment's principal goes through; run `off-catalog-1113111130-6616`
+then passed with one level and no policy identity.
 
 **Not applied live.** Every resource is tenant or management group scope
 (management groups, their settings, policy and role definitions, policy

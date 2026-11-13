@@ -61,10 +61,32 @@ dapr_components:
     component_type: pubsub.azure.servicebus.topics
     dapr_components_version: v1
     secret_store_component: secretstore
+dapr_subscriptions:
+  orders:
+    name: orders
+    pubsub_name: pubsub
+    topic: orders
+    dead_letter_topic: orders-dead
+    metadata: {rawPayload: "true"}
+    scopes: [worker]
+    bulk_subscribe: {enabled: true, max_await_duration_ms: 500, max_messages_count: 100}
+    routes:
+      default: /orders
+      rules:
+        - {match: "event.type == 'priority'", path: /orders/priority}
 storages:
   files:
     name: files
     azure_file: {access_mode: ReadOnly, account_name: stexample, share_name: share}
+  files-kv:
+    name: files-kv
+    azure_file:
+      access_mode: ReadWrite
+      account_name: stexample
+      share_name: share2
+      account_key_vault_properties:
+        identity: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae
+        key_vault_url: https://kv-example.vault.azure.net/secrets/storage-key
   nfs:
     name: nfs
     nfs_azure_file: {access_mode: ReadWrite, server: stexample.file.core.windows.net, share_name: /stexample/nfs}
@@ -87,6 +109,23 @@ java_components:
     component_type: SpringCloudEureka
     service_binds:
       - {name: config, service_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/config}
+  gateway:
+    name: gateway
+    component_type: SpringCloudGateway
+    scale: {min_replicas: 1, max_replicas: 2}
+  nacos:
+    name: nacos
+    component_type: Nacos
+    configurations:
+      - {property_name: nacos.core.auth.enabled, value: "false"}
+dot_net_components:
+  aspire:
+    name: aspire-dashboard
+    component_type: AspireDashboard
+    configurations:
+      - {property_name: DASHBOARD__OTLP__AUTHMODE, value: Unsecured}
+    service_binds:
+      - {name: eureka, service_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-full/javaComponents/eureka}
 http_route_configs:
   api:
     name: api

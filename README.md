@@ -134,8 +134,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 890 of 1478 (60.2%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 991 of 1170 (84.7%) |
-| **All** | **177** | | **2414 of 4996 (48.3%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 993 of 1170 (84.9%) |
+| **All** | **177** | | **2416 of 4996 (48.4%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -318,7 +318,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-documentdb-databaseaccount`](https://github.com/Azure/terraform-azurerm-avm-res-documentdb-databaseaccount/tree/v0.12.0) ([chart](charts/azure/avm-res-documentdb-databaseaccount)) | ![avm-res-documentdb-databaseaccount](docs/coverage/bars/azure-avm-res-documentdb-databaseaccount.svg) 38 of 38 | 43 of 47 | 16 | ported |
 | [`avm-res-network-dnsresolver`](https://github.com/Azure/terraform-azurerm-avm-res-network-dnsresolver/tree/v0.8.0) ([chart](charts/azure/avm-res-network-dnsresolver)) | ![avm-res-network-dnsresolver](docs/coverage/bars/azure-avm-res-network-dnsresolver.svg) 10 of 10 | 7 of 7 | 8 | ported |
 | [`avm-res-cache-redis`](https://github.com/Azure/terraform-azurerm-avm-res-cache-redis/tree/v0.5.0) ([chart](charts/azure/avm-res-cache-redis)) | ![avm-res-cache-redis](docs/coverage/bars/azure-avm-res-cache-redis.svg) 31 of 31 | 4 of 5 | 10 | partial |
-| [`avm-res-app-managedenvironment`](https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0) ([chart](charts/azure/avm-res-app-managedenvironment)) | ![avm-res-app-managedenvironment](docs/coverage/bars/azure-avm-res-app-managedenvironment.svg) 39 of 72 | 16 of 18 | 1 | partial |
+| [`avm-res-app-managedenvironment`](https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0) ([chart](charts/azure/avm-res-app-managedenvironment)) | ![avm-res-app-managedenvironment](docs/coverage/bars/azure-avm-res-app-managedenvironment.svg) 41 of 72 | 16 of 18 | 1 | partial |
 | [`avm-res-network-applicationgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway/tree/v0.6.0) ([chart](charts/azure/avm-res-network-applicationgateway)) | ![avm-res-network-applicationgateway](docs/coverage/bars/azure-avm-res-network-applicationgateway.svg) 41 of 50 | 10 of 11 | 4 | partial |
 | [`avm-ptn-network-private-link-private-dns-zones`](https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones/tree/v0.23.2) ([chart](charts/azure/avm-ptn-network-private-link-private-dns-zones)) | ![avm-ptn-network-private-link-private-dns-zones](docs/coverage/bars/azure-avm-ptn-network-private-link-private-dns-zones.svg) 18 of 19 | 3 of 3 | 1 | partial |
 | [`avm-res-network-ddosprotectionplan`](https://github.com/Azure/terraform-azurerm-avm-res-network-ddosprotectionplan/tree/v0.3.0) ([chart](charts/azure/avm-res-network-ddosprotectionplan)) | ![avm-res-network-ddosprotectionplan](docs/coverage/bars/azure-avm-res-network-ddosprotectionplan.svg) 7 of 7 | 3 of 3 | 3 | ported |
