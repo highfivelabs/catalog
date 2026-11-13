@@ -132,8 +132,8 @@ commit, licence and the date last synced.
 CRD schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` applies a network with one subnet to the Azure sandbox with
 Azure Service Operator, evaluates the outputs, deletes it and checks Azure
-no longer has it: passed on 2026-11-12. Not yet applied to the fake cloud
-(`docs/azure.md`, "8. Charts").
+no longer has it: passed on 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
+fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
 ## Changes
 

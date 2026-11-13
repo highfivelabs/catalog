@@ -1,0 +1,142 @@
+---
+# Source: net-lb-proxy-int-cross-region/templates/backend-service.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: hybrid-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hybrid-neg"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test"
+  location: global
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: TCP
+  healthChecks:
+    - healthCheckRef:
+        name: hybrid-neg
+  sessionAffinity: "NONE"
+  backend:
+    - balancingMode: "CONNECTION"
+      capacityScaler: 1
+      description: "Terraform managed."
+      group:
+        networkEndpointGroupRef:
+          name: hybrid-neg-neg-hybrid-a
+      maxConnectionsPerEndpoint: 100
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: hybrid-neg-fr-europe-west1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hybrid-neg"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:europe-west1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test-europe-west1"
+  location: global
+  description: "Terraform managed."
+  ipProtocol: TCP
+  loadBalancingScheme: INTERNAL_MANAGED
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+  portRange: "80"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/my-subnet-1"
+  target:
+    targetTCPProxyRef:
+      name: hybrid-neg
+---
+# Source: net-lb-proxy-int-cross-region/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: hybrid-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hybrid-neg"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test"
+  location: global
+  description: "Terraform managed."
+  tcpHealthCheck:
+    portSpecification: USE_SERVING_PORT
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeNetworkEndpoint
+metadata:
+  name: hybrid-neg-ep-hybrid-a-endpoint-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hybrid-neg"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "endpoint:hybrid-a-endpoint-1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  networkEndpointGroupRef:
+    name: hybrid-neg-neg-hybrid-a
+  zone: "europe-west1-b"
+  ipAddress: "10.10.10.1"
+  resourceID: "80"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetworkEndpointGroup
+metadata:
+  name: hybrid-neg-neg-hybrid-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hybrid-neg"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "neg:hybrid-a"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test-hybrid-a"
+  location: "europe-west1-b"
+  networkEndpointType: NON_GCP_PRIVATE_IP_PORT
+  networkRef:
+    external: "projects/my-project/global/networks/my-vpc"
+---
+# Source: net-lb-proxy-int-cross-region/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeTargetTCPProxy
+metadata:
+  name: hybrid-neg
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "hybrid-neg"
+    app.kubernetes.io/name: net-lb-proxy-int-cross-region
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "target_proxy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-proxy-test"
+  location: global
+  description: "Terraform managed."
+  backendServiceRef:
+    name: hybrid-neg

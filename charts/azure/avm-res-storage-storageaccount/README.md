@@ -35,6 +35,7 @@ rules that deny all but Azure services (`tests/golden/basic.yaml`).
 | `module.queues` (`.../queueServices/default/queues`) | one per entry | `StorageAccountsQueueServicesQueue`, `queue:<key>` |
 | `module.tables` (`.../tableServices/default/tables`) | one per entry | `StorageAccountsTableServicesTable`, `table:<key>` |
 | `module.shares` (`.../fileServices/default/shares`) | one per entry | `StorageAccountsFileServicesShare`, `share:<key>` |
+| `module.local_users` (`.../localUsers`) | one per `local_user` entry | `StorageAccountsLocalUser` (aso-extensions, `storage.azure.hfl.dev/v20260601`), `local_user:<key>`: home directory, SSH key authentication, permission scopes (the module's `rwdlc` string), authorized public keys; no shared key, as the module sends it |
 | each child's `role_assignments` | one per assignment | `RoleAssignment`, `<child id>/role-assignment-<k>`, owned by the child |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock`: `lock-<name>` with the module's notes |
 | `module.role_assignments` | one per entry | `RoleAssignment`, `role-assignment-<key>` |
@@ -88,7 +89,7 @@ Every module variable is a value of the same name, type and default
 
 | Variable | Kind | Why |
 | --- | --- | --- |
-| `local_user` | gap | `Microsoft.Storage/storageAccounts/localUsers` has no ASO or aso-extensions kind |
+| a local user's `ssh_password_enabled`, `timeouts` | not ported, by design | Azure generates the password, returned once by `regeneratePassword`: whether a component may hold one is the builder's decision; Bundt sets a component's time limit |
 | `static_website` | gap | set on the blob service's data plane, which ASO does not call |
 | `access_tier: Smart` | gap | needs API version 2025-08-01; ASO's `StorageAccount` is at 2025-06-01 |
 | a table's or share's `signed_identifiers` | gap | ASO renders a signed identifier's `id` as an ARM reference |
@@ -108,10 +109,11 @@ Every module variable is a value of the same name, type and default
 | `resource_id` | the account's `status.id` |
 | `fqdn` | `{blob, queue, table}` (each when the account has containers, queues or tables, as the module lists them) to the host of the account's `status.primaryEndpoints` |
 | `containers`, `queues`, `tables`, `shares` | `{<key>: {id, name}}` from each child's `status.id` and `azureName`, as the module outputs them |
+| `local_users` | `{<key>: {id, name, home_directory, sid, ssh_key_enabled, ssh_password_enabled}}`, the `sid` from the local user's status |
 
 Not outputs: `resource` (the module's whole azapi object), and
-`local_users`, `private_endpoints` and `data_lake_gen2_filesystems`, which
-the chart refuses.
+`private_endpoints` and `data_lake_gen2_filesystems`, which the chart
+refuses.
 
 ## From Terraform
 
@@ -136,8 +138,8 @@ refusal.
 v2.22.0's CRD schemas and aso-extensions' `ManagementLock` CRD, and the
 refusals in `tests/*.fail.yaml`. `task test-live-azure` applies a Standard_LRS account with a container and a queue to the Azure sandbox with
 Azure Service Operator, evaluates the outputs, deletes it and checks Azure
-no longer has it: passed on 2026-11-12. Not yet applied to the fake cloud
-(`docs/azure.md`, "8. Charts").
+no longer has it: passed on 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
+fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
 ## Changes
 
