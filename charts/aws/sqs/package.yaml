@@ -1,0 +1,30 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# queue outputs, from the live Queue (resources.queue). Not provided: the
+# dead-letter queue's five (create_dlq is refused).
+# Terraform's id of a queue is its URL. The static ARN is the module's
+# arn:<partition>:sqs:<region>:<account>:<name>, from the queue's name and
+# the region and account ACK reports.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-sqs
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    queue_id: >-
+      'queue' in resources ? resources.queue.status.queueURL : null
+    queue_arn: >-
+      'queue' in resources ? resources.queue.status.ackResourceMetadata.arn : null
+    queue_arn_static: >-
+      'queue' in resources && !inputs.use_name_prefix
+      ? 'arn:' + inputs.partition + ':sqs:' + resources.queue.status.ackResourceMetadata.region + ':' + resources.queue.status.ackResourceMetadata.ownerAccountID + ':' + resources.queue.spec.queueName
+      : ''
+    queue_url: >-
+      'queue' in resources ? resources.queue.status.queueURL : null
+    queue_name: >-
+      'queue' in resources ? resources.queue.spec.queueName : null

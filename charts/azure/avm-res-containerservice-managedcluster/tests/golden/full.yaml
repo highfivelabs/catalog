@@ -1,0 +1,598 @@
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-aks-diag-categories
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-categories"
+spec:
+  azureName: "kube-audit"
+  owner:
+    group: containerservice.azure.com
+    kind: ManagedCluster
+    name: full-aks
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - category: kube-apiserver
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+    - category: kube-audit
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+  storageAccountReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Storage/storageAccounts/logs"
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-aks-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-aks-full"
+  owner:
+    group: containerservice.azure.com
+    kind: ManagedCluster
+    name: full-aks
+  logAnalyticsDestinationType: "Dedicated"
+  logs:
+    - categoryGroup: audit
+      enabled: true
+      retentionPolicy:
+        days: 0
+        enabled: false
+    - categoryGroup: allLogs
+      enabled: false
+      retentionPolicy:
+        days: 0
+        enabled: false
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20260501
+kind: MaintenanceConfiguration
+metadata:
+  name: full-maintenance-autoupgrade
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "maintenance_configuration:autoupgrade"
+spec:
+  azureName: "aksManagedAutoUpgradeSchedule"
+  owner:
+    name: full-aks
+  maintenanceWindow:
+    durationHours: 4
+    notAllowedDates:
+    - end: "2026-12-26"
+      start: "2026-12-24"
+    schedule:
+      weekly:
+        dayOfWeek: Sunday
+        intervalWeeks: 1
+    startTime: "02:00"
+    utcOffset: "+00:00"
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20260501
+kind: MaintenanceConfiguration
+metadata:
+  name: full-maintenance-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "maintenance_configuration:default"
+spec:
+  azureName: "default"
+  owner:
+    name: full-aks
+  notAllowedTime:
+  - end: "2027-01-01T00:00:00Z"
+    start: "2026-12-31T00:00:00Z"
+  timeInWeek:
+  - day: Saturday
+    hourSlots:
+    - 1
+    - 2
+    - 3
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20260501
+kind: ManagedCluster
+metadata:
+  name: full-aks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "managed_cluster"
+spec:
+  aadProfile:
+    adminGroupObjectIDs:
+    - 11111111-1111-1111-1111-111111111111
+    enableAzureRBAC: true
+    managed: true
+    tenantID: 22222222-2222-2222-2222-222222222222
+  addonProfiles:
+    ACCSGXDevicePlugin:
+      enabled: true
+    azureKeyvaultSecretsProvider:
+      config:
+        enableSecretRotation: "true"
+        rotationPollInterval: 2m
+      enabled: true
+    azurepolicy:
+      enabled: true
+    ingressApplicationGateway:
+      config:
+        applicationGatewayId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/applicationGateways/agw
+      enabled: true
+    omsagent:
+      config:
+        logAnalyticsWorkspaceResourceID: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.OperationalInsights/workspaces/law
+        useAADAuth: "true"
+      enabled: true
+    openServiceMesh:
+      enabled: false
+  agentPoolProfiles:
+  - availabilityZones:
+    - "1"
+    - "2"
+    - "3"
+    enableAutoScaling: true
+    kubeletConfig:
+      containerLogMaxSizeMB: 50
+      imageGcHighThreshold: 85
+    maxCount: 5
+    maxPods: 50
+    minCount: 2
+    mode: System
+    name: system
+    nodeLabels:
+      pool: system
+    orchestratorVersion: "1.33"
+    osDiskSizeGB: 64
+    osDiskType: Ephemeral
+    osSKU: AzureLinux
+    osType: Linux
+    tags:
+      team: platform
+    upgradeSettings:
+      drainTimeoutInMinutes: 30
+      maxSurge: 33%
+    vmSize: Standard_D4ds_v5
+    vnetSubnetReference:
+      armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/virtualNetworks/vnet/subnets/nodes
+  aiToolchainOperatorProfile:
+    enabled: false
+  apiServerAccessProfile:
+    authorizedIPRanges: []
+    disableRunCommand: true
+    enablePrivateCluster: true
+    enablePrivateClusterPublicFQDN: false
+    enableVnetIntegration: true
+    privateDNSZone: system
+    subnetReference:
+      armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/virtualNetworks/vnet/subnets/apiserver
+  autoScalerProfile:
+    balance-similar-node-groups: "true"
+    daemonset-eviction-for-empty-nodes: false
+    expander: least-waste
+    max-graceful-termination-sec: "600"
+    scan-interval: 10s
+    skip-nodes-with-system-pods: "true"
+  autoUpgradeProfile:
+    nodeOSUpgradeChannel: NodeImage
+    upgradeChannel: stable
+  azureMonitorProfile:
+    metrics:
+      enabled: true
+      kubeStateMetrics:
+        metricAnnotationsAllowList: pods=[app]
+        metricLabelsAllowlist: pods=[team]
+  azureName: aks-full
+  bootstrapProfile:
+    artifactSource: Cache
+    containerRegistryReference:
+      armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.ContainerRegistry/registries/acr
+  disableLocalAccounts: true
+  diskEncryptionSetReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Compute/diskEncryptionSets/des
+  dnsPrefix: aksfull
+  enableRBAC: true
+  httpProxyConfig:
+    httpProxy: http://proxy.example:3128
+    httpsProxy: http://proxy.example:3128
+    noProxy:
+    - localhost
+    - 10.0.0.0/8
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aks-control
+  identityProfile:
+    kubeletidentity:
+      resourceReference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.ManagedIdentity/userAssignedIdentities/aks-kubelet
+  ingressProfile:
+    gatewayAPI:
+      installation: Standard
+    webAppRouting:
+      dnsZoneResourceReferences:
+      - armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/dnsZones/example.com
+      enabled: true
+      gatewayAPIImplementations:
+        appRoutingIstio:
+          mode: Enabled
+      nginx:
+        defaultIngressControllerType: Internal
+  kind: Base
+  kubernetesVersion: "1.33"
+  linuxProfile:
+    adminUsername: azureuser
+    ssh:
+      publicKeys:
+      - keyData: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyOnly example
+  location: eastus2
+  metricsProfile:
+    costAnalysis:
+      enabled: true
+  networkProfile:
+    advancedNetworking:
+      enabled: true
+      observability:
+        enabled: true
+      security:
+        advancedNetworkPolicies: FQDN
+        enabled: true
+    dnsServiceIP: 10.2.0.10
+    ipFamilies:
+    - IPv4
+    loadBalancerProfile:
+      idleTimeoutInMinutes: 10
+      managedOutboundIPs:
+        count: 2
+      outboundIPPrefixes:
+        publicIPPrefixes:
+        - reference:
+            armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/publicIPPrefixes/egress
+    loadBalancerSku: standard
+    networkDataplane: cilium
+    networkPlugin: azure
+    networkPluginMode: overlay
+    networkPolicy: cilium
+    outboundType: loadBalancer
+    podCidr: 192.168.0.0/16
+    serviceCidr: 10.2.0.0/16
+    staticEgressGatewayProfile:
+      enabled: false
+  nodeProvisioningProfile:
+    defaultNodePools: Auto
+    mode: Manual
+  nodeResourceGroup: rg-aks-nodes
+  nodeResourceGroupProfile:
+    restrictionLevel: ReadOnly
+  oidcIssuerProfile:
+    enabled: true
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks
+  podIdentityProfile:
+    enabled: false
+  privateLinkResources:
+  - groupId: management
+    name: management
+    reference:
+      armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.ContainerService/managedClusters/aks-full/privateLinkResources/management
+    requiredMembers:
+    - management
+    type: Microsoft.ContainerService/managedClusters/privateLinkResources
+  publicNetworkAccess: Enabled
+  securityProfile:
+    azureKeyVaultKms:
+      enabled: true
+      keyId: https://kv.vault.azure.net/keys/etcd/0123456789abcdef0123456789abcdef
+      keyVaultNetworkAccess: Private
+      keyVaultResourceReference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.KeyVault/vaults/kv
+    defender:
+      logAnalyticsWorkspaceResourceReference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.OperationalInsights/workspaces/law
+      securityMonitoring:
+        enabled: true
+    imageCleaner:
+      enabled: true
+      intervalHours: 48
+    workloadIdentity:
+      enabled: true
+  serviceMeshProfile:
+    istio:
+      certificateAuthority:
+        plugin:
+          certChainObjectName: cert-chain
+          certObjectName: ca-cert
+          keyObjectName: ca-key
+          keyVaultReference:
+            armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.KeyVault/vaults/kv
+          rootCertObjectName: root-cert
+      components:
+        egressGateways:
+        - enabled: true
+          name: egress
+          namespace: aks-istio-egress
+        ingressGateways:
+        - enabled: true
+          mode: Internal
+      revisions:
+      - asm-1-25
+    mode: Istio
+  sku:
+    name: Base
+    tier: Standard
+  storageProfile:
+    blobCSIDriver:
+      enabled: true
+    diskCSIDriver:
+      enabled: true
+    fileCSIDriver:
+      enabled: false
+    snapshotController:
+      enabled: true
+  supportPlan: KubernetesOfficial
+  tags:
+    team: platform
+  upgradeSettings:
+    overrideSettings:
+      forceUpgrade: false
+      until: "2026-12-31T00:00:00Z"
+  windowsProfile:
+    adminUsername: winadmin
+    enableCSIProxy: true
+    licenseType: None
+  workloadAutoScalerProfile:
+    keda:
+      enabled: true
+    verticalPodAutoscaler:
+      enabled: true
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: full-default-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default_agent_pool"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "system"
+  owner:
+    name: full-aks
+  artifactStreamingProfile:
+    enabled: false
+  availabilityZones:
+  - "1"
+  - "2"
+  - "3"
+  enableAutoScaling: true
+  kubeletConfig:
+    containerLogMaxSizeMB: 50
+    imageGcHighThreshold: 85
+  maxCount: 5
+  maxPods: 50
+  minCount: 2
+  mode: System
+  nodeLabels:
+    pool: system
+  orchestratorVersion: "1.33"
+  osDiskSizeGB: 64
+  osDiskType: Ephemeral
+  osSKU: AzureLinux
+  osType: Linux
+  securityProfile:
+    sshAccess: Disabled
+  tags:
+    team: platform
+  upgradeSettings:
+    drainTimeoutInMinutes: 30
+    maxSurge: 33%
+  vmSize: Standard_D4ds_v5
+  vnetSubnetReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/virtualNetworks/vnet/subnets/nodes
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: full-pool-spot
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "agent_pool:spot"
+spec:
+  azureName: "spot"
+  owner:
+    name: full-aks
+  enableAutoScaling: true
+  maxCount: 3
+  minCount: 0
+  mode: User
+  orchestratorVersion: "1.33"
+  scaleSetEvictionPolicy: Delete
+  scaleSetPriority: Spot
+  spotMaxPrice: -1
+  vmSize: Standard_D4ds_v5
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: full-pool-user
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "agent_pool:user"
+spec:
+  azureName: "user"
+  owner:
+    name: full-aks
+  count: 2
+  gpuProfile:
+    driver: None
+  kubeletConfig:
+    cpuManagerPolicy: static
+    seccompDefault: RuntimeDefault
+  linuxOSConfig:
+    swapFileSizeMB: 1024
+    sysctls:
+      netCoreSomaxconn: 4096
+      netIpv4TcpTwReuse: true
+      vmMaxMapCount: 262144
+  localDNSProfile:
+    kubeDNSOverrides:
+      .:
+        cacheDurationInSeconds: 3600
+        forwardDestination: ClusterCoreDNS
+        protocol: PreferUDP
+    mode: Preferred
+  mode: User
+  networkProfile:
+    allowedHostPorts:
+    - portEnd: 8100
+      portStart: 8000
+      protocol: TCP
+    nodePublicIPTags:
+    - ipTagType: RoutingPreference
+      tag: Internet
+  nodeInitializationTaints:
+  - init=true:NoSchedule
+  nodeLabels:
+    workload: batch
+  nodeTaints:
+  - workload=batch:NoSchedule
+  orchestratorVersion: "1.33"
+  osSKU: Ubuntu2404
+  osType: Linux
+  podSubnetReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-aks/providers/Microsoft.Network/virtualNetworks/vnet/subnets/pods
+  tags:
+    pool: user
+  upgradeSettings:
+    maxBlockedNodes: "1"
+    maxSurge: "1"
+  upgradeStrategy: Rolling
+  vmSize: Standard_D8ds_v5
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.hfl.dev/v20260501
+kind: ManagedClustersManagedNamespace
+metadata:
+  name: full-namespace-team
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "namespace:team"
+spec:
+  azureName: "team-a"
+  location: "eastus2"
+  owner:
+    name: full-aks
+  properties:
+    adoptionPolicy: IfIdentical
+    annotations:
+      owner: team-a
+    defaultNetworkPolicy:
+      egress: AllowAll
+      ingress: AllowSameNamespace
+    defaultResourceQuota:
+      cpuRequest: "4"
+      memoryRequest: 8Gi
+    deletePolicy: Keep
+    labels:
+      team: a
+  tags:
+    team: a
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-aks-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: containerservice.azure.com
+    kind: ManagedCluster
+    name: full-aks
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-aks-role-admins
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role-assignment-admins"
+spec:
+  owner:
+    group: containerservice.azure.com
+    kind: ManagedCluster
+    name: full-aks
+  principalId: "33333333-3333-3333-3333-333333333333"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Azure Kubernetes Service RBAC Cluster Admin"

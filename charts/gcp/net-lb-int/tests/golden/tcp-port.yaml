@@ -1,0 +1,73 @@
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: tcp-port
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tcp-port"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-tcp"
+  location: "europe-west1"
+  description: "Terraform managed."
+  loadBalancingScheme: INTERNAL
+  protocol: "UNSPECIFIED"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  healthChecks:
+    - healthCheckRef:
+        name: tcp-port
+---
+# Source: net-lb-int/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: tcp-port-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tcp-port"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-tcp"
+  location: "europe-west1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: tcp-port
+  loadBalancingScheme: INTERNAL
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/gce"
+  allPorts: true
+  allowGlobalAccess: true
+---
+# Source: net-lb-int/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: tcp-port
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tcp-port"
+    app.kubernetes.io/name: net-lb-int
+    app.kubernetes.io/version: "0.1.1"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-tcp"
+  location: "global"
+  description: "Terraform managed."
+  tcpHealthCheck:
+    port: 80

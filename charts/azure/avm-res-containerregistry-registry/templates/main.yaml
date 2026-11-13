@@ -1,0 +1,163 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-containerregistry-registry main.tf,
+main.cache_rules.tf, modules/cache-rule and locals.tf (v0.9.0), Copyright
+(c) Microsoft Corporation, MIT.
+
+azurerm_container_registry.this: one ASO Registry
+(containerregistry.azure.com/v20251101), owned by the resource group
+resource_group_name names, and one ASO RegistryReplication per
+georeplications entry (azurerm's georeplications blocks), named for its
+location as azurerm names it. module.cache_rule: one ASO RegistryCacheRule
+per entry. azurerm_management_lock.this: an aso-extensions ManagementLock
+(lock-<name>, the module's notes). azurerm_role_assignment.this: one ASO
+RoleAssignment each. azurerm_monitor_diagnostic_setting.this: one ASO
+DiagnosticSetting each. Credential sets, scope maps, the customer-managed
+key and private endpoints are refused; the telemetry is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- include "aso.unsupported" (list $ "credential_sets" $v.credential_sets "Microsoft.ContainerRegistry/registries/credentialSets has no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "scope_maps" $v.scope_maps "Microsoft.ContainerRegistry/registries/scopeMaps and tokens have no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "customer_managed_key" $v.customer_managed_key "ASO's Registry takes the key's URI and the identity's client ID, which the module looks up from the vault and identity IDs and a render cannot") }}
+{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
+{{- include "aso.unsupported" (list $ "resource_types" (ternary "" "set" (empty (compact (values ($v.resource_types | default dict))))) "ASO's kinds fix the API versions (RegistryCacheRule 2025-11-01)") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "registry")) }}
+{{- if not $v.name }}{{ fail "avm-res-containerregistry-registry: name is required" }}{{ end }}
+{{- $premium := eq $v.sku "Premium" }}
+{{- if and $v.zone_redundancy_enabled (not $premium) }}{{ fail "avm-res-containerregistry-registry: The Premium SKU is required if zone redundancy is enabled." }}{{ end }}
+{{- if and $v.network_rule_set (not $premium) }}{{ fail "avm-res-containerregistry-registry: The Premium SKU is required if a network rule set is defined." }}{{ end }}
+{{- range $_, $c := ($v.cache_rules | default dict) }}
+{{- if and $c.credential_set_key $c.credential_set_resource_id }}{{ fail "avm-res-containerregistry-registry: Each cache rule may set only one of `credential_set_key` or `credential_set_resource_id`." }}{{ end }}
+{{- end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-containerregistry-registry: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "acr") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := uniq ($mi.user_assigned_resource_ids | default list) | sortAlpha }}
+{{- $onOff := dict "true" "enabled" "false" "disabled" }}
+---
+apiVersion: containerregistry.azure.com/v20251101
+kind: Registry
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "registry" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "registry" "container registry" $v.name 50 "^[a-zA-Z0-9]{5,50}$" "compact") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  adminUserEnabled: {{ eq $v.admin_enabled true }}
+  anonymousPullEnabled: {{ eq $v.anonymous_pull_enabled true }}
+  dataEndpointEnabled: {{ eq $v.data_endpoint_enabled true }}
+  {{- if or $mi.system_assigned $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned, UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" (eq $mi.system_assigned true) | quote }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range . }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  networkRuleBypassAllowedForTasks: {{ eq $v.network_rule_bypass_for_tasks_enabled true }}
+  networkRuleBypassOptions: {{ $v.network_rule_bypass_option | default "None" }}
+  {{- with $v.network_rule_set }}
+  networkRuleSet:
+    defaultAction: {{ .default_action | default "Deny" }}
+    {{- with .ip_rule }}
+    ipRules:
+      {{- range . }}
+      - action: {{ .action | default "Allow" }}
+        value: {{ .ip_range | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  policies:
+    azureADAuthenticationAsArmPolicy:
+      status: {{ get $onOff (toString (ne $v.azuread_authentication_as_arm_policy_enabled false)) }}
+    exportPolicy:
+      status: {{ get $onOff (toString (ne $v.export_policy_enabled false)) }}
+    quarantinePolicy:
+      status: {{ get $onOff (toString (eq $v.quarantine_policy_enabled true)) }}
+    {{- if $premium }}
+    retentionPolicy:
+      {{- if kindIs "invalid" $v.retention_policy_in_days }}
+      status: disabled
+      {{- else }}
+      days: {{ $v.retention_policy_in_days | int }}
+      status: enabled
+      {{- end }}
+    {{- end }}
+    trustPolicy:
+      status: {{ get $onOff (toString (eq $v.enable_trust_policy true)) }}
+      type: Notary
+  publicNetworkAccess: {{ ternary "Enabled" "Disabled" (ne $v.public_network_access_enabled false) }}
+  roleAssignmentMode: {{ $v.role_assignment_mode | default "LegacyRegistryPermissions" }}
+  sku:
+    name: {{ $v.sku }}
+  zoneRedundancy: {{ ternary "Enabled" "Disabled" (and $premium (eq $v.zone_redundancy_enabled true)) }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- range $g := ($v.georeplications | default list) }}
+---
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryReplication
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "replica" $g.location)) "id" (printf "georeplication:%s" $g.location) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $g.location | quote }}
+  location: {{ $g.location | quote }}
+  owner:
+    name: {{ $obj }}
+  regionEndpointEnabled: {{ ne $g.regional_endpoint_enabled false }}
+  zoneRedundancy: {{ ternary "Enabled" "Disabled" (ne $g.zone_redundancy_enabled false) }}
+  {{- with $g.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- range $key, $c := ($v.cache_rules | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "cache_rules.%s.credential_set_key" $key) $c.credential_set_key "it names one of credential_sets, which have no ASO kind; give credential_set_resource_id") }}
+---
+apiVersion: containerregistry.azure.com/v20251101
+kind: RegistryCacheRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "cache" $key)) "id" (printf "cache_rule:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  owner:
+    name: {{ $obj }}
+  sourceRepository: {{ $c.source_repository | quote }}
+  targetRepository: {{ $c.target_repository | quote }}
+  {{- with $c.credential_set_resource_id }}
+  credentialSetResourceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- $owner := dict "group" "containerregistry.azure.com" "kind" "Registry" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" $v.name)) "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true) }}

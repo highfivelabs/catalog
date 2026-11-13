@@ -1,0 +1,40 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: net-lb-ext
+spec:
+  version: "1.0.0"
+  components:
+    - name: nlb
+      package:
+        name: gcp-net-lb-ext
+        version: "0.1.0"
+      inputs:
+        region: europe-west1
+        name: nlb-test
+        backends:
+          - group: projects/my-project/zones/europe-west1-b/instanceGroups/my-ig
+        health_check_config:
+          http:
+            port: 80
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: net-lb-ext
+  scope: my-team
+spec:
+  template: net-lb-ext
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: net-lb-ext-dev
+  scope: my-team/dev
+spec:
+  stack: net-lb-ext
+  version: "1.0.0"
+  components:
+    nlb:
+      values:
+        project_id: my-project

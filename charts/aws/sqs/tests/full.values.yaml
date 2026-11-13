@@ -1,0 +1,36 @@
+# The module's examples/complete, "cmk" and the queue policy: a customer
+# managed key, every queue attribute, a queue policy from statements (one
+# without resources: the queue's own ARN), a source and an override
+# document merged by Sid, and a redrive policy.
+name: full
+region: us-east-1
+account_id: "111122223333"
+partition: aws
+kms_master_key_id: alias/sqs-full
+kms_data_key_reuse_period_seconds: 3600
+max_message_size: 2048
+message_retention_seconds: 86400
+receive_wait_time_seconds: 20
+visibility_timeout_seconds: 60
+delay_seconds: 5
+create_queue_policy: true
+source_queue_policy_documents:
+  - '{"Version":"2012-10-17","Statement":[{"Sid":"Source","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::111122223333:root"},"Action":"sqs:GetQueueAttributes","Resource":"*"},{"Sid":"Replaced","Effect":"Deny","Principal":"*","Action":"sqs:*","Resource":"*"}]}'
+override_queue_policy_documents:
+  - '{"Version":"2012-10-17","Statement":{"Sid":"Replaced","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sqs:ReceiveMessage","Resource":"*"}}'
+queue_policy_statements:
+  sns:
+    sid: SNSPublish
+    actions: ["sqs:SendMessage"]
+    principals: [{type: Service, identifiers: [sns.amazonaws.com]}]
+    condition:
+      - {test: ArnEquals, variable: "aws:SourceArn", values: ["arn:aws:sns:us-east-1:111122223333:full"]}
+  account:
+    actions: ["sqs:*"]
+    resources: ["*"]
+    principals: [{type: AWS, identifiers: ["arn:aws:iam::111122223333:root"]}]
+    conditions:
+      - {test: Bool, variable: "aws:SecureTransport", values: [true]}
+redrive_policy: {deadLetterTargetArn: "arn:aws:sqs:us-east-1:111122223333:full-dlq", maxReceiveCount: 3}
+deletion_policy: ABANDON
+tags: {Environment: dev}

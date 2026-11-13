@@ -1,0 +1,63 @@
+# Every field a global CLOUD_ARMOR policy carries, rules from the factory
+# data and the rules variable, a rate limit with a redirect, WAF exclusions
+# and header actions.
+name: full-policy
+parent_id: {project_id: my-project}
+description: A full policy
+labels: {env: prod}
+adaptive_protection_config:
+  layer_7_ddos_defense: {rule_visibility: PREMIUM}
+advanced_options_config:
+  json_custom_content_types: [application/json]
+  json_parsing: STANDARD
+  log_level: VERBOSE
+  user_ip_request_headers: [X-Client-IP]
+recaptcha_options_config: {redirect_site_key: my-site-key}
+default_rule_config: {action: deny(404), description: Deny all, preview: true}
+factories_config: {rules_file_path: data/rules.yaml}
+factories_data:
+  rules:
+    from-factory:
+      priority: 500
+      action: allow
+      match: {src_ip_ranges: [192.168.0.0/16, 192.168.0.0/16]}
+    overridden: {priority: 600, action: allow, match: {src_ip_ranges: [1.1.1.1/32]}}
+rules:
+  overridden: {priority: 650, action: deny(502), description: rules win, match: {src_ip_ranges: [2.2.2.2/32]}}
+  waf:
+    priority: 1000
+    action: deny(403)
+    preview: true
+    match: {expression: "evaluatePreconfiguredWaf('xss-v33-stable')"}
+    header_action: {X-B: b, X-A: a}
+    preconfigured_waf_config:
+      exclusions:
+        - target_rule_set: xss-v33-stable
+          target_rule_ids: [owasp-crs-v030301-id941100-xss]
+          request_cookies: [{operator: EQUALS, value: session}]
+          request_uris: [{operator: EQUALS_ANY}]
+  throttle:
+    priority: 2000
+    action: throttle
+    match: {src_ip_ranges: ["*"]}
+    rate_limit_options:
+      exceed_action: redirect
+      rate_limit_threshold: {count: 100, interval_sec: 60}
+      enforce_on_key_configs: [{type: HTTP_HEADER, name: X-User}, {type: IP}]
+      exceed_redirect_options: {type: EXTERNAL_302, target: https://example.com/slow}
+  ban:
+    priority: 3000
+    action: rate_based_ban
+    match: {src_ip_ranges: ["*"]}
+    rate_limit_options:
+      exceed_action: deny(429)
+      rate_limit_threshold: {count: 10, interval_sec: 10}
+      ban_duration_sec: 600
+      ban_threshold: {count: 50, interval_sec: 120}
+      enforce_on_key: IP
+  redirect:
+    priority: 4000
+    action: redirect
+    match: {expression: "request.path.matches('/old')"}
+    redirect_options: {type: GOOGLE_RECAPTCHA}
+deletion_policy: ABANDON
