@@ -1,0 +1,74 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/bigquery-reservation.tf
+(v60.0.0), Copyright 2025 Google LLC, Apache-2.0.
+
+google_bigquery_reservation.default: one BigQueryReservationReservation
+per entry of bigquery_reservations; google_bigquery_reservation_assignment
+.default: one BigQueryReservationAssignment per job type and assignee
+(projects/<id>, folders/<id> or organizations/<id>), keyed
+<reservation>-<job type>-<assignee> as fabric keys them. fabric's
+scaling_mode is a variable its resource does not read.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- $jobTypes := list "JOB_TYPE_UNSPECIFIED" "PIPELINE" "QUERY" "ML_EXTERNAL" "BACKGROUND" "CONTINUOUS" "BACKGROUND_CHANGE_DATA_CAPTURE" "BACKGROUND_COLUMN_METADATA_INDEX" "BACKGROUND_SEARCH_INDEX_REFRESH" }}
+{{- $res := $v.bigquery_reservations | default dict }}
+{{- range $name := keys $res | sortAlpha }}
+{{- $r := index $res $name }}
+{{- $resName := include "kcc.name" (list $.Release.Name "bq-reservation" $name) }}
+---
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationReservation
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" $resName "id" (printf "bigquery-reservation:%s" $name) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "BigQuery reservation" $name 64) | quote }}
+  projectRef:
+    {{- include "project.ref" $ | nindent 4 }}
+  location: {{ $r.location | quote }}
+  slotCapacity: {{ $r.slot_capacity }}
+  ignoreIdleSlots: {{ $r.ignore_idle_slots | default false }}
+  {{- if not (kindIs "invalid" $r.concurrency) }}
+  concurrency: {{ $r.concurrency }}
+  {{- end }}
+  edition: {{ $r.edition | default "STANDARD" | quote }}
+  {{- with $r.secondary_location }}
+  failover:
+    secondaryLocation: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $r.max_slots) }}
+  autoscale:
+    maxSlots: {{ $r.max_slots }}
+  {{- end }}
+{{- $assignments := $r.assignments | default dict }}
+{{- range $jt := keys $assignments | sortAlpha }}
+{{- if not (has $jt $jobTypes) }}
+{{- fail (printf "project: bigquery_reservations.%s.assignments: Invalid job type %s." $name $jt) }}
+{{- end }}
+{{- range $assignee := index $assignments $jt }}
+{{- $key := printf "%s-%s-%s" $name $jt $assignee }}
+---
+apiVersion: bigqueryreservation.cnrm.cloud.google.com/v1beta1
+kind: BigQueryReservationAssignment
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "bq-assignment" $key)) "id" (printf "bigquery-reservation-assignment:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  jobType: {{ $jt | quote }}
+  reservationRef:
+    name: {{ $resName }}
+  assignee:
+    {{- if hasPrefix "folders/" $assignee }}
+    folderRef:
+      external: {{ $assignee | quote }}
+    {{- else if hasPrefix "organizations/" $assignee }}
+    organizationRef:
+      external: {{ $assignee | quote }}
+    {{- else }}
+    projectRef:
+      external: {{ trimPrefix "projects/" $assignee | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
