@@ -1,0 +1,72 @@
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1alpha1
+kind: ComputeOrganizationSecurityPolicyAssociation
+metadata:
+  name: alpha-defaults-cloud-armor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha-defaults"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "cloud_armor_policy"
+spec:
+  resourceID: "organization-1122334455"
+  attachmentId: "organizations/1122334455"
+  policyId: "1234567890"
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: modelarmor.cnrm.cloud.google.com/v1alpha1
+kind: ModelArmorFloorSetting
+metadata:
+  name: alpha-defaults-model-armor
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha-defaults"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "model_armor_floor_setting"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  organizationRef:
+    external: "organizations/1122334455"
+  location: global
+  enableFloorSettingEnforcement: false
+  filterConfig:
+    sdpSettings:
+      advancedConfig:
+        inspectTemplateRef:
+          external: "projects/p/locations/global/inspectTemplates/i"
+        deidentifyTemplateRef:
+          external: "projects/p/locations/global/deidentifyTemplates/d"
+  floorSettingMetadata:
+    multiLanguageDetection:
+      enableMultiLanguageDetection: true
+---
+# Source: organization/templates/alpha.yaml
+apiVersion: securitycentermanagement.cnrm.cloud.google.com/v1alpha1
+kind: SecurityCenterManagementSecurityHealthAnalyticsCustomModule
+metadata:
+  name: alpha-defaults-sha-bare
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "alpha-defaults"
+    app.kubernetes.io/name: organization
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "scc-sha-custom-module:bare"
+spec:
+  organizationRef:
+    external: "organizations/1122334455"
+  location: global
+  displayName: "bare"
+  enablementState: "DISABLED"
+  customConfig:
+    predicate:
+      expression: "true"
+    resourceSelector:
+      resourceTypes: ["compute.googleapis.com/Instance"]
+    recommendation: "Fix it."
+    severity: "LOW"

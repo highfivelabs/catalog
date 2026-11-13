@@ -17,7 +17,9 @@ encryption (blocks of the azurerm resource, separate calls in azurerm) as
 ServersDatabasesBackupLongTermRetentionPolicy,
 ServersDatabasesBackupShortTermRetentionPolicy,
 ServersDatabasesSecurityAlertPolicy and
-ServersDatabasesTransparentDataEncryption. express_vulnerability_assessment_enabled
+ServersDatabasesTransparentDataEncryption, and geo_backup_enabled false on
+a DataWarehouse SKU as aso-extensions' ServersDatabasesGeoBackupPolicy
+(sql.azure.hfl.dev/v20250101). express_vulnerability_assessment_enabled
 as aso-extensions' ServersSqlVulnerabilityAssessment
 (sql.azure.hfl.dev/v20250101). module.elasticpool
 (azurerm_mssql_elasticpool) as ServersElasticPool.
@@ -47,9 +49,6 @@ ported.
 {{- range $k, $d := $v.databases }}
 {{- include "aso.unsupported" (list $ (printf "databases.%s.import" $k) $d.import "a .bacpac import is an action with a storage key and an administrator password, secret values, and no Azure Service Operator kind") }}
 {{- include "aso.unsupported" (list $ (printf "databases.%s.threat_detection_policy.storage_account_access_key" $k) (($d.threat_detection_policy | default dict).storage_account_access_key) "a storage account key is a secret value, which does not belong in a component's inputs") }}
-{{- if and (eq $d.geo_backup_enabled false) (hasPrefix "DW" (toString ($d.sku_name | default ""))) }}
-{{- include "aso.unsupported" (list $ (printf "databases.%s.geo_backup_enabled" $k) "false" "Microsoft.Sql/servers/databases/geoBackupPolicies: aso-extensions' ServersDatabasesGeoBackupPolicy (3d9ba27) names its owner as sql.azure.hfl.dev Servers_Database, not ASO's ServersDatabase, so it never reconciles") }}
-{{- end }}
 {{- end }}
 {{- include "aso.names" (list $ (list "server")) }}
 {{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
@@ -331,6 +330,21 @@ spec:
     name: {{ $db }}
   diffBackupIntervalInHours: {{ kindIs "invalid" .backup_interval_in_hours | ternary 12 .backup_interval_in_hours }}
   retentionDays: {{ int .retention_days }}
+{{- end }}
+{{- if and (eq $d.geo_backup_enabled false) (hasPrefix "DW" (toString ($d.sku_name | default ""))) }}
+---
+apiVersion: sql.azure.hfl.dev/v20250101
+kind: ServersDatabasesGeoBackupPolicy
+metadata:
+  {{- /* A DataWarehouse database's geo-backup policy (geoBackupPolicies/Default),
+  which azurerm sets for DW SKUs only; on any other SKU the value has no
+  effect, as in the module. A setting of the database with no delete in
+  Azure: always detached on delete. */}}
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $db "geo")) "id" (printf "database:%s/geo_backup_policy" $k) "abandon" "true") | nindent 2 }}
+spec:
+  owner:
+    name: {{ $db }}
+  state: Disabled
 {{- end }}
 {{- with $d.threat_detection_policy }}
 ---

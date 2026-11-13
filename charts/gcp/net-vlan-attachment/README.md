@@ -80,8 +80,9 @@ Found porting this module, for config-connector-extensions:
   policies cannot be attached to a peer), `md5AuthenticationKey` or
   `customLearnedIpRanges`.
 - mockgcp has no interconnect attachments: the partner attachment has no
-  fake-cloud case (the dedicated one, config-connector-extensions', is
-  served by its generated kinds' fake).
+  fake-cloud case, and a dedicated one's router interface cannot find its
+  attachment there (the attachment itself, config-connector-extensions',
+  is served by its generated kinds' fake).
 
 ## Upstream
 
@@ -103,9 +104,21 @@ carries), `existing-router` and `names`, validated against Config
 Connector v1.160.0's CRD schemas and config-connector-extensions'
 (`ComputeRouterRoutePolicy`), and the refusals in `tests/*.fail.yaml`.
 
-Not applied to the fake cloud: mockgcp (at config-connector-extensions'
-pin) has no interconnect attachments. Not applied live: live runs are
-pending KEYLIVE.
+Applied to the fake cloud on 2026-11-13 on an offload VM (`task
+test-mock MOCK_CHARTS=net-vlan-attachment`, run
+`off-catalog-1113180647-5902`, config-connector-extensions `3de8de68`): a
+dedicated attachment on a new router, with its interface and peer. The
+attachment (config-connector-extensions', served by its generated kinds'
+fake) and the router became Ready, the outputs evaluated (`id`, `name`,
+`router_name`; `pairing_key` null, as for a dedicated attachment), and all
+were deleted. The router interface did not become Ready: Config
+Connector's `ComputeRouterInterface` reads the attachment from mockgcp,
+which has no interconnect attachments (404), and the peer waits on the
+interface. That is the fake's limit, not the chart's; the case is not
+kept as `tests/mock.values.yaml`, which would fail every run, so the
+interface and peer are render-tested only. The partner attachment
+(Config Connector's) has no fake-cloud case for the same reason. Not
+applied live: live runs are pending KEYLIVE.
 
 ## Changes
 

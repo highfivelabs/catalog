@@ -128,25 +128,26 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 13 ported, 107 partial, 52 blocked, 5 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 13 ported, 108 partial, 51 blocked, 5 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 948 of 1478 (64.1%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 978 of 1478 (66.2%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 993 of 1170 (84.9%) |
-| **All** | **177** | | **2474 of 4996 (49.5%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 994 of 1170 (85.0%) |
+| **All** | **177** | | **2505 of 4996 (50.1%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-8 ported, 60 partial, 27 blocked, 3 not started.
+8 ported, 61 partial, 26 blocked, 3 not started.
 
 **Ported and partial**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
 | [`project`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project) ([chart](charts/gcp/project)) | ![project](docs/coverage/bars/gcp-project.svg) 41 of 58 | 14 of 27 | 41 of 49 | partial |
-| [`folder`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/folder) ([chart](charts/gcp/folder)) | ![folder](docs/coverage/bars/gcp-folder.svg) 21 of 31 | 4 of 9 | 16 of 24 | partial |
+| [`folder`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/folder) ([chart](charts/gcp/folder)) | ![folder](docs/coverage/bars/gcp-folder.svg) 22 of 31 | 4 of 9 | 16 of 24 | partial |
+| [`organization`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/organization) ([chart](charts/gcp/organization)) | ![organization](docs/coverage/bars/gcp-organization.svg) 29 of 35 | 12 of 23 | 25 of 35 | partial |
 | [`iam-service-account`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/iam-service-account) ([chart](charts/gcp/iam-service-account)) | ![iam-service-account](docs/coverage/bars/gcp-iam-service-account.svg) 24 of 28 | 5 of 6 | 9 of 9 | partial |
 | [`net-vpc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc) ([chart](charts/gcp/net-vpc)) | ![net-vpc](docs/coverage/bars/gcp-net-vpc.svg) 24 of 29 | 13 of 23 | 12 of 19 | partial |
 | [`net-vpc-firewall`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpc-firewall) ([chart](charts/gcp/net-vpc-firewall)) | ![net-vpc-firewall](docs/coverage/bars/gcp-net-vpc-firewall.svg) 7 of 8 | 0 of 2 | 1 of 1 | partial |
@@ -214,11 +215,10 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 27, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 26, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
-| [`organization`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/organization) | ![organization](docs/coverage/bars/gcp-organization.svg) 0 of 35 | 0 of 23 | 25 of 35 | blocked |
 | [`project-factory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/project-factory) | ![project-factory](docs/coverage/bars/gcp-project-factory.svg) 0 of 8 | 0 of 16 | 0 of 1 | blocked |
 | [`net-lb-app-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-ext) | ![net-lb-app-ext](docs/coverage/bars/gcp-net-lb-app-ext.svg) 0 of 17 | 0 of 13 | 12 of 15 | blocked |
 | [`net-lb-app-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-int) | ![net-lb-app-int](docs/coverage/bars/gcp-net-lb-app-int.svg) 0 of 22 | 0 of 13 | 12 of 14 | blocked |
@@ -228,6 +228,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`firestore`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/firestore) | ![firestore](docs/coverage/bars/gcp-firestore.svg) 0 of 7 | 0 of 7 | 2 of 5 | blocked |
 | [`managed-kafka`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/managed-kafka) | ![managed-kafka](docs/coverage/bars/gcp-managed-kafka.svg) 0 of 11 | 0 of 4 | 2 of 4 | blocked |
 | [`net-lb-app-ext-regional`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-app-ext-regional) | ![net-lb-app-ext-regional](docs/coverage/bars/gcp-net-lb-app-ext-regional.svg) 0 of 19 | 0 of 10 | 10 of 12 | blocked |
+| [`net-lb-proxy-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int) | ![net-lb-proxy-int](docs/coverage/bars/gcp-net-lb-proxy-int.svg) 0 of 14 | 0 of 13 | 8 of 10 | blocked |
 
 **Not started**
 
@@ -318,7 +319,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-network-bastionhost`](https://github.com/Azure/terraform-azurerm-avm-res-network-bastionhost/tree/v0.9.0) ([chart](charts/azure/avm-res-network-bastionhost)) | ![avm-res-network-bastionhost](docs/coverage/bars/azure-avm-res-network-bastionhost.svg) 21 of 21 | 3 of 4 | 4 | ported |
 | [`avm-res-sql-server`](https://github.com/Azure/terraform-azurerm-avm-res-sql-server/tree/v0.2.1) ([chart](charts/azure/avm-res-sql-server)) | ![avm-res-sql-server](docs/coverage/bars/azure-avm-res-sql-server.svg) 23 of 28 | 6 of 8 | 10 | partial |
 | [`avm-res-network-azurefirewall`](https://github.com/Azure/terraform-azurerm-avm-res-network-azurefirewall/tree/v0.5.0) ([chart](charts/azure/avm-res-network-azurefirewall)) | ![avm-res-network-azurefirewall](docs/coverage/bars/azure-avm-res-network-azurefirewall.svg) 18 of 23 | 2 of 4 | 1 | partial |
-| [`avm-res-web-serverfarm`](https://github.com/Azure/terraform-azurerm-avm-res-web-serverfarm/tree/v2.0.8) ([chart](charts/azure/avm-res-web-serverfarm)) | ![avm-res-web-serverfarm](docs/coverage/bars/azure-avm-res-web-serverfarm.svg) 24 of 27 | 2 of 2 | 1 | partial |
+| [`avm-res-web-serverfarm`](https://github.com/Azure/terraform-azurerm-avm-res-web-serverfarm/tree/v2.0.8) ([chart](charts/azure/avm-res-web-serverfarm)) | ![avm-res-web-serverfarm](docs/coverage/bars/azure-avm-res-web-serverfarm.svg) 25 of 27 | 2 of 2 | 1 | partial |
 | [`avm-ptn-alz`](https://github.com/Azure/terraform-azurerm-avm-ptn-alz/tree/v0.22.0) ([chart](charts/azure/avm-ptn-alz)) | ![avm-ptn-alz](docs/coverage/bars/azure-avm-ptn-alz.svg) 18 of 26 | 7 of 7 | 3 | partial |
 | [`avm-res-documentdb-databaseaccount`](https://github.com/Azure/terraform-azurerm-avm-res-documentdb-databaseaccount/tree/v0.12.0) ([chart](charts/azure/avm-res-documentdb-databaseaccount)) | ![avm-res-documentdb-databaseaccount](docs/coverage/bars/azure-avm-res-documentdb-databaseaccount.svg) 38 of 38 | 43 of 47 | 16 | ported |
 | [`avm-res-network-dnsresolver`](https://github.com/Azure/terraform-azurerm-avm-res-network-dnsresolver/tree/v0.8.0) ([chart](charts/azure/avm-res-network-dnsresolver)) | ![avm-res-network-dnsresolver](docs/coverage/bars/azure-avm-res-network-dnsresolver.svg) 10 of 10 | 7 of 7 | 8 | ported |

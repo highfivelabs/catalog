@@ -109,5 +109,7 @@ neither yet.
 
 ## Changes
 
+- **0.1.1** (2026-11-13): depends on project 0.9.1 (its tag outputs carry
+  the `tagKeys/` and `tagValues/` prefixes).
 - **0.1.0** (2026-11-11): the baseline: APIs, the dedicated node account and
   its roles, required labels, and the outputs `gke-cluster` takes.
