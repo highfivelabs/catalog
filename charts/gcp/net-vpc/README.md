@@ -132,8 +132,14 @@ with every other module the catalog tracks. To take a newer release, see
 
 ## Tests
 
-`task test CHART=net-vpc`: seven render cases, ten refusals.
-`tests/mock.values.yaml` is applied to the fake cloud.
+`task test CHART=net-vpc`: the render cases (`attachment` renders a
+network attachment without `allow_alpha`) and the refusals.
+`tests/mock.values.yaml` is applied to the fake cloud: on 2026-11-13 (run
+`off-catalog-1113180647-5902`, config-connector-extensions `3de8de68`)
+all 10 objects, the config-connector-extensions network attachment
+included, became Ready, the outputs evaluated, and all were deleted.
+Config Connector's alpha attachment, which 0.3 rendered, could not be
+deleted there.
 
 ## Changes
 
