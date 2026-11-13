@@ -103,13 +103,10 @@ config-connector-extensions' CRDs (`crds/config-connector-extensions`), and
 the refusals in `tests/*.fail.yaml`.
 
 Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a lake, a RAW
-zone and a bucket asset. On 2026-11-12 (offload VM
-`off-catalog-1113003957-25676`, config-connector-extensions `11baa460`) all
-three became Ready, the outputs evaluated and all three were deleted. The
-case has no `iam`: in an earlier run (`off-catalog-1113002823-25069`, the same
-objects plus a role on the lake and one on the zone) mockgcp answered
-`getIamPolicy` on the lake and on the zone with 404, so the lake's and
-zones' `IAMBinding`s are only render-tested.
+zone, a bucket asset, a role on the lake and one on the zone. On
+2026-11-13 (offload VM `off-catalog-1113061109-28826`, config-connector-extensions `35833eb8`, whose
+fake cloud serves `getIamPolicy` on a lake and a zone) all five objects
+became Ready, the outputs evaluated and all five were deleted.
 
 Not applied live: the Dataplex API is enabled in the live-test project,
 but neither live-test service account has a Dataplex role.

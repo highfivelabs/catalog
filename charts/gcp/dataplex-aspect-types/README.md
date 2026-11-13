@@ -109,13 +109,13 @@ README "Simple example"), `factory` ("Factory example"), `defaults`,
 CRDs in `crds/config-connector-extensions`, and the refusals in
 `tests/*.fail.yaml`.
 
-Fake cloud (`task test-mock`, `tests/mock.values.yaml`): one aspect type in `us-central1`. On
-2026-11-12 (offload VM `off-catalog-1113012542-21205`, its second attempt
-after a Spot preemption; config-connector-extensions `11baa460`) the aspect type
-became Ready, the outputs evaluated (`ids`, `names`, `timestamps`, `uids` all set) and it was deleted. The case has no `iam`: in an
-earlier run (`off-catalog-1113010926-3070`) mockgcp answered
-`getIamPolicy` on an aspect type with 404, so the `IAMBinding`s are only render-tested; the `IAMMember`s
-(`v1alpha1`) were not applied there either.
+Fake cloud (`task test-mock`, `tests/mock.values.yaml`): one aspect type in
+`us-central1` and a role on it (`iam`). On 2026-11-13 (offload VM `off-catalog-1113061109-28826`,
+config-connector-extensions `35833eb8`, whose fake cloud serves
+`getIamPolicy` on an aspect type) the aspect type and its `IAMBinding`
+became Ready, the outputs evaluated (`ids`, `names`, `timestamps`, `uids`
+all set) and both were deleted. The `IAMMember`s (`v1alpha1`) are only
+render-tested: alpha features are not in fake-cloud cases.
 
 Not applied live: the Dataplex API is enabled in the live-test project,
 but neither live-test service account has a Dataplex role, and this work
