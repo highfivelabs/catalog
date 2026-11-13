@@ -132,10 +132,10 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 946 of 1478 (64.0%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 947 of 1478 (64.1%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 993 of 1170 (84.9%) |
-| **All** | **177** | | **2472 of 4996 (49.5%)** |
+| **All** | **177** | | **2473 of 4996 (49.5%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -186,7 +186,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`net-lb-proxy-int-cross-region`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-proxy-int-cross-region) ([chart](charts/gcp/net-lb-proxy-int-cross-region)) | ![net-lb-proxy-int-cross-region](docs/coverage/bars/gcp-net-lb-proxy-int-cross-region.svg) 13 of 14 | 10 of 15 | 7 of 8 | partial |
 | [`net-vpn-static`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-static) ([chart](charts/gcp/net-vpn-static)) | ![net-vpn-static](docs/coverage/bars/gcp-net-vpn-static.svg) 8 of 9 | 4 of 9 | 5 of 5 | partial |
 | [`net-vpn-dynamic`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vpn-dynamic) ([chart](charts/gcp/net-vpn-dynamic)) | ![net-vpn-dynamic](docs/coverage/bars/gcp-net-vpn-dynamic.svg) 7 of 8 | 6 of 12 | 7 of 8 | partial |
-| [`net-vlan-attachment`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vlan-attachment) ([chart](charts/gcp/net-vlan-attachment)) | ![net-vlan-attachment](docs/coverage/bars/gcp-net-vlan-attachment.svg) 13 of 15 | 5 of 9 | 5 of 6 | partial |
+| [`net-vlan-attachment`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-vlan-attachment) ([chart](charts/gcp/net-vlan-attachment)) | ![net-vlan-attachment](docs/coverage/bars/gcp-net-vlan-attachment.svg) 14 of 15 | 5 of 9 | 5 of 6 | partial |
 | [`net-ipsec-over-interconnect`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-ipsec-over-interconnect) ([chart](charts/gcp/net-ipsec-over-interconnect)) | ![net-ipsec-over-interconnect](docs/coverage/bars/gcp-net-ipsec-over-interconnect.svg) 7 of 8 | 4 of 9 | 6 of 7 | partial |
 | [`ncc-spoke-ra`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/ncc-spoke-ra) ([chart](charts/gcp/ncc-spoke-ra)) | ![ncc-spoke-ra](docs/coverage/bars/gcp-ncc-spoke-ra.svg) 8 of 8 | 2 of 5 | 5 of 6 | partial |
 | [`gke-hub`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/gke-hub) ([chart](charts/gcp/gke-hub)) | ![gke-hub](docs/coverage/bars/gcp-gke-hub.svg) 7 of 8 | 1 of 1 | 3 of 3 | partial |
