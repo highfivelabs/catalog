@@ -114,7 +114,15 @@ with every other module the catalog tracks. To take a newer release, see
 `names` and `mock`, validated against Config Connector v1.160.0's CRD
 schemas, and the refusals in `tests/*.fail.yaml`.
 
-FAKE_CLOUD_RESULT
+Applied to the fake cloud on 2026-11-13 on an offload VM (`task test-mock
+MOCK_CHARTS=folder`, run `off-catalog-1113160429-12717`, at
+config-connector-extensions `d54a2075`): `tests/mock.values.yaml`, a
+folder under an organization with an authoritative role, an additive
+member and a logging exclusion: all 4 objects Ready, the outputs evaluated
+(`id` the folder's `folders/N`), all deleted. An earlier run with an org
+policy evaluated `organization_policies_ids` and left the policy undeleted
+("Config Connector bugs"). Contacts, sinks, PAM, tag bindings, the
+firewall policy association and Autokey are render-tested only.
 
 Not applied live: live runs are pending KEYLIVE (and the test provisioner's
 folder, `docs/design.md`, "The test provisioner").
