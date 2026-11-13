@@ -128,18 +128,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 9 ported, 68 partial, 73 blocked, 27 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 10 ported, 68 partial, 72 blocked, 27 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 710 of 1478 (48.0%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 717 of 1478 (48.5%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 380 of 2348 (16.2%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 371 of 1170 (31.7%) |
-| **All** | **177** | | **1461 of 4996 (29.2%)** |
+| **All** | **177** | | **1468 of 4996 (29.4%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-7 ported, 41 partial, 47 blocked, 3 not started.
+8 ported, 41 partial, 46 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -182,6 +182,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`biglake-catalog`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/biglake-catalog) ([chart](charts/gcp/biglake-catalog)) | ![biglake-catalog](docs/coverage/bars/gcp-biglake-catalog.svg) 4 of 4 | 6 of 6 | 1 of 3 | ported |
 | [`dataproc`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataproc) ([chart](charts/gcp/dataproc)) | ![dataproc](docs/coverage/bars/gcp-dataproc.svg) 9 of 9 | 2 of 2 | 3 of 3 | partial |
 | [`datafusion`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/datafusion) ([chart](charts/gcp/datafusion)) | ![datafusion](docs/coverage/bars/gcp-datafusion.svg) 14 of 14 | 5 of 6 | 4 of 4 | partial |
+| [`dataplex`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex) ([chart](charts/gcp/dataplex)) | ![dataplex](docs/coverage/bars/gcp-dataplex.svg) 7 of 7 | 4 of 4 | 0 of 5 | ported |
 | [`dataplex-datascan`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-datascan) ([chart](charts/gcp/dataplex-datascan)) | ![dataplex-datascan](docs/coverage/bars/gcp-dataplex-datascan.svg) 16 of 16 | 4 of 4 | 0 of 3 | partial |
 | [`dataplex-aspect-types`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/dataplex-aspect-types) ([chart](charts/gcp/dataplex-aspect-types)) | ![dataplex-aspect-types](docs/coverage/bars/gcp-dataplex-aspect-types.svg) 4 of 5 | 4 of 4 | 0 of 3 | partial |
 | [`data-catalog-policy-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-policy-tag) ([chart](charts/gcp/data-catalog-policy-tag)) | ![data-catalog-policy-tag](docs/coverage/bars/gcp-data-catalog-policy-tag.svg) 11 of 12 | 2 of 2 | 6 of 6 | partial |
@@ -194,7 +195,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 47, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 46, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |
