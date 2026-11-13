@@ -1,0 +1,64 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart. Outputs are the module's declared
+# outputs, selected from the live objects (resources.<id>) and the
+# component's values (inputs): the cluster's from ASO's status, each null
+# (or the module's {} or []) while Azure has not set it, as the module's
+# try() gives. node_resource_group_id is built as the module builds it,
+# from parent_id's subscription and the node resource group's name.
+# agentpool_resource_ids and namespace_resource_ids are {<key>:
+# {resource_id, name}}. Not outputs: kube_config, kube_admin_config and
+# cluster_ca_certificate (from the kubeconfig, a secret: ASO can write it
+# to a Kubernetes Secret through operatorSpec.secrets, which is not an
+# output), data_collection_endpoint_id and data_collection_endpoint_name
+# (the monitoring submodule is refused).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: azure-avm-res-containerservice-managedcluster
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [aso]
+  outputs:
+    resource_id: resources.managed_cluster.status.id
+    name: resources.managed_cluster.spec.azureName
+    fqdn: >-
+      'fqdn' in resources.managed_cluster.status ? resources.managed_cluster.status.fqdn : null
+    azure_portal_fqdn: >-
+      'azurePortalFQDN' in resources.managed_cluster.status ? resources.managed_cluster.status.azurePortalFQDN : null
+    private_fqdn: >-
+      'privateFQDN' in resources.managed_cluster.status ? resources.managed_cluster.status.privateFQDN : null
+    current_kubernetes_version: >-
+      'currentKubernetesVersion' in resources.managed_cluster.status ? resources.managed_cluster.status.currentKubernetesVersion : null
+    max_agent_pools: >-
+      'maxAgentPools' in resources.managed_cluster.status ? resources.managed_cluster.status.maxAgentPools : null
+    node_resource_group_name: >-
+      'nodeResourceGroup' in resources.managed_cluster.status ? resources.managed_cluster.status.nodeResourceGroup : null
+    node_resource_group_id: >-
+      'nodeResourceGroup' in resources.managed_cluster.status ? dyn('/subscriptions/' + inputs.parent_id.split('/')[2] + '/resourceGroups/' + resources.managed_cluster.status.nodeResourceGroup) : null
+    identity_principal_id: >-
+      'identity' in resources.managed_cluster.status && 'principalId' in resources.managed_cluster.status.identity ? resources.managed_cluster.status.identity.principalId : null
+    identity_tenant_id: >-
+      'identity' in resources.managed_cluster.status && 'tenantId' in resources.managed_cluster.status.identity ? resources.managed_cluster.status.identity.tenantId : null
+    kubelet_identity: >-
+      'identityProfile' in resources.managed_cluster.status && 'kubeletidentity' in resources.managed_cluster.status.identityProfile ? resources.managed_cluster.status.identityProfile.kubeletidentity : null
+    oidc_issuer_profile_issuer_url: >-
+      'oidcIssuerProfile' in resources.managed_cluster.status && 'issuerURL' in resources.managed_cluster.status.oidcIssuerProfile ? resources.managed_cluster.status.oidcIssuerProfile.issuerURL : null
+    ingress_app_object_id: >-
+      'addonProfiles' in resources.managed_cluster.status && 'ingressApplicationGateway' in resources.managed_cluster.status.addonProfiles && 'identity' in resources.managed_cluster.status.addonProfiles.ingressApplicationGateway && 'objectId' in resources.managed_cluster.status.addonProfiles.ingressApplicationGateway.identity ? resources.managed_cluster.status.addonProfiles.ingressApplicationGateway.identity.objectId : null
+    key_vault_secrets_provider_identity: >-
+      'addonProfiles' in resources.managed_cluster.status && 'azureKeyvaultSecretsProvider' in resources.managed_cluster.status.addonProfiles && 'identity' in resources.managed_cluster.status.addonProfiles.azureKeyvaultSecretsProvider ? resources.managed_cluster.status.addonProfiles.azureKeyvaultSecretsProvider.identity : null
+    ingress_profile_web_app_routing_identity: >-
+      'ingressProfile' in resources.managed_cluster.status && 'webAppRouting' in resources.managed_cluster.status.ingressProfile && 'identity' in resources.managed_cluster.status.ingressProfile.webAppRouting ? resources.managed_cluster.status.ingressProfile.webAppRouting.identity : {}
+    ingress_profile_application_load_balancer_identity: >-
+      'ingressProfile' in resources.managed_cluster.status && 'applicationLoadBalancer' in resources.managed_cluster.status.ingressProfile && 'identity' in resources.managed_cluster.status.ingressProfile.applicationLoadBalancer ? resources.managed_cluster.status.ingressProfile.applicationLoadBalancer.identity : {}
+    network_profile_load_balancer_profile_effective_outbound_ips: >-
+      'networkProfile' in resources.managed_cluster.status && 'loadBalancerProfile' in resources.managed_cluster.status.networkProfile && 'effectiveOutboundIPs' in resources.managed_cluster.status.networkProfile.loadBalancerProfile ? resources.managed_cluster.status.networkProfile.loadBalancerProfile.effectiveOutboundIPs : []
+    network_profile_nat_gateway_profile_effective_outbound_ips: >-
+      'networkProfile' in resources.managed_cluster.status && 'natGatewayProfile' in resources.managed_cluster.status.networkProfile && 'effectiveOutboundIPs' in resources.managed_cluster.status.networkProfile.natGatewayProfile ? resources.managed_cluster.status.networkProfile.natGatewayProfile.effectiveOutboundIPs : []
+    agentpool_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('agent_pool:'), {k.substring(11): {'resource_id': v.status.id, 'name': v.spec.azureName}})
+    namespace_resource_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('namespace:'), {k.substring(10): {'resource_id': v.status.id, 'name': v.spec.azureName}})

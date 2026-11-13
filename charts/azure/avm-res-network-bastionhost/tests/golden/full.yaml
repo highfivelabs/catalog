@@ -1,0 +1,197 @@
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: BastionHost
+metadata:
+  name: full-bastion
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "bastion_host"
+spec:
+  azureName: "bas-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  sku:
+    name: Standard
+  disableCopyPaste: true
+  enableFileCopy: true
+  enableIpConnect: true
+  enableKerberos: true
+  enablePrivateOnlyBastion: false
+  enableSessionRecording: false
+  enableShareableLink: true
+  enableTunneling: true
+  ipConfigurations:
+    - name: "ipconfig-full"
+      privateIPAllocationMethod: Dynamic
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: full-pip
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/AzureBastionSubnet"
+  scaleUnits: 3
+  zones:
+    - "1"
+    - "2"
+  tags:
+    env: dev
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: full-bastion-diag-law
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-law"
+spec:
+  azureName: "diag-bas-full"
+  owner:
+    group: network.azure.com
+    kind: BastionHost
+    name: full-bastion
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-bastion-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: BastionHost
+    name: full-bastion
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: full-pip-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "pip-lock"
+spec:
+  azureName: "lock-CanNotDelete-pip"
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: full-pip
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "public_ip"
+spec:
+  azureName: "pip-bas-full"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "1"
+    - "2"
+  tags:
+    "env": "dev"
+    "role": "bastion"
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-bastion-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: BastionHost
+    name: full-bastion
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-network-bastionhost/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: full-pip-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-network-bastionhost
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "net"
+  annotations:
+    hfl.dev/id: "pip-role-assignment-reader"
+spec:
+  owner:
+    group: network.azure.com
+    kind: PublicIPAddress
+    name: full-pip
+  principalId: "11111111-1111-1111-1111-111111111111"
+  principalType: "Group"
+  roleDefinitionReference:
+    wellKnownName: "Reader"
