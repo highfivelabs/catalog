@@ -1,0 +1,36 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/endpoints
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/endpoints
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/endpoints
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml but refuses when set, or
+# accepts only in part (read by `task coverage`; `task coverage-verify`
+# checks each is refused). The whole chart needs allow_alpha: true
+# (EndpointsService is v1alpha1).
+refused:
+  - variable: openapi_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: yaml_path is accepted and ignored; the document's contents go under files_data.openapi_config"
+    partial: true
+    fields: [yaml_path]
+  - variable: grpc_config
+    kind: by-design
+    reason: "a chart cannot read the caller's files: yaml_path and protoc_output_path are accepted and ignored; the files' contents go under files_data.grpc_config and files_data.protoc_output_base64"
+    partial: true
+    fields: [yaml_path, protoc_output_path]
+  - variable: project_id
+    kind: by-design
+    reason: "accepted; null (fabric's default, the Terraform provider's project) is refused: a chart has no provider project"
+    partial: true
