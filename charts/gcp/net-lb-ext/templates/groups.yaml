@@ -1,0 +1,35 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/net-lb-ext/groups.tf (v60.0.0),
+Copyright 2026 Google LLC, Apache-2.0.
+
+google_compute_instance_group.default: one unmanaged ComputeInstanceGroup
+per group_configs entry, named <name>-<key> unless it has a name.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $k, $g := $v.group_configs | default dict }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroup
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "group" $k)) "id" (printf "group:%s" $k) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.cloudName" (list $ "instance group" ($g.name | default (printf "%s-%s" $v.name $k)) 63 "letter") | quote }}
+  zone: {{ $g.zone | quote }}
+  description: {{ $g.description | default "Terraform managed." | quote }}
+  {{- with $g.instances }}
+  instances:
+    {{- range . }}
+    - external: {{ include "netlbext.link" . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $g.named_ports }}
+  namedPort:
+    {{- range $n := keys . | sortAlpha }}
+    - name: {{ $n | quote }}
+      port: {{ index $g.named_ports $n }}
+    {{- end }}
+  {{- end }}
+{{- end }}

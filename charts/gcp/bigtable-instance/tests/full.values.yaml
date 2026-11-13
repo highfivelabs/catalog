@@ -1,0 +1,27 @@
+# Every field the chart carries: two clusters (one autoscaled by the
+# default, one by its own settings), a key, IAM, tables with split keys
+# and column families, a default and a per-family garbage collection policy.
+project_id: my-project
+name: instance
+display_name: Bigtable analytics
+deletion_protection: false
+encryption_key: projects/kms-project/locations/europe-west1/keyRings/ring/cryptoKeys/key
+labels: {env: prod}
+clusters:
+  replica-a: {zone: europe-west1-b, storage_type: SSD, num_nodes: 3}
+  replica-b:
+    zone: europe-west1-c
+    storage_type: HDD
+    autoscaling: {min_nodes: 1, max_nodes: 5, cpu_target: 60, storage_target: 4096}
+default_autoscaling: {min_nodes: 2, max_nodes: 4, cpu_target: 70}
+default_gc_policy: {deletion_policy: ABANDON, max_age: 18h, max_version: "7"}
+iam:
+  roles/bigtable.user: ["user:me@example.com"]
+tables:
+  table-1:
+    split_keys: [a, m]
+    column_families:
+      cf1: {}
+      cf2: {gc_policy: {gc_rules: '{"mode":"union","rules":[{"max_age":"10h"},{"max_version":2}]}'}}
+  table-2: {}
+deletion_policy: ABANDON

@@ -1,0 +1,112 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of terraform-aws-modules' acm module
+# (v6.3.1): same names, types and defaults, so a module block's arguments
+# become a values file one to one. values.schema.json carries the types. A
+# variable the chart cannot carry stays here and stops the render when set
+# (upstream.yaml lists them; README.md says why).
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags, which is the module's own.
+#
+# This chart gives no name that can collide (a certificate is named by the
+# ARN ACM assigns; validation records by the names ACM gives them), so
+# names takes no key and namePrefix changes nothing.
+names: {}
+namePrefix: ""
+# Kubernetes labels on every object. They stay in Kubernetes: ACK does not
+# copy labels to AWS (AWS tags are the module's tags variable).
+labels: {}
+# DELETE (default): deleting the component deletes the certificate (or the
+# validation records). ABANDON keeps them
+# (services.k8s.aws/deletion-policy: retain).
+deletion_policy: DELETE
+
+# The module's variables, in alphabetical order, with its defaults.
+
+# A list of domain_validation_options created by the ACM certificate to create
+# required Route53 records from it (used when create_route53_records_only is
+# set to true)
+acm_certificate_domain_validation_options: {}
+# Specifies whether certificate details should be added to a certificate
+# transparency log
+certificate_transparency_logging_preference: true
+# Whether to create ACM certificate
+create_certificate: true
+# When validation is set to DNS, define whether to create the DNS records
+# internally via Route53 or externally using any DNS provider
+# In part: accepted, except true (the default) for a certificate this component
+# requests with DNS validation: the validation records' names and values exist
+# only in the Certificate's status, so one render cannot write them; a second
+# component with create_route53_records_only: true writes them from this one's
+# outputs, as the module's "separate AWS providers" example does.
+create_route53_records: true
+# Whether to create only Route53 records (e.g. using separate AWS provider)
+create_route53_records_only: false
+# List of distinct domains and SANs (used when create_route53_records_only is
+# set to true)
+distinct_domain_names: []
+# The TTL of DNS recursive resolvers to cache information about this record.
+dns_ttl: 60
+# A domain name for which the certificate should be issued
+domain_name: ""
+# Whether the certificate can be exported. Valid values are ENABLED or DISABLED
+# (default). Note Issuing an exportable certificate is subject to additional
+# charges
+export: null
+# Specifies the algorithm of the public and private key pair that your Amazon
+# issued certificate uses to encrypt data
+key_algorithm: null
+# Private Certificate Authority ARN for issuing private certificates
+private_authority_arn: null
+# Do you agree that Putin doesn't respect Ukrainian sovereignty and territorial
+# integrity? More info: https://en.wikipedia.org/wiki/Putin_khuylo!
+putin_khuylo: true
+# Region to create the resources into
+region: null
+# A list of domains that should be SANs in the issued certificate
+subject_alternative_names: []
+# A mapping of tags to assign to the resource
+tags: {}
+# Whether to validate certificate by creating Route53 record
+# In part: accepted; true with DNS validation and create_route53_records: true
+# is refused, as for create_route53_records.
+validate_certificate: true
+# Whether to allow overwrite of Route53 records
+# In part: accepted, but ACK's RecordSet is created with Route 53's CREATE
+# action, which fails on a record already there (as false does): true's
+# overwrite is not carried.
+validation_allow_overwrite_records: true
+# Which method to use for validation. DNS or EMAIL are valid. This parameter
+# must not be set for certificates that were imported into ACM and then into
+# Terraform.
+# In part: accepted DNS or unset; EMAIL is refused: ACK's Certificate always
+# requests DNS validation.
+validation_method: null
+# The domain name that you want ACM to use to send you validation emails. This
+# domain name is the suffix of the email addresses that you want ACM to use.
+validation_option: {}
+# When validation is set to DNS and the DNS validation records are set
+# externally, provide the fqdns for the validation
+# In part: accepted, but the validation wait (aws_acm_certificate_validation)
+# has no kind: the component is Ready once ACK has requested the certificate,
+# not when it is ISSUED (ACK's Certificate is synced in PENDING_VALIDATION);
+# the acm_certificate_status output reports ISSUED.
+validation_record_fqdns: []
+# Define maximum timeout to wait for the validation to complete
+# Not supported (by-design): Terraform's wait for validation, which has no kind
+# here (aws_acm_certificate_validation): Bundt waits for the component to be
+# Ready.
+validation_timeout: null
+# Whether to wait for the validation to complete
+# In part: accepted, but the validation wait (aws_acm_certificate_validation)
+# has no kind: the component is Ready once ACK has requested the certificate,
+# not when it is ISSUED (ACK's Certificate is synced in PENDING_VALIDATION);
+# the acm_certificate_status output reports ISSUED.
+wait_for_validation: true
+# The ID of the hosted zone to contain this record. Required when validating
+# via Route53
+zone_id: ""
+# Map containing the Route53 Zone IDs for additional domains.
+zones: {}

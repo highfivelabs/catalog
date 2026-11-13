@@ -1,0 +1,75 @@
+---
+# Source: dynamodb-table/templates/table.yaml
+apiVersion: dynamodb.services.k8s.aws/v1alpha1
+kind: Table
+metadata:
+  name: full-table
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: dynamodb-table
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "table"
+    services.k8s.aws/region: "eu-west-1"
+    services.k8s.aws/deletion-policy: retain
+spec:
+  tableName: "full"
+  billingMode: "PROVISIONED"
+  attributeDefinitions:
+    - attributeName: "id"
+      attributeType: "N"
+    - attributeName: "title"
+      attributeType: "S"
+    - attributeName: "age"
+      attributeType: "N"
+  keySchema:
+    - attributeName: "id"
+      keyType: HASH
+    - attributeName: "title"
+      keyType: RANGE
+  provisionedThroughput:
+    readCapacityUnits: 5
+    writeCapacityUnits: 5
+  streamSpecification:
+    streamEnabled: true
+    streamViewType: "NEW_AND_OLD_IMAGES"
+  deletionProtectionEnabled: true
+  timeToLive:
+    enabled: true
+    attributeName: "expires_at"
+  continuousBackups:
+    pointInTimeRecoveryEnabled: true
+    recoveryPeriodInDays: 7
+  localSecondaryIndexes:
+    - indexName: "AgeIndex"
+      keySchema:
+        - attributeName: "id"
+          keyType: HASH
+        - attributeName: "age"
+          keyType: RANGE
+      projection:
+        projectionType: "KEYS_ONLY"
+  globalSecondaryIndexes:
+    - indexName: "TitleIndex"
+      keySchema:
+        - attributeName: "title"
+          keyType: HASH
+      projection:
+        projectionType: "ALL"
+      provisionedThroughput:
+        readCapacityUnits: 2
+        writeCapacityUnits: 2
+  tableReplicas:
+    - regionName: "eu-west-2"
+      kmsMasterKeyID: "arn:aws:kms:eu-west-2:111122223333:key/efgh"
+  sseSpecification:
+    enabled: true
+    sseType: KMS
+    kmsMasterKeyID: "arn:aws:kms:eu-west-1:111122223333:key/abcd"
+  resourcePolicy: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::111122223333:root\"},\"Action\":\"dynamodb:GetItem\",\"Resource\":\"arn:aws:dynamodb:eu-west-1:111122223333:table/full\"}]}"
+  tags:
+    - key: "Environment"
+      value: "dev"
+    - key: "Name"
+      value: "full"

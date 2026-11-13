@@ -58,7 +58,12 @@ Refused or accepted in part (`upstream.yaml`):
   rule resource's tags) are not carried; ACK's inline rules have no tags.
 - `enable_exclusive_rules: false`: ACK always owns the whole rule set.
 - `revoke_rules_on_delete`: no ACK field.
-- `vpc_associations`: `aws_vpc_security_group_vpc_association` has no kind.
+- `vpc_associations`: ack-extensions' `SecurityGroupVpcAssociation` takes the
+  group's ID with no reference, so it cannot be wired in one render.
+- `vpc_id`, in part: required. Unset, Terraform takes the account's default
+  VPC; ACK's `SecurityGroup` needs its VPC's ID, and the chart cannot look
+  the default VPC up (found by the fake-AWS run: ACK leaves such a group
+  unresolved, "resource reference wrapper or ID required: VPCID,VPCRef").
 - `timeouts`: Terraform's; ACK retries until synced (by design).
 
 The module's 53 preset submodules (`http-80`, `ssh`, ...) are rule sets
@@ -73,4 +78,5 @@ reports none), `vpc_id`, `owner_id`, `name`.
 
 `task test CHART=aws/security-group`: golden renders validated against
 ec2-controller v1.23.1's CRDs, and the refusal cases. `tests/mock.values.yaml`
-is the case a fake-AWS run will apply (`docs/aws.md`, "Charts").
+is the case the fake-AWS run applies (`task test-mock-aws`; `docs/aws.md`,
+"Charts"), in a VPC that `tests/mock.needs.yaml` makes.

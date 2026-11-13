@@ -1,0 +1,54 @@
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBCluster
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "cluster"
+spec:
+  resourceID: db
+  projectRef:
+    external: "myproject"
+  location: "europe-west8"
+  clusterType: PRIMARY
+  databaseVersion: "POSTGRES_15"
+  displayName: "db"
+  networkConfig:
+    networkRef:
+      external: "projects/myproject/global/networks/my-network"
+  continuousBackupConfig:
+    enabled: true
+    recoveryWindowDays: 14
+---
+# Source: alloydb/templates/main.yaml
+apiVersion: alloydb.cnrm.cloud.google.com/v1beta1
+kind: AlloyDBInstance
+metadata:
+  name: basic
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: alloydb
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "instance"
+spec:
+  resourceID: db
+  clusterRef:
+    external: "projects/myproject/locations/europe-west8/clusters/db"
+  instanceType: PRIMARY
+  availabilityType: "REGIONAL"
+  displayName: "db"
+  machineConfig:
+    cpuCount: 2
+  queryInsightsConfig:
+    queryStringLength: 1024
+    recordApplicationTags: true
+    recordClientAddress: true
+    queryPlansPerMinute: 5

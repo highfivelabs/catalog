@@ -1,0 +1,203 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/project/notification-channels.tf,
+alerts.tf and main.tf (google_monitoring_monitored_project) (v60.0.0),
+Copyright 2025 Google LLC, Apache-2.0.
+
+google_monitoring_notification_channel.channels: one
+MonitoringNotificationChannel per entry of notification_channels. Config
+Connector names a channel by its Kubernetes object, so its display name is
+the object's name (<component>-channel-<key>); a display_name of fabric's
+is refused, and so are sensitive_labels, which would put a secret in the
+rendered manifest.
+google_monitoring_alert_policy.alerts: one MonitoringAlertPolicy per entry
+of alerts; a notification channel named by a key of notification_channels
+is a reference to that channel, any other is used as given.
+google_monitoring_monitored_project.primary: one MonitoringMonitoredProject
+per entry of metric_scopes, adding this project to that scoping project's
+metrics scope.
+*/ -}}
+{{- $v := .Values }}
+{{- $abandon := include "kcc.abandon" $ }}
+{{- $project := include "project.id" $ }}
+{{- $channels := $v.notification_channels | default dict }}
+{{- range $key := keys $channels | sortAlpha }}
+{{- $c := index $channels $key }}
+{{- include "kcc.unsupported" (list $ (printf "notification_channels.%s.display_name" $key) $c.display_name "Config Connector names a notification channel by its Kubernetes object, whose name the chart gives") }}
+{{- include "kcc.unsupported" (list $ (printf "notification_channels.%s.sensitive_labels" $key) $c.sensitive_labels "a secret given here would be in the rendered manifest; MonitoringNotificationChannel takes it from a Kubernetes Secret, which this chart does not make") }}
+---
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringNotificationChannel
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "channel" $key)) "id" (printf "notification-channel:%s" $key) "project" $project "labels" ($c.user_labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  type: {{ $c.type | quote }}
+  {{- with $c.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $c.enabled) }}
+  enabled: {{ $c.enabled }}
+  {{- end }}
+  {{- with $c.labels }}
+  labels: {{ toJson . }}
+  {{- end }}
+{{- end }}
+{{- $alerts := $v.alerts | default dict }}
+{{- range $key := keys $alerts | sortAlpha }}
+{{- $a := index $alerts $key }}
+{{- if not $a.display_name }}
+{{- fail (printf "project: alerts.%s.display_name is required: Google Cloud names an alert policy by it" $key) }}
+{{- end }}
+{{- $as := $a.alert_strategy | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "alerts.%s.alert_strategy.notification_prompts" $key) $as.notification_prompts "MonitoringAlertPolicy has no notificationPrompts") }}
+{{- $doc := $a.documentation | default dict }}
+{{- include "kcc.unsupported" (list $ (printf "alerts.%s.documentation.subject" $key) $doc.subject "MonitoringAlertPolicy's documentation has no subject") }}
+{{- include "kcc.unsupported" (list $ (printf "alerts.%s.documentation.links" $key) $doc.links "MonitoringAlertPolicy's documentation has no links") }}
+---
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringAlertPolicy
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "alert" $key)) "id" (printf "alert:%s" $key) "project" $project "labels" ($a.user_labels | default dict) "abandon" $abandon) | nindent 2 }}
+spec:
+  displayName: {{ $a.display_name | quote }}
+  combiner: {{ $a.combiner | quote }}
+  {{- if not (kindIs "invalid" $a.enabled) }}
+  enabled: {{ $a.enabled }}
+  {{- end }}
+  {{- with $a.severity }}
+  severity: {{ . | quote }}
+  {{- end }}
+  {{- with $a.notification_channels }}
+  notificationChannels:
+    {{- range $ch := . }}
+    {{- if hasKey $channels $ch }}
+    - name: {{ include "kcc.name" (list $.Release.Name "channel" $ch) }}
+    {{- else }}
+    - external: {{ $ch | quote }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if $as }}
+  alertStrategy:
+    {{- with $as.auto_close }}
+    autoClose: {{ . | quote }}
+    {{- end }}
+    {{- with $as.notification_rate_limit }}
+    notificationRateLimit:
+      {{- with .period }}
+      period: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with $as.notification_channel_strategy }}
+    {{- $o := dict }}
+    {{- with .notification_channel_names }}{{ $_ := set $o "notificationChannelNames" . }}{{ end }}
+    {{- with .renotify_interval }}{{ $_ := set $o "renotifyInterval" . }}{{ end }}
+    notificationChannelStrategy: {{ list $o | toJson }}
+    {{- end }}
+  {{- end }}
+  conditions:
+    {{- range $i, $c := $a.conditions | default list }}
+    - displayName: {{ $c.display_name | quote }}
+      {{- with $c.condition_absent }}
+      conditionAbsent:
+        duration: {{ .duration | quote }}
+        {{- with .filter }}
+        filter: {{ . | quote }}
+        {{- end }}
+        {{- with (include "project.aggregations" (list "aggregations" .aggregations)) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+        {{- with (include "project.trigger" .trigger) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with $c.condition_matched_log }}
+      conditionMatchedLog:
+        filter: {{ .filter | quote }}
+        {{- with .label_extractors }}
+        labelExtractors: {{ toJson . }}
+        {{- end }}
+      {{- end }}
+      {{- with $c.condition_monitoring_query_language }}
+      conditionMonitoringQueryLanguage:
+        duration: {{ .duration | quote }}
+        query: {{ .query | quote }}
+        {{- with .evaluation_missing_data }}
+        evaluationMissingData: {{ . | quote }}
+        {{- end }}
+        {{- with (include "project.trigger" .trigger) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with $c.condition_prometheus_query_language }}
+      {{- include "kcc.unsupported" (list $ (printf "alerts.%s.conditions[%d].condition_prometheus_query_language.disable_metric_validation" $key $i) .disable_metric_validation "MonitoringAlertPolicy's PromQL condition has no disableMetricValidation") }}
+      conditionPrometheusQueryLanguage:
+        query: {{ .query | quote }}
+        {{- with .alert_rule }}
+        alertRule: {{ . | quote }}
+        {{- end }}
+        {{- with .duration }}
+        duration: {{ . | quote }}
+        {{- end }}
+        {{- with .evaluation_interval }}
+        evaluationInterval: {{ . | quote }}
+        {{- end }}
+        {{- with .labels }}
+        labels: {{ toJson . }}
+        {{- end }}
+        {{- with .rule_group }}
+        ruleGroup: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with $c.condition_threshold }}
+      conditionThreshold:
+        comparison: {{ .comparison | quote }}
+        duration: {{ .duration | quote }}
+        {{- with .denominator_filter }}
+        denominatorFilter: {{ . | quote }}
+        {{- end }}
+        {{- with .evaluation_missing_data }}
+        evaluationMissingData: {{ . | quote }}
+        {{- end }}
+        {{- with .filter }}
+        filter: {{ . | quote }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .threshold_value) }}
+        thresholdValue: {{ .threshold_value }}
+        {{- end }}
+        {{- with (include "project.aggregations" (list "aggregations" .aggregations)) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+        {{- with (include "project.aggregations" (list "denominatorAggregations" .denominator_aggregations)) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+        {{- with .forecast_options }}
+        forecastOptions:
+          forecastHorizon: {{ .forecast_horizon | quote }}
+        {{- end }}
+        {{- with (include "project.trigger" .trigger) }}
+        {{- . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- if or $doc.content $doc.mime_type }}
+  documentation:
+    {{- with $doc.content }}
+    content: {{ . | quote }}
+    {{- end }}
+    {{- with $doc.mime_type }}
+    mimeType: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- range $scope := $v.metric_scopes | default list }}
+---
+apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+kind: MonitoringMonitoredProject
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "metric-scope" $scope)) "id" (printf "metric-scope:%s" $scope) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $project | quote }}
+  metricsScope: {{ $scope | quote }}
+{{- end }}

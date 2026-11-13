@@ -1,0 +1,218 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/gke-hub/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_gke_hub_membership.default: a GKEHubMembership per cluster, named
+by its key; google_gke_hub_feature.default: a global GKEHubFeature per
+enabled feature (multiclusteringress with its config membership);
+google_gke_hub_feature_membership.servicemesh, .policycontroller and
+.default: a GKEHubFeatureMembership per cluster that names a template of a
+feature that is enabled. fleet_default_member_config is refused
+(GKEHubFeature has no fleetDefaultMemberConfig), and so are Policy
+Controller bundles (README.md, "Values").
+*/ -}}
+{{- $v := .Values }}
+{{- $clusters := $v.clusters | default dict }}
+{{- include "kcc.names" (list $ (keys $clusters | sortAlpha)) }}
+{{- include "kcc.unsupported" (list $ "fleet_default_member_config" $v.fleet_default_member_config "GKEHubFeature has no fleetDefaultMemberConfig: a feature's defaults for new members cannot be set") }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $location := $v.location | default "global" }}
+{{- $features := $v.features | default dict }}
+{{- range $key := keys $clusters | sortAlpha }}
+{{- $c := index $clusters $key }}
+---
+apiVersion: gkehub.cnrm.cloud.google.com/v1beta1
+kind: GKEHubMembership
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "membership" $key)) "id" (printf "membership:%s" $key) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ include "kcc.resourceName" (list $ $key (printf "%s membership" $key) $key 63 "letter") | quote }}
+  location: {{ $location | quote }}
+  endpoint:
+    gkeCluster:
+      resourceRef:
+        external: {{ printf "//container.googleapis.com/%s" $c.id | quote }}
+  {{- if $c.workload_identity }}
+  authority:
+    issuer: {{ printf "https://container.googleapis.com/v1/%s" $c.id | quote }}
+  {{- end }}
+{{- end }}
+{{- range $name := keys $features | sortAlpha }}
+{{- $f := index $features $name }}
+{{- if and (not (kindIs "invalid" $f)) (ne (toString $f) "false") (ne (toString $f) "") }}
+{{- if and (eq $name "multiclusteringress") (not (hasKey $clusters $f)) }}
+{{- fail (printf "gke-hub: features.multiclusteringress: %q is not a key of clusters" $f) }}
+{{- end }}
+---
+apiVersion: gkehub.cnrm.cloud.google.com/v1beta1
+kind: GKEHubFeature
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "feature" $name)) "id" (printf "feature:%s" $name) "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  location: global
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  {{- if eq $name "multiclusteringress" }}
+  spec:
+    multiclusteringress:
+      configMembershipRef:
+        name: {{ include "kcc.name" (list $.Release.Name "membership" $f) }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- range $feature := list "servicemesh" "policycontroller" "configmanagement" }}
+{{- $templates := index $v (printf "%s_templates" $feature) | default dict }}
+{{- range $key := keys $clusters | sortAlpha }}
+{{- $c := index $clusters $key }}
+{{- $tname := index $c $feature }}
+{{- if and $tname (eq (toString (index $features $feature)) "true") (hasKey $templates $tname) }}
+{{- $t := index $templates $tname }}
+---
+apiVersion: gkehub.cnrm.cloud.google.com/v1beta1
+kind: GKEHubFeatureMembership
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name $feature $key)) "id" (printf "%s-membership:%s" $feature $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: global
+  featureRef:
+    name: {{ include "kcc.name" (list $.Release.Name "feature" $feature) }}
+  membershipRef:
+    name: {{ include "kcc.name" (list $.Release.Name "membership" $key) }}
+  membershipLocation: {{ $location | quote }}
+  {{- if eq $feature "servicemesh" }}
+  mesh:
+    management: {{ $t.management | default "MANAGEMENT_AUTOMATIC" | quote }}
+  {{- else if eq $feature "policycontroller" }}
+  {{- $h := $t.policy_controller_hub_config }}
+  {{- with $h.policy_content }}
+  {{- include "kcc.unsupported" (list $ (printf "policycontroller_templates.%s.policy_controller_hub_config.policy_content.bundles" $tname) .bundles "GKEHubFeatureMembership's policyContent has no bundles") }}
+  {{- end }}
+  policycontroller:
+    {{- with $t.version }}
+    version: {{ . | quote }}
+    {{- end }}
+    policyControllerHubConfig:
+      {{- if not (kindIs "invalid" $h.audit_interval_seconds) }}
+      auditIntervalSeconds: {{ int64 $h.audit_interval_seconds }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $h.constraint_violation_limit) }}
+      constraintViolationLimit: {{ int64 $h.constraint_violation_limit }}
+      {{- end }}
+      {{- with $h.deployment_configs }}
+      deploymentConfigs:
+        {{- range $component := keys . | sortAlpha }}
+        {{- $d := index $h.deployment_configs $component }}
+        {{ $component }}:
+          {{- with $d.container_resources }}
+          containerResources:
+            {{- range $which := list "limits" "requests" }}
+            {{- with index $d.container_resources $which }}
+            {{ $which }}:
+              {{- with .cpu }}
+              cpu: {{ . | quote }}
+              {{- end }}
+              {{- with .memory }}
+              memory: {{ . | quote }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- with $d.pod_affinity }}
+          podAffinity: {{ . | quote }}
+          {{- end }}
+          {{- with $d.pod_tolerations }}
+          podTolerations:
+            {{- range $tol := . }}
+            {{- $out := dict }}
+            {{- range $k := list "key" "operator" "value" "effect" }}{{ with index $tol $k }}{{ $_ := set $out $k . }}{{ end }}{{ end }}
+            - {{ toJson $out }}
+            {{- end }}
+          {{- end }}
+          {{- if not (kindIs "invalid" $d.replica_count) }}
+          replicaCount: {{ int64 $d.replica_count }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- with $h.exemptable_namespaces }}
+      exemptableNamespaces: {{ toJson . }}
+      {{- end }}
+      {{- with $h.install_spec }}
+      installSpec: {{ . | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $h.log_denies_enabled) }}
+      logDeniesEnabled: {{ $h.log_denies_enabled }}
+      {{- end }}
+      {{- with $h.monitoring }}
+      monitoring:
+        {{- with .backends }}
+        backends: {{ toJson . }}
+        {{- end }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $h.mutation_enabled) }}
+      mutationEnabled: {{ $h.mutation_enabled }}
+      {{- end }}
+      {{- with $h.policy_content }}
+      {{- with .template_library }}
+      policyContent:
+        templateLibrary:
+          {{- with .installation }}
+          installation: {{ . | quote }}
+          {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $h.referential_rules_enabled) }}
+      referentialRulesEnabled: {{ $h.referential_rules_enabled }}
+      {{- end }}
+  {{- else }}
+  configmanagement:
+    {{- with $t.version }}
+    version: {{ . | quote }}
+    {{- end }}
+    {{- with $t.config_sync }}
+    configSync:
+      {{- with .git }}
+      git:
+        {{- with .gcp_service_account_email }}
+        gcpServiceAccountRef:
+          external: {{ . | quote }}
+        {{- end }}
+        {{- with .https_proxy }}
+        httpsProxy: {{ . | quote }}
+        {{- end }}
+        policyDir: {{ .policy_dir | quote }}
+        secretType: {{ .secret_type | default "none" | quote }}
+        {{- with .sync_branch }}
+        syncBranch: {{ . | quote }}
+        {{- end }}
+        syncRepo: {{ .sync_repo | quote }}
+        {{- with .sync_rev }}
+        syncRev: {{ . | quote }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .sync_wait_secs) }}
+        syncWaitSecs: {{ toString .sync_wait_secs | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .prevent_drift) }}
+      preventDrift: {{ .prevent_drift }}
+      {{- end }}
+      sourceFormat: {{ .source_format | default "hierarchy" | quote }}
+    {{- end }}
+    {{- with $t.hierarchy_controller }}
+    hierarchyController:
+      {{- if not (kindIs "invalid" .enable_hierarchical_resource_quota) }}
+      enableHierarchicalResourceQuota: {{ .enable_hierarchical_resource_quota }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .enable_pod_tree_labels) }}
+      enablePodTreeLabels: {{ .enable_pod_tree_labels }}
+      {{- end }}
+      enabled: true
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

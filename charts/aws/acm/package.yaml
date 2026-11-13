@@ -1,0 +1,55 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# seven outputs, from the live Certificate (resources.certificate), the
+# validation RecordSets (resources.validation-record-<i>) and the
+# component's values (inputs). acm_certificate_domain_validation_options
+# has Terraform's shape ({domain_name, resource_record_name,
+# resource_record_type, resource_record_value}), so a second component's
+# acm_certificate_domain_validation_options can take it (valueFrom) to write
+# the validation records. ACK requests DNS validation only, so
+# acm_certificate_validation_emails is always empty.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-acm
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    acm_certificate_arn: >-
+      'certificate' in resources ? resources.certificate.status.ackResourceMetadata.arn : ''
+    acm_certificate_domain_validation_options: >-
+      'certificate' in resources && has(resources.certificate.status.domainValidations)
+      ? resources.certificate.status.domainValidations.filter(d, has(d.resourceRecord)).map(d, {
+          'domain_name': d.domainName,
+          'resource_record_name': d.resourceRecord.name,
+          'resource_record_type': d.resourceRecord.type_,
+          'resource_record_value': d.resourceRecord.value})
+      : []
+    acm_certificate_status: >-
+      'certificate' in resources && has(resources.certificate.status.status) ? resources.certificate.status.status : ''
+    acm_certificate_validation_emails: >-
+      []
+    validation_route53_record_fqdns: >-
+      lists.range(size(resources.filter(k, k.matches('^validation-record-[0-9]+$'))))
+        .map(i, resources['validation-record-' + string(i)].spec.name.lowerAscii())
+        .map(n, n.endsWith('.') ? n.substring(0, size(n) - 1) : n)
+    distinct_domain_names: >-
+      size(inputs.distinct_domain_names) > 0 ? inputs.distinct_domain_names
+      : ([inputs.domain_name] + inputs.subject_alternative_names).map(s, s.replace('*.', '')).distinct()
+    validation_domains: >-
+      ('certificate' in resources && has(resources.certificate.status.domainValidations)
+        ? resources.certificate.status.domainValidations.filter(d, has(d.resourceRecord)).map(d, {
+            'domain_name': d.domainName.replace('*.', ''),
+            'resource_record_name': d.resourceRecord.name,
+            'resource_record_type': d.resourceRecord.type_,
+            'resource_record_value': d.resourceRecord.value})
+        : (type(inputs.acm_certificate_domain_validation_options) == list ? inputs.acm_certificate_domain_validation_options : [])
+          .map(d, {
+            'domain_name': d.domain_name.replace('*.', ''),
+            'resource_record_name': d.resource_record_name,
+            'resource_record_type': d.resource_record_type,
+            'resource_record_value': d.resource_record_value})).distinct()

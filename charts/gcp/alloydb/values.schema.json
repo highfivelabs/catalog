@@ -1,0 +1,1160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "alloydb values (fabric alloydb v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cluster_name",
+    "instance_name",
+    "location",
+    "project_id",
+    "network_config"
+  ],
+  "properties": {
+    "labels": {
+      "description": "Kubernetes labels on every object; an unprefixed key also becomes a Google Cloud label (Config Connector copies it to the clusters' and instances' labels).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived cloud name, never one set under names. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "names": {
+      "description": "Cloud names set in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix; one not set derives as fabric derives it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cluster": {
+          "description": "The primary cluster's ID in full.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "instance": {
+          "description": "The primary instance's ID in full.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "secondaryCluster": {
+          "description": "The secondary cluster's ID in full.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "secondaryInstance": {
+          "description": "The secondary instance's ID in full.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        }
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "annotations": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Annotations for client tools, on the instances."
+    },
+    "automated_backup_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "backup_window": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "weekly_schedule": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "days_of_week": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "enum": [
+                  "MONDAY",
+                  "TUESDAY",
+                  "WEDNESDAY",
+                  "THURSDAY",
+                  "FRIDAY",
+                  "SATURDAY",
+                  "SUNDAY"
+                ]
+              }
+            },
+            "start_times": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "hours"
+                ],
+                "properties": {
+                  "hours": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 23
+                  }
+                }
+              }
+            }
+          }
+        },
+        "retention_count": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "retention_period": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "description": "Automated backup settings for cluster."
+    },
+    "availability_type": {
+      "description": "Availability type for the primary replica.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "ZONAL",
+        "REGIONAL",
+        null
+      ]
+    },
+    "client_connection_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "require_connectors": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "ssl_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "ssl_mode": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "ssl_mode"
+          ]
+        }
+      },
+      "description": "Client connection config: refused (AlloyDBInstance has no such field)."
+    },
+    "cluster_display_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Display name of the primary cluster."
+    },
+    "cluster_name": {
+      "description": "Name of the primary cluster.",
+      "type": "string",
+      "minLength": 1
+    },
+    "connection_pool_flags": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Map FLAG_NAME=>VALUE for managed connection pooling."
+    },
+    "continuous_backup_configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "recovery_window_days": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "description": "Continuous backup settings for cluster."
+    },
+    "cross_region_replication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "promote_secondary": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "switchover_mode": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secondary_cluster_display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secondary_cluster_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secondary_instance_display_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secondary_instance_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "secondary_machine_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "cpu_count": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                72,
+                96,
+                128
+              ]
+            },
+            "machine_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "cpu_count"
+          ]
+        },
+        "read_pool": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "display_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "node_count": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "flags": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "client_connection_config": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "require_connectors": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "ssl_config": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ssl_mode": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "ssl_mode"
+                    ]
+                  }
+                }
+              },
+              "machine_config": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "cpu_count": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "enum": [
+                      1,
+                      2,
+                      4,
+                      8,
+                      16,
+                      32,
+                      64,
+                      72,
+                      96,
+                      128,
+                      null
+                    ]
+                  },
+                  "machine_type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "network_config": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "authorized_external_networks": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "enable_public_ip": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "query_insights_config": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "query_string_length": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "record_application_tags": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "record_client_address": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "query_plans_per_minute": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Cross region replication config."
+    },
+    "database_version": {
+      "description": "Database type and version to create.",
+      "type": "string"
+    },
+    "deletion_policy": {
+      "description": "fabric's AlloyDB cluster deletion policy (DEFAULT, FORCE), or the catalog's DELETE and ABANDON (docs/design.md, \"Deletion\").",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "DEFAULT",
+        "FORCE",
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    },
+    "deletion_protection": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Terraform's guard against destroying the cluster: accepted and ignored."
+    },
+    "display_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "AlloyDB instance display name."
+    },
+    "encryption_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "primary_kms_key_name": {
+          "type": "string"
+        },
+        "secondary_kms_key_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "primary_kms_key_name"
+      ],
+      "description": "KMS keys: projects/[PROJECT]/locations/[REGION]/keyRings/[RING]/cryptoKeys/[KEY_NAME]."
+    },
+    "flags": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Map FLAG_NAME=>VALUE for database-specific tuning."
+    },
+    "gce_zone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The GCE zone of a ZONAL instance."
+    },
+    "initial_user": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "user": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "description": "Initial user credentials: refused (a password)."
+    },
+    "instance_name": {
+      "description": "Name of primary instance.",
+      "type": "string",
+      "minLength": 1
+    },
+    "location": {
+      "description": "Region or zone of the cluster and instance.",
+      "type": "string",
+      "minLength": 1
+    },
+    "machine_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "enum": [
+            1,
+            2,
+            4,
+            8,
+            16,
+            32,
+            64,
+            72,
+            96,
+            128,
+            null
+          ]
+        },
+        "machine_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "description": "AlloyDB machine config."
+    },
+    "maintenance_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "day": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_time": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "hours": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "description": "Maintenance window configuration."
+    },
+    "network_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "psa_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "network": {
+              "type": "string"
+            },
+            "allocated_ip_range": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "authorized_external_networks": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "enable_public_ip": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_outbound_public_ip": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "network"
+          ]
+        },
+        "psc_config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "allowed_consumer_projects": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "network_attachment_uri": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "psc_auto_connections": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "consumer_project": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "consumer_network": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "allowed_consumer_projects"
+          ]
+        }
+      },
+      "description": "Network configuration: psa_config (psc_config is refused)."
+    },
+    "observability_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preserve_comments": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "track_wait_events": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "max_query_string_length": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "record_application_tags": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "query_plans_per_minute": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "track_active_queries": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "track_client_address": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "assistive_experiences_enabled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "description": "Advanced query insights config; mutually exclusive with query_insights_config."
+    },
+    "prefix": {
+      "description": "Optional prefix used to generate instance names. Prefix cannot be empty, please use null instead.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "The ID of the project where this instances will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_number": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The project number; needed for tag_bindings."
+    },
+    "query_insights_config": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "query_string_length": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "record_application_tags": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "record_client_address": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "query_plans_per_minute": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "description": "Query insights config."
+    },
+    "read_pool": {
+      "description": "Read pool instances to create in the primary cluster.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node_count": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "flags": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "client_connection_config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "require_connectors": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "ssl_config": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ssl_mode": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ssl_mode"
+                ]
+              }
+            }
+          },
+          "machine_config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "cpu_count": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "enum": [
+                  1,
+                  2,
+                  4,
+                  8,
+                  16,
+                  32,
+                  64,
+                  72,
+                  96,
+                  128,
+                  null
+                ]
+              },
+              "machine_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "network_config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "authorized_external_networks": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "enable_public_ip": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "query_insights_config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "query_string_length": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "record_application_tags": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "record_client_address": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "query_plans_per_minute": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "observability_config": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "enabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "preserve_comments": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "track_wait_events": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "max_query_string_length": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "record_application_tags": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "query_plans_per_minute": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "track_active_queries": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "track_client_address": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "assistive_experiences_enabled": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "skip_await_major_version_upgrade": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Terraform's wait on major version upgrades: accepted and ignored."
+    },
+    "subscription_type": {
+      "description": "STANDARD or TRIAL (TRIAL is refused).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "STANDARD",
+        "TRIAL",
+        null
+      ]
+    },
+    "tag_bindings": {
+      "description": "Tag bindings for the clusters, in key => tag value id format.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "users": {
+      "description": "Users to create in the primary cluster.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "ALLOYDB_BUILT_IN",
+              "ALLOYDB_IAM_USER",
+              "ALLOYDB_IAM_GROUP",
+              null
+            ]
+          }
+        }
+      }
+    }
+  }
+}

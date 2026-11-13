@@ -50,8 +50,8 @@ types:
   aws_default_security_group: {class: none, note: "a VPC's default security group: VPC.disallowSecurityGroupDefaultRules removes its rules, no kind sets its rules or tags"}
   aws_default_network_acl: {class: none, note: "a VPC's default network ACL: no kind adopts it by its VPC"}
   aws_default_route_table: {class: none, note: "a VPC's main route table: no kind adopts it by its VPC"}
-  aws_vpc_block_public_access_options: {class: none}
-  aws_vpc_block_public_access_exclusion: {class: none}
+  aws_vpc_block_public_access_options: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/VPCBlockPublicAccessOptions, note: "Cloud Control (ack-extensions)"}
+  aws_vpc_block_public_access_exclusion: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/VPCBlockPublicAccessExclusion, note: "Cloud Control (ack-extensions)"}
   aws_cloudwatch_log_group: {class: stable, kind: cloudwatchlogs/LogGroup}
   aws_iam_role: {class: stable, kind: iam/Role}
   aws_iam_policy: {class: stable, kind: iam/Policy}
@@ -60,11 +60,39 @@ types:
   aws_security_group: {class: stable, kind: ec2/SecurityGroup}
   aws_security_group_rule: {class: stable, kind: "ec2/SecurityGroup (ingressRules, egressRules)"}
 
+  # iam (v6.8.2): its submodules (iam-role and iam-policy have charts; the
+  # aws_iam_role* and aws_iam_policy types are above, with vpc's)
+  aws_iam_instance_profile: {class: stable, kind: iam/InstanceProfile}
+  aws_iam_openid_connect_provider: {class: stable, kind: iam/OpenIDConnectProvider}
+  aws_iam_group: {class: stable, kind: iam/Group}
+  aws_iam_group_policy_attachment: {class: stable, kind: iam/Group (policies)}
+  aws_iam_user: {class: stable, kind: iam/User}
+  aws_iam_user_policy: {class: stable, kind: iam/User (inlinePolicies)}
+  aws_iam_user_policy_attachment: {class: stable, kind: iam/User (policies)}
+  aws_iam_group_membership: {class: extensions, kind: iam.aws.hfl.dev/UserGroupMembership}
+  aws_iam_access_key: {class: extensions, kind: iam.aws.hfl.dev/AccessKey}
+  aws_iam_user_login_profile: {class: extensions, kind: iam.aws.hfl.dev/LoginProfile}
+  aws_iam_user_ssh_key: {class: extensions, kind: iam.aws.hfl.dev/SSHPublicKey}
+  aws_iam_account_alias: {class: extensions, kind: iam.aws.hfl.dev/AccountAlias}
+  aws_iam_account_password_policy: {class: extensions, kind: iam.aws.hfl.dev/AccountPasswordPolicy}
+
+  # acm (v6.3.1)
+  aws_acm_certificate: {class: stable, kind: acm/Certificate}
+  aws_route53_record: {class: stable, kind: route53/RecordSet}
+  aws_acm_certificate_validation: {class: none, note: "nothing waits for a certificate to be ISSUED: ACK's Certificate is synced once requested; its status (Status.status) reports ISSUED"}
+
+  # ec2-instance (v6.4.1)
+  aws_instance: {class: stable, kind: ec2/Instance}
+  aws_spot_instance_request: {class: none, note: "no kind; Instance.instanceMarketOptions requests a Spot instance through RunInstances"}
+  aws_ec2_tag: {class: extensions, kind: ec2.aws.hfl.dev/ResourceTag}
+  aws_ebs_volume: {class: extensions, kind: ec2.aws.hfl.dev/Volume}
+  aws_volume_attachment: {class: extensions, kind: ec2.aws.hfl.dev/VolumeAttachment}
+
   # security-group (v6.0.0)
   aws_vpc_security_group_ingress_rule: {class: stable, kind: ec2/SecurityGroup (ingressRules)}
   aws_vpc_security_group_egress_rule: {class: stable, kind: ec2/SecurityGroup (egressRules)}
   aws_vpc_security_group_rules_exclusive: {class: stable, kind: "ec2/SecurityGroup (ingressRules, egressRules)", note: "ACK owns a group's whole rule set, as the exclusive resource does"}
-  aws_vpc_security_group_vpc_association: {class: none}
+  aws_vpc_security_group_vpc_association: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/SecurityGroupVpcAssociation, note: "Cloud Control (ack-extensions)"}
 
   # s3-bucket (v5.17.0), with its submodules
   aws_s3_bucket: {class: stable, kind: s3/Bucket}
@@ -88,16 +116,16 @@ types:
   aws_s3_bucket_versioning: {class: stable, kind: s3/Bucket (versioning)}
   aws_s3_bucket_website_configuration: {class: stable, kind: s3/Bucket (website)}
   aws_s3_bucket_metadata_configuration: {class: none}
-  aws_s3_directory_bucket: {class: none, note: "S3 Express One Zone"}
+  aws_s3_directory_bucket: {class: extensions, kind: s3express.cloudcontrol.aws.hfl.dev/DirectoryBucket, note: "Cloud Control (ack-extensions)"}
   aws_s3_object: {class: none}
   aws_s3_account_public_access_block: {class: none, note: "s3control has only AccessPoint"}
   aws_s3tables_table_bucket: {class: stable, kind: s3tables/TableBucket}
   aws_s3tables_table_bucket_policy: {class: stable, kind: s3tables/TableBucket (policy)}
   aws_s3tables_table: {class: stable, kind: s3tables/Table}
-  aws_s3tables_table_policy: {class: none}
+  aws_s3tables_table_policy: {class: extensions, kind: s3tables.cloudcontrol.aws.hfl.dev/TablePolicy, note: "Cloud Control (ack-extensions)"}
   aws_s3vectors_vector_bucket: {class: stable, kind: s3vectors/VectorBucket}
   aws_s3vectors_index: {class: stable, kind: s3vectors/Index}
-  aws_s3vectors_vector_bucket_policy: {class: none}
+  aws_s3vectors_vector_bucket_policy: {class: extensions, kind: s3vectors.cloudcontrol.aws.hfl.dev/VectorBucketPolicy, note: "Cloud Control (ack-extensions)"}
   aws_s3files_file_system: {class: stable, kind: s3files/FileSystem}
   aws_s3files_file_system_policy: {class: stable, kind: s3files/FileSystem (policy)}
   aws_s3files_synchronization_configuration: {class: stable, kind: "s3files/FileSystem (importDataRules, expirationDataRules)"}
@@ -113,4 +141,224 @@ types:
   aws_kms_grant: {class: stable, kind: kms/Grant}
   aws_kms_replica_key: {class: extensions, kind: kms.aws.hfl.dev/ReplicaKey}
   aws_kms_external_key: {class: none, note: "imported key material (Origin EXTERNAL): Key has origin, but no kind imports the material"}
-  aws_kms_replica_external_key: {class: none}
+  aws_kms_replica_external_key: {class: extensions, kind: kms.aws.hfl.dev/ReplicaKey}
+
+  # Every other type of a tracked module, from ack-extensions
+  # docs/catalog-aws-types.csv at 74d322f (2026-11-12): ACK kinds
+  # and fields (stable; a preview controller's: alpha), ack-extensions kinds
+  # (extensions), and types neither covers (none).
+  aws_apigatewayv2_api: {class: stable, kind: apigatewayv2/API}
+  aws_apigatewayv2_api_mapping: {class: stable, kind: apigatewayv2/APIMapping}
+  aws_apigatewayv2_authorizer: {class: stable, kind: apigatewayv2/Authorizer}
+  aws_apigatewayv2_deployment: {class: stable, kind: apigatewayv2/Deployment}
+  aws_apigatewayv2_domain_name: {class: stable, kind: apigatewayv2/DomainName}
+  aws_apigatewayv2_integration: {class: stable, kind: apigatewayv2/Integration}
+  aws_apigatewayv2_integration_response: {class: extensions, kind: apigatewayv2.cloudcontrol.aws.hfl.dev/IntegrationResponse, note: "Cloud Control (ack-extensions)"}
+  aws_apigatewayv2_route: {class: stable, kind: apigatewayv2/Route}
+  aws_apigatewayv2_route_response: {class: extensions, kind: apigatewayv2.cloudcontrol.aws.hfl.dev/RouteResponse, note: "Cloud Control (ack-extensions)"}
+  aws_apigatewayv2_stage: {class: stable, kind: apigatewayv2/Stage}
+  aws_apigatewayv2_vpc_link: {class: stable, kind: apigatewayv2/VPCLink}
+  aws_appautoscaling_policy: {class: stable, kind: applicationautoscaling/ScalingPolicy}
+  aws_appautoscaling_scheduled_action: {class: extensions, kind: applicationautoscaling.aws.hfl.dev/ScheduledAction}
+  aws_appautoscaling_target: {class: stable, kind: applicationautoscaling/ScalableTarget}
+  aws_autoscaling_group: {class: stable, kind: autoscaling/AutoScalingGroup}
+  aws_autoscaling_policy: {class: extensions, kind: autoscaling.aws.hfl.dev/ScalingPolicy}
+  aws_autoscaling_schedule: {class: extensions, kind: autoscaling.aws.hfl.dev/ScheduledAction}
+  aws_autoscaling_traffic_source_attachment: {class: stable, kind: "autoscaling/AutoScalingGroup (trafficSources)"}
+  aws_cloudfront_cache_policy: {class: stable, kind: cloudfront/CachePolicy}
+  aws_cloudfront_connection_function: {class: extensions, kind: cloudfront.cloudcontrol.aws.hfl.dev/ConnectionFunction, note: "Cloud Control (ack-extensions)"}
+  aws_cloudfront_distribution: {class: stable, kind: cloudfront/Distribution}
+  aws_cloudfront_function: {class: stable, kind: cloudfront/Function}
+  aws_cloudfront_monitoring_subscription: {class: extensions, kind: cloudfront.cloudcontrol.aws.hfl.dev/MonitoringSubscription, note: "Cloud Control (ack-extensions)"}
+  aws_cloudfront_origin_access_control: {class: stable, kind: cloudfront/OriginAccessControl}
+  aws_cloudfront_origin_request_policy: {class: stable, kind: cloudfront/OriginRequestPolicy}
+  aws_cloudfront_response_headers_policy: {class: stable, kind: cloudfront/ResponseHeadersPolicy}
+  aws_cloudfront_trust_store: {class: extensions, kind: cloudfront.cloudcontrol.aws.hfl.dev/TrustStore, note: "Cloud Control (ack-extensions)"}
+  aws_cloudfront_vpc_origin: {class: stable, kind: cloudfront/VPCOrigin}
+  aws_cloudwatch_composite_alarm: {class: extensions, kind: cloudwatch.cloudcontrol.aws.hfl.dev/CompositeAlarm, note: "Cloud Control (ack-extensions)"}
+  aws_cloudwatch_event_api_destination: {class: extensions, kind: events.aws.hfl.dev/APIDestination}
+  aws_cloudwatch_event_archive: {class: stable, kind: eventbridge/Archive}
+  aws_cloudwatch_event_bus: {class: stable, kind: eventbridge/EventBus}
+  aws_cloudwatch_event_connection: {class: extensions, kind: events.aws.hfl.dev/Connection}
+  aws_cloudwatch_event_permission: {class: stable, kind: "eventbridge/EventBus (policy)"}
+  aws_cloudwatch_event_rule: {class: stable, kind: eventbridge/Rule}
+  aws_cloudwatch_event_target: {class: stable, kind: "eventbridge/Rule (targets)"}
+  aws_cloudwatch_log_account_policy: {class: extensions, kind: logs.cloudcontrol.aws.hfl.dev/AccountPolicy, note: "Cloud Control (ack-extensions)"}
+  aws_cloudwatch_log_anomaly_detector: {class: extensions, kind: logs.cloudcontrol.aws.hfl.dev/LogAnomalyDetector, note: "Cloud Control (ack-extensions)"}
+  aws_cloudwatch_log_data_protection_policy: {class: stable, kind: cloudwatchlogs/LogGroup}
+  aws_cloudwatch_log_delivery: {class: stable, kind: cloudwatchlogs/Delivery}
+  aws_cloudwatch_log_delivery_destination: {class: stable, kind: cloudwatchlogs/DeliveryDestination}
+  aws_cloudwatch_log_delivery_source: {class: stable, kind: cloudwatchlogs/DeliverySource}
+  aws_cloudwatch_log_metric_filter: {class: stable, kind: cloudwatchlogs/LogGroup}
+  aws_cloudwatch_log_resource_policy: {class: stable, kind: cloudwatchlogs/ResourcePolicy}
+  aws_cloudwatch_log_stream: {class: extensions, kind: logs.cloudcontrol.aws.hfl.dev/LogStream, note: "Cloud Control (ack-extensions)"}
+  aws_cloudwatch_log_subscription_filter: {class: extensions, kind: logs.cloudcontrol.aws.hfl.dev/SubscriptionFilter, note: "Cloud Control (ack-extensions)"}
+  aws_cloudwatch_metric_alarm: {class: stable, kind: cloudwatch/MetricAlarm}
+  aws_cloudwatch_metric_stream: {class: stable, kind: cloudwatch/MetricStream}
+  aws_cloudwatch_query_definition: {class: extensions, kind: logs.cloudcontrol.aws.hfl.dev/QueryDefinition, note: "Cloud Control (ack-extensions)"}
+  aws_codedeploy_app: {class: extensions, kind: codedeploy.cloudcontrol.aws.hfl.dev/Application, note: "Cloud Control (ack-extensions)"}
+  aws_codedeploy_deployment_group: {class: extensions, kind: codedeploy.cloudcontrol.aws.hfl.dev/DeploymentGroup, note: "Cloud Control (ack-extensions)"}
+  aws_db_instance: {class: stable, kind: rds/DBInstance}
+  aws_db_instance_automated_backups_replication: {class: none, note: "StartDBInstanceAutomatedBackupsReplication; no CloudFormation type"}
+  aws_db_instance_role_association: {class: extensions, kind: rds.aws.hfl.dev/DBRoleAssociation}
+  aws_db_option_group: {class: extensions, kind: rds.aws.hfl.dev/OptionGroup}
+  aws_db_parameter_group: {class: stable, kind: rds/DBParameterGroup}
+  aws_db_proxy: {class: stable, kind: rds/DBProxy}
+  aws_db_proxy_default_target_group: {class: stable, kind: rds/DBProxy}
+  aws_db_proxy_endpoint: {class: extensions, kind: rds.cloudcontrol.aws.hfl.dev/DBProxyEndpoint, note: "Cloud Control (ack-extensions)"}
+  aws_db_proxy_target: {class: extensions, kind: rds.aws.hfl.dev/DBProxyTarget}
+  aws_dms_certificate: {class: alpha, kind: dms/Certificate}
+  aws_dms_endpoint: {class: alpha, kind: dms/Endpoint}
+  aws_dms_event_subscription: {class: alpha, kind: dms/EventSubscription}
+  aws_dms_replication_config: {class: extensions, kind: dms.cloudcontrol.aws.hfl.dev/ReplicationConfig, note: "Cloud Control (ack-extensions)"}
+  aws_dms_replication_instance: {class: alpha, kind: dms/ReplicationInstance}
+  aws_dms_replication_subnet_group: {class: alpha, kind: dms/ReplicationSubnetGroup}
+  aws_dms_replication_task: {class: alpha, kind: dms/ReplicationTask}
+  aws_dms_s3_endpoint: {class: alpha, kind: dms/Endpoint}
+  aws_dsql_cluster: {class: stable, kind: dsql/Cluster}
+  aws_dsql_cluster_peering: {class: stable, kind: dsql/Cluster}
+  aws_dsql_cluster_policy: {class: none, note: "PutClusterPolicy; AWS::DSQL::Cluster has no policy"}
+  aws_dynamodb_resource_policy: {class: stable, kind: dynamodb/Table}
+  aws_dynamodb_table: {class: stable, kind: dynamodb/Table}
+  aws_ec2_transit_gateway: {class: stable, kind: ec2/TransitGateway}
+  aws_ec2_transit_gateway_route: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/TransitGatewayRoute, note: "Cloud Control (ack-extensions)"}
+  aws_ec2_transit_gateway_route_table: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/TransitGatewayRouteTable, note: "Cloud Control (ack-extensions)"}
+  aws_ec2_transit_gateway_route_table_association: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/TransitGatewayRouteTableAssociation, note: "Cloud Control (ack-extensions)"}
+  aws_ec2_transit_gateway_route_table_propagation: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/TransitGatewayRouteTablePropagation, note: "Cloud Control (ack-extensions)"}
+  aws_ec2_transit_gateway_vpc_attachment: {class: stable, kind: ec2/TransitGatewayVPCAttachment}
+  aws_ecr_lifecycle_policy: {class: stable, kind: "ecr/Repository (lifecyclePolicy)"}
+  aws_ecr_pull_through_cache_rule: {class: stable, kind: ecr/PullThroughCacheRule}
+  aws_ecr_registry_policy: {class: extensions, kind: ecr.cloudcontrol.aws.hfl.dev/RegistryPolicy, note: "Cloud Control (ack-extensions)"}
+  aws_ecr_registry_scanning_configuration: {class: extensions, kind: ecr.cloudcontrol.aws.hfl.dev/RegistryScanningConfiguration, note: "Cloud Control (ack-extensions)"}
+  aws_ecr_replication_configuration: {class: extensions, kind: ecr.aws.hfl.dev/ReplicationConfiguration}
+  aws_ecr_repository: {class: stable, kind: ecr/Repository}
+  aws_ecr_repository_creation_template: {class: stable, kind: ecr/RepositoryCreationTemplate}
+  aws_ecr_repository_policy: {class: stable, kind: "ecr/Repository (policy)"}
+  aws_ecrpublic_repository: {class: stable, kind: ecrpublic/Repository}
+  aws_ecrpublic_repository_policy: {class: stable, kind: ecrpublic/Repository}
+  aws_ecs_capacity_provider: {class: stable, kind: ecs/CapacityProvider}
+  aws_ecs_cluster: {class: stable, kind: ecs/Cluster}
+  aws_ecs_cluster_capacity_providers: {class: stable, kind: "ecs/Cluster (capacityProviders)"}
+  aws_ecs_express_gateway_service: {class: extensions, kind: ecs.cloudcontrol.aws.hfl.dev/ExpressGatewayService, note: "Cloud Control (ack-extensions)"}
+  aws_ecs_service: {class: stable, kind: ecs/Service}
+  aws_ecs_task_definition: {class: stable, kind: ecs/TaskDefinition}
+  aws_ecs_task_set: {class: extensions, kind: ecs.cloudcontrol.aws.hfl.dev/TaskSet, note: "Cloud Control (ack-extensions)"}
+  aws_efs_access_point: {class: stable, kind: efs/AccessPoint}
+  aws_efs_backup_policy: {class: stable, kind: "efs/FileSystem (backupPolicy)"}
+  aws_efs_file_system: {class: stable, kind: efs/FileSystem}
+  aws_efs_file_system_policy: {class: stable, kind: "efs/FileSystem (policy)"}
+  aws_efs_mount_target: {class: stable, kind: efs/MountTarget}
+  aws_efs_replication_configuration: {class: none, note: "CreateReplicationConfiguration; AWS::EFS::FileSystem ReplicationConfiguration, not in ACK FileSystem"}
+  aws_eks_access_entry: {class: stable, kind: eks/AccessEntry}
+  aws_eks_access_policy_association: {class: stable, kind: "eks/AccessEntry (accessPolicies)"}
+  aws_eks_addon: {class: stable, kind: eks/Addon}
+  aws_eks_capability: {class: stable, kind: eks/Capability}
+  aws_eks_cluster: {class: stable, kind: eks/Cluster}
+  aws_eks_fargate_profile: {class: stable, kind: eks/FargateProfile}
+  aws_eks_identity_provider_config: {class: stable, kind: eks/IdentityProviderConfig}
+  aws_eks_node_group: {class: stable, kind: eks/Nodegroup}
+  aws_eks_pod_identity_association: {class: stable, kind: eks/PodIdentityAssociation}
+  aws_elasticache_cluster: {class: stable, kind: elasticache/CacheCluster}
+  aws_elasticache_global_replication_group: {class: none, note: "elasticache-controller pull request #237 (plan section 5 rank 13)"}
+  aws_elasticache_parameter_group: {class: stable, kind: elasticache/CacheParameterGroup}
+  aws_elasticache_replication_group: {class: stable, kind: elasticache/ReplicationGroup}
+  aws_elasticache_serverless_cache: {class: stable, kind: elasticache/ServerlessCache}
+  aws_elasticache_user: {class: stable, kind: elasticache/User}
+  aws_elasticache_user_group: {class: stable, kind: elasticache/UserGroup}
+  aws_elasticache_user_group_association: {class: stable, kind: "elasticache/UserGroup (userIDs)"}
+  aws_glue_registry: {class: extensions, kind: glue.cloudcontrol.aws.hfl.dev/Registry, note: "Cloud Control (ack-extensions)"}
+  aws_glue_schema: {class: extensions, kind: glue.cloudcontrol.aws.hfl.dev/Schema, note: "Cloud Control (ack-extensions)"}
+  aws_iam_policy_attachment: {class: stable, kind: iam/Role}
+  aws_key_pair: {class: none, note: "ec2-controller pull request #396 (excluded.yaml)"}
+  aws_kms_ciphertext: {class: none, note: "an encryption, not a resource"}
+  aws_lambda_alias: {class: stable, kind: lambda/Alias}
+  aws_lambda_event_source_mapping: {class: stable, kind: lambda/EventSourceMapping}
+  aws_lambda_function: {class: stable, kind: lambda/Function}
+  aws_lambda_function_event_invoke_config: {class: stable, kind: "lambda/Function (functionEventInvokeConfig)"}
+  aws_lambda_function_recursion_config: {class: none, note: "PutFunctionRecursionConfig; AWS::Lambda::Function RecursiveLoop"}
+  aws_lambda_function_url: {class: stable, kind: lambda/FunctionURLConfig}
+  aws_lambda_layer_version: {class: stable, kind: lambda/LayerVersion}
+  aws_lambda_provisioned_concurrency_config: {class: stable, kind: lambda/Alias}
+  aws_launch_template: {class: stable, kind: ec2/LaunchTemplate}
+  aws_lb: {class: stable, kind: elbv2/LoadBalancer}
+  aws_lb_listener: {class: stable, kind: elbv2/Listener}
+  aws_lb_listener_certificate: {class: stable, kind: "elbv2/Listener (certificates)"}
+  aws_lb_listener_rule: {class: stable, kind: elbv2/Rule}
+  aws_lb_target_group: {class: stable, kind: elbv2/TargetGroup}
+  aws_lb_target_group_attachment: {class: stable, kind: "elbv2/TargetGroup (targets)"}
+  aws_lb_trust_store: {class: extensions, kind: elasticloadbalancingv2.cloudcontrol.aws.hfl.dev/TrustStore, note: "Cloud Control (ack-extensions)"}
+  aws_lb_trust_store_revocation: {class: extensions, kind: elasticloadbalancingv2.cloudcontrol.aws.hfl.dev/TrustStoreRevocation, note: "Cloud Control (ack-extensions)"}
+  aws_msk_cluster: {class: stable, kind: kafka/Cluster}
+  aws_msk_cluster_policy: {class: extensions, kind: msk.cloudcontrol.aws.hfl.dev/ClusterPolicy, note: "Cloud Control (ack-extensions)"}
+  aws_msk_configuration: {class: stable, kind: kafka/Configuration}
+  aws_msk_scram_secret_association: {class: extensions, kind: msk.cloudcontrol.aws.hfl.dev/BatchScramSecret, note: "Cloud Control (ack-extensions)"}
+  aws_msk_serverless_cluster: {class: stable, kind: kafka/ServerlessCluster}
+  aws_msk_topic: {class: extensions, kind: msk.cloudcontrol.aws.hfl.dev/Topic, note: "Cloud Control (ack-extensions)"}
+  aws_msk_vpc_connection: {class: stable, kind: kafka/VPCConnection}
+  aws_mskconnect_custom_plugin: {class: extensions, kind: kafkaconnect.cloudcontrol.aws.hfl.dev/CustomPlugin, note: "Cloud Control (ack-extensions)"}
+  aws_mskconnect_worker_configuration: {class: extensions, kind: kafkaconnect.cloudcontrol.aws.hfl.dev/WorkerConfiguration, note: "Cloud Control (ack-extensions)"}
+  aws_networkfirewall_firewall: {class: stable, kind: networkfirewall/Firewall}
+  aws_networkfirewall_firewall_policy: {class: stable, kind: networkfirewall/FirewallPolicy}
+  aws_networkfirewall_logging_configuration: {class: extensions, kind: networkfirewall.cloudcontrol.aws.hfl.dev/LoggingConfiguration, note: "Cloud Control (ack-extensions)"}
+  aws_networkfirewall_resource_policy: {class: none, note: "AWS::NetworkFirewall has no resource policy type; PutResourcePolicy"}
+  aws_networkfirewall_rule_group: {class: stable, kind: networkfirewall/RuleGroup}
+  aws_opensearch_domain: {class: stable, kind: opensearchservice/Domain}
+  aws_opensearch_domain_policy: {class: stable, kind: "opensearchservice/Domain (accessPolicies)"}
+  aws_opensearch_domain_saml_options: {class: stable, kind: opensearchservice/Domain}
+  aws_opensearch_outbound_connection: {class: none, note: "CreateOutboundConnection; no CloudFormation type"}
+  aws_opensearch_package_association: {class: none, note: "AssociatePackage; no CloudFormation type"}
+  aws_opensearch_vpc_endpoint: {class: stable, kind: opensearchservice/VPCEndpoint}
+  aws_opensearchserverless_access_policy: {class: stable, kind: opensearchserverless/AccessPolicy}
+  aws_opensearchserverless_collection: {class: stable, kind: opensearchserverless/Collection}
+  aws_opensearchserverless_collection_group: {class: stable, kind: opensearchserverless/CollectionGroup}
+  aws_opensearchserverless_lifecycle_policy: {class: stable, kind: opensearchserverless/LifecyclePolicy}
+  aws_opensearchserverless_security_policy: {class: stable, kind: opensearchserverless/SecurityPolicy}
+  aws_pipes_pipe: {class: stable, kind: pipes/Pipe}
+  aws_placement_group: {class: extensions, kind: ec2.cloudcontrol.aws.hfl.dev/PlacementGroup, note: "Cloud Control (ack-extensions)"}
+  aws_prometheus_alert_manager_definition: {class: stable, kind: prometheusservice/AlertManagerDefinition}
+  aws_prometheus_resource_policy: {class: extensions, kind: aps.cloudcontrol.aws.hfl.dev/ResourcePolicy, note: "Cloud Control (ack-extensions)"}
+  aws_prometheus_rule_group_namespace: {class: stable, kind: prometheusservice/RuleGroupsNamespace}
+  aws_prometheus_workspace: {class: stable, kind: prometheusservice/Workspace}
+  aws_prometheus_workspace_configuration: {class: none, note: "UpdateWorkspaceConfiguration; AWS::APS::Workspace WorkspaceConfiguration"}
+  aws_ram_principal_association: {class: extensions, kind: ram.cloudcontrol.aws.hfl.dev/PrincipalAssociation, note: "Cloud Control (ack-extensions)"}
+  aws_ram_resource_association: {class: extensions, kind: ram.cloudcontrol.aws.hfl.dev/ResourceAssociation, note: "Cloud Control (ack-extensions)"}
+  aws_ram_resource_share: {class: stable, kind: ram/ResourceShare}
+  aws_ram_resource_share_accepter: {class: none, note: "AcceptResourceShareInvitation; no CloudFormation type"}
+  aws_rds_cluster: {class: stable, kind: rds/DBCluster}
+  aws_rds_cluster_activity_stream: {class: none, note: "StartActivityStream; no CloudFormation type"}
+  aws_rds_cluster_endpoint: {class: stable, kind: rds/DBClusterEndpoint}
+  aws_rds_cluster_instance: {class: stable, kind: rds/DBInstance}
+  aws_rds_cluster_parameter_group: {class: stable, kind: rds/DBClusterParameterGroup}
+  aws_rds_cluster_role_association: {class: extensions, kind: rds.aws.hfl.dev/DBRoleAssociation}
+  aws_rds_shard_group: {class: extensions, kind: rds.cloudcontrol.aws.hfl.dev/DBShardGroup, note: "Cloud Control (ack-extensions)"}
+  aws_rolesanywhere_profile: {class: extensions, kind: rolesanywhere.cloudcontrol.aws.hfl.dev/Profile, note: "Cloud Control (ack-extensions)"}
+  aws_rolesanywhere_trust_anchor: {class: extensions, kind: rolesanywhere.cloudcontrol.aws.hfl.dev/TrustAnchor, note: "Cloud Control (ack-extensions)"}
+  aws_route53_delegation_set: {class: extensions, kind: route53.cloudcontrol.aws.hfl.dev/DelegationSet, note: "Cloud Control (ack-extensions)"}
+  aws_route53_hosted_zone_dnssec: {class: extensions, kind: route53.cloudcontrol.aws.hfl.dev/DNSSEC, note: "Cloud Control (ack-extensions)"}
+  aws_route53_key_signing_key: {class: extensions, kind: route53.cloudcontrol.aws.hfl.dev/KeySigningKey, note: "Cloud Control (ack-extensions)"}
+  aws_route53_resolver_endpoint: {class: stable, kind: route53resolver/ResolverEndpoint}
+  aws_route53_resolver_firewall_domain_list: {class: extensions, kind: route53resolver.cloudcontrol.aws.hfl.dev/FirewallDomainList, note: "Cloud Control (ack-extensions)"}
+  aws_route53_resolver_firewall_rule: {class: stable, kind: route53resolver/FirewallRuleGroup}
+  aws_route53_resolver_firewall_rule_group: {class: extensions, kind: route53resolver.cloudcontrol.aws.hfl.dev/FirewallRuleGroup, note: "Cloud Control (ack-extensions)"}
+  aws_route53_resolver_rule: {class: stable, kind: route53resolver/ResolverRule}
+  aws_route53_resolver_rule_association: {class: stable, kind: route53resolver/ResolverRuleAssociation}
+  aws_route53_vpc_association_authorization: {class: none, note: "plan section 5 rank 14; no CloudFormation type, moto has none"}
+  aws_route53_zone: {class: stable, kind: route53/HostedZone}
+  aws_scheduler_schedule: {class: extensions, kind: scheduler.aws.hfl.dev/Schedule}
+  aws_scheduler_schedule_group: {class: extensions, kind: scheduler.aws.hfl.dev/ScheduleGroup}
+  aws_schemas_discoverer: {class: extensions, kind: eventschemas.cloudcontrol.aws.hfl.dev/Discoverer, note: "Cloud Control (ack-extensions)"}
+  aws_secretsmanager_secret: {class: stable, kind: secretsmanager/Secret}
+  aws_secretsmanager_secret_policy: {class: extensions, kind: secretsmanager.cloudcontrol.aws.hfl.dev/ResourcePolicy, note: "Cloud Control (ack-extensions)"}
+  aws_secretsmanager_secret_rotation: {class: stable, kind: secretsmanager/Secret}
+  aws_secretsmanager_secret_version: {class: stable, kind: "secretsmanager/Secret (secretString)"}
+  aws_sfn_state_machine: {class: stable, kind: sfn/StateMachine}
+  aws_sns_topic: {class: stable, kind: sns/Topic}
+  aws_sns_topic_data_protection_policy: {class: stable, kind: "sns/Topic (dataProtectionPolicy)"}
+  aws_sns_topic_subscription: {class: stable, kind: sns/Subscription}
+  aws_sqs_queue: {class: stable, kind: sqs/Queue}
+  aws_sqs_queue_redrive_allow_policy: {class: stable, kind: "sqs/Queue (redriveAllowPolicy)"}
+  aws_sqs_queue_redrive_policy: {class: stable, kind: "sqs/Queue (redrivePolicy)"}
+  aws_ssm_parameter: {class: stable, kind: ssm/Parameter}
+  aws_vpn_connection: {class: extensions, kind: ec2.aws.hfl.dev/VPNConnection}
+  aws_vpn_connection_route: {class: none, note: "CreateVpnConnectionRoute; beside VPNConnection (handoff), moto has none"}
+  aws_wafv2_web_acl_association: {class: extensions, kind: wafv2.aws.hfl.dev/WebACLAssociation}

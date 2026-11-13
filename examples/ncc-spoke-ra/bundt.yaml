@@ -1,0 +1,49 @@
+apiVersion: hfl.dev/v1
+kind: Template
+metadata:
+  name: ncc-spoke-ra
+spec:
+  version: "1.0.0"
+  components:
+    - name: spoke-ra
+      package:
+        name: gcp-ncc-spoke-ra
+        version: "0.1.0"
+      inputs:
+        hub:
+          create: true
+          name: ncc-hub
+        name: spoke-ra
+        region: europe-west1
+        router_appliances:
+          - internal_ip: 10.0.0.3
+            vm_self_link: projects/my-project/zones/europe-west1-b/instances/router-app
+        router_config:
+          asn: 65000
+          ip_interface0: 10.0.0.14
+          ip_interface1: 10.0.0.15
+          peer_asn: 65001
+        vpc_config:
+          network_name: my-vpc
+          subnet_self_link: projects/my-project/regions/europe-west1/subnetworks/subnet
+---
+apiVersion: hfl.dev/v1
+kind: Stack
+metadata:
+  name: ncc-spoke-ra
+  scope: my-team
+spec:
+  template: ncc-spoke-ra
+---
+apiVersion: hfl.dev/v1
+kind: Instance
+metadata:
+  name: ncc-spoke-ra-dev
+  scope: my-team/dev
+spec:
+  stack: ncc-spoke-ra
+  version: "1.0.0"
+  components:
+    spoke-ra:
+      values:
+        project_id: my-project
