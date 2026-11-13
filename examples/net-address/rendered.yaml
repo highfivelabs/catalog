@@ -1,0 +1,92 @@
+# component net-address-dev-addresses
+---
+# Source: net-address/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: net-address-dev-addresses-external-one
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-address-dev-addresses"
+    app.kubernetes.io/name: net-address
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "external:one"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "one"
+  location: "europe-west1"
+  addressType: EXTERNAL
+  description: "Terraform managed."
+  ipVersion: IPV4
+---
+# Source: net-address/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: net-address-dev-addresses-internal-ilb-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-address-dev-addresses"
+    app.kubernetes.io/name: net-address
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "internal:ilb-1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "ilb-1"
+  location: "europe-west1"
+  addressType: INTERNAL
+  description: "Terraform managed."
+  ipVersion: IPV4
+  purpose: "SHARED_LOADBALANCER_VIP"
+  subnetworkRef:
+    external: "projects/my-project/regions/europe-west1/subnetworks/default"
+---
+# Source: net-address/templates/psc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: net-address-dev-addresses-psc-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-address-dev-addresses"
+    app.kubernetes.io/name: net-address
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psc:googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "googleapis"
+  location: "global"
+  address: "10.0.0.32"
+  addressType: INTERNAL
+  purpose: PRIVATE_SERVICE_CONNECT
+  description: "Terraform managed."
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"
+---
+# Source: net-address/templates/psc.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: net-address-dev-addresses-psc-consumer-googleapis
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-address-dev-addresses"
+    app.kubernetes.io/name: net-address
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "psc_consumer:googleapis"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "googleapis"
+  location: "global"
+  ipAddress:
+    addressRef:
+      name: net-address-dev-addresses-psc-googleapis
+  loadBalancingScheme: ""
+  target:
+    googleAPIsBundle: "all-apis"
+  networkRef:
+    external: "projects/my-project/global/networks/my-network"

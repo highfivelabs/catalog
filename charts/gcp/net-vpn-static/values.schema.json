@@ -1,0 +1,254 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "net-vpn-static values (fabric net-vpn-static v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "network",
+    "project_id",
+    "region"
+  ],
+  "properties": {
+    "names": {
+      "description": "The gateway's and its address's names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gateway": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every name the chart derives. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (Google Cloud labels: lower-case letters, digits, _ and -).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "gateway_address": {
+      "description": "Optional address assigned to the VPN gateway. Ignored unless gateway_address_create is set to false.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "gateway_address_create": {
+      "description": "Create external address assigned to the VPN gateway.",
+      "type": "boolean"
+    },
+    "name": {
+      "description": "VPN gateway name, and prefix used for dependent resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "network": {
+      "description": "VPC used for the gateway and routes.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Project where resources will be created.",
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "description": "Region used for resources.",
+      "type": "string",
+      "minLength": 1
+    },
+    "remote_ranges": {
+      "description": "Remote IP CIDR ranges.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "route_priority": {
+      "description": "Route priority, defaults to 1000.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "tunnels": {
+      "description": "VPN tunnel configurations; refused when set.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cipher_suite": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "phase1": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "dh": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "encryption": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "integrity": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "prf": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "phase2": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "encryption": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "integrity": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "pfs": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ike_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "peer_ip": {
+            "type": "string"
+          },
+          "shared_secret": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "traffic_selectors": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "local",
+              "remote"
+            ],
+            "properties": {
+              "local": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "remote": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deletion_policy": {
+      "description": "DELETE (default) or ABANDON (not a fabric variable).",
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}
