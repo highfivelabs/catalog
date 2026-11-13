@@ -453,7 +453,27 @@ and default privileges, ownership).
 | --- | --- | --- |
 | root | `CognitiveServices/accounts@2025-06-01`, customer-managed key | `cognitiveservices/Account` (the key is inline) |
 | `deployment` | `accounts/deployments` | `cognitiveservices/Deployment` |
-| `rai_policy` | `accounts/raiPolicies@2024-10-01` | **GAP** |
+| `rai_policy` | `accounts/raiPolicies@2024-10-01` | **GAP** in ASO; `aso-ext` `cognitiveservices.azure.hfl.dev/AccountsRaiPolicy` |
+
+Chart `charts/azure/avm-res-cognitiveservices-account` (2026-11-13): 38 of
+41 variables (`retry`, `timeouts` by design; the search service key, a
+secret value, not ported; a user-assigned identity for the customer
+managed key and a deployment's dynamic throttling refused: field gaps), 7
+of 11 outputs (not the access keys, the sensitive object or the whole
+account). Private endpoints, deployments and RAI policies are mapped.
+Not applied live yet: the sandbox subscription has not registered the
+`Microsoft.CognitiveServices` provider, and ASO's attempt to register it
+(`POST /subscriptions/<id>/providers/Microsoft.CognitiveServices/register`)
+is a subscription-scope action the live identity is refused (403
+`AuthorizationFailed`, run `cat11130328999c`; nothing was created). The
+`cog` case of `hack/azure-live.sh` (a free Language account, no
+deployments) is ready and out of the default cases until someone with
+subscription rights registers the provider (`az provider register
+--namespace Microsoft.CognitiveServices --subscription <sandbox>`). Its
+`tests/mock.values.yaml` passed against the fake cloud (stock ASO and
+aso-extensions' manager against fakearm at `b9beb5b`, with PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113030744-29467`: the account, a
+deployment and its RAI policy Ready and deleted, outputs evaluated).
 
 ### 19. avm-ptn-alz-sub-vending (v0.3.4; azapi; a pattern)
 
@@ -710,7 +730,12 @@ Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
 (`avm-res-storage-storageaccount`'s `tables` and `shares`). Likewise ASO's `VaultKey` release policy has no `immutable`
-flag (`avm-res-keyvault-vault`'s `keys`). And ASO's `UserAssignedIdentity`
+flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` has no
+`dynamicThrottlingEnabled` (`avm-res-cognitiveservices-account`'s
+`cognitive_deployments`), and its `Account` takes the customer managed
+key's `identityClientId` only as a literal, with no `FromConfig` form, so
+a user-assigned identity's client ID, which the module reads from Azure,
+cannot be given (`customer_managed_key.user_assigned_identity`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
 

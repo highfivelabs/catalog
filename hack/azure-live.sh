@@ -33,7 +33,8 @@
 # makes, checks Azure answers 404, and at the end deletes anything of this
 # run still there and lists what of any catalog run is left. A deleted
 # Cognitive Services account stays soft-deleted for 48 hours; the test
-# purges it (and says when Azure refuses). A key vault
+# tries to purge it and logs Azure's answer (403 when the identity may
+# not). A key vault
 # stays soft-deleted for 7 days after its delete (purging needs a
 # subscription-scope right the identity does not have); its name is the
 # run's, so nothing collides. Writes offload-artifacts/azure-live/.
@@ -48,7 +49,10 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip cog}"
+# cog is not in the default: the sandbox subscription has not registered
+# Microsoft.CognitiveServices, and registering a provider is a
+# subscription-scope action the identity may not take (docs/azure.md).
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live

@@ -131,10 +131,16 @@ repository, release, commit, licence and the date last synced.
 `full`, `aiservices`, `metrics`, `names` and `mock`, each validated against
 ASO v2.22.0's CRD schemas and aso-extensions' `ManagementLock` and
 `AccountsRaiPolicy` CRDs, and the refusals in `tests/*.fail.yaml`.
-`task test-live-azure` (case `cog`) applies a free Language account with a
-system-assigned identity and no deployments to the Azure sandbox with Azure
-Service Operator, evaluates the outputs, deletes it, checks Azure no longer
-has it and purges the soft-deleted account.
+`task test-live-azure` with `AZURE_LIVE_CASES=cog` applies a free
+Language account with a system-assigned identity and no deployments to the
+Azure sandbox with Azure Service Operator, evaluates the outputs, deletes
+it, checks Azure no longer has it and tries to purge the soft-deleted
+account. It has not passed yet: the sandbox subscription has not
+registered `Microsoft.CognitiveServices`, and the live identity may not
+register it (run `cat11130328999c`, 2026-11-13; docs/azure.md, section 18).
+`task test-mock-azure` applies `tests/mock.values.yaml` to aso-extensions'
+fake cloud: passed on 2026-11-13, the account, its deployment and RAI
+policy Ready and deleted, the outputs evaluated.
 
 ## Changes
 
