@@ -1,0 +1,133 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-ptn-alz-management (v0.10.0): same names, types and defaults, so a
+# module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+#
+# Descriptions quoted from terraform-azurerm-avm-ptn-alz-management
+# (variables.tf, v0.10.0), Copyright (c) Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# Names in full: {resourceGroup, workspace, automationAccount}. A name set
+# here takes no prefix; one not set is the module's, with the namePrefix in
+# front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the
+# chart gives (the resource group, workspace, Automation account, data
+# collection rules and identity; never one set under names). Empty (the
+# default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name. Not a module variable: the
+# module's providers know their subscription; ASO's owner is an Azure
+# resource ID. Not needed when resource_group_name is a resource group's ID
+# (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# The name of the Azure Automation Account to create.
+automation_account_name: null
+# The Azure region where the resources will be deployed.
+location: ""
+# The name of the Azure Resource Group where the resources will be created
+# (or its ID).
+resource_group_name: ""
+# The encryption configuration for the Azure Automation Account.
+# {key_vault_key_id (a versioned Key Vault key ID),
+# user_assigned_identity_id}
+automation_account_encryption: null
+# The identity to assign to the Azure Automation Account.
+# {type, identity_ids}
+automation_account_identity: null
+# Whether or not local authentication is enabled for the Azure Automation
+# Account.
+automation_account_local_authentication_enabled: true
+# The Azure region of the Azure Automation Account to deploy. This supports
+# overriding the location variable in specific cases.
+automation_account_location: null
+# Whether or not public network access is enabled for the Azure Automation
+# Account.
+automation_account_public_network_access_enabled: true
+# The name of the SKU for the Azure Automation Account to create.
+automation_account_sku_name: Basic
+# Enables customisation of the data collection rules for Azure Monitor: the
+# three DCRs the module creates. Each: {enabled (true), name, location
+# (default location), tags (default tags)}; defender_sql also takes
+# enable_collection_of_sql_queries_for_security_research (false).
+data_collection_rules:
+  change_tracking:
+    name: dcr-change-tracking
+  vm_insights:
+    name: dcr-vm-insights
+  defender_sql:
+    name: dcr-defender-sql
+# This variable controls whether or not telemetry is enabled for the
+# module. Accepted; the chart never sends telemetry.
+enable_telemetry: true
+# A boolean flag to determine whether to deploy the Azure Automation
+# Account linked to the Log Analytics Workspace or not.
+linked_automation_account_creation_enabled: false
+# The Log Analytics Solution Plans to create. Each: {product (e.g.
+# OMSGallery/ContainerInsights), publisher (Microsoft)}. Do not add
+# SecurityInsights: see sentinel_onboarding.
+log_analytics_solution_plans:
+  - product: OMSGallery/ContainerInsights
+    publisher: Microsoft
+  - product: OMSGallery/VMInsights
+    publisher: Microsoft
+# Whether or not to allow resource-only permissions for the Log Analytics
+# Workspace.
+log_analytics_workspace_allow_resource_only_permissions: true
+# Whether or not to force the use of customer-managed keys for query in the
+# Log Analytics Workspace.
+log_analytics_workspace_cmk_for_query_forced: null
+# Whether or not to create a Log Analytics Workspace.
+log_analytics_workspace_creation_enabled: true
+# The daily ingestion quota in GB for the Log Analytics Workspace.
+log_analytics_workspace_daily_quota_gb: null
+# The ID of the pre-existing Log Analytics Workspace to use. Required if
+# log_analytics_workspace_creation_enabled is false.
+log_analytics_workspace_id: null
+# Whether or not internet ingestion is enabled for the Log Analytics
+# Workspace.
+log_analytics_workspace_internet_ingestion_enabled: true
+# Whether or not internet query is enabled for the Log Analytics Workspace.
+log_analytics_workspace_internet_query_enabled: true
+# Whether or not local authentication is enabled for the Log Analytics
+# Workspace.
+log_analytics_workspace_local_authentication_enabled: true
+# The name of the Log Analytics Workspace to create.
+log_analytics_workspace_name: null
+# The reservation capacity in GB per day for the Log Analytics Workspace.
+log_analytics_workspace_reservation_capacity_in_gb_per_day: null
+# The number of days to retain data for the Log Analytics Workspace.
+log_analytics_workspace_retention_in_days: 30
+# The SKU to use for the Log Analytics Workspace.
+log_analytics_workspace_sku: PerGB2018
+# A boolean flag to determine whether to deploy the Azure Resource Group or
+# not.
+resource_group_creation_enabled: true
+# Enables and customizes the Sentinel onboarding. null disables it; {}
+# enables it with the defaults. {name ("default"),
+# customer_managed_key_enabled (false)}
+sentinel_onboarding: null
+# A map of tags to apply to the resources created.
+tags: null
+# Timeouts of the Sentinel onboarding and the data collection rules.
+# Refused when set: ASO has none; Bundt sets a component's time limit.
+timeouts: {}
+# Enables customisation of the user assigned managed identities.
+# ama: {enabled (true), name, location (default location), tags (default
+# tags)}
+user_assigned_managed_identities:
+  ama:
+    name: uami-ama
