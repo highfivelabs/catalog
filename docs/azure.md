@@ -346,11 +346,12 @@ The module can also write account keys to a Key Vault as secrets:
 
 | Submodule | Creates | ASO |
 | --- | --- | --- |
-| root | Linux or Windows VM, managed disks and attachments, NICs and their associations (LB, App Gateway, ASG, NSG, NAT rule), public IP, admin password in Key Vault, maintenance configuration assignment, backup protected item, auto-shutdown schedule | `compute/VirtualMachine` (2022-03-01; data disks inline), `compute/Disk`, `network/NetworkInterface` (associations inline), `network/PublicIPAddress`, `aso-ext` `VaultSecret`. **GAP**: `Microsoft.Maintenance/configurationAssignments`, Recovery Services (the whole `RecoveryServices` group is absent from ASO), `Microsoft.DevTestLab/schedules` |
+| root | Linux or Windows VM, managed disks and attachments, NICs and their associations (LB, App Gateway, ASG, NSG, NAT rule), public IP, admin password in Key Vault, maintenance configuration assignment, backup protected item, auto-shutdown schedule | `compute/VirtualMachine` (2022-03-01; data disks inline), `compute/Disk`, `network/NetworkInterface` (associations inline), `network/PublicIPAddress`, `aso-ext` `VaultSecret`; aso-extensions `ConfigurationAssignment` (`maintenance.azure.hfl.dev`, 2023-04-01) and `Schedule` (`devtestlab.azure.hfl.dev`, 2018-09-15). **GAP**: the backup protected item (aso-extensions has Recovery Services vaults and policies, not `vaults/backupFabrics/protectionContainers/protectedItems`) |
 | `extension` | VM extension | `compute/VirtualMachinesExtension` |
-| `run-command` | VM run command | **GAP** |
+| `run-command` | VM run command | aso-extensions `VirtualMachinesRunCommand` (`compute.azure.hfl.dev`, 2022-03-01) |
 
-The core works. The VM's ARM version is old.
+The core works. The VM's ARM version is old. Charted as
+`charts/azure/avm-res-compute-virtualmachine` (section 8).
 
 ### 6. avm-res-resources-resourcegroup (v0.5.0; azapi)
 

@@ -5,10 +5,11 @@
 # Apply the Azure charts (avm-res-network-virtualnetwork,
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
-# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
+# avm-res-network-natgateway, avm-res-network-publicipaddress,
+# avm-res-compute-virtualmachine) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip vm)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -45,7 +46,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip vm}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -135,7 +136,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*' \
+  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;compute.azure.com/*' \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -149,7 +150,9 @@ kubectl -n azureserviceoperator-system rollout status deployment azureserviceope
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
-    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
+    virtualmachinesextensions.compute.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -227,6 +230,55 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# A Linux machine of a small burstable size with an SSH public key made here
+# for the run (the private key never leaves this VM and goes with the work
+# directory), Standard disks, no encryption at host (it needs a
+# subscription feature), one interface with a public IP it makes, a small
+# data disk and a script extension. Its subnet comes from the network
+# chart, rendered beside it (vm-net.yaml): the module takes a subnet ID.
+ssh-keygen -q -t ed25519 -N '' -C "catalog-run-${RUN}" -f "${WORK}/vm-key"
+cat >"${WORK}/vm-net.yaml" <<EOF
+name: ${RUN}-vmnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.251.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  a: {name: snet-vm, address_prefix: 10.251.0.0/26}
+EOF
+cat >"${WORK}/vm.yaml" <<EOF
+name: ${RUN}-vm
+location: ${LOCATION}
+resource_group_name: ${RG}
+zone: null
+os_type: Linux
+sku_size: ${AZURE_LIVE_VM_SIZE:-Standard_B1s}
+encryption_at_host_enabled: false
+source_image_reference: {publisher: Canonical, offer: ubuntu-24_04-lts, sku: server, version: latest}
+os_disk: {caching: ReadWrite, storage_account_type: Standard_LRS}
+account_credentials:
+  admin_credentials: {ssh_keys: ["$(cat "${WORK}/vm-key.pub")"], generate_admin_password_or_ssh_key: false}
+tags: {catalog-run: ${RUN}}
+network_interfaces:
+  nic0:
+    name: ${RUN}-vm-nic
+    ip_configurations:
+      ipc0:
+        name: ipconfig1
+        private_ip_subnet_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-vmnet/subnets/snet-vm
+        create_public_ip_address: true
+        public_ip_address_name: ${RUN}-vm-pip
+public_ip_configuration_details: {zones: [], tags: {catalog-run: ${RUN}}}
+data_disk_managed_disks:
+  data: {name: ${RUN}-vm-data, lun: 0, caching: ReadWrite, storage_account_type: Standard_LRS, disk_size_gb: 4, tags: {catalog-run: ${RUN}}}
+extensions:
+  hello:
+    name: hello
+    publisher: Microsoft.Azure.Extensions
+    type: CustomScript
+    type_handler_version: "2.1"
+    settings: '{"commandToExecute":"echo catalog-run-${RUN}"}'
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -240,12 +292,16 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress; do
+    pip:avm-res-network-publicipaddress vm:avm-res-compute-virtualmachine; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >"${OUT}/${chart}/rendered.yaml"
+  # The machine's subnet: the network chart in the same apply.
+  if [[ "${case_}" == vm ]]; then
+    helm template vm-net charts/azure/avm-res-network-virtualnetwork --namespace "${NS}" -f "${WORK}/vm-net.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  fi
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')

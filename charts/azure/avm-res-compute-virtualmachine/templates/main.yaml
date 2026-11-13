@@ -1,0 +1,442 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-compute-virtualmachine
+main.linux_vm.tf, main.windows_vm.tf, locals.auth.tf, main.authentication.tf
+and main.diagnostic_settings.tf (v0.21.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_linux_virtual_machine.this (azurerm_windows_virtual_machine.this
+only with an attached OS disk; a Windows OS profile needs an admin
+password, a secret value): one ASO VirtualMachine
+(compute.azure.com/v20220301, ASO's newest), owned by the resource group,
+its network interfaces and data disks by Kubernetes reference.
+azurerm_management_lock.this_*_virtualmachine: an aso-extensions
+ManagementLock with the module's notes. azurerm_role_assignment
+this_virtual_machine: one ASO RoleAssignment each; system_managed_identity:
+one each at its scope, the principal from the machine's status through a
+ConfigMap (principalIdFromConfig). azurerm_monitor_diagnostic_setting
+this_vm_diags: one ASO DiagnosticSetting each. The random password, the
+generated SSH key and the Key Vault secrets that hold them, and the
+telemetry, are not ported. An OS disk made from an image is deleted with
+the machine (osDisk.deleteOption), as azurerm deletes it by default; an
+attached one is kept.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.names" (list $ (list "virtualMachine")) }}
+{{- if not $v.name }}{{ fail "avm-res-compute-virtualmachine: name is required" }}{{ end }}
+{{- if not $v.location }}{{ fail "avm-res-compute-virtualmachine: location is required" }}{{ end }}
+{{- /* Refusals: secret values, kinds and fields ASO lacks, timeouts. */ -}}
+{{- $secret := "it is a secret value; how a component supplies one is the builder's decision (docs/azure.md, \"Charts\")" }}
+{{- $ac := $v.account_credentials | default dict }}
+{{- $adm := $ac.admin_credentials | default dict }}
+{{- include "aso.unsupported" (list $ "admin_password" $v.admin_password $secret) }}
+{{- include "aso.unsupported" (list $ "account_credentials.admin_credentials.password" $adm.password $secret) }}
+{{- include "aso.unsupported" (list $ "account_credentials.key_vault_configuration" $ac.key_vault_configuration "it writes the generated password or SSH private key to Key Vault, a secret value the chart does not make") }}
+{{- include "aso.unsupported" (list $ "generated_secrets_key_vault_secret_config" $v.generated_secrets_key_vault_secret_config "it writes the generated password or SSH private key to Key Vault, a secret value the chart does not make") }}
+{{- include "aso.unsupported" (list $ "run_commands_secrets" $v.run_commands_secrets "protected parameters and run-as passwords are secret values; how a component supplies one is the builder's decision") }}
+{{- include "aso.unsupported" (list $ "azure_backup_configurations" $v.azure_backup_configurations "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems (a protected VM) has no Azure Service Operator or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.unsupported" (list $ "disk_controller_type" $v.disk_controller_type "ASO's VirtualMachine is at ARM API 2022-03-01, before storageProfile.diskControllerType") }}
+{{- include "aso.unsupported" (list $ "bypass_platform_safety_checks_on_user_schedule_enabled" $v.bypass_platform_safety_checks_on_user_schedule_enabled "ASO's VirtualMachine is at ARM API 2022-03-01, before patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule") }}
+{{- $win := "it sets a Windows OS profile, which needs an admin password, a secret value (os_type)" }}
+{{- range $w := list "additional_unattend_contents" "winrm_listeners" }}
+{{- include "aso.unsupported" (list $ $w (index $v $w) $win) }}
+{{- end }}
+{{- range $w := list "enable_automatic_updates" "hotpatching_enabled" "timezone" }}
+{{- if not (kindIs "invalid" (index $v $w)) }}
+{{- fail (printf "%s: %s is not supported: %s (docs/azure.md, \"Charts\")" $chart $w $win) }}
+{{- end }}
+{{- end }}
+{{- $linux := eq (lower (toString $v.os_type)) "linux" }}
+{{- $attach := eq $v.os_disk_attach_mode true }}
+{{- if and (not $linux) (not $attach) }}
+{{- fail (printf "%s: os_type Windows is not supported unless os_disk_attach_mode: a Windows VM needs an admin password, a secret value; how a component supplies one is the builder's decision (docs/azure.md, \"Charts\")" $chart) }}
+{{- end }}
+{{- /* Credentials, as locals.auth.tf decides them. */ -}}
+{{- $pwDisabled := not (or (eq $ac.password_authentication_disabled false) (eq $v.disable_password_authentication false)) }}
+{{- $username := "azureuser" }}
+{{- if and $adm.username (ne $adm.username "azureuser") }}{{ $username = $adm.username }}{{ else if and $v.admin_username (ne $v.admin_username "azureuser") }}{{ $username = $v.admin_username }}{{ end }}
+{{- $reserved := "^(administrator|admin|user|user1|test|user2|test2|user3|admin1|1|123|a|actuser|adm|admin2|aspnet|backup|console|david|guest|john|owner|root|server|sql|support|support_388945a0|sys|test2|test3|user4|user5)$" }}
+{{- if regexMatch $reserved (lower $username) }}
+{{- fail "avm-res-compute-virtualmachine: Admin username may not contain any of the following reserved values. ( administrator, admin, user, user1, test, user2, test1, user3, admin1, 1, 123, a, actuser, adm, admin2, aspnet, backup, console, david, guest, john, owner, root, server, sql, support, support_388945a0, sys, test2, test3, user4, user5 )" }}
+{{- end }}
+{{- $acKeys := $adm.ssh_keys | default list }}
+{{- if and $acKeys (ne $adm.generate_admin_password_or_ssh_key false) }}
+{{- fail "avm-res-compute-virtualmachine: The generate_admin_password_or_ssh_key is set to true, but a ssh_keys value has also been set. If use of custom ssh_keys is desired, then set the generate_admin_password_or_ssh_key to false. Otherwise, please remove the custom ssh_keys values." }}
+{{- end }}
+{{- if and $acKeys (eq $ac.password_authentication_disabled false) }}
+{{- fail "avm-res-compute-virtualmachine: The password_authentication_disabled flag is set to false, but a ssh_keys value has also been set. If use of custom ssh_keys is desired, then set the password_authentication_disabled to true. Otherwise, please remove the custom ssh_keys values." }}
+{{- end }}
+{{- $keys := list }}
+{{- if and $linux (not $attach) }}
+{{- if not $pwDisabled }}
+{{- fail (printf "%s: disable_password_authentication (account_credentials.password_authentication_disabled) false is not supported: password sign-in needs a password, a secret value; how a component supplies one is the builder's decision (docs/azure.md, \"Charts\")" $chart) }}
+{{- end }}
+{{- range $k := ($v.admin_ssh_keys | default list) }}{{ $keys = append $keys (dict "username" $k.username "key" $k.public_key) }}{{ end }}
+{{- $input := $acKeys }}
+{{- if not $input }}{{ range $k := ($v.admin_ssh_keys | default list) }}{{ $input = append $input $k.public_key }}{{ end }}{{ end }}
+{{- range $k := $input }}{{ $keys = append $keys (dict "username" $username "key" $k) }}{{ end }}
+{{- if not $input }}
+{{- fail (printf "%s: generate_admin_password_or_ssh_key is not supported: generating an SSH key pair makes a private key, a secret value; give public keys in account_credentials.admin_credentials.ssh_keys (with generate_admin_password_or_ssh_key false) or admin_ssh_keys (docs/azure.md, \"Charts\")" $chart) }}
+{{- end }}
+{{- end }}
+{{- if and $attach (not $v.os_managed_disk_id) }}
+{{- fail "avm-res-compute-virtualmachine: os_disk_attach_mode needs os_managed_disk_id, the managed disk to attach as the OS disk" }}
+{{- end }}
+{{- if and $v.os_managed_disk_id ($v.os_disk | default dict).diff_disk_settings }}
+{{- fail "avm-res-compute-virtualmachine: The os_managed_disk_id and os_disk.diff_disk_settings are mutually exclusive. Ephemeral OS disks cannot be used when attaching an existing managed disk." }}
+{{- end }}
+{{- if and $v.os_managed_disk_id $v.source_image_resource_id }}
+{{- fail "avm-res-compute-virtualmachine: The os_managed_disk_id and source_image_resource_id are mutually exclusive. Only one source for the OS disk can be specified." }}
+{{- end }}
+{{- with $v.custom_data }}
+{{- if not (or (hasPrefix "H4sI" .) (regexMatch "^[A-Za-z0-9+/]*={0,2}$" .)) }}
+{{- fail "avm-res-compute-virtualmachine: The `custom_data` must be either `null` or a valid Base64-Encoded string." }}
+{{- end }}
+{{- end }}
+{{- with $v.user_data }}
+{{- if not (regexMatch "^[A-Za-z0-9+/]*={0,2}$" .) }}
+{{- fail "avm-res-compute-virtualmachine: `user_data` must be either `null` or valid base64 encoded string." }}
+{{- end }}
+{{- end }}
+{{- $spot := eq (toString $v.priority) "Spot" }}
+{{- if and (not $spot) (or $v.eviction_policy (ne (float64 $v.max_bid_price) -1.0)) }}
+{{- fail "avm-res-compute-virtualmachine: eviction_policy and max_bid_price can only be set when priority is Spot" }}
+{{- end }}
+{{- $rg := include "vm.rgId" (list $ "resource_group_name" $v.resource_group_name) }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "vm.obj" . }}
+{{- $owner := dict "group" "compute.azure.com" "kind" "VirtualMachine" "name" $obj }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $mi := $v.managed_identities | default dict }}
+{{- $uai := $mi.user_assigned_resource_ids | default list }}
+{{- $idType := "" }}
+{{- if and $mi.system_assigned $uai }}{{ $idType = "SystemAssigned, UserAssigned" }}{{ else if $mi.system_assigned }}{{ $idType = "SystemAssigned" }}{{ else if $uai }}{{ $idType = "UserAssigned" }}{{ end }}
+{{- if and $v.role_assignments_system_managed_identity (not $mi.system_assigned) }}
+{{- fail "avm-res-compute-virtualmachine: role_assignments_system_managed_identity needs managed_identities.system_assigned" }}
+{{- end }}
+{{- $od := $v.os_disk | default dict }}
+{{- $cmName := include "aso.name" (list .Release.Name "vm" "identity") }}
+---
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachine
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "virtual_machine" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "virtualMachine" "virtual machine" $v.name 64 "^[a-zA-Z0-9_]([a-zA-Z0-9_.-]{0,62}[a-zA-Z0-9_])?$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $rg) | nindent 4 }}
+  {{- with $v.vm_additional_capabilities }}
+  additionalCapabilities:
+    {{- if not (kindIs "invalid" .hibernation_enabled) }}
+    hibernationEnabled: {{ .hibernation_enabled }}
+    {{- end }}
+    ultraSSDEnabled: {{ eq .ultra_ssd_enabled true }}
+  {{- end }}
+  {{- with $v.gallery_applications }}
+  applicationProfile:
+    galleryApplications:
+      {{- range $k, $g := . }}
+      - packageReferenceReference:
+          armId: {{ $g.version_id | quote }}
+        {{- with $g.configuration_blob_uri }}
+        configurationReference: {{ . | quote }}
+        {{- end }}
+        order: {{ $g.order | default 0 | int }}
+        {{- with $g.tag }}
+        tags: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+  {{- with $v.availability_set_resource_id }}
+  availabilitySet:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- if $spot }}
+  billingProfile:
+    maxPrice: {{ $v.max_bid_price }}
+  {{- end }}
+  {{- with $v.capacity_reservation_group_resource_id }}
+  capacityReservation:
+    capacityReservationGroup:
+      reference:
+        armId: {{ . | quote }}
+  {{- end }}
+  {{- if $v.boot_diagnostics }}
+  diagnosticsProfile:
+    bootDiagnostics:
+      enabled: true
+      {{- with $v.boot_diagnostics_storage_account_uri }}
+      storageUri: {{ . | quote }}
+      {{- end }}
+  {{- end }}
+  {{- if and $spot $v.eviction_policy }}
+  evictionPolicy: {{ $v.eviction_policy }}
+  {{- end }}
+  {{- with $v.edge_zone }}
+  extendedLocation:
+    name: {{ . | quote }}
+    type: EdgeZone
+  {{- end }}
+  {{- with $v.extensions_time_budget }}
+  extensionsTimeBudget: {{ . | quote }}
+  {{- end }}
+  hardwareProfile:
+    vmSize: {{ $v.sku_size | quote }}
+  {{- with $v.dedicated_host_resource_id }}
+  host:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- with $v.dedicated_host_group_resource_id }}
+  hostGroup:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- if $idType }}
+  identity:
+    type: {{ $idType }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.license_type }}
+  licenseType: {{ . | quote }}
+  {{- end }}
+  networkProfile:
+    networkInterfaces:
+      {{- range $i, $k := (include "vm.nicOrder" $ | fromJsonArray) }}
+      - reference:
+          group: network.azure.com
+          kind: NetworkInterface
+          name: {{ include "aso.name" (list $.Release.Name "nic" $k) }}
+        primary: {{ eq $i 0 }}
+      {{- end }}
+  {{- if $mi.system_assigned }}
+  operatorSpec:
+    configMapExpressions:
+      - name: {{ $cmName }}
+        key: principalId
+        value: self.status.identity.principalId
+  {{- end }}
+  {{- if not $attach }}
+  osProfile:
+    adminUsername: {{ $username | quote }}
+    allowExtensionOperations: {{ ne $v.allow_extension_operations false }}
+    computerName: {{ $v.computer_name | default $v.name | quote }}
+    {{- with $v.custom_data }}
+    customData: {{ . | quote }}
+    {{- end }}
+    linuxConfiguration:
+      disablePasswordAuthentication: true
+      patchSettings:
+        assessmentMode: {{ $v.patch_assessment_mode | default "ImageDefault" }}
+        {{- with $v.reboot_setting }}
+        automaticByPlatformSettings:
+          rebootSetting: {{ . }}
+        {{- end }}
+        patchMode: {{ $v.patch_mode | default "ImageDefault" }}
+      provisionVMAgent: {{ ne $v.provision_vm_agent false }}
+      ssh:
+        publicKeys:
+          {{- range $k := (uniq $keys) }}
+          - keyData: {{ $k.key | quote }}
+            path: {{ printf "/home/%s/.ssh/authorized_keys" $k.username | quote }}
+          {{- end }}
+    {{- with $v.secrets }}
+    secrets:
+      {{- range $s := . }}
+      - sourceVault:
+          reference:
+            armId: {{ $s.key_vault_id | quote }}
+        vaultCertificates:
+          {{- range $c := $s.certificate }}
+          - certificateUrl: {{ $c.url | quote }}
+            {{- with $c.store }}
+            certificateStore: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.plan }}
+  plan:
+    name: {{ .name | quote }}
+    product: {{ .product | quote }}
+    publisher: {{ .publisher | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.platform_fault_domain) }}
+  platformFaultDomain: {{ $v.platform_fault_domain | int }}
+  {{- end }}
+  priority: {{ $v.priority | default "Regular" }}
+  {{- with $v.proximity_placement_group_resource_id }}
+  proximityPlacementGroup:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- with $v.termination_notification }}
+  scheduledEventsProfile:
+    terminateNotificationProfile:
+      enable: {{ eq .enabled true }}
+      notBeforeTimeout: {{ .timeout | default "PT5M" | quote }}
+  {{- end }}
+  {{- $uefi := or (not (kindIs "invalid" $v.secure_boot_enabled)) (not (kindIs "invalid" $v.vtpm_enabled)) }}
+  securityProfile:
+    encryptionAtHost: {{ ne $v.encryption_at_host_enabled false }}
+    {{- if $od.security_encryption_type }}
+    securityType: ConfidentialVM
+    {{- else if or $v.secure_boot_enabled $v.vtpm_enabled }}
+    securityType: TrustedLaunch
+    {{- end }}
+    {{- if $uefi }}
+    uefiSettings:
+      {{- if not (kindIs "invalid" $v.secure_boot_enabled) }}
+      secureBootEnabled: {{ $v.secure_boot_enabled }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $v.vtpm_enabled) }}
+      vTpmEnabled: {{ $v.vtpm_enabled }}
+      {{- end }}
+    {{- end }}
+  storageProfile:
+    {{- $dds := list }}
+    {{- range $k, $d := ($v.data_disk_managed_disks | default dict) }}
+    {{- $dds = append $dds (dict "lun" $d.lun "caching" $d.caching "create" ($d.disk_attachment_create_option | default "Attach") "wa" $d.write_accelerator_enabled "ref" (dict "group" "compute.azure.com" "kind" "Disk" "name" (include "aso.name" (list $.Release.Name "disk" $k)))) }}
+    {{- end }}
+    {{- range $k, $d := ($v.data_disk_existing_disks | default dict) }}
+    {{- $dds = append $dds (dict "lun" $d.lun "caching" $d.caching "create" ($d.disk_attachment_create_option | default "Attach") "wa" $d.write_accelerator_enabled "ref" (dict "armId" $d.managed_disk_resource_id)) }}
+    {{- end }}
+    {{- with $dds }}
+    dataDisks:
+      {{- range $d := . }}
+      - caching: {{ $d.caching }}
+        createOption: {{ $d.create }}
+        lun: {{ $d.lun | int }}
+        managedDisk:
+          reference:
+            {{- toYaml $d.ref | nindent 12 }}
+        writeAcceleratorEnabled: {{ eq $d.wa true }}
+      {{- end }}
+    {{- end }}
+    {{- if not (or $attach $v.source_image_resource_id) }}
+    {{- with $v.source_image_reference }}
+    imageReference:
+      offer: {{ .offer | quote }}
+      publisher: {{ .publisher | quote }}
+      sku: {{ .sku | quote }}
+      version: {{ .version | quote }}
+    {{- end }}
+    {{- end }}
+    {{- if and $v.source_image_resource_id (not $attach) }}
+    imageReference:
+      reference:
+        armId: {{ $v.source_image_resource_id | quote }}
+    {{- end }}
+    osDisk:
+      caching: {{ $od.caching }}
+      createOption: {{ ternary "Attach" "FromImage" $attach }}
+      {{- if not $attach }}
+      deleteOption: Delete
+      {{- end }}
+      {{- with $od.diff_disk_settings }}
+      diffDiskSettings:
+        option: {{ .option }}
+        placement: {{ .placement | default "CacheDisk" }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $od.disk_size_gb) }}
+      diskSizeGB: {{ $od.disk_size_gb | int }}
+      {{- end }}
+      managedDisk:
+        {{- with $od.disk_encryption_set_id }}
+        diskEncryptionSet:
+          reference:
+            armId: {{ . | quote }}
+        {{- end }}
+        {{- with $v.os_managed_disk_id }}
+        reference:
+          armId: {{ . | quote }}
+        {{- end }}
+        {{- if $od.security_encryption_type }}
+        securityProfile:
+          {{- with $od.secure_vm_disk_encryption_set_id }}
+          diskEncryptionSet:
+            reference:
+              armId: {{ . | quote }}
+          {{- end }}
+          securityEncryptionType: {{ $od.security_encryption_type }}
+        {{- end }}
+        {{- if not $attach }}
+        storageAccountType: {{ $od.storage_account_type }}
+        {{- end }}
+      {{- with $od.name }}
+      name: {{ . | quote }}
+      {{- end }}
+      osType: {{ ternary "Linux" "Windows" $linux }}
+      writeAcceleratorEnabled: {{ eq $od.write_accelerator_enabled true }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.user_data }}
+  userData: {{ . | quote }}
+  {{- end }}
+  {{- with $v.virtual_machine_scale_set_resource_id }}
+  virtualMachineScaleSet:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  {{- with $v.zone }}
+  zones:
+    - {{ . | quote }}
+  {{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- include "vm.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "dedicatedNull" true "defaultName" (printf "diag-%s" $v.name)) }}
+{{- $roleID := "^(/subscriptions/[0-9a-fA-F-]+)?/providers/Microsoft\\.Authorization/roleDefinitions/[0-9a-fA-F-]+$" }}
+{{- range $key, $r := ($v.role_assignments_system_managed_identity | default dict) }}
+---
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "mi-role" $key)) "id" (printf "system_managed_identity_role_assignment:%s" $key) "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    {{- include "aso.owner" (list $ (printf "role_assignments_system_managed_identity.%s.scope_resource_id" $key) $r.scope_resource_id) | nindent 4 }}
+  principalIdFromConfig:
+    name: {{ $cmName }}
+    key: principalId
+  {{- $pt := $r.principal_type }}
+  {{- if and (kindIs "invalid" $pt) $r.skip_service_principal_aad_check }}{{ $pt = "ServicePrincipal" }}{{ end }}
+  {{- with $pt }}
+  principalType: {{ . | quote }}
+  {{- end }}
+  roleDefinitionReference:
+    {{- if regexMatch $roleID $r.role_definition_id_or_name }}
+    armId: {{ $r.role_definition_id_or_name | quote }}
+    {{- else }}
+    wellKnownName: {{ $r.role_definition_id_or_name | quote }}
+    {{- end }}
+  {{- with $r.description }}
+  description: {{ . | quote }}
+  {{- end }}
+  {{- with $r.condition }}
+  condition: {{ . | quote }}
+  {{- end }}
+  {{- with $r.condition_version }}
+  conditionVersion: {{ . | quote }}
+  {{- end }}
+  {{- with $r.delegated_managed_identity_resource_id }}
+  delegatedManagedIdentityResourceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+{{- end }}

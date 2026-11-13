@@ -1,0 +1,191 @@
+---
+# Source: avm-res-compute-virtualmachine/templates/disks.yaml
+apiVersion: compute.azure.com/v20240302
+kind: Disk
+metadata:
+  name: mock-disk-data
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "data_disk:data"
+spec:
+  azureName: "catalog-vm-data"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  creationData:
+    createOption: Empty
+  diskSizeGB: 4
+  sku:
+    name: Standard_LRS
+  tags:
+    catalog: mock
+  zones:
+    - "1"
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: mock-nic-nic0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "network_interface:nic0"
+spec:
+  azureName: "catalog-vm-nic"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  enableAcceleratedNetworking: false
+  enableIPForwarding: false
+  ipConfigurations:
+    - name: "ipconfig1"
+      primary: true
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Dynamic
+      publicIPAddress:
+        reference:
+          group: network.azure.com
+          kind: PublicIPAddress
+          name: mock-pip-nic0-ipc0
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: mock-pip-nic0-ipc0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "public_ip:nic0-ipc0"
+spec:
+  azureName: "catalog-vm-pip"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 30
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+  zones:
+    - "1"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachine
+metadata:
+  name: mock-vm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "virtual_machine"
+spec:
+  azureName: "catalog-vm"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  extensionsTimeBudget: "PT1H30M"
+  hardwareProfile:
+    vmSize: "Standard_B2s"
+  networkProfile:
+    networkInterfaces:
+      - reference:
+          group: network.azure.com
+          kind: NetworkInterface
+          name: mock-nic-nic0
+        primary: true
+  osProfile:
+    adminUsername: "azureuser"
+    allowExtensionOperations: true
+    computerName: "catalog-vm"
+    linuxConfiguration:
+      disablePasswordAuthentication: true
+      patchSettings:
+        assessmentMode: ImageDefault
+        patchMode: ImageDefault
+      provisionVMAgent: true
+      ssh:
+        publicKeys:
+          - keyData: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK0wmN/Cr3JXqmLW7u+g9pTh+wyqDHpSQEQQ5ZJYHjqh catalog-test"
+            path: "/home/azureuser/.ssh/authorized_keys"
+  priority: Regular
+  securityProfile:
+    encryptionAtHost: false
+  storageProfile:
+    dataDisks:
+      - caching: ReadWrite
+        createOption: Attach
+        lun: 0
+        managedDisk:
+          reference:
+            group: compute.azure.com
+            kind: Disk
+            name: mock-disk-data
+        writeAcceleratorEnabled: false
+    imageReference:
+      offer: "ubuntu-24_04-lts"
+      publisher: "Canonical"
+      sku: "server"
+      version: "latest"
+    osDisk:
+      caching: ReadWrite
+      createOption: FromImage
+      deleteOption: Delete
+      managedDisk:
+        storageAccountType: Standard_LRS
+      osType: Linux
+      writeAcceleratorEnabled: false
+  tags:
+    catalog: mock
+  zones:
+    - "1"
+---
+# Source: avm-res-compute-virtualmachine/templates/children.yaml
+apiVersion: compute.azure.com/v20220301
+kind: VirtualMachinesExtension
+metadata:
+  name: mock-vm-ext-script
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "extension:script"
+spec:
+  azureName: "hello"
+  location: "eastus2"
+  owner:
+    name: mock-vm
+  publisher: "Microsoft.Azure.Extensions"
+  settings:
+    commandToExecute: echo hello
+  suppressFailures: false
+  tags:
+    catalog: mock
+  type: "CustomScript"
+  typeHandlerVersion: "2.1"

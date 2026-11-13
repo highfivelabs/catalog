@@ -1,0 +1,174 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of the Azure Verified Module
+# avm-res-compute-virtualmachine (v0.21.0): same names, types and defaults,
+# so a module block's arguments become this file one to one.
+# values.schema.json carries the types and the module's validations.
+# README.md says how each one maps to Azure Service Operator, and which are
+# refused (upstream.yaml).
+#
+# Descriptions paraphrased from terraform-azurerm-avm-res-compute-virtualmachine
+# (variables.tf and deprecated_variables.tf, v0.21.0), Copyright (c)
+# Microsoft Corporation, MIT.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables, except tags.
+#
+# The virtual machine's name in full, {virtualMachine}. A name set here
+# takes no prefix; one not set is name, with the namePrefix in front. The
+# network interfaces, public IPs and data disks are named by their entries,
+# with the namePrefix in front.
+names: {}
+# An optional convenience: "<namePrefix>-" in front of the names this chart
+# gives (never one set under names). Empty (the default) changes nothing.
+namePrefix: ""
+# Kubernetes labels on every object. ASO never copies them to Azure (Azure
+# tags are tags).
+labels: {}
+# DELETE (the default) or ABANDON, which keeps every resource in Azure when
+# the component is deleted (ASO's reconcile-policy detach-on-delete).
+# PREVENT is refused: use lock. Not a module variable.
+deletion_policy: null
+# The subscription of resource_group_name (and of a network interface's or
+# data disk's own resource_group_name). Not a module variable: the module's
+# azurerm provider knows its subscription; ASO's owner is an Azure resource
+# ID. Not needed when resource_group_name is a resource group's ID
+# (/subscriptions/<id>/resourceGroups/<name>).
+subscription_id: ""
+
+# --- Required ---
+
+# The Azure region of the virtual machine and everything it makes.
+location: null
+# The virtual machine's name, 1 to 64 characters.
+name: null
+# The resource group to deploy into: a name (with subscription_id) or a
+# resource group ID.
+resource_group_name: null
+# The availability zone ("1", "2" or "3"), or null for none. Required by
+# the module, which takes null.
+zone: null
+
+# --- Credentials ---
+
+# admin_credentials {username (default azureuser), password (refused: a
+# secret value), ssh_keys (public keys), generate_admin_password_or_ssh_key
+# (default true; generating is refused: it makes a private key or a
+# password)}; key_vault_configuration (refused: it writes the generated
+# secret to Key Vault); password_authentication_disabled (default true;
+# false is refused: it needs a password).
+account_credentials: {}
+# Deprecated in the module for account_credentials.
+admin_password: null
+admin_ssh_keys: []
+admin_username: azureuser
+disable_password_authentication: true
+generate_admin_password_or_ssh_key: true
+generated_secrets_key_vault_secret_config: null
+
+# --- The machine ---
+
+# Linux or Windows. The module's default is Windows; a Windows machine
+# needs an admin password (a secret value), so only an attached OS disk
+# (os_disk_attach_mode) renders one.
+os_type: Windows
+sku_size: Standard_D2ds_v5
+source_image_reference:
+  publisher: MicrosoftWindowsServer
+  offer: WindowsServer
+  sku: 2022-datacenter-g2
+  version: latest
+source_image_resource_id: null
+os_disk:
+  caching: ReadWrite
+  storage_account_type: Premium_LRS
+# Attach an existing managed disk (os_managed_disk_id) as the OS disk; no
+# credentials or OS profile are set then.
+os_disk_attach_mode: false
+os_managed_disk_id: null
+computer_name: null
+custom_data: null
+user_data: null
+allow_extension_operations: true
+availability_set_resource_id: null
+boot_diagnostics: false
+boot_diagnostics_storage_account_uri: null
+bypass_platform_safety_checks_on_user_schedule_enabled: false
+capacity_reservation_group_resource_id: null
+dedicated_host_group_resource_id: null
+dedicated_host_resource_id: null
+disk_controller_type: null
+edge_zone: null
+encryption_at_host_enabled: true
+eviction_policy: null
+extensions_time_budget: PT1H30M
+gallery_applications: {}
+license_type: null
+managed_identities: {}
+max_bid_price: -1
+patch_assessment_mode: ImageDefault
+patch_mode: null
+plan: null
+platform_fault_domain: null
+priority: Regular
+provision_vm_agent: true
+proximity_placement_group_resource_id: null
+reboot_setting: null
+secrets: []
+secure_boot_enabled: null
+termination_notification: null
+virtual_machine_scale_set_resource_id: null
+vm_additional_capabilities: null
+vtpm_enabled: null
+
+# Windows only (a Windows OS profile, which needs an admin password; see
+# os_type). The module's defaults for these are []/true/false/null; here
+# null or empty means "not set", and any value set is refused.
+additional_unattend_contents: []
+enable_automatic_updates: null
+hotpatching_enabled: null
+timezone: null
+winrm_listeners: []
+
+# --- What the machine is attached to ---
+
+# Empty (the default) is the module's default: one interface ipconfig_1,
+# named default-ipv4-ipconfig, with accelerated networking and one dynamic
+# IPv4 configuration ipv4-ipconfig (and no subnet, so Azure refuses it, as
+# it refuses the module's). Helm merges maps, so the default lives in the
+# template (templates/_vm.tpl, vm.nics), not here, where it would merge
+# into a given map instead of being replaced by it.
+network_interfaces: {}
+public_ip_configuration_details:
+  allocation_method: Static
+  ddos_protection_mode: VirtualNetworkInherited
+  idle_timeout_in_minutes: 30
+  ip_version: IPv4
+  sku_tier: Regional
+  sku: Standard
+data_disk_managed_disks: {}
+data_disk_existing_disks: {}
+
+# --- Children and extras ---
+
+extensions: {}
+run_commands: {}
+# Refused when set: protected parameters and run-as passwords are secrets.
+run_commands_secrets: {}
+shutdown_schedules: {}
+maintenance_configuration_resource_ids: {}
+# Refused when set: Recovery Services protected items have no kind.
+azure_backup_configurations: {}
+role_assignments_system_managed_identity: {}
+
+# --- AVM interfaces ---
+
+lock: null
+role_assignments: {}
+diagnostic_settings: {}
+tags: null
+# Accepted; nothing is sent.
+enable_telemetry: true
+# Refused when set: ASO has no per-request timeouts.
+timeouts: {}
