@@ -19,16 +19,17 @@
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
-# avm-res-network-azurefirewall)
+# avm-res-network-azurefirewall,
+# avm-res-web-site)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
-# applies only those; the default is all but cog, vm and asp (asp: the
-# sandbox has no App Service quota, docs/azure.md). A case may first apply another
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw web)
+# applies only those; the default is all but cog, vm, asp and web (asp and
+# web: the sandbox has no App Service quota, docs/azure.md). A case may first apply another
 # chart it needs (PRE: the application gateway's virtual network and
-# subnet), or ASO objects of no chart (CASE-pre.objects.yaml: the
+# subnet, the web app's App Service plan), or ASO objects of no chart (CASE-pre.objects.yaml: the
 # firewall's network, subnets and public IPs), deleted after the case's own
 # objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
@@ -203,7 +204,7 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     accounts.cognitiveservices.azure.com \
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
-    serverfarms.web.azure.com \
+    serverfarms.web.azure.com sites.web.azure.com \
     azurefirewalls.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
@@ -621,7 +622,37 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
-declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
+# A Linux Python web app with a system-assigned identity and an app
+# setting, on a B1 plan (about 0.02 USD an hour) the case makes first with
+# the serverfarm chart (PRE). Not in the default cases: the sandbox
+# subscription's App Service quota is 0 (B1 and F1 alike), so Azure refuses
+# the plan (docs/azure.md, "8. Charts").
+cat >"${WORK}/web-pre.yaml" <<EOF
+name: ${RUN}-web-asp
+location: ${LOCATION}
+parent_id: ${RG}
+os_type: Linux
+sku_name: B1
+worker_count: 1
+zone_balancing_enabled: false
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/web.yaml" <<EOF
+name: ${RUN}-app
+location: ${LOCATION}
+parent_id: ${RG}
+service_plan_resource_id: ${RG}/providers/Microsoft.Web/serverfarms/${RUN}-web-asp
+ftp_publish_basic_authentication_enabled: true
+public_network_access_enabled: true
+managed_identities: {system_assigned: true}
+app_settings: {CATALOG_RUN: ${RUN}}
+site_config:
+  always_on: false
+  application_stack:
+    python: {python_version: "3.12"}
+tags: {catalog-run: ${RUN}}
+EOF
+declare -A PRE=([appgw]=avm-res-network-virtualnetwork [web]=avm-res-web-serverfarm)
 declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
@@ -749,7 +780,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
-    afw:avm-res-network-azurefirewall; do
+    afw:avm-res-network-azurefirewall \
+    web:avm-res-web-site; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
