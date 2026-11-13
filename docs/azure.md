@@ -411,8 +411,8 @@ The core works. The VM's ARM version is old.
 | --- | --- | --- |
 | root | registry, replications, private endpoint | `containerregistry/Registry` (2023-07-01; 2025-11-01 next), `RegistryReplication` |
 | `cache-rule` | `registries/cacheRules@2025-11-01` | `RegistryCacheRule` (2025-11-01) |
-| `credential-set` | `registries/credentialSets@2025-11-01` | **GAP** |
-| `scope-map` | scope map, token, token password | **GAP** |
+| `credential-set` | `registries/credentialSets@2025-11-01` | aso-extensions `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`, 2025-11-01) |
+| `scope-map` | scope map, token, token password | aso-extensions `RegistriesScopeMap`, `RegistriesToken` (2025-11-01); a token's password is a secret returned once (refused) |
 
 ### 15. avm-res-network-firewallpolicy (v0.3.4; azurerm)
 
@@ -705,14 +705,20 @@ aso-extensions:
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
-| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `Microsoft.ContainerRegistry/registries/credentialSets` |
-| `avm-res-containerregistry-registry` | `scope_maps` | `Microsoft.ContainerRegistry/registries/scopeMaps`, `.../tokens` (a token's passwords are secrets returned once) |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `Microsoft.OperationalInsights/workspaces/dataExports` |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `Microsoft.OperationalInsights/workspaces/linkedServices` (the module links a dedicated cluster with one) |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `Microsoft.OperationalInsights/workspaces/linkedStorageAccounts` |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_tables`, `log_analytics_workspace_tables_update` | `Microsoft.OperationalInsights/workspaces/tables` |
 | `avm-res-operationalinsights-workspace` | `monitor_private_link_scope`, `monitor_private_link_scoped_resource`, `monitor_private_link_scoped_service_name` | `Microsoft.Insights/privateLinkScopes`, `.../scopedResources` |
 | `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `Microsoft.Network/networkSecurityPerimeters/resourceAssociations` |
+
+The container registry's `credential_sets` (with a cache rule's
+`credential_set_key`) and `scope_maps` with their tokens map to
+aso-extensions' `RegistriesCredentialSet`, `RegistriesScopeMap` and
+`RegistriesToken` (`containerregistry.azure.hfl.dev/v20251101`, CRDs copied
+in `crds/aso-extensions`). A token's `passwords` stay refused: secrets
+Azure generates and returns once, and whether a component may hold one is
+the builder's decision.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference

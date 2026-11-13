@@ -32,11 +32,27 @@ cache_rules:
     name: dockerhub-nginx
     source_repository: docker.io/library/nginx
     target_repository: cache/nginx
+    credential_set_key: hub
   mcr:
     name: mcr-dotnet
     source_repository: mcr.microsoft.com/dotnet/runtime
     target_repository: cache/dotnet
     credential_set_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrplatform/credentialSets/mcr
+credential_sets:
+  hub:
+    name: dockerhub
+    login_server: docker.io
+    auth_credentials:
+      - username_secret_identifier: https://kv-acr.vault.azure.net/secrets/hub-user
+        password_secret_identifier: https://kv-acr.vault.azure.net/secrets/hub-token
+scope_maps:
+  pull:
+    name: app-pull
+    actions: [repositories/app/content/read, repositories/app/metadata/read]
+    description: Pull the app repository
+    registry_tokens:
+      ci: {name: ci-pull}
+      old: {name: old-pull, enabled: false}
 tags: {environment: prod}
 lock: {kind: CanNotDelete}
 role_assignments:
