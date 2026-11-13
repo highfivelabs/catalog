@@ -42,9 +42,15 @@ anonymous_pull_enabled: false
 # Resource Manager audience.
 azuread_authentication_as_arm_policy_enabled: true
 # Container Registry cache rules. Each: {name, source_repository,
-# target_repository, credential_set_key (refused), credential_set_resource_id}.
+# target_repository, credential_set_key (a key of credential_sets),
+# credential_set_resource_id}.
 cache_rules: {}
-# Registry-level credential sets. Refused when set: no ASO kind.
+# Registry-level credential sets that cache rules share, each an
+# aso-extensions RegistriesCredentialSet with a system-assigned identity
+# (grant it read on the Key Vault secrets; its principal_id is in the
+# credential_sets output). Each: {name, login_server, auth_credentials:
+# [{name ("Credential1"), username_secret_identifier,
+# password_secret_identifier}]} (Key Vault secret URIs, not values).
 credential_sets: {}
 # A customer-managed key. Refused when set: not mapped (it needs lookups).
 customer_managed_key: null
@@ -116,7 +122,10 @@ role_assignment_mode: LegacyRegistryPermissions
 # skip_service_principal_aad_check, condition, condition_version,
 # delegated_managed_identity_resource_id, principal_type}.
 role_assignments: {}
-# Scope maps and tokens. Refused when set: no ASO kind.
+# Scope maps, each an aso-extensions RegistriesScopeMap, and their tokens
+# (RegistriesToken). Each: {name, actions, description, registry_tokens:
+# {<key>: {name, enabled (true), passwords}}}. A token's passwords are
+# refused: secrets Azure generates and returns once.
 scope_maps: {}
 # The SKU: Basic, Standard or Premium.
 sku: Premium

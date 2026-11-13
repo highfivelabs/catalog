@@ -134,8 +134,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 717 of 1478 (48.5%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 469 of 2348 (20.0%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 371 of 1170 (31.7%) |
-| **All** | **177** | | **1557 of 4996 (31.2%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 373 of 1170 (31.9%) |
+| **All** | **177** | | **1559 of 4996 (31.2%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -284,7 +284,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-network-privatednszone`](https://github.com/Azure/terraform-azurerm-avm-res-network-privatednszone/tree/v0.6.0) ([chart](charts/azure/avm-res-network-privatednszone)) | ![avm-res-network-privatednszone](docs/coverage/bars/azure-avm-res-network-privatednszone.svg) 17 of 19 | 11 of 12 | 12 | partial |
 | [`avm-res-network-publicipaddress`](https://github.com/Azure/terraform-azurerm-avm-res-network-publicipaddress/tree/v0.2.1) ([chart](charts/azure/avm-res-network-publicipaddress)) | ![avm-res-network-publicipaddress](docs/coverage/bars/azure-avm-res-network-publicipaddress.svg) 21 of 21 | 4 of 4 | 4 | ported |
 | [`avm-res-network-loadbalancer`](https://github.com/Azure/terraform-azurerm-avm-res-network-loadbalancer/tree/v0.5.0) ([chart](charts/azure/avm-res-network-loadbalancer)) | ![avm-res-network-loadbalancer](docs/coverage/bars/azure-avm-res-network-loadbalancer.svg) 22 of 23 | 5 of 7 | 13 | partial |
-| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) ([chart](charts/azure/avm-res-containerregistry-registry)) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 28 of 35 | 7 of 12 | 10 | partial |
+| [`avm-res-containerregistry-registry`](https://github.com/Azure/terraform-azurerm-avm-res-containerregistry-registry/tree/v0.9.0) ([chart](charts/azure/avm-res-containerregistry-registry)) | ![avm-res-containerregistry-registry](docs/coverage/bars/azure-avm-res-containerregistry-registry.svg) 30 of 35 | 9 of 12 | 10 | partial |
 | [`avm-res-network-firewallpolicy`](https://github.com/Azure/terraform-azurerm-avm-res-network-firewallpolicy/tree/v0.3.4) ([chart](charts/azure/avm-res-network-firewallpolicy)) | ![avm-res-network-firewallpolicy](docs/coverage/bars/azure-avm-res-network-firewallpolicy.svg) 21 of 22 | 1 of 2 | 5 | partial |
 | [`avm-res-containerservice-managedcluster`](https://github.com/Azure/terraform-azurerm-avm-res-containerservice-managedcluster/tree/v0.9.0) ([chart](charts/azure/avm-res-containerservice-managedcluster)) | ![avm-res-containerservice-managedcluster](docs/coverage/bars/azure-avm-res-containerservice-managedcluster.svg) 59 of 73 | 21 of 26 | 3 | partial |
 | [`avm-res-insights-component`](https://github.com/Azure/terraform-azurerm-avm-res-insights-component/tree/v0.5.0) ([chart](charts/azure/avm-res-insights-component)) | ![avm-res-insights-component](docs/coverage/bars/azure-avm-res-insights-component.svg) 20 of 25 | 5 of 6 | 2 | partial |

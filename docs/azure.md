@@ -418,8 +418,8 @@ is refused (section 8).
 | --- | --- | --- |
 | root | registry, replications, private endpoint | `containerregistry/Registry` (2023-07-01; 2025-11-01 next), `RegistryReplication` |
 | `cache-rule` | `registries/cacheRules@2025-11-01` | `RegistryCacheRule` (2025-11-01) |
-| `credential-set` | `registries/credentialSets@2025-11-01` | **GAP** |
-| `scope-map` | scope map, token, token password | **GAP** |
+| `credential-set` | `registries/credentialSets@2025-11-01` | aso-extensions `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`, 2025-11-01) |
+| `scope-map` | scope map, token, token password | aso-extensions `RegistriesScopeMap`, `RegistriesToken` (2025-11-01); a token's password is a secret returned once (refused) |
 
 ### 15. avm-res-network-firewallpolicy (v0.3.4; azurerm)
 
@@ -754,8 +754,8 @@ Each is a mapping still to land or landing, not a gap:
 | --- | --- | --- | --- |
 | `avm-res-storage-storageaccount` | `local_user` | `StorageAccountsLocalUser` (`storage.azure.hfl.dev`) | not yet (its SSH keys are public keys; a password Azure generates would stay refused) |
 | `avm-res-network-privatednszone` | `soa_record` | `PrivateDnsZonesSOARecord` (`network.azure.hfl.dev`) | #97 |
-| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | the registry follow-up to #91 |
-| `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | the registry follow-up to #91 |
+| `avm-res-containerregistry-registry` | `credential_sets`, a cache rule's `credential_set_key` | `RegistriesCredentialSet` (`containerregistry.azure.hfl.dev`) | #120 |
+| `avm-res-containerregistry-registry` | `scope_maps` | `RegistriesScopeMap`, `RegistriesToken` (a token's passwords, secrets returned once, stay refused) | #120 |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_data_exports` | `WorkspacesDataExport` (`operationalinsights.azure.hfl.dev`) | the workspace follow-up to #88 |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_dedicated_cluster_resource_id` | `WorkspacesLinkedService` (the module links a dedicated cluster with one) | the workspace follow-up to #88 |
 | `avm-res-operationalinsights-workspace` | `log_analytics_workspace_linked_storage_accounts` | `WorkspacesLinkedStorageAccount` | the workspace follow-up to #88 |
@@ -773,6 +773,14 @@ Field gaps in ASO's agent pool (up to API 2025-10-02-preview), which
 and `gpuProfile.nvidia` (`default_agent_pool` and `agent_pools`), and the
 `ignore-pod-disruption-budget` option of a pool's delete
 (`delete_options`).
+
+The container registry's `credential_sets` (with a cache rule's
+`credential_set_key`) and `scope_maps` with their tokens map to
+aso-extensions' `RegistriesCredentialSet`, `RegistriesScopeMap` and
+`RegistriesToken` (`containerregistry.azure.hfl.dev/v20251101`, CRDs copied
+in `crds/aso-extensions`). A token's `passwords` stay refused: secrets
+Azure generates and returns once, and whether a component may hold one is
+the builder's decision.
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
