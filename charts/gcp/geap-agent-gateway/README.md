@@ -8,14 +8,17 @@ at v60.0.0 (`f706bc3b`), Apache-2.0, Copyright Google LLC. Bundt Package
 `gcp-geap-agent-gateway` (`package.yaml`). Config Connector has no kind
 for either resource; the chart uses config-connector-extensions'
 `NetworkServicesAgentGateway` and `NetworkServicesAgentConnectivityTemplate`
-(`networkservices.gcp.hfl.dev/v1alpha1`), at `d54a2075`.
+(`networkservices.gcp.hfl.dev/v1alpha1`), at `d54a2075`, and for IAP and
+Model Armor its `NetworkServicesAuthzExtension` and
+`NetworkSecurityAuthzPolicy` (`v1beta1`), at `c2f0c7d2`.
 
 **The chart needs `allow_alpha: true`.** Both kinds are `v1alpha1`, so
 every render without it stops (`docs/design.md`, "Alpha kinds").
 
-**Every render sets `iap_config: null`.** Fabric's default (`{}`) puts
-Identity-Aware Proxy in front of the gateway, which no kind can express
-(below), so the chart refuses it rather than leave it out unannounced.
+**IAP is on by default, as in fabric.** `iap_config`'s default (`{}`)
+makes an authorization extension for `iap.googleapis.com` and the
+`REQUEST_AUTHZ` authorization policy binding it to the gateway; set
+`iap_config: null` for a gateway without it.
 
 ## Example
 
@@ -45,12 +48,12 @@ egress gateway `my-gateway` that references it by project number
 ## Values
 
 The module's variables, with the same names, types and defaults. The
-chart carries 11 of the 15; four are refused, and one is accepted in part.
+chart carries 13 of the 15; two are refused, and one is accepted in part.
 
 | Variable | Renders |
 | --- | --- |
-| `names` | not a fabric variable: `names.gateway` and `names.connectivityTemplate` set the two IDs in full |
-| `namePrefix` | not a fabric variable: `<namePrefix>-` in front of the gateway's and the template's IDs |
+| `names` | not a fabric variable: `names.gateway` and `names.connectivityTemplate` set the two IDs in full, `names.iap` and `names.modelArmor` the ID of each authorization extension and its policy |
+| `namePrefix` | not a fabric variable: `<namePrefix>-` in front of every object's ID |
 | `labels` | fabric's gateway labels, and the catalog's Kubernetes labels: on every object, and an unprefixed key also on the gateway's and the template's cloud labels |
 | `tags` | not a fabric variable: cloud labels on the gateway and the template |
 | `allow_alpha` | not a fabric variable: required, `true` |
@@ -64,8 +67,8 @@ chart carries 11 of the 15; four are refused, and one is accepted in part.
 | `registries` | the gateway's `registries` |
 | `networking_config` | `psc_i_network_attachment_id` makes the `NetworkServicesAgentConnectivityTemplate` (named `name`, else the gateway's), with `access_types`, `description`, `labels`, `vpc_egress` and `dns_peering_config` (`domains`, `target_network`) in its `egressNetworkConfig`; `connectivity_template_reuse` puts an existing template's name in the gateway's `agentConnectivityTemplate` |
 | `project_number` | the project in the template reference the gateway takes (`projects/<number>/locations/<region>/agentConnectivityTemplates/<id>`: the API takes a number there). **Required with `psc_i_network_attachment_id`**: fabric's `null` reads the `google_project` data source, which a chart cannot; pass it from the project component's outputs |
-| `iap_config` | **refused unless `null`** (a gap): fabric makes a `google_network_services_authz_extension` for `iap.googleapis.com` and a `REQUEST_AUTHZ` `google_network_security_authz_policy` binding it to the gateway. config-connector-extensions' `NetworkServicesAuthzExtension` (`v1beta1`) can now name IAP, but the policy's only kind, Config Connector's `NetworkSecurityAuthzPolicy` (`v1alpha1`), takes forwarding rules as `target.resources` (it parses each as one), not an agent gateway; an extension alone would not authorize anything, so the chart refuses both |
-| `model_armor_config` | **refused when set** (a gap): the same, for Model Armor's `CONTENT_AUTHZ` |
+| `iap_config` | not `null` (fabric's default `{}`): a config-connector-extensions `NetworkServicesAuthzExtension` (`networkservices.gcp.hfl.dev/v1beta1`) for `iap.googleapis.com`, with `fail_open` (default `false`), `timeout` (default `2s`) and the metadata `iapPolicyVersion` (`policy_version`, default `V2`) and `iamEnforcementMode` (`iam_enforcement_mode`, when set); and a `NetworkSecurityAuthzPolicy` (`networksecurity.gcp.hfl.dev/v1beta1`), `CUSTOM`, `REQUEST_AUTHZ`, whose `target.resources` is the gateway (`projects/<p>/locations/<region>/agentGateways/<id>`, no `loadBalancingScheme`) and whose `customProvider.authzExtension` is that extension. Both are named `name`, else `<name>-iap`. Fabric's checks: `iam_enforcement_mode` `DRY_RUN` or null, `policy_version` `V1` or `V2` |
+| `model_armor_config` | the same pair for Model Armor: the extension's `service` is `modelarmor.<region>.rep.googleapis.com` and its metadata `model_armor_settings` the JSON fabric writes of `request_template_id` and `response_template_id` (a short id becomes `projects/<p>/locations/<region>/templates/<id>`, as fabric's); the policy is `CONTENT_AUTHZ`, with `authz_hosts` as an HTTP rule on those hosts (exact). Named `name`, else `<name>-ma` |
 | `access_policies` | per entry with `rules`, a config-connector-extensions `IAMAccessPolicy` (`iam.gcp.hfl.dev/v1beta1`) in the project, `global`, named by its key: each rule's `principals` and `excluded_principals` (`user:`, `group:`, `serviceAccount:` and `allUsers` turned into IAM v3 principals, as fabric does), `effect`, `description`, `permissions` (default `iap.googleapis.com/resources.egressViaIAP`), `excluded_permissions`, and the condition fabric builds for `condition_service` from `registry` (the governed registries' locations, else the region), `agent_id`, `endpoint_id`, `mcp_server_id` and `condition`; `display_name` and `annotations`. Per entry with `bind` (default), an `IAMPolicyBinding` (`v1alpha1`), `ACCESS`, named `binding_id` or the key, binding that policy, or `policy_reuse` by its resource name, to `target_resource`: `project`, `gateway` or a `//...` URI, with `binding_condition`. Fabric's checks |
 | `context` | **refused when set** (by design): Bundt expressions (`${...}`) and `valueFrom` replace fabric's `$context` lookups |
 
@@ -84,17 +87,22 @@ schema.
 | `access_policy_ids` | per access policy the chart makes, keyed as fabric's: `projects/<project>/locations/global/accessPolicies/<id>` |
 | `policy_binding_ids` | per binding, keyed as fabric's: `projects/<project>/locations/global/policyBindings/<id>` |
 | `connectivity_template_id` | the gateway's `agentConnectivityTemplate`: the template the chart makes, by project number, or `connectivity_template_reuse`; null with neither |
+| `authz_extension_ids` | `iap` and `model_armor`: `projects/<project>/locations/<region>/authzExtensions/<id>`, null for one not made |
+| `authz_policy_ids` | `iap` and `model_armor`: `projects/<project>/locations/<region>/authzPolicies/<id>`, null for one not made |
 
 Not provided: `agent_gateway` (fabric's whole object; a Package outputs
-the fields a consumer takes, `docs/design.md`, "Outputs"), and
-`authz_extension_ids` and `authz_policy_ids`, whose resources are refused.
+the fields a consumer takes, `docs/design.md`, "Outputs").
 
 ## Differences from the module
 
-- **No IAP or Model Armor authorization.** They are refused (above):
-  config-connector-extensions would need an authorization policy kind
-  that targets an agent gateway to close them. IAM access policies are
-  ported.
+- **The authorization policies are not ordered.** Fabric creates the
+  Model Armor policy after the IAP one, since the API refuses two
+  concurrent policy creates on one gateway. Config Connector has no
+  ordering, so with both set the second create can be refused once and is
+  retried. Each policy names the gateway and its extension by resource
+  name (the kind takes strings), so it also retries until both exist.
+- **Model Armor template ids are not looked up in `context`** (refused);
+  pass them in full or short.
 - **Labels.** The catalog's `labels` go on every object, so the template
   carries the gateway's labels beside its own `networking_config.labels`;
   fabric's template has only its own.
@@ -105,12 +113,10 @@ the fields a consumer takes, `docs/design.md`, "Outputs"), and
 ## From Terraform
 
 A `module "x" { source = ".../modules/geap-agent-gateway" ... }` block's
-arguments become the values unchanged, with `allow_alpha: true`,
-`iap_config: null` and, with a network attachment, `project_number`. A
-module that used fabric's default IAP authorization or Model Armor cannot
-move yet: the chart refuses them at plan time. The gateway
-and the template keep their names, so they adopt what Terraform made
-(`docs/design.md`, "From Terraform").
+arguments become the values unchanged, with `allow_alpha: true` and, with a
+network attachment, `project_number`. The gateway, the template and the
+authorization extensions and policies keep their names, so they adopt what
+Terraform made (`docs/design.md`, "From Terraform").
 
 ## Upstream
 
@@ -125,19 +131,26 @@ with every other module the catalog tracks. To take a newer release, see
 ## Tests
 
 `task test CHART=geap-agent-gateway`: render cases `basic` (fabric's
-README example "Minimal Gateway deployment"), `psc` ("VPC connectivity"),
-`reuse` (attaching an existing template), `proxy` ("Connect to
-self-managed proxies"), `access-policies` (IAM v3 access policies and
-their bindings), `full`, `names` and `mock`, each validated against
+README example "Minimal Gateway deployment", with the default IAP
+authorization), `psc` ("VPC connectivity"), `reuse` (attaching an existing
+template), `proxy` ("Connect to self-managed proxies"), `access-policies`
+(IAM v3 access policies and their bindings), `iap-dry-run` ("Enforcement
+mode"), `model-armor` ("Screening content with Model Armor"), `full`,
+`names` and `mock`, each validated against
 config-connector-extensions' CRDs (`crds/config-connector-extensions`), and
 the refusals in `tests/*.fail.yaml`.
 
 Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a Google-managed
 egress gateway and the connectivity template it makes over a network
-attachment. config-connector-extensions serves both kinds from its
-generated kinds' fake (`pkg/discokind/fake`). On 2026-11-13 (offload VM
-`off-catalog-1113112805-17079`, config-connector-extensions `d54a2075`)
-both objects became Ready, the outputs evaluated and both were deleted.
+attachment, an IAM v3 access policy bound to the gateway, and the default
+IAP authorization and Model Armor (short template ids, one authz host):
+two `NetworkServicesAuthzExtension`s and two `NetworkSecurityAuthzPolicy`s
+targeting the gateway. config-connector-extensions serves every kind from
+its generated kinds' fake (`pkg/discokind/fake`), which checks no policy
+target. On 2026-11-13 (offload VM `off-catalog-1113221513-25255`,
+config-connector-extensions `c2f0c7d2`) all 8 objects became Ready, the
+outputs evaluated (`authz_extension_ids` and `authz_policy_ids` included)
+and all 8 were deleted.
 
 Not applied live: live runs are pending KEYLIVE, and the Network Services
 API (agent gateways are in preview) is not on in the live-test project
@@ -146,6 +159,11 @@ reason).
 
 ## Changes
 
+- **0.3.0** (2026-11-13): `iap_config` (on by default, as fabric's) and
+  `model_armor_config`: config-connector-extensions'
+  `NetworkServicesAuthzExtension` and `NetworkSecurityAuthzPolicy`
+  targeting the gateway, and the `authz_extension_ids` and
+  `authz_policy_ids` outputs.
 - **0.2.0** (2026-11-13): `access_policies`: config-connector-extensions'
   `IAMAccessPolicy` and `IAMPolicyBinding`, and the `access_policy_ids`
   and `policy_binding_ids` outputs.

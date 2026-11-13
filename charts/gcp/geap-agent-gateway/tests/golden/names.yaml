@@ -1,4 +1,68 @@
 ---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: names-authz-policy-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iap_policy"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "shop-dev-agw-iap"
+  action: CUSTOM
+  policyProfile: REQUEST_AUTHZ
+  target:
+    resources:
+      - "projects/my-project-id/locations/europe-west1/agentGateways/shop-dev-agw"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/my-project-id/locations/europe-west1/authzExtensions/shop-dev-agw-iap"
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityAuthzPolicy
+metadata:
+  name: names-authz-policy-ma
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "model_armor_policy"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "shop-dev-agw-armor"
+  action: CUSTOM
+  policyProfile: CONTENT_AUTHZ
+  target:
+    resources:
+      - "projects/my-project-id/locations/europe-west1/agentGateways/shop-dev-agw"
+  customProvider:
+    authzExtension:
+      resources:
+        - "projects/my-project-id/locations/europe-west1/authzExtensions/shop-dev-agw-armor"
+---
 # Source: geap-agent-gateway/templates/connectivity-template.yaml
 apiVersion: networkservices.gcp.hfl.dev/v1alpha1
 kind: NetworkServicesAgentConnectivityTemplate
@@ -8,7 +72,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "names"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
     environment: "dev"
     hfl.dev/environment: "dev"
     hfl.dev/team: "shop"
@@ -39,7 +103,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "names"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
     environment: "dev"
     hfl.dev/environment: "dev"
     hfl.dev/team: "shop"
@@ -59,3 +123,59 @@ spec:
     team: "shop"
   googleManaged:
     governedAccessPath: AGENT_TO_ANYWHERE
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: names-authz-extension-iap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "iap_extension"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "shop-dev-agw-iap"
+  service: "iap.googleapis.com"
+  failOpen: false
+  timeout: "2s"
+  metadata:
+    iapPolicyVersion: "V2"
+---
+# Source: geap-agent-gateway/templates/authz.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesAuthzExtension
+metadata:
+  name: names-authz-extension-ma
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.3.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "model_armor_extension"
+    cnrm.cloud.google.com/project-id: "my-project-id"
+spec:
+  projectRef:
+    external: "my-project-id"
+  location: "europe-west1"
+  resourceID: "shop-dev-agw-armor"
+  service: "modelarmor.europe-west1.rep.googleapis.com"
+  failOpen: false
+  timeout: "2s"
+  metadata:
+    model_armor_settings: "[{\"request_template_id\":\"projects/my-project-id/locations/europe-west1/templates/req\",\"response_template_id\":\"projects/my-project-id/locations/europe-west1/templates/resp\"}]"

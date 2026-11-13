@@ -132,10 +132,10 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 983 of 1478 (66.5%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 985 of 1478 (66.6%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 994 of 1170 (85.0%) |
-| **All** | **177** | | **2510 of 4996 (50.2%)** |
+| **All** | **177** | | **2512 of 4996 (50.3%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -205,7 +205,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`data-catalog-tag`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/data-catalog-tag) ([chart](charts/gcp/data-catalog-tag)) | ![data-catalog-tag](docs/coverage/bars/gcp-data-catalog-tag.svg) 2 of 2 | 1 of 1 | 0 of 1 | partial |
 | [`api-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/api-gateway) ([chart](charts/gcp/api-gateway)) | ![api-gateway](docs/coverage/bars/gcp-api-gateway.svg) 8 of 8 | 10 of 10 | 4 of 9 | ported |
 | [`endpoints`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/endpoints) ([chart](charts/gcp/endpoints)) | ![endpoints](docs/coverage/bars/gcp-endpoints.svg) 5 of 5 | 3 of 3 | 0 of 2 | partial |
-| [`geap-agent-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-agent-gateway) ([chart](charts/gcp/geap-agent-gateway)) | ![geap-agent-gateway](docs/coverage/bars/gcp-geap-agent-gateway.svg) 12 of 15 | 4 of 7 | 0 of 6 | partial |
+| [`geap-agent-gateway`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-agent-gateway) ([chart](charts/gcp/geap-agent-gateway)) | ![geap-agent-gateway](docs/coverage/bars/gcp-geap-agent-gateway.svg) 14 of 15 | 6 of 7 | 0 of 6 | partial |
 | [`geap-agent-runtime`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/geap-agent-runtime) ([chart](charts/gcp/geap-agent-runtime)) | ![geap-agent-runtime](docs/coverage/bars/gcp-geap-agent-runtime.svg) 12 of 14 | 2 of 3 | 3 of 5 | partial |
 | [`secops-rules`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/secops-rules) ([chart](charts/gcp/secops-rules)) | ![secops-rules](docs/coverage/bars/gcp-secops-rules.svg) 5 of 5 | 0 of 0 | 0 of 3 | partial |
 | [`kubernetes-engine-beta-private-cluster`](https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/tree/v47.0.0/modules/beta-private-cluster) ([chart](charts/gcp/gke-cluster)) | ![kubernetes-engine-beta-private-cluster](docs/coverage/bars/gcp-kubernetes-engine-beta-private-cluster.svg) 137 of 162 | 30 of 36 | 0 of 0 | partial |
