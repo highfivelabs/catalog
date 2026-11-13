@@ -518,7 +518,7 @@ real gap.
 | Module | ASO coverage |
 | --- | --- |
 | avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. The admin password goes to Key Vault (`aso-ext` `VaultSecret`). Entra database users: aso-extensions candidate a1, PR #5104 |
-| avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered |
+| avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered. Chart `charts/azure/avm-res-network-azurefirewall` (2026-11-13): 18 of 23 variables (the five refused are the azapi mechanics: `ignore_body_changes`, `resource_types`, `retry`, `timeouts`, `firewall_timeouts`), 2 of 4 outputs: ASO's status has no IP configuration's private address (section 8) |
 | avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered |
 | avm-ptn-alz (35) | management groups, policy definitions, policy set definitions and policy assignments are all **GAP** (no `Microsoft.Management` or `Microsoft.Authorization/policy*` kinds; management groups are issue #2249, open). Role definitions and assignments, and identities, are covered |
 | avm-res-documentdb-databaseaccount (36) | `documentdb/DatabaseAccount` and its SQL and Mongo children. **GAP**: Gremlin databases and graphs, SQL dedicated gateway |
@@ -713,6 +713,10 @@ Not a kind gap, but an ASO field gap: a table's or share's
 flag (`avm-res-keyvault-vault`'s `keys`). And ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
 (`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+An output gap of the same sort: ASO's `AzureFirewall` status gives an IP
+configuration's ID only, not its private address, so
+`avm-res-network-azurefirewall` has no `private_ip_address` output (nor
+the azurerm-shaped `resource` that carries it).
 
 The network security group (`avm-res-network-networksecuritygroup`)
 needs no gap: ASO's `NetworkSecurityGroup` has no `securityRules` field at
@@ -746,7 +750,7 @@ Google ID token, mounted where ASO's global workload identity credential
 reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
-group, route table, NAT gateway and public IP charts are applied
+group, route table, NAT gateway, public IP and firewall charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -759,7 +763,18 @@ security group (two rules), route table (two routes, the group by name
 and `subscription_id`), NAT gateway (Standard, with a public IP it makes)
 and public IP (the group by ID) passed on 2026-11-12 too: 9 objects
 Ready, outputs evaluated (the allocated addresses among them), deleted,
-Azure answering 404, nothing left.
+Azure answering 404, nothing left. The firewall (Basic, zoneless, in the
+AzureFirewallSubnet of a network the case applies with it, with the
+AzureFirewallManagementSubnet and the two Standard public IPs a Basic
+firewall needs; no policy, so it passes nothing) passed in run
+`cat1113040454ba` (offload `off-catalog-1113040024-17962`) on 2026-11-13: 6
+objects Ready, outputs evaluated, deleted, Azure answering 404. A Basic
+firewall is billed by the hour while it exists (about 28 minutes here, so
+cents), which is why the case makes nothing larger. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO and
+aso-extensions' manager against fakearm at `b9beb5b`, with PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113034015-32067`: the firewall and
+its lock Ready and deleted, outputs evaluated).
 
 Layer 2 (the fake cloud) does not run yet for Azure. aso-extensions' fake
 Resource Manager (`cmd/fakearm`) can stand in for Azure, but stock ASO

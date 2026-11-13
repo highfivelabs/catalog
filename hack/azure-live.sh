@@ -5,10 +5,11 @@
 # Apply the Azure charts (avm-res-network-virtualnetwork,
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
-# avm-res-network-natgateway, avm-res-network-publicipaddress) to the Azure
+# avm-res-network-natgateway, avm-res-network-publicipaddress,
+# avm-res-network-azurefirewall) to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip afw)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -45,7 +46,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip afw}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -149,7 +150,8 @@ kubectl -n azureserviceoperator-system rollout status deployment azureserviceope
 for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azure.com storageaccounts.storage.azure.com \
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
-    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com; do
+    routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    azurefirewalls.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -227,6 +229,81 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# A Basic firewall (the cheapest tier, billed by the hour while it exists),
+# zoneless, in the AzureFirewallSubnet of a network of the run, with the
+# AzureFirewallManagementSubnet and the two Standard public IPs a Basic
+# firewall needs, all of which the case also applies (CASE.extra.yaml: ASO
+# objects of no chart, rendered into the case, so they are made first,
+# waited for, deleted and checked gone with it). No policy and no rules:
+# it passes nothing.
+cat >"${WORK}/afw.yaml" <<EOF
+name: ${RUN}-afw
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+firewall_sku_name: AZFW_VNet
+firewall_sku_tier: Basic
+firewall_zones: []
+tags: {catalog-run: ${RUN}}
+ip_configurations:
+  a:
+    name: ipconfig1
+    subnet_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-afw-vnet/subnets/AzureFirewallSubnet
+    public_ip_address_id: ${RG}/providers/Microsoft.Network/publicIPAddresses/${RUN}-afw-pip
+firewall_management_ip_configuration:
+  name: mgmt
+  subnet_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-afw-vnet/subnets/AzureFirewallManagementSubnet
+  public_ip_address_id: ${RG}/providers/Microsoft.Network/publicIPAddresses/${RUN}-afw-mgmt-pip
+EOF
+cat >"${WORK}/afw.extra.yaml" <<EOF
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetwork
+metadata: {name: afw-vnet}
+spec:
+  azureName: ${RUN}-afw-vnet
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  addressSpace: {addressPrefixes: [10.252.0.0/24]}
+  tags: {catalog-run: ${RUN}}
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata: {name: afw-subnet}
+spec:
+  azureName: AzureFirewallSubnet
+  owner: {name: afw-vnet}
+  addressPrefix: 10.252.0.0/26
+---
+apiVersion: network.azure.com/v20250301
+kind: VirtualNetworksSubnet
+metadata: {name: afw-mgmt-subnet}
+spec:
+  azureName: AzureFirewallManagementSubnet
+  owner: {name: afw-vnet}
+  addressPrefix: 10.252.0.64/26
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata: {name: afw-pip}
+spec:
+  azureName: ${RUN}-afw-pip
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  sku: {name: Standard, tier: Regional}
+  publicIPAllocationMethod: Static
+  tags: {catalog-run: ${RUN}}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata: {name: afw-mgmt-pip}
+spec:
+  azureName: ${RUN}-afw-mgmt-pip
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  sku: {name: Standard, tier: Regional}
+  publicIPAllocationMethod: Static
+  tags: {catalog-run: ${RUN}}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -240,12 +317,22 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress; do
+    pip:avm-res-network-publicipaddress afw:avm-res-network-azurefirewall; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
-  helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >"${OUT}/${chart}/rendered.yaml"
+  : >"${OUT}/${chart}/rendered.yaml"
+  if [[ -f "${WORK}/${case_}.extra.yaml" ]]; then
+    # What the chart's objects need, made and waited for first: ASO retries
+    # an object whose dependency is still provisioning only slowly (a
+    # container app in an environment being made: about an hour).
+    cp "${WORK}/${case_}.extra.yaml" "${OUT}/${chart}/extra.yaml"
+    kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/extra.yaml" >"${OUT}/${chart}/apply-extra.log"
+    kubectl wait -n "${NS}" --for=condition=Ready -f "${OUT}/${chart}/extra.yaml" --timeout="${TIMEOUT}s" >/dev/null || true
+    { cat "${WORK}/${case_}.extra.yaml"; echo "---"; } >>"${OUT}/${chart}/rendered.yaml"
+  fi
+  helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')

@@ -1,0 +1,60 @@
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: AzureFirewall
+metadata:
+  name: mock-fw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "azure_firewall"
+spec:
+  azureName: "catalog-afw"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  ipConfigurations:
+    - name: "ipconfig1"
+      publicIPAddress:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/publicIPAddresses/catalog-afw-pip"
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/AzureFirewallSubnet"
+  managementIpConfiguration:
+    name: "mgmt"
+    publicIPAddress:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/publicIPAddresses/catalog-afw-mgmt-pip"
+    subnet:
+      reference:
+        armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/catalog-vnet/subnets/AzureFirewallManagementSubnet"
+  sku:
+    name: AZFW_VNet
+    tier: Basic
+  tags:
+    catalog: mock
+---
+# Source: avm-res-network-azurefirewall/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-fw-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: avm-res-network-azurefirewall
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    group: network.azure.com
+    kind: AzureFirewall
+    name: mock-fw
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
