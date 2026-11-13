@@ -1,0 +1,46 @@
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  name: external-hc
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "external-hc"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "backend_service"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-ext-hc"
+  location: "europe-west1"
+  description: "Terraform managed."
+  loadBalancingScheme: EXTERNAL
+  protocol: "UNSPECIFIED"
+  healthChecks:
+    - healthCheckRef:
+        external: "projects/my-project/regions/europe-west1/healthChecks/shared"
+---
+# Source: net-lb-ext/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeForwardingRule
+metadata:
+  name: external-hc-fr
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "external-hc"
+    app.kubernetes.io/name: net-lb-ext
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "forwarding_rule:"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "nlb-ext-hc"
+  location: "europe-west1"
+  ipVersion: IPV4
+  ipProtocol: "TCP"
+  backendServiceRef:
+    name: external-hc
+  loadBalancingScheme: EXTERNAL
+  allPorts: true

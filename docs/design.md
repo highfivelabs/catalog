@@ -676,9 +676,9 @@ What this shows and what it does not:
   Organization, IAMServiceAccount, StorageBucket, SecretManagerSecret,
   ArtifactRegistryRepository, RunService, PubSubTopic, PubSubSubscription,
   KMSKeyRing, KMSCryptoKey); on any other (net-vpc's subnets) the bindings
-  stay in the `IAMPartialPolicy`. Not applied to a cloud yet: the fake-cloud
-  pin (`CCE_COMMIT`) predates the kind. A chart README says which kind it
-  uses.
+  stay in the `IAMPartialPolicy`. The fake-cloud pin (`CCE_COMMIT`) has
+  the kind since 2026-11-12, so a fake-cloud case can apply it. A chart
+  README says which kind it uses.
 - **Principals from other components** come through Bundt:
   `members: ["serviceAccount:${components.runtime.outputs.email}"]`, or
   the `iam_email` output through `valueFrom`. fabric's `$iam_principals:`
@@ -896,7 +896,8 @@ tasks (`task --list`).
    are not in the fake-cloud cases.
    The AWS charts have the same layer, `task test-mock-aws`
    (`hack/mock-apply-aws.sh`): ACK's pinned controllers and ack-extensions
-   on kind against moto (`docs/aws.md`, "Charts").
+   on kind against AWS Emulator, then moto for a chart that fails there
+   (`docs/aws.md`, "Charts").
 3. **Live**, `task test-live` (`hack/live-apply.sh`), pilot only, after the
    fake cloud passes: an offload VM acting as
    `$GCP_LIVE_SA` (no keys;
