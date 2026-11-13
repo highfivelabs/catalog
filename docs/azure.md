@@ -432,11 +432,11 @@ submodule as the chart value `rule_collection_groups`.
 | root | `managedClusters@2026-03-01` (and `2026-03-02-preview`), credential actions | `containerservice/ManagedCluster` (2025-08-01). The kubeconfig is exported to a Secret through `operatorSpec.secrets` |
 | `agentpool` | `managedClusters/agentPools@2026-01-02-preview` | `ManagedClustersAgentPool` (2025-08-01) |
 | `maintenanceconfiguration` | `maintenanceConfigurations@2026-03-01` | `MaintenanceConfiguration` |
-| `namespace` | `managedNamespaces@2026-03-01` | **GAP** |
+| `namespace` | `managedNamespaces@2026-03-01` | aso-extensions `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`, 2026-05-01) |
 | `monitoring` | data collection rules, endpoints and associations | `insights/DataCollectionRule`, `DataCollectionEndpoint`, `DataCollectionRuleAssociation` (2024-03-11) |
 | `alerting` | Prometheus rule groups, action groups, metric alerts | `alertsmanagement/PrometheusRuleGroup`, `insights/ActionGroup`, `insights/MetricAlert` |
 
-Covered, except managed namespaces and preview-only properties.
+Covered; managed namespaces through aso-extensions. Charted as `charts/azure/avm-res-containerservice-managedcluster` (section 8).
 
 ### 17. avm-res-dbforpostgresql-flexibleserver (v0.2.3; azurerm)
 
@@ -747,6 +747,12 @@ The fake-cloud and live runs install aso-extensions' manager beside ASO
 (`hack/asox-manager.sh`, below), so these kinds are applied and
 reconciled, not only rendered.
 
+Field gaps in ASO's agent pool (up to API 2025-10-02-preview), which
+`avm-res-containerservice-managedcluster` refuses: `enableOSDiskFullCaching`
+and `gpuProfile.nvidia` (`default_agent_pool` and `agent_pools`), and the
+`ignore-pod-disruption-budget` option of a pool's delete
+(`delete_options`).
+
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
@@ -820,6 +826,12 @@ left. Its `tests/mock.values.yaml` passed against the fake cloud too
 (stock ASO against aso-extensions' fakearm at `e3b4177`, run
 `off-catalog-1112233431-23161`: 2 objects Ready and deleted, outputs
 evaluated).
+
+The AKS chart (`avm-res-containerservice-managedcluster`) is not applied
+live: AKS makes the cluster's node resource group (`MC_<group>_<name>_<region>`,
+or `node_resource_group`) beside the sandbox's one resource group, at
+subscription scope, where the live identity has no rights and the live
+rules allow no change. Its renders and the fake cloud are its tests.
 
 Layer 2 (the fake cloud, `task test-mock-azure`, `hack/azure-mock.sh`): on
 an offload VM, kind runs aso-extensions' fake Resource Manager
