@@ -1,0 +1,29 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs (docs/design.md, "Outputs"). gateway
+# is a whole Terraform object in fabric; here it is the gateway's ID
+# (projects/<p>/locations/<region>/gateways/<name>), the field a consumer
+# takes, as id is. gateway_security_policy is the policy's ID, as fabric's
+# gateway's gateway_security_policy attribute is; service_attachment the
+# attachment's ID (projects/<p>/regions/<region>/serviceAttachments/<name>)
+# or null without service_attachment.
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-swp
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    gateway: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.region + '/gateways/' + resources.gateway.spec.resourceID
+    gateway_security_policy: resources.gateway.spec.gatewaySecurityPolicy
+    id: >-
+      'projects/' + inputs.project_id + '/locations/' + inputs.region + '/gateways/' + resources.gateway.spec.resourceID
+    service_attachment: >-
+      'service_attachment' in resources
+      ? dyn('projects/' + inputs.project_id + '/regions/' + inputs.region + '/serviceAttachments/' + resources.service_attachment.spec.resourceID)
+      : null

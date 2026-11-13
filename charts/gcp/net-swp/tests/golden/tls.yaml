@@ -1,0 +1,101 @@
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  name: tls-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tls"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway_security_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  description: "Managed by Terraform."
+  tlsInspectionPolicy: "projects/my-project/locations/europe-west4/tlsInspectionPolicies/secure-web-proxy"
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: tls-rule-tls-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tls"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_rule:tls-0"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  gatewaySecurityPolicy: "secure-web-proxy"
+  resourceID: "tls-0"
+  description: "Managed by Terraform."
+  enabled: true
+  priority: 1000
+  basicProfile: ALLOW
+  sessionMatcher: "host() == 'google.com'"
+  applicationMatcher: "request.path.contains('generate_204')"
+  tlsInspectionEnabled: true
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityTLSInspectionPolicy
+metadata:
+  name: tls-tls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tls"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "tls_inspection_policy"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  description: "Managed by Terraform."
+  caPool: "projects/my-project/locations/europe-west4/caPools/swp"
+  excludePublicCaSet: false
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  name: tls
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tls"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "projects/my-project"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  type: SECURE_WEB_GATEWAY
+  description: "Managed by Terraform."
+  addresses:
+    - 10.142.68.3
+  ports:
+    - 443
+  certificateUrls:
+    - "projects/my-project/locations/europe-west4/certificates/swp"
+  gatewaySecurityPolicy: "projects/my-project/locations/europe-west4/gatewaySecurityPolicies/secure-web-proxy"
+  network: "projects/my-project/global/networks/my-network"
+  subnetwork: "projects/my-project/regions/europe-west4/subnetworks/my-subnetwork"
+  routingMode: EXPLICIT_ROUTING_MODE

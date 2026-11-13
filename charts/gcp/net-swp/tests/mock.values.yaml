@@ -1,0 +1,27 @@
+# The fake-cloud case (hack/mock-apply.sh): the network and subnets are in
+# tests/mock.needs.yaml. A gateway security policy, a URL list, two rules
+# (one on the list through its context), the gateway and a PSC service
+# attachment on it. No TLS inspection policy: it needs a CA pool.
+project_id: mock-project
+region: us-central1
+name: cat-mock-swp
+network: projects/mock-project/global/networks/cat-mock-swp-net
+subnetwork: projects/mock-project/regions/us-central1/subnetworks/cat-mock-swp-subnet
+labels: {env: test}
+gateway_config:
+  addresses: ["10.10.0.10"]
+url_lists:
+  cat-mock-swp-allow:
+    values: ["example.com"]
+policy_rules:
+  allow-list:
+    priority: 1000
+    session_matcher: "inUrlList(host(), '%s')"
+    matcher_args:
+      session: ["url_list:cat-mock-swp-allow"]
+  deny-google:
+    priority: 1001
+    allow: false
+    session_matcher: "host() == 'google.com'"
+service_attachment:
+  nat_subnets: ["projects/mock-project/regions/us-central1/subnetworks/cat-mock-swp-psc"]

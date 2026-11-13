@@ -1,0 +1,69 @@
+# Every variable: an existing TLS inspection policy, next-hop routing, a
+# scope, the factory's files, contexts of every kind, a rule's application
+# matcher with arguments, and a PSC attachment with reject lists.
+project_id: my-project
+region: us-central1
+name: swp
+description: Egress proxy.
+network: projects/my-project/global/networks/net
+subnetwork: projects/my-project/regions/us-central1/subnetworks/swp
+certificates:
+  - projects/my-project/locations/us-central1/certificates/a
+  - projects/my-project/locations/us-central1/certificates/b
+labels: {team: net, hfl.dev/environment: dev}
+tags: {cost-center: cc1}
+gateway_config:
+  addresses: ["10.0.0.10"]
+  delete_router_on_destroy: false
+  labels: {purpose: egress}
+  next_hop_routing_mode: true
+  ports: ["443", 8443]
+  scope: egress-a
+tls_inspection_config:
+  id: projects/shared/locations/us-central1/tlsInspectionPolicies/shared
+factories_config:
+  policy_rules: data/rules
+  url_lists: data/url-lists
+factories_data:
+  policy_rules:
+    factory-allow:
+      priority: 2000
+      enable: false
+      description: From the factory.
+      session_matcher: "inUrlList(host(), '%s') && source.matchTag('%s')"
+      matcher_args:
+        session: ["url_list:partners", "secure_tag:egress"]
+      tls_inspect: false
+  url_lists:
+    partners:
+      description: Partner sites.
+      values: ["partner.example.com", "*.partner.example.net"]
+policy_rules:
+  sa-app:
+    priority: 1000
+    description: Apps may reach the API.
+    session_matcher: "source.matchServiceAccount('%s')"
+    application_matcher: "request.path.startsWith('%s') && request.method == '%%'"
+    matcher_args:
+      session: ["service_account:app"]
+      application: ["url_list:/v1/"]
+  shared:
+    priority: 1001
+    allow: false
+    session_matcher: "inUrlList(host(), '%s')"
+    matcher_args:
+      session: ["url_list:blocked"]
+policy_rules_contexts:
+  secure_tags: {egress: tagValues/123}
+  service_accounts: {app: app@my-project.iam.gserviceaccount.com}
+  url_lists: {blocked: projects/shared/locations/us-central1/urlLists/blocked}
+url_lists:
+  internal:
+    values: ["internal.example.com"]
+service_attachment:
+  nat_subnets: ["https://www.googleapis.com/compute/v1/projects/my-project/regions/us-central1/subnetworks/psc"]
+  automatic_connection: true
+  consumer_accept_lists: {consumer-a: "5"}
+  consumer_reject_lists: ["consumer-b"]
+  enable_proxy_protocol: true
+deletion_policy: ABANDON

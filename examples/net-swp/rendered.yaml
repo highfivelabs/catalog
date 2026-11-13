@@ -1,0 +1,125 @@
+# component net-swp-dev-secure-web-proxy
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicy
+metadata:
+  name: net-swp-dev-secure-web-proxy-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-swp-dev-secure-web-proxy"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway_security_policy"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  description: "Managed by Terraform."
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: net-swp-dev-secure-web-proxy-rule-host-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-swp-dev-secure-web-proxy"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_rule:host-0"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west4"
+  gatewaySecurityPolicy: "secure-web-proxy"
+  resourceID: "host-0"
+  description: "Managed by Terraform."
+  enabled: true
+  priority: 1000
+  basicProfile: DENY
+  sessionMatcher: "host() == 'google.com'"
+---
+# Source: net-swp/templates/policy-rules.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityGatewaySecurityPolicyRule
+metadata:
+  name: net-swp-dev-secure-web-proxy-rule-url-list-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-swp-dev-secure-web-proxy"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy_rule:url-list-0"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west4"
+  gatewaySecurityPolicy: "secure-web-proxy"
+  resourceID: "url-list-0"
+  description: "Managed by Terraform."
+  enabled: true
+  priority: 1001
+  basicProfile: ALLOW
+  sessionMatcher: "inUrlList(host(), 'projects/myproject/locations/europe-west4/urlLists/default')"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networksecurity.gcp.hfl.dev/v1beta1
+kind: NetworkSecurityURLList
+metadata:
+  name: net-swp-dev-secure-web-proxy-url-list-default
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-swp-dev-secure-web-proxy"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "url_list:default"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west4"
+  resourceID: "default"
+  description: "Managed by Terraform."
+  values:
+    - "example.org"
+---
+# Source: net-swp/templates/main.yaml
+apiVersion: networkservices.gcp.hfl.dev/v1beta1
+kind: NetworkServicesGateway
+metadata:
+  name: net-swp-dev-secure-web-proxy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "net-swp-dev-secure-web-proxy"
+    app.kubernetes.io/name: net-swp
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "myproject"
+spec:
+  projectRef:
+    external: "projects/myproject"
+  location: "europe-west4"
+  resourceID: "secure-web-proxy"
+  type: SECURE_WEB_GATEWAY
+  description: "Managed by Terraform."
+  addresses:
+    - 10.142.68.3
+  ports:
+    - 80
+    - 443
+  certificateUrls:
+    - "projects/my-project/locations/europe-west4/certificates/secure-web-proxy-cert"
+  gatewaySecurityPolicy: "projects/myproject/locations/europe-west4/gatewaySecurityPolicies/secure-web-proxy"
+  network: "projects/my-project/global/networks/my-network"
+  subnetwork: "projects/my-project/regions/europe-west4/subnetworks/my-subnetwork"
+  routingMode: EXPLICIT_ROUTING_MODE
