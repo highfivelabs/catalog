@@ -1,0 +1,354 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-dbforpostgresql-flexibleserver
+main.tf, main.databases.tf, main.firewallrule.tf, main.privateendpoint.tf
+and modules/database/main.tf (v0.2.3), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_postgresql_flexible_server.this: one ASO FlexibleServer
+(dbforpostgresql.azure.com/v20250801), owned by the resource group
+resource_group_name names. Its children, owned by it: module.databases
+(azurerm_postgresql_flexible_server_database) as FlexibleServersDatabase,
+azurerm_postgresql_flexible_server_firewall_rule as
+FlexibleServersFirewallRule, azurerm_postgresql_flexible_server_configuration
+as FlexibleServersConfiguration,
+azurerm_postgresql_flexible_server_active_directory_administrator as
+FlexibleServersAdministrator, azurerm_postgresql_flexible_server_virtual_endpoint
+as FlexibleServersVirtualEndpoint. azurerm_private_endpoint (either of the
+module's two) as PrivateEndpoint (network.azure.com/v20250301), with a
+PrivateEndpointsPrivateDnsZoneGroup when it manages the zone group, and
+the application security group associations as the endpoint's
+applicationSecurityGroups. azurerm_management_lock: an aso-extensions
+ManagementLock. azurerm_role_assignment: one ASO RoleAssignment each.
+azurerm_monitor_diagnostic_setting: one ASO DiagnosticSetting each. The
+telemetry deployment is not ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- $secret := "a password is a secret value, which does not belong in a component's inputs; use Entra authentication (authentication.password_auth_enabled: false)" }}
+{{- include "aso.unsupported" (list $ "administrator_password" $v.administrator_password $secret) }}
+{{- include "aso.unsupported" (list $ "administrator_password_wo" $v.administrator_password_wo $secret) }}
+{{- include "aso.unsupported" (list $ "administrator_password_wo_version" $v.administrator_password_wo_version "it versions administrator_password_wo, which is refused") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- range $k, $d := $v.databases }}
+{{- include "aso.unsupported" (list $ (printf "databases.%s.timeouts" $k) $d.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- end }}
+{{- include "aso.names" (list $ (list "flexibleServer")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail (printf "%s: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" $chart) }}
+{{- end }}
+{{- $mode := $v.create_mode | default "Default" }}
+{{- $auth := $v.authentication | default dict }}
+{{- $passwordAuth := ternary true $auth.password_auth_enabled (kindIs "invalid" $auth.password_auth_enabled) }}
+{{- if and $passwordAuth (eq $mode "Default") }}
+{{- fail (printf "%s: password authentication needs administrator_password, a secret value the chart does not take: set authentication.password_auth_enabled: false and active_directory_auth_enabled: true (docs/azure.md, \"Charts\")" $chart) }}
+{{- end }}
+{{- if and $auth.tenant_id (not $auth.active_directory_auth_enabled) }}
+{{- fail (printf "%s: authentication.tenant_id needs active_directory_auth_enabled: true" $chart) }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "psql") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $serverName := include "aso.resourceName" (list $ "flexibleServer" "PostgreSQL flexible server" $v.name 63 "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$") }}
+{{- $owner := dict "group" "dbforpostgresql.azure.com" "kind" "FlexibleServer" "name" $obj }}
+{{- $tiers := dict "B" "Burstable" "GP" "GeneralPurpose" "MO" "MemoryOptimized" }}
+---
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServer
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "server" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $serverName | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with $v.administrator_login }}
+  administratorLogin: {{ . | quote }}
+  {{- end }}
+  {{- with $v.authentication }}
+  authConfig:
+    activeDirectoryAuth: {{ ternary "Enabled" "Disabled" (eq .active_directory_auth_enabled true) }}
+    passwordAuth: {{ ternary "Enabled" "Disabled" $passwordAuth }}
+    {{- with .tenant_id }}
+    tenantId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.zone }}
+  availabilityZone: {{ . | quote }}
+  {{- end }}
+  {{- if or (not (kindIs "invalid" $v.backup_retention_days)) (not (kindIs "invalid" $v.geo_redundant_backup_enabled)) }}
+  backup:
+    {{- if not (kindIs "invalid" $v.backup_retention_days) }}
+    backupRetentionDays: {{ int $v.backup_retention_days }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $v.geo_redundant_backup_enabled) }}
+    geoRedundantBackup: {{ ternary "Enabled" "Disabled" $v.geo_redundant_backup_enabled }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.create_mode }}
+  createMode: {{ . }}
+  {{- end }}
+  {{- with $v.customer_managed_key }}
+  dataEncryption:
+    type: AzureKeyVault
+    primaryKeyURI: {{ .key_vault_key_id | quote }}
+    {{- with .primary_user_assigned_identity_id }}
+    primaryUserAssignedIdentityReference:
+      armId: {{ . | quote }}
+    {{- end }}
+    {{- with .geo_backup_key_vault_key_id }}
+    geoBackupKeyURI: {{ . | quote }}
+    {{- end }}
+    {{- with .geo_backup_user_assigned_identity_id }}
+    geoBackupUserAssignedIdentityReference:
+      armId: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  highAvailability:
+    {{- with $v.high_availability }}
+    mode: {{ .mode }}
+    {{- with .standby_availability_zone }}
+    standbyAvailabilityZone: {{ . | quote }}
+    {{- end }}
+    {{- else }}
+    mode: Disabled
+    {{- end }}
+  {{- $mi := $v.managed_identities | default dict }}
+  {{- $uai := $mi.user_assigned_resource_ids | default list }}
+  {{- if or $mi.system_assigned $uai }}
+  identity:
+    type: {{ ternary (ternary "SystemAssigned,UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" (eq $mi.system_assigned true) }}
+    {{- with $uai }}
+    userAssignedIdentities:
+      {{- range $id := (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ $id | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.maintenance_window }}
+  maintenanceWindow:
+    customWindow: Enabled
+    dayOfWeek: {{ int (.day_of_week | default "0") }}
+    startHour: {{ int (.start_hour | default 0) }}
+    startMinute: {{ int (.start_minute | default 0) }}
+  {{- end }}
+  network:
+    {{- with $v.delegated_subnet_id }}
+    delegatedSubnetResourceReference:
+      armId: {{ . | quote }}
+    {{- end }}
+    {{- with $v.private_dns_zone_id }}
+    privateDnsZoneArmResourceReference:
+      armId: {{ . | quote }}
+    {{- end }}
+    publicNetworkAccess: {{ ternary "Enabled" "Disabled" (eq $v.public_network_access_enabled true) }}
+  {{- with $v.point_in_time_restore_time_in_utc }}
+  pointInTimeUTC: {{ . | quote }}
+  {{- end }}
+  {{- with $v.replication_role }}
+  replicationRole: {{ . }}
+  {{- end }}
+  {{- with $v.sku_name }}
+  {{- $parts := regexFind "^(B|GP|MO)_(.+)$" . }}
+  {{- if not $parts }}
+  {{- fail (printf "%s: sku_name %q is not tier_name (B_..., GP_... or MO_...)" $chart .) }}
+  {{- end }}
+  {{- $t := regexReplaceAll "^(B|GP|MO)_.+$" . "${1}" }}
+  sku:
+    name: {{ regexReplaceAll "^(B|GP|MO)_" . "" | quote }}
+    tier: {{ get $tiers $t }}
+  {{- end }}
+  {{- with $v.source_server_id }}
+  sourceServerResourceReference:
+    armId: {{ . | quote }}
+  {{- end }}
+  {{- if or (not (kindIs "invalid" $v.auto_grow_enabled)) (not (kindIs "invalid" $v.storage_mb)) $v.storage_tier }}
+  storage:
+    {{- if not (kindIs "invalid" $v.auto_grow_enabled) }}
+    autoGrow: {{ ternary "Enabled" "Disabled" $v.auto_grow_enabled }}
+    {{- end }}
+    {{- if not (kindIs "invalid" $v.storage_mb) }}
+    storageSizeGB: {{ div (int64 $v.storage_mb) 1024 }}
+    {{- end }}
+    {{- with $v.storage_tier }}
+    tier: {{ . }}
+    {{- end }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $v.server_version }}
+  version: {{ . | quote }}
+  {{- end }}
+{{- range $k, $d := $v.databases }}
+---
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersDatabase
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "db" $k)) "id" (printf "database:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $d.name | quote }}
+  owner:
+    name: {{ $obj }}
+  {{- with $d.charset }}
+  charset: {{ . | quote }}
+  {{- end }}
+  {{- with $d.collation }}
+  collation: {{ . | quote }}
+  {{- end }}
+{{- end }}
+{{- $fw := $v.firewall_rules }}
+{{- if kindIs "invalid" $fw }}
+{{- $fw = dict "rule1" (dict "name" "AllowAllFireWallRule" "start_ip_address" "0.0.0.0" "end_ip_address" "255.255.255.255") }}
+{{- end }}
+{{- range $k, $r := $fw }}
+---
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersFirewallRule
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "fw" $k)) "id" (printf "firewall_rule:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $r.name | quote }}
+  owner:
+    name: {{ $obj }}
+  startIpAddress: {{ $r.start_ip_address | quote }}
+  endIpAddress: {{ $r.end_ip_address | quote }}
+{{- end }}
+{{- range $k, $c := $v.server_configuration }}
+---
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersConfiguration
+metadata:
+  {{- /* Always detached on delete: Azure has no delete for a server
+  parameter (it goes with the server), so ASO cannot delete one (found
+  live). Removing an entry leaves the parameter's value in Azure, where
+  azurerm would reset it to its default. */}}
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "config" $k)) "id" (printf "server_configuration:%s" $k) "abandon" "true") | nindent 2 }}
+spec:
+  azureName: {{ $c.name | quote }}
+  owner:
+    name: {{ $obj }}
+  source: user-override
+  value: {{ $c.config | quote }}
+{{- end }}
+{{- range $k, $a := $v.ad_administrator }}
+---
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersAdministrator
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "admin" $k)) "id" (printf "ad_administrator:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $a.object_id | quote }}
+  owner:
+    name: {{ $obj }}
+  principalName: {{ $a.principal_name | quote }}
+  principalType: {{ $a.principal_type }}
+  tenantId: {{ $a.tenant_id | quote }}
+{{- end }}
+{{- range $k, $e := $v.virtual_endpoint }}
+---
+apiVersion: dbforpostgresql.azure.com/v20250801
+kind: FlexibleServersVirtualEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "ve" $k)) "id" (printf "virtual_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $e.name | quote }}
+  owner:
+    name: {{ $obj }}
+  endpointType: {{ $e.type }}
+  members:
+    - {{ include "aso.owner" (list $ (printf "virtual_endpoint.%s.replica_server_id" $k) $e.replica_server_id) | fromYaml | dig "armId" "" | splitList "/" | last | quote }}
+{{- end }}
+{{- range $k, $p := $v.private_endpoints }}
+{{- $pe := include "aso.name" (list $obj "pe" $k) }}
+{{- $peRg := toString ($p.resource_group_name | default $rg) }}
+{{- $peParent := $parent }}
+{{- if hasPrefix "/" $peRg }}
+{{- $peParent = $peRg }}
+{{- else if $p.resource_group_name }}
+{{- if not $v.subscription_id }}{{ fail (printf "%s: private_endpoints.%s.resource_group_name is a name: set subscription_id too" $chart $k) }}{{ end }}
+{{- $peParent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $peRg }}
+{{- end }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpoint
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pe "id" (printf "private_endpoint:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "private endpoint" ($p.name | default (printf "pe-%s" $v.name)) 80 false) | quote }}
+  location: {{ $p.location | default $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "private_endpoints.%s.resource_group_name" $k) $peParent) | nindent 4 }}
+  subnet:
+    reference:
+      armId: {{ $p.subnet_resource_id | quote }}
+  {{- with $p.network_interface_name }}
+  customNetworkInterfaceName: {{ . | quote }}
+  {{- end }}
+  privateLinkServiceConnections:
+    - name: {{ $p.private_service_connection_name | default (printf "pse-%s" $v.name) | quote }}
+      groupIds: [postgresqlServer]
+      privateLinkServiceReference:
+        group: dbforpostgresql.azure.com
+        kind: FlexibleServer
+        name: {{ $obj }}
+  {{- with $p.ip_configurations }}
+  ipConfigurations:
+    {{- range $ik, $ic := . }}
+    - name: {{ $ic.name | quote }}
+      groupId: postgresqlServer
+      memberName: postgresqlServer
+      privateIPAddress: {{ $ic.private_ip_address | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.application_security_group_associations }}
+  applicationSecurityGroups:
+    {{- range $id := (values . | uniq | sortAlpha) }}
+    - reference:
+        armId: {{ $id | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $p.tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- if and $v.private_endpoints_manage_dns_zone_group $p.private_dns_zone_resource_ids }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PrivateEndpointsPrivateDnsZoneGroup
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $pe "dns")) "id" (printf "private_endpoint:%s/dns_zone_group" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ $p.private_dns_zone_group_name | default "default" | quote }}
+  owner:
+    name: {{ $pe }}
+  privateDnsZoneConfigs:
+    {{- range $id := (uniq $p.private_dns_zone_resource_ids | sortAlpha) }}
+    - name: {{ splitList "/" $id | last | quote }}
+      privateDnsZoneReference:
+        armId: {{ $id | quote }}
+    {{- end }}
+{{- end }}
+{{- $peOwner := dict "group" "network.azure.com" "kind" "PrivateEndpoint" "name" $pe }}
+{{- with $p.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $pe "idPrefix" (printf "private_endpoint:%s/" $k) "owner" $peOwner "v" ($p.role_assignments | default dict)) }}
+{{- end }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.role_assignments) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}

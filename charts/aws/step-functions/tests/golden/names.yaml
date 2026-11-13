@@ -1,0 +1,80 @@
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: names-role
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "role"
+spec:
+  name: "team-a-orders-sfn"
+  assumeRolePolicyDocument: "{\"Statement\":[{\"Action\":[\"sts:AssumeRole\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":[\"states.us-east-1.amazonaws.com\"]}}],\"Version\":\"2012-10-17\"}"
+  policyRefs:
+    - from:
+        name: names-policy-logs
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+  name: names-log-group
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "log-group"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "/team-a/orders"
+---
+# Source: step-functions/templates/iam.yaml
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: names-policy-logs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "policy-logs"
+spec:
+  name: "team-a-orders-sfn-logs"
+  policyDocument: "{\"Statement\":[{\"Action\":[\"logs:CreateLogDelivery\",\"logs:GetLogDelivery\",\"logs:UpdateLogDelivery\",\"logs:DeleteLogDelivery\",\"logs:ListLogDeliveries\",\"logs:PutResourcePolicy\",\"logs:DescribeResourcePolicies\",\"logs:DescribeLogGroups\"],\"Effect\":\"Allow\",\"Resource\":[\"*\"]}],\"Version\":\"2012-10-17\"}"
+---
+# Source: step-functions/templates/state-machine.yaml
+apiVersion: sfn.services.k8s.aws/v1alpha1
+kind: StateMachine
+metadata:
+  name: names-state-machine
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: step-functions
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "state-machine"
+    services.k8s.aws/region: "us-east-1"
+spec:
+  name: "team-a-orders"
+  definition: "{\"StartAt\": \"Done\", \"States\": {\"Done\": {\"Type\": \"Succeed\"}}}"
+  roleRef:
+    from:
+      name: names-role
+  type_: "STANDARD"
+  loggingConfiguration:
+    destinations:
+      - cloudWatchLogsLogGroup:
+          logGroupARN: "arn:aws:logs:us-east-1:111122223333:log-group:/team-a/orders:*"
+    level: "ERROR"
+  tags:
+    - key: "Name"
+      value: "team-a-orders"
