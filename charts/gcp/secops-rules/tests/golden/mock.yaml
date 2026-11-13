@@ -1,0 +1,66 @@
+---
+# Source: secops-rules/templates/main.yaml
+apiVersion: chronicle.gcp.hfl.dev/v1beta1
+kind: ChronicleReferenceList
+metadata:
+  name: mock-list-cat-mock-ips-9fd23e0a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: secops-rules
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "reference_list:cat_mock_ips"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "cat_mock_ips"
+  projectRef:
+    external: "mock-project"
+  location: "us"
+  instance: "3fb9b8b0-6a5a-4b0b-8a6f-b1a7b1f6c1d2"
+  description: "Mock IP ranges"
+  syntaxType: REFERENCE_LIST_SYNTAX_TYPE_CIDR
+  entries:
+    - value: "10.0.0.0/8"
+---
+# Source: secops-rules/templates/main.yaml
+apiVersion: chronicle.gcp.hfl.dev/v1beta1
+kind: ChronicleRule
+metadata:
+  name: mock-rule-cat-mock-rule-77223ce5
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: secops-rules
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule:cat_mock_rule"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  location: "us"
+  instance: "3fb9b8b0-6a5a-4b0b-8a6f-b1a7b1f6c1d2"
+  deletionPolicy: FORCE
+  text: "rule cat_mock_rule {\n  events:\n    $e.metadata.event_type = \"NETWORK_CONNECTION\"\n    net.ip_in_range_cidr($e.target.ip, %cat_mock_ips)\n  condition:\n    $e\n}\n"
+---
+# Source: secops-rules/templates/main.yaml
+apiVersion: chronicle.gcp.hfl.dev/v1alpha1
+kind: ChronicleRuleDeployment
+metadata:
+  name: mock-rule-deployment-cat-mock-rule-572f5be4
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: secops-rules
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "rule_deployment:cat_mock_rule"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  ruleRef:
+    name: mock-rule-cat-mock-rule-77223ce5
+  enabled: true
+  alerting: false
+  archived: false
+  runFrequency: "LIVE"

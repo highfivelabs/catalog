@@ -1,0 +1,31 @@
+# After the module's README example: two reference lists and a rule using
+# one, deployed (allow_alpha). factories_data holds the files fabric reads
+# from data/rules and data/reference_lists.
+allow_alpha: true
+project_id: my-project
+tenant_config:
+  customer_id: 3fb9b8b0-6a5a-4b0b-8a6f-b1a7b1f6c1d2
+  region: europe
+reference_lists_config:
+  private_ip_ranges: {description: "Private IP ranges", type: CIDR}
+  admin_users: {description: "Admin users", type: STRING}
+rules_config:
+  network_traffic_to_specific_country: {enabled: true, alerting: true, run_frequency: LIVE}
+factories_data:
+  reference_lists:
+    private_ip_ranges: |-
+      10.0.0.0/8
+      172.16.0.0/12
+      192.168.0.0/16
+    admin_users: [admin@example.com, root@example.com]
+  rules:
+    network_traffic_to_specific_country: |
+      rule network_traffic_to_specific_country {
+        meta:
+          author = "Google Cloud Security"
+        events:
+          $e.metadata.event_type = "NETWORK_CONNECTION"
+          not net.ip_in_range_cidr($e.target.ip, %private_ip_ranges)
+        condition:
+          $e
+      }
