@@ -128,18 +128,18 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 10 ported, 84 partial, 64 blocked, 19 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 10 ported, 85 partial, 63 blocked, 19 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
-| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 798 of 1478 (54.0%) |
+| Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 815 of 1478 (55.1%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
 | Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 601 of 1170 (51.4%) |
-| **All** | **177** | | **1932 of 4996 (38.7%)** |
+| **All** | **177** | | **1949 of 4996 (39.0%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
-8 ported, 48 partial, 39 blocked, 3 not started.
+8 ported, 49 partial, 38 blocked, 3 not started.
 
 **Ported and partial**
 
@@ -169,6 +169,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`certificate-manager`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/certificate-manager) ([chart](charts/gcp/certificate-manager)) | ![certificate-manager](docs/coverage/bars/gcp-certificate-manager.svg) 5 of 5 | 2 of 5 | 4 of 5 | partial |
 | [`net-lb-int`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-int) ([chart](charts/gcp/net-lb-int)) | ![net-lb-int](docs/coverage/bars/gcp-net-lb-int.svg) 14 of 15 | 8 of 13 | 6 of 6 | partial |
 | [`net-lb-ext`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/net-lb-ext) ([chart](charts/gcp/net-lb-ext)) | ![net-lb-ext](docs/coverage/bars/gcp-net-lb-ext.svg) 10 of 11 | 7 of 12 | 4 of 4 | partial |
+| [`compute-mig`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/compute-mig) ([chart](charts/gcp/compute-mig)) | ![compute-mig](docs/coverage/bars/gcp-compute-mig.svg) 17 of 21 | 1 of 4 | 3 of 7 | partial |
 | [`service-directory`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/service-directory) ([chart](charts/gcp/service-directory)) | ![service-directory](docs/coverage/bars/gcp-service-directory.svg) 8 of 8 | 4 of 7 | 5 of 5 | partial |
 | [`cloud-function-v2`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/cloud-function-v2) ([chart](charts/gcp/cloud-function-v2)) | ![cloud-function-v2](docs/coverage/bars/gcp-cloud-function-v2.svg) 24 of 25 | 10 of 14 | 6 of 9 | partial |
 | [`alloydb`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/alloydb) ([chart](charts/gcp/alloydb)) | ![alloydb](docs/coverage/bars/gcp-alloydb.svg) 31 of 33 | 20 of 30 | 4 of 4 | partial |
@@ -202,7 +203,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`iam-folders-iam`](https://github.com/terraform-google-modules/terraform-google-iam/tree/v8.3.0/modules/folders_iam) ([chart](charts/gcp/folders-iam)) | ![iam-folders-iam](docs/coverage/bars/gcp-iam-folders-iam.svg) 4 of 4 | 3 of 3 | 0 of 0 | partial |
 | [`org-policy-v2`](https://github.com/terraform-google-modules/terraform-google-org-policy/tree/v7.4.0/modules/org_policy_v2) ([chart](charts/gcp/org-policy-v2)) | ![org-policy-v2](docs/coverage/bars/gcp-org-policy-v2.svg) 8 of 8 | 3 of 3 | 0 of 0 | partial |
 
-**Blocked: a resource type has no stable kind (first 10 of 39, by rank)**
+**Blocked: a resource type has no stable kind (first 10 of 38, by rank)**
 
 | Module | Variables covered | Outputs | Resource types with a stable kind | Status |
 | --- | --- | ---: | ---: | --- |

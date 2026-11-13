@@ -25,7 +25,8 @@
 # "iam-service-account gcs net-vpc"); the others it knows are
 # artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int,
 # net-lb-ext, net-vpn-static, net-address, net-cloud-armor,
-# net-lb-proxy-int-cross-region and net-lb-app-int-cross-region. Each needs
+# net-lb-proxy-int-cross-region, net-lb-app-int-cross-region, compute-mig
+# and compute-mig-stateful (a second case of the compute-mig chart). Each needs
 # the runner's roles on its resources: the pilot's are catalog-live-tests',
 # artifact-registry needs roles/artifactregistry.admin, net-vpc-firewall
 # roles/compute.securityAdmin (cce-live-tests has both), net-lb-int,
@@ -33,7 +34,12 @@
 # and net-lb-app-int-cross-region roles/compute.networkAdmin (both have
 # it; net-address's case includes a PSC network attachment,
 # config-connector-extensions' ComputeNetworkAttachment), net-cloud-armor
-# roles/compute.securityAdmin (cce-live-tests). A chart whose case
+# roles/compute.securityAdmin (cce-live-tests), compute-mig and
+# compute-mig-stateful roles/compute.instanceAdmin.v1 and
+# roles/compute.networkAdmin (cce-live-tests; each makes one e2-micro VM,
+# a zonal managed instance group with config-connector-extensions'
+# ComputeAutoscaler or ComputePerInstanceConfig, and checks that Config
+# Connector leaves the group's size to them). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -89,6 +95,8 @@ ADDR_G="${RUN}-ga"
 ADDR_E="${RUN}-ea"
 NA="${RUN}-na"
 ARMOR="${RUN}-armor"
+MIG="${RUN}-mig"
+MIGS="${RUN}-migs"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
@@ -177,7 +185,19 @@ sweep_run() {
     "${G[@]}" compute networks subnets delete "$n" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet $n" || true
   done
   "${G[@]}" compute security-policies delete "${r}-armor" >/dev/null 2>&1 && echo "swept security policy ${r}-armor" || true
-  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net" "${r}-xilb-net" "${r}-xalb-net" "${r}-na-net"; do
+  # compute-mig and compute-mig-stateful: the autoscaler (gcloud has no
+  # autoscaler commands: the API), the groups (and their VMs), the health
+  # check, the templates and the subnets (the networks go below).
+  curl -sf -X DELETE -H "Authorization: Bearer $(gcloud auth print-access-token 2>/dev/null)" \
+    "https://compute.googleapis.com/compute/v1/projects/${PROJECT}/zones/${REGION}-a/autoscalers/${r}-mig" >/dev/null 2>&1 \
+    && echo "swept autoscaler ${r}-mig" && sleep 20 || true
+  for n in "${r}-mig" "${r}-migs"; do
+    "${G[@]}" compute instance-groups managed delete "$n" --zone "${REGION}-a" >/dev/null 2>&1 && echo "swept managed instance group $n" || true
+    "${G[@]}" compute instance-templates delete "${n}-tpl" >/dev/null 2>&1 && echo "swept instance template ${n}-tpl" || true
+    "${G[@]}" compute networks subnets delete "${n}-sn" --region "${REGION}" >/dev/null 2>&1 && echo "swept subnet ${n}-sn" || true
+  done
+  "${G[@]}" compute health-checks delete "${r}-mig" --global >/dev/null 2>&1 && echo "swept health check ${r}-mig" || true
+  for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net" "${r}-xilb-net" "${r}-xalb-net" "${r}-na-net" "${r}-mig-net" "${r}-migs-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
   "${G[@]}" compute addresses delete "${r}-ga" --global >/dev/null 2>&1 && echo "swept address ${r}-ga" || true
@@ -189,10 +209,11 @@ sweep_old() {
   cutoff="$(date -u -d '2 hours ago' +%m%d%H%M)"
   { "${G[@]}" iam service-accounts list --format='value(email)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-sa@.*/\1/p'
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
-    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\|xilb-net\|xalb-net\|na-net\)$/\1/p'
+    "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\|xilb-net\|xalb-net\|na-net\|mig-net\|migs-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
     "${G[@]}" compute addresses list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(ga\|ea\)$/\1/p'
     "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-armor$/\1/p'
+    "${G[@]}" compute instance-groups managed list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(mig\|migs\)$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
   done || true
@@ -218,6 +239,8 @@ list_left() {
   "${G[@]}" compute target-vpn-gateways list --format='value(name)' | grep -E '^cat-' || true
   "${G[@]}" compute addresses list --format='value(name)' | grep -E '^(vpn-)?cat-' || true
   "${G[@]}" compute security-policies list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
+  "${G[@]}" compute instance-templates list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
+  "${G[@]}" compute instances list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
 }
 cleanup() {
   [[ -n "${MANAGER_PID:-}" ]] && kill "${MANAGER_PID}" 2>/dev/null || true
@@ -659,6 +682,122 @@ VALUES
 sed -e 's/live-xilb-/live-xalb-/g' -e "s/${XILB}-/${XALB}-/g" -e 's#10\.252\.#10.253.#g' \
   "${OUT}/net-lb-proxy-int-cross-region.needs.yaml" >"${OUT}/net-lb-app-int-cross-region.needs.yaml"
 
+# compute-mig: a zonal group of one e2-micro VM (no external address, no
+# service account), held at one by config-connector-extensions'
+# ComputeAutoscaler (min = max = 1) with no target_size (so min_replicas),
+# the auto-created
+# TCP health check for auto-healing (a long initial delay: no firewall
+# rule admits the probes, so the VM would be recreated after it).
+# compute-mig-stateful: the same chart, a zonal group of target_size 1
+# and one named instance made by config-connector-extensions'
+# ComputePerInstanceConfig (its createInstances grows the group by one,
+# which Config Connector then resizes to the spec's size). mig_check,
+# below, reads what the group holds.
+cat >"${OUT}/compute-mig.values.yaml" <<VALUES
+project_id: ${PROJECT}
+location: ${REGION}-a
+name: ${MIG}
+description: catalog live test ${RUN}
+instance_template: projects/${PROJECT}/global/instanceTemplates/${MIG}-tpl
+named_ports: {ssh: 22}
+auto_healing_policies: {initial_delay_sec: 3600}
+health_check_config:
+  tcp: {port: 22}
+autoscaler_config:
+  min_replicas: 1
+  max_replicas: 1
+  scaling_signals:
+    cpu_utilization: {target: 0.9}
+VALUES
+cat >"${OUT}/compute-mig-stateful.values.yaml" <<VALUES
+project_id: ${PROJECT}
+location: ${REGION}-a
+name: ${MIGS}
+description: catalog live test ${RUN}
+instance_template: projects/${PROJECT}/global/instanceTemplates/${MIGS}-tpl
+target_size: 1
+update_policy: {minimal_action: NONE, type: OPPORTUNISTIC}
+stateful_config:
+  ${MIGS}-0:
+    minimal_action: NONE
+    most_disruptive_action: REPLACE
+    preserved_state:
+      metadata: {catalog-run: ${RUN}}
+VALUES
+# The network, subnet and template each case's group needs (live-mig- or
+# live-migs-).
+for c in mig migs; do
+  n="${RUN}-${c}"
+  cat >"${OUT}/compute-${c/migs/mig-stateful}.needs.yaml" <<NEEDS
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-${c}-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${n}-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-${c}-sn
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${n}-sn
+  region: ${REGION}
+  ipCidrRange: $([[ ${c} == mig ]] && echo 10.254.0.0/28 || echo 10.254.1.0/28)
+  networkRef: {name: live-${c}-net}
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceTemplate
+metadata:
+  name: live-${c}-tpl
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+  labels: {catalog-run: ${RUN}}
+spec:
+  resourceID: ${n}-tpl
+  description: catalog live test ${RUN}
+  machineType: e2-micro
+  disk:
+    - sourceImageRef: {external: projects/debian-cloud/global/images/family/debian-12}
+      boot: true
+      autoDelete: true
+      diskSizeGb: 10
+      diskType: pd-standard
+  networkInterface:
+    - networkRef: {name: live-${c}-net}
+      subnetworkRef: {name: live-${c}-sn}
+  shieldedInstanceConfig: {enableSecureBoot: true, enableVtpm: true, enableIntegrityMonitoring: true}
+NEEDS
+done
+
+# mig_check CHART GROUP [INSTANCE]: the group's size and VMs, once Config
+# Connector has made it and again after it has reconciled the group a
+# second time (a changed annotation), must be 1 and 1 (charts/gcp/compute-mig,
+# README.md, "The target size"), and the named INSTANCE, when given, must be
+# the one left. Appends a row to the summary; fails otherwise.
+mig_check() {
+  local chart="$1" group="$2" want="${3:-}" zone="${REGION}-a" s1 n1 s2 n2 vms ok=yes
+  "${G[@]}" compute instance-groups managed wait-until "${group}" --zone "${zone}" --stable --timeout 600 >/dev/null 2>&1 || true
+  s1="$("${G[@]}" compute instance-groups managed describe "${group}" --zone "${zone}" --format='value(targetSize)' 2>/dev/null || true)"
+  n1="$("${G[@]}" compute instance-groups managed list-instances "${group}" --zone "${zone}" --format='value(name)' 2>/dev/null | wc -l | tr -d ' ')"
+  kubectl annotate -n "${NS}" computeinstancegroupmanager.v1beta1.compute.cnrm.cloud.google.com/live \
+    "catalog-live/reconcile=$(date +%s)" --overwrite >/dev/null
+  sleep 120
+  "${G[@]}" compute instance-groups managed wait-until "${group}" --zone "${zone}" --stable --timeout 300 >/dev/null 2>&1 || true
+  s2="$("${G[@]}" compute instance-groups managed describe "${group}" --zone "${zone}" --format='value(targetSize)' 2>/dev/null || true)"
+  vms="$("${G[@]}" compute instance-groups managed list-instances "${group}" --zone "${zone}" --format='value(name)' 2>/dev/null | tr '\n' ' ')"
+  n2="$(wc -w <<<"${vms}" | tr -d ' ')"
+  [[ "${s1}" == 1 && "${n1}" == 1 && "${s2}" == 1 && "${n2}" == 1 ]] || ok=no
+  [[ -z "${want}" || " ${vms}" == *" ${want} "* ]] || ok=no
+  echo "   ${group}: targetSize ${s1} with ${n1} VMs; after a second reconcile ${s2} with ${n2} VMs (${vms% }) (want 1 and 1${want:+, ${want}}): ${ok}"
+  echo "| ${chart} | group size | ${ok} | | | targetSize ${s1}, ${n1} VMs; after a second reconcile ${s2}, ${n2} VMs: ${vms% } (want 1${want:+, ${want}}) |" >>"${summary}"
+  [[ "${ok}" == yes ]]
+}
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -672,6 +811,8 @@ failed=0
 for chart in ${LIVE_CHARTS}; do
   echo "== ${chart}"
   dir="charts/gcp/${chart}"
+  # A second case of one chart.
+  [[ "${chart}" == compute-mig-stateful ]] && dir=charts/gcp/compute-mig
   helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.rendered.yaml"
   # What the case needs and the chart does not make, applied and deleted with it.
   if [[ -f "${OUT}/${chart}.needs.yaml" ]]; then
@@ -695,6 +836,10 @@ for chart in ${LIVE_CHARTS}; do
     | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${chart}.live.json"
   bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}.live.json" "${dir}/values.yaml" "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.outputs.json" 2>&1 || failed=$((failed + 1))
   cat "${OUT}/${chart}.outputs.json"
+  case "${chart}" in
+    compute-mig) mig_check "${chart}" "${MIG}" || failed=$((failed + 1)) ;;
+    compute-mig-stateful) mig_check "${chart}" "${MIGS}" "${MIGS}-0" || failed=$((failed + 1)) ;;
+  esac
   kubectl delete -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" --wait=false >/dev/null
   # Config Connector's deletion defender runs as its own pod in a real
   # install; here the manager runs alone, so do the defender's part: remove
@@ -787,6 +932,17 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute instance-groups unmanaged describe "${XALB}-a" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute network-endpoint-groups describe "${XALB}-neg" --zone "${REGION2}-b" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks describe "${XALB}-net" >/dev/null 2>&1 && gone=no ;;
+    compute-mig|compute-mig-stateful)
+      gone=yes
+      [[ "${chart}" == compute-mig ]] && n="${MIG}" || n="${MIGS}"
+      "${G[@]}" compute instance-groups managed describe "${n}" --zone "${REGION}-a" >/dev/null 2>&1 && gone=no
+      curl -sf -H "Authorization: Bearer $(gcloud auth print-access-token 2>/dev/null)" \
+        "https://compute.googleapis.com/compute/v1/projects/${PROJECT}/zones/${REGION}-a/autoscalers/${n}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute health-checks describe "${n}" --global >/dev/null 2>&1 && gone=no
+      [[ -z "$("${G[@]}" compute instances list --filter="name~^${n}-" --format='value(name)' 2>/dev/null)" ]] || gone=no
+      "${G[@]}" compute instance-templates describe "${n}-tpl" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks subnets describe "${n}-sn" --region "${REGION}" >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute networks describe "${n}-net" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
