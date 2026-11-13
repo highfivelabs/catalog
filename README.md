@@ -127,14 +127,14 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ![All tracked modules](docs/coverage/total.svg)
 
-**177 modules tracked**: 5 ported, 51 partial, 83 blocked, 38 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
+**177 modules tracked**: 5 ported, 52 partial, 83 blocked, 37 not started. Green is ported, amber partial (some variables refused with a message that names the gap), dark grey blocked (a resource type of the module has no stable kind: none, or only an alpha one), light grey not started.
 
 | Source | Modules | Bar | Variables covered |
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 617 of 1478 (41.7%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 290 of 2348 (12.4%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 180 of 1170 (15.4%) |
-| **All** | **177** | | **1087 of 4996 (21.8%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 221 of 1170 (18.9%) |
+| **All** | **177** | | **1128 of 4996 (22.6%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -253,7 +253,7 @@ How much of the Terraform modules people use today the catalog carries, counted 
 
 ### Azure: Azure Verified Modules
 
-1 ported, 9 partial, 0 blocked, 27 not started.
+1 ported, 10 partial, 0 blocked, 26 not started.
 
 **Ported and partial**
 
@@ -269,8 +269,9 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-network-natgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-natgateway/tree/v0.3.2) ([chart](charts/azure/avm-res-network-natgateway)) | ![avm-res-network-natgateway](docs/coverage/bars/azure-avm-res-network-natgateway.svg) 17 of 18 | 2 of 3 | 4 | partial |
 | [`avm-res-network-privatednszone`](https://github.com/Azure/terraform-azurerm-avm-res-network-privatednszone/tree/v0.6.0) ([chart](charts/azure/avm-res-network-privatednszone)) | ![avm-res-network-privatednszone](docs/coverage/bars/azure-avm-res-network-privatednszone.svg) 16 of 19 | 11 of 12 | 12 | partial |
 | [`avm-res-network-publicipaddress`](https://github.com/Azure/terraform-azurerm-avm-res-network-publicipaddress/tree/v0.2.1) ([chart](charts/azure/avm-res-network-publicipaddress)) | ![avm-res-network-publicipaddress](docs/coverage/bars/azure-avm-res-network-publicipaddress.svg) 21 of 21 | 4 of 4 | 4 | ported |
+| [`avm-res-network-applicationgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway/tree/v0.6.0) ([chart](charts/azure/avm-res-network-applicationgateway)) | ![avm-res-network-applicationgateway](docs/coverage/bars/azure-avm-res-network-applicationgateway.svg) 41 of 50 | 10 of 11 | 4 | partial |
 
-**Not started (first 10 of 27, by rank)**
+**Not started (first 10 of 26, by rank)**
 
 | Module | Variables covered | Outputs | Resource types | Status |
 | --- | --- | ---: | ---: | --- |

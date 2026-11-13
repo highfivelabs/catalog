@@ -1,0 +1,602 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-network-applicationgateway main.tf,
+main.public_ip_addresses.tf, locals.tf, locals.appgateway_inputs.tf,
+locals.public_ip_addresses.tf, locals.child_reference_inputs.tf and
+locals.child_reference_resolution.tf (v0.6.0), Copyright (c) Microsoft
+Corporation, MIT.
+
+azapi_resource.this (Microsoft.Network/applicationGateways): one ASO
+ApplicationGateway (network.azure.com/v1api20220701, ASO's only version:
+ARM 2022-07-01, where the module sends 2025-03-01), owned by the resource
+group parent_id names, every component inline as ARM carries it. A
+component's internal reference (an *_key) becomes the gateway's ARM ID, the
+collection's segment and the component's configured name, as the module
+resolves it (_appgw.tpl). azapi_resource.public_ip_addresses: one ASO
+PublicIPAddress per public_ip_addresses entry, which a frontend with that
+public_ip_address_key references by Kubernetes name.
+azurerm_management_lock.this: an aso-extensions ManagementLock;
+azurerm_role_assignment.this: ASO RoleAssignments;
+azurerm_monitor_diagnostic_setting.this: ASO DiagnosticSettings. The
+telemetry is not ported. Refused (upstream.yaml): what ARM 2022-07-01
+lacks, the certificates (their data is a Kubernetes Secret in ASO), and the
+azapi provider's mechanics.
+*/ -}}
+{{- $v := .Values }}
+{{- $chart := .Chart.Name }}
+{{- include "aso.names" (list $ (list "applicationGateway")) }}
+{{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
+{{- if not (regexMatch "^[a-zA-Z0-9][a-zA-Z0-9\\-_.]{0,78}[a-zA-Z0-9_]$" $v.name) }}
+{{- fail (printf "%s: The name must be 2-80 characters, start and end with a letter or number, and contain only letters, numbers, hyphens, underscores, and periods." $chart) }}
+{{- end }}
+{{- if not $v.location }}{{ fail (printf "%s: location is required" $chart) }}{{ end }}
+{{- $later := "ASO's ApplicationGateway is at ARM 2022-07-01, which has no" }}
+{{- include "aso.unsupported" (list $ "entra_jwt_validation_configs" $v.entra_jwt_validation_configs (printf "%s entraJWTValidationConfigs (a later API version's)" $later)) }}
+{{- include "aso.unsupported" (list $ "ssl_certificates" $v.ssl_certificates "a certificate's data and password are secrets, and key_vault_secret_id is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled") }}
+{{- range $n := list "authentication_certificates" "trusted_client_certificates" }}
+{{- include "aso.unsupported" (list $ $n (index $v $n) "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled") }}
+{{- end }}
+{{- include "aso.unsupported" (list $ "trusted_root_certificates" $v.trusted_root_certificates "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference), and key_vault_secret_id is Key Vault secret material; how a component supplies either is not settled") }}
+{{- $ibc := $v.ignore_body_changes | default dict }}
+{{- include "aso.unsupported" (list $ "ignore_body_changes" (concat ($ibc.network_application_gateways | default list) ($ibc.network_public_ip_addresses | default list) (omit $ibc "network_application_gateways" "network_public_ip_addresses" | keys)) "ASO applies the whole spec it is given; it cannot leave a field to another writer") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "the API versions are the ASO kinds': ApplicationGateway 2022-07-01, PublicIPAddress 2025-03-01") }}
+{{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
+{{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- /* The module's precondition: no legacy ARM-style properties wrappers. */ -}}
+{{- $legacy := list }}
+{{- range $coll := list "backend_address_pools" "backend_http_settings_collection" "backend_settings_collection" "frontend_ip_configurations" "frontend_ports" "gateway_ip_configurations" "http_listeners" "listeners" "load_distribution_policies" "private_link_configurations" "probes" "redirect_configurations" "request_routing_rules" "rewrite_rule_sets" "routing_rules" "ssl_profiles" "url_path_maps" }}
+{{- range $i, $item := (index $v $coll | default list) }}
+{{- if and $item (not (kindIs "invalid" $item.properties)) }}{{ $legacy = append $legacy (printf "%s[%d].properties" $coll $i) }}{{ end }}
+{{- end }}
+{{- end }}
+{{- range $i, $p := ($v.load_distribution_policies | default list) }}{{ range $j, $t := (($p | default dict).load_distribution_targets | default list) }}
+{{- if and $t (not (kindIs "invalid" $t.properties)) }}{{ $legacy = append $legacy (printf "load_distribution_policies[%d].load_distribution_targets[%d].properties" $i $j) }}{{ end }}
+{{- end }}{{ end }}
+{{- range $i, $p := ($v.private_link_configurations | default list) }}{{ range $j, $t := (($p | default dict).ip_configurations | default list) }}
+{{- if and $t (not (kindIs "invalid" $t.properties)) }}{{ $legacy = append $legacy (printf "private_link_configurations[%d].ip_configurations[%d].properties" $i $j) }}{{ end }}
+{{- end }}{{ end }}
+{{- range $i, $p := ($v.url_path_maps | default list) }}{{ range $j, $t := (($p | default dict).path_rules | default list) }}
+{{- if and $t (not (kindIs "invalid" $t.properties)) }}{{ $legacy = append $legacy (printf "url_path_maps[%d].path_rules[%d].properties" $i $j) }}{{ end }}
+{{- end }}{{ end }}
+{{- with $legacy }}
+{{- fail (printf "%s: Legacy ARM-style properties wrappers are no longer accepted. Lift every field out of the wrapper and remove it. Invalid consumer paths: %s." $chart (join ", " .)) }}
+{{- end }}
+{{- /* Fields ARM 2022-07-01 lacks, refused by name. */ -}}
+{{- $gone := dict "backend_http_settings_collection" (list "dedicated_backend_connection" "sni_name" "validate_cert_chain_and_expiry" "validate_sni") "backend_settings_collection" (list "enable_l4_client_ip_preservation") "listeners" (list "host_names") "probes" (list "enable_probe_proxy_protocol_header") "request_routing_rules" (list "entra_jwt_validation_config") }}
+{{- range $coll, $fields := $gone }}
+{{- range $i, $item := (index $v $coll | default list) }}
+{{- range $f := $fields }}
+{{- if and $item (not (kindIs "invalid" (index $item $f))) }}
+{{- fail (printf "%s: %s[%d].%s is not supported: %s %s (docs/azure.md, \"Charts\")" $chart $coll $i $f $later (camelcase $f | untitle)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $i, $rs := ($v.rewrite_rule_sets | default list) }}{{ range $j, $rr := (($rs | default dict).rewrite_rules | default list) }}
+{{- range $side := list "request_header_configurations" "response_header_configurations" }}
+{{- range $k, $h := (index ((($rr | default dict).action_set) | default dict) $side | default list) }}
+{{- if and $h (not (kindIs "invalid" $h.header_value_matcher)) }}
+{{- fail (printf "%s: rewrite_rule_sets[%d].rewrite_rules[%d].action_set.%s[%d].header_value_matcher is not supported: %s headerValueMatcher (docs/azure.md, \"Charts\")" $chart $i $j $side $k $later) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}{{ end }}
+{{- range $i, $p := ($v.ssl_profiles | default list) }}
+{{- if and $p $p.client_auth_configuration (not (kindIs "invalid" $p.client_auth_configuration.verify_client_auth_mode)) }}
+{{- fail (printf "%s: ssl_profiles[%d].client_auth_configuration.verify_client_auth_mode is not supported: %s verifyClientAuthMode (docs/azure.md, \"Charts\")" $chart $i $later) }}
+{{- end }}
+{{- end }}
+{{- range $i, $p := ($v.load_distribution_policies | default list) }}{{ range $j, $t := (($p | default dict).load_distribution_targets | default list) }}
+{{- range $f := list "name" "backend_address_pool" "weight_per_server" }}
+{{- if and $t (not (kindIs "invalid" (index $t $f))) }}
+{{- fail (printf "%s: load_distribution_policies[%d].load_distribution_targets[%d].%s is not supported: ASO's ApplicationGateway (2022-07-01) takes a load distribution target only as a reference (id) (docs/azure.md, \"Charts\")" $chart $i $j $f) }}
+{{- end }}
+{{- end }}
+{{- end }}{{ end }}
+{{- range $i, $p := ($v.private_link_configurations | default list) }}{{ range $j, $t := (($p | default dict).ip_configurations | default list) }}
+{{- if and $t (not (kindIs "invalid" $t.id)) }}
+{{- fail (printf "%s: private_link_configurations[%d].ip_configurations[%d].id is not supported: ASO's ApplicationGateway (2022-07-01) has no id on an IP configuration; ARM derives it from the name (docs/azure.md, \"Charts\")" $chart $i $j) }}
+{{- end }}
+{{- end }}{{ end }}
+{{- range $i, $p := ($v.url_path_maps | default list) }}{{ range $j, $t := (($p | default dict).path_rules | default list) }}
+{{- if and $t (not (kindIs "invalid" $t.id)) }}
+{{- fail (printf "%s: url_path_maps[%d].path_rules[%d].id is not supported: ASO's ApplicationGateway (2022-07-01) has no id on a path rule; ARM derives it from the name (docs/azure.md, \"Charts\")" $chart $i $j) }}
+{{- end }}
+{{- end }}{{ end }}
+{{- $sku := $v.sku }}
+{{- if $sku }}
+{{- if not (kindIs "invalid" $sku.family) }}
+{{- fail (printf "%s: sku.family is not supported: %s sku family (docs/azure.md, \"Charts\")" $chart $later) }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $sku.name)) (not (has $sku.name (list "Standard_Large" "Standard_Medium" "Standard_Small" "Standard_v2" "WAF_Large" "WAF_Medium" "WAF_v2"))) }}
+{{- fail (printf "%s: sku.name %s is not supported: %s such SKU (it has Standard_Small, Standard_Medium, Standard_Large, Standard_v2, WAF_Medium, WAF_Large, WAF_v2) (docs/azure.md, \"Charts\")" $chart $sku.name $later) }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $sku.tier)) (not (has $sku.tier (list "Standard" "Standard_v2" "WAF" "WAF_v2"))) }}
+{{- fail (printf "%s: sku.tier %s is not supported: %s such tier (it has Standard, Standard_v2, WAF, WAF_v2) (docs/azure.md, \"Charts\")" $chart $sku.tier $later) }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $sku.capacity)) (or (lt (float64 $sku.capacity) 1.0) (gt (float64 $sku.capacity) 125.0)) }}
+{{- fail (printf "%s: When set, sku.capacity must be between 1 and 125. Omit sku.capacity when using autoscale_configuration." $chart) }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $sku.capacity)) $v.autoscale_configuration }}
+{{- fail (printf "%s: sku.capacity must be omitted when autoscale_configuration is set." $chart) }}
+{{- end }}
+{{- end }}
+{{- /* The public IPs the module makes, and its validations of them. */ -}}
+{{- $pips := $v.public_ip_addresses | default dict }}
+{{- $versions := list }}{{- $pipNames := list }}
+{{- range $k, $ip := $pips }}
+{{- if not $ip }}{{ fail (printf "%s: Each public_ip_addresses entry must be an object, not null." $chart) }}{{ end }}
+{{- if not (regexMatch "^[a-zA-Z0-9]([a-zA-Z0-9_.-]{0,78}[a-zA-Z0-9_])?$" (toString $ip.name)) }}
+{{- fail (printf "%s: Each public IP name must be 1-80 characters, start with an alphanumeric character, contain only alphanumeric characters, underscores, periods or hyphens, and end with an alphanumeric character or underscore." $chart) }}
+{{- end }}
+{{- $ver := $ip.ip_version | default "IPv4" }}
+{{- if not (has $ver (list "IPv4" "IPv6")) }}{{ fail (printf "%s: Each public_ip_addresses.ip_version must be IPv4 or IPv6." $chart) }}{{ end }}
+{{- if has $ver $versions }}{{ fail (printf "%s: Application Gateway supports at most one managed public IP per IP version." $chart) }}{{ end }}
+{{- $versions = append $versions $ver }}
+{{- $pn := lower (printf "%s/%s" ($ip.parent_id | default $v.parent_id) $ip.name) }}
+{{- if has $pn $pipNames }}{{ fail (printf "%s: Managed public IPs must have distinct Azure names within each resource group." $chart) }}{{ end }}
+{{- $pipNames = append $pipNames $pn }}
+{{- if and $ip.parent_id (not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+$" $ip.parent_id)) }}
+{{- fail (printf "%s: Each public_ip_addresses.parent_id must be a valid resource group resource ID." $chart) }}
+{{- end }}
+{{- if and $ip.public_ip_prefix_resource_id (not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.Network/publicIPPrefixes/[^/]+$" $ip.public_ip_prefix_resource_id)) }}
+{{- fail (printf "%s: Each public_ip_prefix_resource_id must be a valid public IP prefix resource ID." $chart) }}
+{{- end }}
+{{- if and $ip.ddos_protection_plan_resource_id (not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.Network/ddosProtectionPlans/[^/]+$" $ip.ddos_protection_plan_resource_id)) }}
+{{- fail (printf "%s: Each ddos_protection_plan_resource_id must be a valid DDoS protection plan resource ID." $chart) }}
+{{- end }}
+{{- $mode := $ip.ddos_protection_mode | default "VirtualNetworkInherited" }}
+{{- if not (has $mode (list "VirtualNetworkInherited" "Enabled" "Disabled")) }}{{ fail (printf "%s: Each ddos_protection_mode must be VirtualNetworkInherited, Enabled or Disabled." $chart) }}{{ end }}
+{{- if and $ip.ddos_protection_plan_resource_id (ne $mode "Enabled") }}{{ fail (printf "%s: A ddos_protection_plan_resource_id requires ddos_protection_mode = \"Enabled\"." $chart) }}{{ end }}
+{{- $idle := ternary 4.0 $ip.idle_timeout_in_minutes (kindIs "invalid" $ip.idle_timeout_in_minutes) }}
+{{- if or (lt (float64 $idle) 4.0) (gt (float64 $idle) 30.0) (ne (float64 $idle) (floor $idle | float64)) }}{{ fail (printf "%s: Each idle_timeout_in_minutes must be an integer between 4 and 30." $chart) }}{{ end }}
+{{- if not (kindIs "invalid" $ip.zones) }}
+{{- range $ip.zones }}{{ if not (has (toString .) (list "1" "2" "3")) }}{{ fail (printf "%s: Each public IP zones list must contain unique values from \"1\", \"2\" and \"3\", or be empty." $chart) }}{{ end }}{{ end }}
+{{- if ne (len (uniq $ip.zones)) (len $ip.zones) }}{{ fail (printf "%s: Each public IP zones list must contain unique values from \"1\", \"2\" and \"3\", or be empty." $chart) }}{{ end }}
+{{- if $ip.zones }}{{ range ($v.zones | default list) }}{{ if not (has (toString .) $ip.zones) }}{{ fail (printf "%s: An explicit non-empty public IP zones list must include all gateway zones." $chart) }}{{ end }}{{ end }}{{ end }}
+{{- end }}
+{{- if and $ip.reverse_fqdn (ne $ver "IPv4") }}{{ fail (printf "%s: reverse_fqdn is supported only for IPv4 public IP addresses." $chart) }}{{ end }}
+{{- range $t, $tag := ($ip.ip_tags | default dict) }}{{ if or (eq (trim $t) "") (eq (trim (toString $tag)) "") }}{{ fail (printf "%s: Public IP tag types and values must be non-empty strings." $chart) }}{{ end }}{{ end }}
+{{- end }}
+{{- /* The frontends' validations of public_ip_address_key. */ -}}
+{{- $usedKeys := list }}
+{{- range $f := ($v.frontend_ip_configurations | default list) }}
+{{- if and $f (not (kindIs "invalid" $f.public_ip_address_key)) }}
+{{- if not (hasKey $pips $f.public_ip_address_key) }}{{ fail (printf "%s: Each frontend public_ip_address_key must reference an existing key in public_ip_addresses." $chart) }}{{ end }}
+{{- if and $f.public_ip_address (not (kindIs "invalid" $f.public_ip_address.id)) }}{{ fail (printf "%s: A frontend cannot specify both public_ip_address_key and public_ip_address.id." $chart) }}{{ end }}
+{{- if or (not (kindIs "invalid" $f.private_ip_address)) (not (kindIs "invalid" $f.private_ip_allocation_method)) (not (kindIs "invalid" $f.subnet)) }}{{ fail (printf "%s: A managed public frontend cannot also specify a private IP address, private allocation method or subnet." $chart) }}{{ end }}
+{{- if or (kindIs "invalid" $f.name) (eq (trim (toString $f.name)) "") }}{{ fail (printf "%s: Each frontend using public_ip_address_key must have a non-empty name." $chart) }}{{ end }}
+{{- if has $f.public_ip_address_key $usedKeys }}{{ fail (printf "%s: Each managed public IP key may be attached to only one frontend configuration." $chart) }}{{ end }}
+{{- $usedKeys = append $usedKeys $f.public_ip_address_key }}
+{{- end }}
+{{- end }}
+{{- with $v.lock }}
+{{- if not (has .kind (list "CanNotDelete" "ReadOnly")) }}{{ fail (printf "%s: The lock level must be one of: 'None', 'CanNotDelete', or 'ReadOnly'." $chart) }}{{ end }}
+{{- end }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "appgw") }}
+{{- $gwName := include "aso.resourceName" (list $ "applicationGateway" "application gateway" $v.name 80 "^[a-zA-Z0-9][a-zA-Z0-9\\-_.]{0,78}[a-zA-Z0-9_]$") }}
+{{- $owner := include "aso.owner" (list $ "parent_id" $v.parent_id) | fromYaml }}
+{{- $gw := printf "%s/providers/Microsoft.Network/applicationGateways/%s" $v.parent_id $gwName }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- /* ref: (dict "items" <collection> "segment" <ARM segment> "key" <key attribute>) per target type */ -}}
+{{- $T := dict
+  "backend_address_pools" (dict "items" $v.backend_address_pools "segment" "backendAddressPools" "key" "backend_address_pool_key")
+  "backend_http_settings" (dict "items" $v.backend_http_settings_collection "segment" "backendHttpSettingsCollection" "key" "backend_http_settings_key")
+  "backend_settings" (dict "items" $v.backend_settings_collection "segment" "backendSettingsCollection" "key" "backend_settings_key")
+  "frontend_ip_configurations" (dict "items" $v.frontend_ip_configurations "segment" "frontendIPConfigurations" "key" "frontend_ip_configuration_key")
+  "frontend_ports" (dict "items" $v.frontend_ports "segment" "frontendPorts" "key" "frontend_port_key")
+  "http_listeners" (dict "items" $v.http_listeners "segment" "httpListeners" "key" "http_listener_key")
+  "listeners" (dict "items" $v.listeners "segment" "listeners" "key" "listener_key")
+  "load_distribution_policies" (dict "items" $v.load_distribution_policies "segment" "loadDistributionPolicies" "key" "load_distribution_policy_key")
+  "private_link_configurations" (dict "items" $v.private_link_configurations "segment" "privateLinkConfigurations" "key" "private_link_configuration_key")
+  "probes" (dict "items" $v.probes "segment" "probes" "key" "probe_key")
+  "redirect_configurations" (dict "items" $v.redirect_configurations "segment" "redirectConfigurations" "key" "redirect_configuration_key")
+  "request_routing_rules" (dict "items" $v.request_routing_rules "segment" "requestRoutingRules" "key" "request_routing_rule_key")
+  "rewrite_rule_sets" (dict "items" $v.rewrite_rule_sets "segment" "rewriteRuleSets" "key" "rewrite_rule_set_key")
+  "ssl_profiles" (dict "items" $v.ssl_profiles "segment" "sslProfiles" "key" "ssl_profile_key")
+  "url_path_maps" (dict "items" $v.url_path_maps "segment" "urlPathMaps" "key" "url_path_map_key")
+  "authentication_certificates" (dict "items" (list) "segment" "authenticationCertificates" "key" "authentication_certificate_key")
+  "ssl_certificates" (dict "items" (list) "segment" "sslCertificates" "key" "ssl_certificate_key")
+  "trusted_client_certificates" (dict "items" (list) "segment" "trustedClientCertificates" "key" "trusted_client_certificate_key")
+  "trusted_root_certificates" (dict "items" (list) "segment" "trustedRootCertificates" "key" "trusted_root_certificate_key")
+}}
+{{- /* resolve: (list $T target ref path) -> the reference, or nothing */ -}}
+{{- $spec := dict "azureName" $gwName "location" $v.location "owner" $owner }}
+{{- with $v.autoscale_configuration }}
+{{- $_ := set $spec "autoscaleConfiguration" (include "appgw.pick" (list . (list "min_capacity:minCapacity" "max_capacity:maxCapacity")) | fromJson) }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.backend_address_pools) }}
+{{- $l := list }}
+{{- range $item := $v.backend_address_pools }}
+{{- $o := include "appgw.pick" (list $item (list "name:name")) | fromJson }}
+{{- if not (kindIs "invalid" $item.backend_addresses) }}
+{{- $a := list }}
+{{- range $item.backend_addresses }}{{ $a = append $a (include "appgw.pick" (list . (list "fqdn:fqdn" "ip_address:ipAddress")) | fromJson) }}{{ end }}
+{{- $_ := set $o "backendAddresses" $a }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "backendAddressPools" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.backend_http_settings_collection) }}
+{{- $l := list }}
+{{- range $i, $item := $v.backend_http_settings_collection }}
+{{- $p := printf "backend_http_settings_collection[%d]" $i }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "affinity_cookie_name:affinityCookieName" "cookie_based_affinity:cookieBasedAffinity" "host_name:hostName" "path:path" "pick_host_name_from_backend_address:pickHostNameFromBackendAddress" "port:port" "probe_enabled:probeEnabled" "protocol:protocol" "request_timeout:requestTimeout")) | fromJson }}
+{{- with $item.connection_draining }}{{ $_ := set $o "connectionDraining" (include "appgw.pick" (list . (list "drain_timeout_in_sec:drainTimeoutInSec" "enabled:enabled")) | fromJson) }}{{ end }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $item.probe "path" (printf "%s.probe" $p)) $T.probes)) }}{{ $_ := set $o "probe" (fromJson .) }}{{ end }}
+{{- range $f := list (list "authentication_certificates" "authenticationCertificates" "authentication_certificates") (list "trusted_root_certificates" "trustedRootCertificates" "trusted_root_certificates") }}
+{{- $refs := index $item (index $f 0) }}
+{{- if not (kindIs "invalid" $refs) }}
+{{- $rl := list }}
+{{- range $j, $r := $refs }}{{ $rl = append $rl (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $r "path" (printf "%s.%s[%d]" $p (index $f 0) $j)) (index $T (index $f 2))) | fromJson) }}{{ end }}
+{{- $_ := set $o (index $f 1) $rl }}
+{{- end }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "backendHttpSettingsCollection" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.backend_settings_collection) }}
+{{- $l := list }}
+{{- range $i, $item := $v.backend_settings_collection }}
+{{- $p := printf "backend_settings_collection[%d]" $i }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "host_name:hostName" "pick_host_name_from_backend_address:pickHostNameFromBackendAddress" "port:port" "protocol:protocol" "timeout:timeout")) | fromJson }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $item.probe "path" (printf "%s.probe" $p)) $T.probes)) }}{{ $_ := set $o "probe" (fromJson .) }}{{ end }}
+{{- if not (kindIs "invalid" $item.trusted_root_certificates) }}
+{{- $rl := list }}
+{{- range $j, $r := $item.trusted_root_certificates }}{{ $rl = append $rl (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $r "path" (printf "%s.trusted_root_certificates[%d]" $p $j)) $T.trusted_root_certificates) | fromJson) }}{{ end }}
+{{- $_ := set $o "trustedRootCertificates" $rl }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "backendSettingsCollection" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.custom_error_configurations) }}
+{{- $l := list }}
+{{- range $v.custom_error_configurations }}{{ $l = append $l (include "appgw.pick" (list . (list "custom_error_page_url:customErrorPageUrl" "status_code:statusCode")) | fromJson) }}{{ end }}
+{{- $_ := set $spec "customErrorConfigurations" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.enable_fips) }}{{ $_ := set $spec "enableFips" $v.enable_fips }}{{ end }}
+{{- if not (kindIs "invalid" $v.enable_http2) }}{{ $_ := set $spec "enableHttp2" $v.enable_http2 }}{{ end }}
+{{- with (include "appgw.subId" $v.firewall_policy) }}{{ $_ := set $spec "firewallPolicy" (fromJson .) }}{{ end }}
+{{- if not (kindIs "invalid" $v.force_firewall_policy_association) }}{{ $_ := set $spec "forceFirewallPolicyAssociation" $v.force_firewall_policy_association }}{{ end }}
+{{- if not (kindIs "invalid" $v.frontend_ip_configurations) }}
+{{- $l := list }}
+{{- range $i, $item := $v.frontend_ip_configurations }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "private_ip_address:privateIPAddress" "private_ip_allocation_method:privateIPAllocationMethod")) | fromJson }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $item.private_link_configuration "path" (printf "frontend_ip_configurations[%d].private_link_configuration" $i)) $T.private_link_configurations)) }}{{ $_ := set $o "privateLinkConfiguration" (fromJson .) }}{{ end }}
+{{- if not (kindIs "invalid" $item.public_ip_address_key) }}
+{{- $_ := set $o "publicIPAddress" (dict "reference" (dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" (include "aso.name" (list $.Release.Name "pip" $item.public_ip_address_key)))) }}
+{{- else }}
+{{- with (include "appgw.subId" $item.public_ip_address) }}{{ $_ := set $o "publicIPAddress" (fromJson .) }}{{ end }}
+{{- end }}
+{{- with (include "appgw.subId" $item.subnet) }}{{ $_ := set $o "subnet" (fromJson .) }}{{ end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "frontendIPConfigurations" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.frontend_ports) }}
+{{- $l := list }}
+{{- range $v.frontend_ports }}{{ $l = append $l (include "appgw.pick" (list . (list "name:name" "port:port")) | fromJson) }}{{ end }}
+{{- $_ := set $spec "frontendPorts" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.gateway_ip_configurations) }}
+{{- $l := list }}
+{{- range $item := $v.gateway_ip_configurations }}
+{{- $o := include "appgw.pick" (list $item (list "name:name")) | fromJson }}
+{{- with (include "appgw.subId" $item.subnet) }}{{ $_ := set $o "subnet" (fromJson .) }}{{ end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "gatewayIPConfigurations" $l }}
+{{- end }}
+{{- with $v.global_configuration }}
+{{- $_ := set $spec "globalConfiguration" (include "appgw.pick" (list . (list "enable_request_buffering:enableRequestBuffering" "enable_response_buffering:enableResponseBuffering")) | fromJson) }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.http_listeners) }}
+{{- $l := list }}
+{{- range $i, $item := $v.http_listeners }}
+{{- $p := printf "http_listeners[%d]" $i }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "host_name:hostName" "host_names:hostNames" "protocol:protocol" "require_server_name_indication:requireServerNameIndication")) | fromJson }}
+{{- if not (kindIs "invalid" $item.custom_error_configurations) }}
+{{- $c := list }}
+{{- range $item.custom_error_configurations }}{{ $c = append $c (include "appgw.pick" (list . (list "custom_error_page_url:customErrorPageUrl" "status_code:statusCode")) | fromJson) }}{{ end }}
+{{- $_ := set $o "customErrorConfigurations" $c }}
+{{- end }}
+{{- with (include "appgw.subId" $item.firewall_policy) }}{{ $_ := set $o "firewallPolicy" (fromJson .) }}{{ end }}
+{{- range $f := list (list "frontend_ip_configuration" "frontendIPConfiguration" "frontend_ip_configurations") (list "frontend_port" "frontendPort" "frontend_ports") (list "ssl_certificate" "sslCertificate" "ssl_certificates") (list "ssl_profile" "sslProfile" "ssl_profiles") }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $item (index $f 0)) "path" (printf "%s.%s" $p (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $o (index $f 1) (fromJson .) }}{{ end }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "httpListeners" $l }}
+{{- end }}
+{{- with $v.managed_identities }}
+{{- $uai := uniq (.user_assigned_resource_ids | default list) | sortAlpha }}
+{{- if or (eq (toString .system_assigned) "true") $uai }}
+{{- $type := ternary (ternary "SystemAssigned, UserAssigned" "SystemAssigned" (gt (len $uai) 0)) "UserAssigned" (eq (toString .system_assigned) "true") }}
+{{- $id := dict "type" $type }}
+{{- with $uai }}
+{{- $refs := list }}
+{{- range . }}{{ $refs = append $refs (dict "reference" (dict "armId" .)) }}{{ end }}
+{{- $_ := set $id "userAssignedIdentities" $refs }}
+{{- end }}
+{{- $_ := set $spec "identity" $id }}
+{{- end }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.listeners) }}
+{{- $l := list }}
+{{- range $i, $item := $v.listeners }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "protocol:protocol")) | fromJson }}
+{{- range $f := list (list "frontend_ip_configuration" "frontendIPConfiguration" "frontend_ip_configurations") (list "frontend_port" "frontendPort" "frontend_ports") (list "ssl_certificate" "sslCertificate" "ssl_certificates") (list "ssl_profile" "sslProfile" "ssl_profiles") }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $item (index $f 0)) "path" (printf "listeners[%d].%s" $i (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $o (index $f 1) (fromJson .) }}{{ end }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "listeners" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.load_distribution_policies) }}
+{{- $l := list }}
+{{- range $item := $v.load_distribution_policies }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "load_distribution_algorithm:loadDistributionAlgorithm")) | fromJson }}
+{{- if not (kindIs "invalid" $item.load_distribution_targets) }}
+{{- $tl := list }}
+{{- range $item.load_distribution_targets }}{{ $tl = append $tl (include "appgw.subId" . | default "{}" | fromJson) }}{{ end }}
+{{- $_ := set $o "loadDistributionTargets" $tl }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "loadDistributionPolicies" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.private_link_configurations) }}
+{{- $l := list }}
+{{- range $item := $v.private_link_configurations }}
+{{- $o := include "appgw.pick" (list $item (list "name:name")) | fromJson }}
+{{- if not (kindIs "invalid" $item.ip_configurations) }}
+{{- $il := list }}
+{{- range $ic := $item.ip_configurations }}
+{{- $io := include "appgw.pick" (list $ic (list "name:name" "primary:primary" "private_ip_address:privateIPAddress" "private_ip_allocation_method:privateIPAllocationMethod")) | fromJson }}
+{{- with (include "appgw.subId" $ic.subnet) }}{{ $_ := set $io "subnet" (fromJson .) }}{{ end }}
+{{- $il = append $il $io }}
+{{- end }}
+{{- $_ := set $o "ipConfigurations" $il }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "privateLinkConfigurations" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.probes) }}
+{{- $l := list }}
+{{- range $item := $v.probes }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "host:host" "interval:interval" "min_servers:minServers" "path:path" "pick_host_name_from_backend_http_settings:pickHostNameFromBackendHttpSettings" "pick_host_name_from_backend_settings:pickHostNameFromBackendSettings" "port:port" "protocol:protocol" "timeout:timeout" "unhealthy_threshold:unhealthyThreshold")) | fromJson }}
+{{- with $item.match }}{{ $_ := set $o "match" (include "appgw.pick" (list . (list "body:body" "status_codes:statusCodes")) | fromJson) }}{{ end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "probes" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.redirect_configurations) }}
+{{- $l := list }}
+{{- range $i, $item := $v.redirect_configurations }}
+{{- $p := printf "redirect_configurations[%d]" $i }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "include_path:includePath" "include_query_string:includeQueryString" "redirect_type:redirectType" "target_url:targetUrl")) | fromJson }}
+{{- if not (kindIs "invalid" $item.path_rules) }}
+{{- $rl := list }}
+{{- range $j, $r := $item.path_rules }}{{ $rl = append $rl (include "appgw.pathRuleRef" (dict "chart" $chart "gw" $gw "maps" $v.url_path_maps "ref" $r "path" (printf "%s.path_rules[%d]" $p $j)) | default "{}" | fromJson) }}{{ end }}
+{{- $_ := set $o "pathRules" $rl }}
+{{- end }}
+{{- range $f := list (list "request_routing_rules" "requestRoutingRules") (list "url_path_maps" "urlPathMaps") }}
+{{- $refs := index $item (index $f 0) }}
+{{- if not (kindIs "invalid" $refs) }}
+{{- $rl := list }}
+{{- range $j, $r := $refs }}{{ $rl = append $rl (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $r "path" (printf "%s.%s[%d]" $p (index $f 0) $j)) (index $T (index $f 0))) | default "{}" | fromJson) }}{{ end }}
+{{- $_ := set $o (index $f 1) $rl }}
+{{- end }}
+{{- end }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $item.target_listener "path" (printf "%s.target_listener" $p)) $T.http_listeners)) }}{{ $_ := set $o "targetListener" (fromJson .) }}{{ end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "redirectConfigurations" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.request_routing_rules) }}
+{{- $l := list }}
+{{- range $i, $item := $v.request_routing_rules }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "priority:priority" "rule_type:ruleType")) | fromJson }}
+{{- range $f := list (list "backend_address_pool" "backendAddressPool" "backend_address_pools") (list "backend_http_settings" "backendHttpSettings" "backend_http_settings") (list "http_listener" "httpListener" "http_listeners") (list "load_distribution_policy" "loadDistributionPolicy" "load_distribution_policies") (list "redirect_configuration" "redirectConfiguration" "redirect_configurations") (list "rewrite_rule_set" "rewriteRuleSet" "rewrite_rule_sets") (list "url_path_map" "urlPathMap" "url_path_maps") }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $item (index $f 0)) "path" (printf "request_routing_rules[%d].%s" $i (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $o (index $f 1) (fromJson .) }}{{ end }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "requestRoutingRules" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.rewrite_rule_sets) }}
+{{- $l := list }}
+{{- range $item := $v.rewrite_rule_sets }}
+{{- $o := include "appgw.pick" (list $item (list "name:name")) | fromJson }}
+{{- if not (kindIs "invalid" $item.rewrite_rules) }}
+{{- $rl := list }}
+{{- range $rr := $item.rewrite_rules }}
+{{- $ro := include "appgw.pick" (list $rr (list "name:name" "rule_sequence:ruleSequence")) | fromJson }}
+{{- with $rr.action_set }}
+{{- $as := dict }}
+{{- range $f := list (list "request_header_configurations" "requestHeaderConfigurations") (list "response_header_configurations" "responseHeaderConfigurations") }}
+{{- $hs := index $rr.action_set (index $f 0) }}
+{{- if not (kindIs "invalid" $hs) }}
+{{- $hl := list }}
+{{- range $hs }}{{ $hl = append $hl (include "appgw.pick" (list . (list "header_name:headerName" "header_value:headerValue")) | fromJson) }}{{ end }}
+{{- $_ := set $as (index $f 1) $hl }}
+{{- end }}
+{{- end }}
+{{- with .url_configuration }}{{ $_ := set $as "urlConfiguration" (include "appgw.pick" (list . (list "modified_path:modifiedPath" "modified_query_string:modifiedQueryString" "reroute:reroute")) | fromJson) }}{{ end }}
+{{- $_ := set $ro "actionSet" $as }}
+{{- end }}
+{{- if not (kindIs "invalid" $rr.conditions) }}
+{{- $cl := list }}
+{{- range $rr.conditions }}{{ $cl = append $cl (include "appgw.pick" (list . (list "ignore_case:ignoreCase" "negate:negate" "pattern:pattern" "variable:variable")) | fromJson) }}{{ end }}
+{{- $_ := set $ro "conditions" $cl }}
+{{- end }}
+{{- $rl = append $rl $ro }}
+{{- end }}
+{{- $_ := set $o "rewriteRules" $rl }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "rewriteRuleSets" $l }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.routing_rules) }}
+{{- $l := list }}
+{{- range $i, $item := $v.routing_rules }}
+{{- $o := include "appgw.pick" (list $item (list "name:name" "priority:priority" "rule_type:ruleType")) | fromJson }}
+{{- range $f := list (list "backend_address_pool" "backendAddressPool" "backend_address_pools") (list "backend_settings" "backendSettings" "backend_settings") (list "listener" "listener" "listeners") }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $item (index $f 0)) "path" (printf "routing_rules[%d].%s" $i (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $o (index $f 1) (fromJson .) }}{{ end }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "routingRules" $l }}
+{{- end }}
+{{- with $sku }}
+{{- $_ := set $spec "sku" (include "appgw.pick" (list . (list "capacity:capacity" "name:name" "tier:tier")) | fromJson) }}
+{{- end }}
+{{- with $v.ssl_policy }}
+{{- $_ := set $spec "sslPolicy" (include "appgw.sslPolicy" . | fromJson) }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.ssl_profiles) }}
+{{- $l := list }}
+{{- range $i, $item := $v.ssl_profiles }}
+{{- $o := include "appgw.pick" (list $item (list "name:name")) | fromJson }}
+{{- with $item.client_auth_configuration }}{{ $_ := set $o "clientAuthConfiguration" (include "appgw.pick" (list . (list "verify_client_cert_issuer_dn:verifyClientCertIssuerDN" "verify_client_revocation:verifyClientRevocation")) | fromJson) }}{{ end }}
+{{- with $item.ssl_policy }}{{ $_ := set $o "sslPolicy" (include "appgw.sslPolicy" . | fromJson) }}{{ end }}
+{{- if not (kindIs "invalid" $item.trusted_client_certificates) }}
+{{- $rl := list }}
+{{- range $j, $r := $item.trusted_client_certificates }}{{ $rl = append $rl (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $r "path" (printf "ssl_profiles[%d].trusted_client_certificates[%d]" $i $j)) $T.trusted_client_certificates) | default "{}" | fromJson) }}{{ end }}
+{{- $_ := set $o "trustedClientCertificates" $rl }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "sslProfiles" $l }}
+{{- end }}
+{{- with $tags }}{{ $_ := set $spec "tags" . }}{{ end }}
+{{- if not (kindIs "invalid" $v.url_path_maps) }}
+{{- $l := list }}
+{{- range $i, $item := $v.url_path_maps }}
+{{- $p := printf "url_path_maps[%d]" $i }}
+{{- $o := include "appgw.pick" (list $item (list "name:name")) | fromJson }}
+{{- range $f := list (list "default_backend_address_pool" "defaultBackendAddressPool" "backend_address_pools") (list "default_backend_http_settings" "defaultBackendHttpSettings" "backend_http_settings") (list "default_load_distribution_policy" "defaultLoadDistributionPolicy" "load_distribution_policies") (list "default_redirect_configuration" "defaultRedirectConfiguration" "redirect_configurations") (list "default_rewrite_rule_set" "defaultRewriteRuleSet" "rewrite_rule_sets") }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $item (index $f 0)) "path" (printf "%s.%s" $p (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $o (index $f 1) (fromJson .) }}{{ end }}
+{{- end }}
+{{- if not (kindIs "invalid" $item.path_rules) }}
+{{- $rl := list }}
+{{- range $j, $pr := $item.path_rules }}
+{{- $ro := include "appgw.pick" (list $pr (list "name:name" "paths:paths")) | fromJson }}
+{{- with (include "appgw.subId" $pr.firewall_policy) }}{{ $_ := set $ro "firewallPolicy" (fromJson .) }}{{ end }}
+{{- range $f := list (list "backend_address_pool" "backendAddressPool" "backend_address_pools") (list "backend_http_settings" "backendHttpSettings" "backend_http_settings") (list "load_distribution_policy" "loadDistributionPolicy" "load_distribution_policies") (list "redirect_configuration" "redirectConfiguration" "redirect_configurations") (list "rewrite_rule_set" "rewriteRuleSet" "rewrite_rule_sets") }}
+{{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $pr (index $f 0)) "path" (printf "%s.path_rules[%d].%s" $p $j (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $ro (index $f 1) (fromJson .) }}{{ end }}
+{{- end }}
+{{- $rl = append $rl $ro }}
+{{- end }}
+{{- $_ := set $o "pathRules" $rl }}
+{{- end }}
+{{- $l = append $l $o }}
+{{- end }}
+{{- $_ := set $spec "urlPathMaps" $l }}
+{{- end }}
+{{- with $v.web_application_firewall_configuration }}
+{{- $w := include "appgw.pick" (list . (list "enabled:enabled" "file_upload_limit_in_mb:fileUploadLimitInMb" "firewall_mode:firewallMode" "max_request_body_size:maxRequestBodySize" "max_request_body_size_in_kb:maxRequestBodySizeInKb" "request_body_check:requestBodyCheck" "rule_set_type:ruleSetType" "rule_set_version:ruleSetVersion")) | fromJson }}
+{{- if not (kindIs "invalid" .disabled_rule_groups) }}
+{{- $dl := list }}
+{{- range .disabled_rule_groups }}{{ $dl = append $dl (include "appgw.pick" (list . (list "rule_group_name:ruleGroupName" "rules:rules")) | fromJson) }}{{ end }}
+{{- $_ := set $w "disabledRuleGroups" $dl }}
+{{- end }}
+{{- if not (kindIs "invalid" .exclusions) }}
+{{- $el := list }}
+{{- range .exclusions }}{{ $el = append $el (include "appgw.pick" (list . (list "match_variable:matchVariable" "selector:selector" "selector_match_operator:selectorMatchOperator")) | fromJson) }}{{ end }}
+{{- $_ := set $w "exclusions" $el }}
+{{- end }}
+{{- $_ := set $spec "webApplicationFirewallConfiguration" $w }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.zones) }}
+{{- $z := list }}{{ range $v.zones }}{{ $z = append $z (toString .) }}{{ end }}
+{{- $_ := set $spec "zones" $z }}
+{{- end }}
+---
+apiVersion: network.azure.com/v1api20220701
+kind: ApplicationGateway
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "application_gateway" "abandon" $abandon) | nindent 2 }}
+spec:
+  {{- toYaml $spec | nindent 2 }}
+{{- $gwOwner := dict "group" "network.azure.com" "kind" "ApplicationGateway" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq .kind "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $gwOwner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $rk, $r := ($v.role_assignments | default dict) }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $rk $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $gwOwner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $gwOwner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name)) }}
+{{- /* azapi_resource.public_ip_addresses: Standard, Regional, Static. */ -}}
+{{- range $k, $ip := $pips }}
+{{- $pobj := include "aso.name" (list $.Release.Name "pip" $k) }}
+{{- $ver := $ip.ip_version | default "IPv4" }}
+{{- $zones := list }}
+{{- if not (kindIs "invalid" $ip.zones) }}{{ range $ip.zones }}{{ $zones = append $zones (toString .) }}{{ end }}
+{{- else }}{{ range ($v.zones | default list) }}{{ $zones = append $zones (toString .) }}{{ end }}{{ end }}
+{{- $ptags := include "aso.tags" (list $ ($ip.tags | default dict)) | fromJson }}
+---
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $pobj "id" (printf "public_ip:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.cloudName" (list $ "public IP" $ip.name 80 false) | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ (printf "public_ip_addresses.%s.parent_id" $k) ($ip.parent_id | default $v.parent_id)) | nindent 4 }}
+  ddosSettings:
+    {{- with $ip.ddos_protection_plan_resource_id }}
+    ddosProtectionPlan:
+      reference:
+        armId: {{ . | quote }}
+    {{- end }}
+    protectionMode: {{ $ip.ddos_protection_mode | default "VirtualNetworkInherited" }}
+  {{- if or $ip.domain_name_label $ip.reverse_fqdn }}
+  dnsSettings:
+    {{- with $ip.domain_name_label }}
+    domainNameLabel: {{ . | quote }}
+    {{- end }}
+    {{- with $ip.reverse_fqdn }}
+    reverseFqdn: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  idleTimeoutInMinutes: {{ ternary 4 $ip.idle_timeout_in_minutes (kindIs "invalid" $ip.idle_timeout_in_minutes) | int }}
+  {{- with $ip.ip_tags }}
+  ipTags:
+    {{- range $tk, $t := . }}
+    - ipTagType: {{ $tk | quote }}
+      tag: {{ $t | quote }}
+    {{- end }}
+  {{- end }}
+  publicIPAddressVersion: {{ $ver }}
+  publicIPAllocationMethod: Static
+  {{- with $ip.public_ip_prefix_resource_id }}
+  publicIPPrefix:
+    reference:
+      armId: {{ . | quote }}
+  {{- end }}
+  sku:
+    name: Standard
+    tier: Regional
+  {{- with $zones }}
+  zones:
+    {{- toYaml (sortAlpha .) | nindent 4 }}
+  {{- end }}
+  {{- with $ptags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
