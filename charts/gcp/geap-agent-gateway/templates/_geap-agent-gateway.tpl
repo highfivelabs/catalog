@@ -37,3 +37,21 @@ which reach the cloud, as JSON. */}}
 {{- end -}}
 {{- toJson $out -}}
 {{- end -}}
+
+{{/* geapAgentGateway.principal: one principal of an access policy rule,
+fabric's IAM v1 prefixes turned into IAM v3 principals (user:,
+group:, serviceAccount:, allUsers); others unchanged. */}}
+{{- define "geapAgentGateway.principal" -}}
+{{- $p := toString . -}}
+{{- if hasPrefix "user:" $p -}}
+principal://goog/subject/{{ trimPrefix "user:" $p }}
+{{- else if hasPrefix "group:" $p -}}
+principalSet://goog/group/{{ trimPrefix "group:" $p }}
+{{- else if hasPrefix "serviceAccount:" $p -}}
+principal://iam.googleapis.com/projects/-/serviceAccounts/{{ trimPrefix "serviceAccount:" $p }}
+{{- else if eq $p "allUsers" -}}
+principalSet://goog/public:all
+{{- else -}}
+{{ $p }}
+{{- end -}}
+{{- end -}}

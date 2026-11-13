@@ -1,4 +1,60 @@
 ---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1beta1
+kind: IAMAccessPolicy
+metadata:
+  name: mock-access-policy-cat-mock-ap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.2.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "access_policy:cat-mock-ap"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "cat-mock-ap"
+  projectRef:
+    external: "mock-project"
+  location: global
+  details:
+    rules:
+      - effect: "ALLOW"
+        principals:
+          - "principalSet://goog/group/agents@example.com"
+        operation:
+          permissions:
+            - "iap.googleapis.com/resources.egressViaIAP"
+        conditions:
+          "iap.googleapis.com":
+            expression: "destination.is_registered == true && destination.agent_registry.location == 'us-central1'"
+---
+# Source: geap-agent-gateway/templates/access-policies.yaml
+apiVersion: iam.gcp.hfl.dev/v1alpha1
+kind: IAMPolicyBinding
+metadata:
+  name: mock-policy-binding-cat-mock-ap
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: geap-agent-gateway
+    app.kubernetes.io/version: "0.2.0"
+    env: "test"
+  annotations:
+    hfl.dev/id: "policy_binding:cat-mock-ap"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "cat-mock-ap"
+  projectRef:
+    external: "mock-project"
+  location: global
+  policyKind: ACCESS
+  policyRef:
+    name: mock-access-policy-cat-mock-ap
+  target:
+    resource: "//networkservices.googleapis.com/projects/mock-project/locations/us-central1/agentGateways/cat-mock-agw"
+---
 # Source: geap-agent-gateway/templates/connectivity-template.yaml
 apiVersion: networkservices.gcp.hfl.dev/v1alpha1
 kind: NetworkServicesAgentConnectivityTemplate
@@ -8,7 +64,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     env: "test"
   annotations:
     hfl.dev/id: "connectivity_template"
@@ -37,7 +93,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: geap-agent-gateway
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     env: "test"
   annotations:
     hfl.dev/id: "gateway"
