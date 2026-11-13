@@ -1,0 +1,108 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-operationalinsights-workspace
+main.tf and main.indexes.tf (v0.5.1), Copyright (c) Microsoft
+Corporation, MIT.
+
+azurerm_log_analytics_workspace.this, with azapi_update_resource.this
+(the SecuredByPerimeter access modes): one ASO Workspace
+(operationalinsights.azure.com/v20250701), owned by the resource group
+resource_group_name names. azurerm_management_lock.this: an aso-extensions
+ManagementLock, with the module's notes. azurerm_role_assignment.this: one
+ASO RoleAssignment each. azurerm_monitor_diagnostic_setting.this: one ASO
+DiagnosticSetting each, to this workspace when it names no destination, as
+the module does. The data exports, linked service, linked storage
+accounts, tables, Monitor Private Link Scope, network security perimeter
+association and private endpoints are refused; the telemetry is not
+ported.
+*/ -}}
+{{- $v := .Values }}
+{{- $n := "Microsoft.OperationalInsights/workspaces" }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_data_exports" $v.log_analytics_workspace_data_exports (printf "%s/dataExports has no ASO or aso-extensions kind" $n)) }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_dedicated_cluster_resource_id" $v.log_analytics_workspace_dedicated_cluster_resource_id (printf "the module links the cluster with %s/linkedServices, which has no ASO or aso-extensions kind" $n)) }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_linked_storage_accounts" $v.log_analytics_workspace_linked_storage_accounts (printf "%s/linkedStorageAccounts has no ASO or aso-extensions kind" $n)) }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_tables" $v.log_analytics_workspace_tables (printf "%s/tables has no ASO or aso-extensions kind" $n)) }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_tables_update" $v.log_analytics_workspace_tables_update (printf "%s/tables has no ASO or aso-extensions kind" $n)) }}
+{{- include "aso.unsupported" (list $ "monitor_private_link_scope" $v.monitor_private_link_scope "Microsoft.Insights/privateLinkScopes and their scopedResources have no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "monitor_private_link_scoped_resource" $v.monitor_private_link_scoped_resource "Microsoft.Insights/privateLinkScopes/scopedResources has no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "monitor_private_link_scoped_service_name" $v.monitor_private_link_scoped_service_name "Microsoft.Insights/privateLinkScopes/scopedResources has no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "network_security_perimeter_association" $v.network_security_perimeter_association "Microsoft.Network/networkSecurityPerimeters/resourceAssociations has no ASO or aso-extensions kind") }}
+{{- include "aso.unsupported" (list $ "private_endpoints" $v.private_endpoints "ASO has PrivateEndpoint; this chart does not map private endpoints yet") }}
+{{- include "aso.unsupported" (list $ "private_endpoint_extensions" $v.private_endpoint_extensions "this chart does not map private endpoints yet") }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace_timeouts" $v.log_analytics_workspace_timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- include "aso.names" (list $ (list "workspace")) }}
+{{- if not $v.name }}{{ fail "avm-res-operationalinsights-workspace: name is required" }}{{ end }}
+{{- $rg := toString $v.resource_group_name }}
+{{- $parent := "" }}
+{{- if hasPrefix "/" $rg }}
+{{- $parent = $rg }}
+{{- else if $v.subscription_id }}
+{{- $parent = printf "/subscriptions/%s/resourceGroups/%s" $v.subscription_id $rg }}
+{{- else }}
+{{- fail "avm-res-operationalinsights-workspace: resource_group_name is a name: set subscription_id too (ASO's owner is the group's resource ID), or give resource_group_name as /subscriptions/<id>/resourceGroups/<name>" }}
+{{- end }}
+{{- $access := dict "true" "Enabled" "false" "Disabled" "SecuredByPerimeter" "SecuredByPerimeter" }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $obj := include "aso.name" (list .Release.Name "law") }}
+{{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+---
+apiVersion: operationalinsights.azure.com/v20250701
+kind: Workspace
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "workspace" "abandon" $abandon) | nindent 2 }}
+spec:
+  azureName: {{ include "aso.resourceName" (list $ "workspace" "Log Analytics workspace" $v.name 63 "^[A-Za-z0-9][A-Za-z0-9-]{2,61}[A-Za-z0-9]$") | quote }}
+  location: {{ $v.location | quote }}
+  owner:
+    {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  features:
+    disableLocalAuth: {{ eq $v.log_analytics_workspace_local_authentication_enabled false }}
+    {{- if not (kindIs "invalid" $v.log_analytics_workspace_allow_resource_only_permissions) }}
+    enableLogAccessUsingOnlyResourcePermissions: {{ $v.log_analytics_workspace_allow_resource_only_permissions }}
+    {{- end }}
+  {{- if not (kindIs "invalid" $v.log_analytics_workspace_cmk_for_query_forced) }}
+  forceCmkForQuery: {{ $v.log_analytics_workspace_cmk_for_query_forced }}
+  {{- end }}
+  {{- with $v.log_analytics_workspace_identity }}
+  identity:
+    type: {{ .type }}
+    {{- with .identity_ids }}
+    userAssignedIdentities:
+      {{- range (uniq . | sortAlpha) }}
+      - reference:
+          armId: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  publicNetworkAccessForIngestion: {{ get $access (toString $v.log_analytics_workspace_internet_ingestion_enabled) }}
+  publicNetworkAccessForQuery: {{ get $access (toString $v.log_analytics_workspace_internet_query_enabled) }}
+  {{- if not (kindIs "invalid" $v.log_analytics_workspace_retention_in_days) }}
+  retentionInDays: {{ $v.log_analytics_workspace_retention_in_days | int }}
+  {{- end }}
+  sku:
+    name: {{ $v.log_analytics_workspace_sku | default "PerGB2018" }}
+    {{- if not (kindIs "invalid" $v.log_analytics_workspace_reservation_capacity_in_gb_per_day) }}
+    capacityReservationLevel: {{ $v.log_analytics_workspace_reservation_capacity_in_gb_per_day | int }}
+    {{- end }}
+  {{- if not (kindIs "invalid" $v.log_analytics_workspace_daily_quota_gb) }}
+  workspaceCapping:
+    dailyQuotaGb: {{ $v.log_analytics_workspace_daily_quota_gb }}
+  {{- end }}
+  {{- with $tags }}
+  tags:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- $owner := dict "group" "operationalinsights.azure.com" "kind" "Workspace" "name" $obj }}
+{{- with $v.lock }}
+{{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- end }}
+{{- $ras := dict }}
+{{- range $k, $r := $v.role_assignments }}
+{{- $r2 := deepCopy $r }}
+{{- if and (kindIs "invalid" $r.principal_type) $r.skip_service_principal_aad_check }}{{ $_ := set $r2 "principal_type" "ServicePrincipal" }}{{ end }}
+{{- $_ := set $ras $k $r2 }}
+{{- end }}
+{{- include "aso.roleAssignments" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $ras) }}
+{{- include "aso.diagnosticSettings" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" $v.diagnostic_settings "defaultName" (printf "diag-%s" $v.name) "dedicatedNull" true "selfWorkspace" $owner) }}

@@ -31,6 +31,13 @@ vars:
   # each copied CRD comes from.
   ACKX_COMMIT: 74d322ff304f19badbc121e0d8769dc28e416342
   ACKX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/ackx-{{.ACKX_COMMIT | trunc 8}}.tar.gz'
+  # aso-extensions at this commit supplies the Azure fake cloud (cmd/fakearm,
+  # cmd/fakeentra) and the manager the fake-cloud and live runs install
+  # beside ASO (cmd/manager; docs/azure.md, "8. Charts").
+  ASOX_COMMIT: b9beb5baec80cb1723f00bbe88fc0d0d8348bc3c
+  # The aso-extensions checkout (beside this repository's main clone).
+  ASOX_REPO: '{{.ASOX_REPO | default "../aso-extensions"}}'
+  ASOX_TARBALL: '{{.OFFLOAD_BUCKET}}/catalog-inputs/asox-{{.ASOX_COMMIT | trunc 8}}.tar.gz'
 
 tasks:
   default:
@@ -192,6 +199,22 @@ tasks:
     cmds:
       - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env ACKX_TARBALL={{.ACKX_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/mock-apply-aws.sh'
 
+  asox-snapshot:
+    desc: Upload aso-extensions at ASOX_COMMIT for the Azure fake-cloud run
+    preconditions:
+      - sh: test -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set OFFLOAD_BUCKET (the offload bucket, gs://...; see .env.example)'
+    status:
+      - gcloud storage ls {{.ASOX_TARBALL}}
+    cmds:
+      - bash -c 'set -o pipefail; git -C {{.ASOX_REPO}} archive --format=tar.gz {{.ASOX_COMMIT}} | gcloud storage cp --quiet - {{.ASOX_TARBALL}}'
+
+  test-mock-azure:
+    desc: Apply each Azure chart's tests/mock.values.yaml to aso-extensions' fake cloud (fakearm, fakeentra) with stock Azure Service Operator on an offload VM (MOCK_CHARTS="avm-res-network-routetable ..." for some)
+    deps: [asox-snapshot]
+    cmds:
+      - '{{.OFFLOAD}} run --machine e2-standard-8 --hours 2 -- env ASOX_TARBALL={{.ASOX_TARBALL}} MOCK_CHARTS="{{.MOCK_CHARTS}}" hack/azure-mock.sh'
+
   offramp-test:
     desc: gofmt, vet and the Go tests of the Terraform offramp's converter (offramp/), the equivalence of each fixture's module calls with their charts included (FIXTURES=dir of root modules, default offramp/fixtures)
     dir: offramp
@@ -233,12 +256,12 @@ tasks:
       - '{{.OFFLOAD}} run --sa {{.LIVE_SA}} --machine e2-standard-8 --hours 2 -- env PROJECT={{.LIVE_PROJECT}} GCP_PROJECT={{.GCP_PROJECT}} HFL_GCP_TEST_PROJECT={{.HFL_GCP_TEST_PROJECT}} CCE_TARBALL={{.CCE_TARBALL}} LIVE_CHARTS="{{.LIVE_CHARTS}}" hack/live-apply.sh'
 
   test-live-azure:
-    desc: "Apply the Azure charts (virtual network, storage account, key vault, network security group, route table, NAT gateway, public IP, bastion host; AZURE_LIVE_CASES picks some) to the Azure sandbox's resource group {{.AZURE_LIVE_RESOURCE_GROUP}} with Azure Service Operator on kind, on an offload VM acting as {{.AZURE_LIVE_SA}} (keyless federation); tiny resources, deleted straight after"
+    desc: "Apply the Azure charts (virtual network, storage account, key vault, network security group, route table, NAT gateway, public IP, private DNS zone, managed identity, Log Analytics workspace, container registry, firewall policy, load balancer, bastion host; AZURE_LIVE_CASES picks some) to the Azure sandbox's resource group {{.AZURE_LIVE_RESOURCE_GROUP}} with Azure Service Operator on kind, on an offload VM acting as {{.AZURE_LIVE_SA}} (keyless federation); tiny resources, deleted straight after"
     preconditions:
-      - sh: test -n "{{.AZURE_LIVE_SA}}" -a -n "{{.AZURE_SUBSCRIPTION_ID}}" -a -n "{{.AZURE_TENANT_ID}}" -a -n "{{.AZURE_CLIENT_ID}}" -a -n "{{.AZURE_LIVE_RESOURCE_GROUP}}"
-        msg: 'set AZURE_LIVE_SA, AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID and AZURE_LIVE_RESOURCE_GROUP (see .env.example)'
+      - sh: test -n "{{.AZURE_LIVE_SA}}" -a -n "{{.AZURE_SUBSCRIPTION_ID}}" -a -n "{{.AZURE_TENANT_ID}}" -a -n "{{.AZURE_CLIENT_ID}}" -a -n "{{.AZURE_LIVE_RESOURCE_GROUP}}" -a -n "{{.OFFLOAD_BUCKET}}"
+        msg: 'set AZURE_LIVE_SA, AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_LIVE_RESOURCE_GROUP and OFFLOAD_BUCKET (the aso-extensions snapshot, task asox-snapshot; see .env.example)'
     cmds:
-      - '{{.OFFLOAD}} run --sa {{.AZURE_LIVE_SA}} --machine e2-standard-8 --hours 2 -- env AZURE_SUBSCRIPTION_ID={{.AZURE_SUBSCRIPTION_ID}} AZURE_TENANT_ID={{.AZURE_TENANT_ID}} AZURE_CLIENT_ID={{.AZURE_CLIENT_ID}} AZURE_LIVE_RESOURCE_GROUP={{.AZURE_LIVE_RESOURCE_GROUP}} AZURE_LIVE_CASES="{{.AZURE_LIVE_CASES}}" hack/azure-live.sh'
+      - '{{.OFFLOAD}} run --sa {{.AZURE_LIVE_SA}} --machine e2-standard-8 --hours 2 -- env AZURE_SUBSCRIPTION_ID={{.AZURE_SUBSCRIPTION_ID}} AZURE_TENANT_ID={{.AZURE_TENANT_ID}} AZURE_CLIENT_ID={{.AZURE_CLIENT_ID}} AZURE_LIVE_RESOURCE_GROUP={{.AZURE_LIVE_RESOURCE_GROUP}} AZURE_LIVE_CASES="{{.AZURE_LIVE_CASES}}" ASOX_TARBALL={{.ASOX_TARBALL}} hack/azure-live.sh'
 
   test-live-gke:
     desc: Apply gke-cluster to real Google Cloud once per mode (a zonal Standard cluster with one Spot node, an Autopilot cluster), wait for Ready, delete, check gcloud no longer lists them; on an offload VM acting as cce-live-tests (needs roles/container.clusterAdmin and the Kubernetes Engine API in {{.LIVE_PROJECT}})

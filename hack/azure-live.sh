@@ -6,10 +6,17 @@
 # avm-res-storage-storageaccount, avm-res-keyvault-vault,
 # avm-res-network-networksecuritygroup, avm-res-network-routetable,
 # avm-res-network-natgateway, avm-res-network-publicipaddress,
-# avm-res-network-bastionhost) to the Azure
+# avm-res-network-privatednszone,
+# avm-res-managedidentity-userassignedidentity,
+# avm-res-operationalinsights-workspace, avm-res-containerregistry-registry,
+# avm-res-network-firewallpolicy,
+# avm-res-network-loadbalancer,
+# avm-res-network-bastionhost)
+# to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
-# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip bas)
+# AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
+# uai law acr fwp lb bas)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -17,15 +24,20 @@
 #
 #   ../scripts/offload/offload run --sa "$AZURE_LIVE_SA" --hours 2 -- \
 #     env AZURE_SUBSCRIPTION_ID=... AZURE_TENANT_ID=... AZURE_CLIENT_ID=... \
-#     AZURE_LIVE_RESOURCE_GROUP=... hack/azure-live.sh
+#     AZURE_LIVE_RESOURCE_GROUP=... ASOX_TARBALL=gs://.../asox-<commit>.tar.gz \
+#     hack/azure-live.sh
 #
 # How: a kind cluster runs Azure Service Operator v2.22.0 from its own Helm
 # chart (with cert-manager for its webhooks, which convert between CRD
 # versions), its credential the Google ID token of the VM's service
 # account, which Entra exchanges for the sandbox identity (workload
 # identity: the token file, refreshed every 20 minutes, is mounted where
-# ASO reads it). The identity is Contributor on one resource group, so the
-# resource group chart and the aso-extensions lock are not applied here.
+# ASO reads it). Beside ASO, aso-extensions' manager (hack/asox-manager.sh,
+# from ASOX_TARBALL or ASOX_DIR) reconciles the charts' aso-extensions kinds
+# with the same token. The identity is Contributor on one resource group,
+# so the resource group chart (subscription scope) and the lock (writing
+# Microsoft.Authorization/locks needs Owner or User Access Administrator)
+# are not applied here.
 #
 # Rules: one resource group (AZURE_LIVE_RESOURCE_GROUP); every name starts
 # with this run's ID (cat<month day hour minute><4 hex>) and every resource
@@ -46,7 +58,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip bas}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -111,6 +123,10 @@ cleanup() {
   rm -rf "${WORK}"
 }
 trap cleanup EXIT
+# shellcheck source=hack/asox-manager.sh
+source "${ROOT}/hack/asox-manager.sh"
+asox_fetch "${WORK}"
+asox_build_manager "${WORK}"
 arm_token >/dev/null || { echo "azure-live: Entra refused the federated token" >&2; exit 1; }
 echo "== Entra issued a Resource Manager token for ${AZURE_CLIENT_ID}"
 
@@ -136,7 +152,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern='network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*' \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -151,10 +167,24 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     storageaccountsblobservicescontainers.storage.azure.com storageaccountsqueueservicesqueues.storage.azure.com vaults.keyvault.azure.com \
     networksecuritygroups.network.azure.com networksecuritygroupssecurityrules.network.azure.com routetables.network.azure.com \
     routetablesroutes.network.azure.com natgateways.network.azure.com publicipaddresses.network.azure.com \
+    privatednszones.network.azure.com privatednszonesarecords.network.azure.com privatednszonestxtrecords.network.azure.com \
+    privatednszonesvirtualnetworklinks.network.azure.com userassignedidentities.managedidentity.azure.com \
+    federatedidentitycredentials.managedidentity.azure.com workspaces.operationalinsights.azure.com \
+    registries.containerregistry.azure.com registrycacherules.containerregistry.azure.com \
+    firewallpolicies.network.azure.com firewallpoliciesrulecollectiongroups.network.azure.com \
+    loadbalancers.network.azure.com \
     bastionhosts.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
+echo "== aso-extensions' manager beside ASO, from ${ASOX_TARBALL:-${ASOX_DIR}}"
+# Its token where ASO's credential reads it: the node's directory holding
+# the Google ID token, as ASO's.
+asox_install_manager "${CLUSTER}" '{
+  "spec": {"template": {"spec": {
+    "volumes": [{"name": "azure-identity", "hostPath": {"path": "/azure-tokens", "type": "Directory"}}],
+    "containers": [{"name": "manager",
+      "volumeMounts": [{"name": "azure-identity", "mountPath": "/var/run/secrets/tokens", "readOnly": true}]}]}}}}'
 kubectl create namespace "${NS}" >/dev/null
 (cd tools && go build -o "${ROOT}/bin/catalogtool" ./catalogtool)
 
@@ -229,6 +259,102 @@ location: ${LOCATION}
 resource_group_name: ${RG}
 tags: {catalog-run: ${RUN}}
 EOF
+# A zone named for the run, with an A and a TXT record and no link (a
+# link needs a network of the run; the network chart is its own case).
+cat >"${WORK}/dns.yaml" <<EOF
+domain_name: ${RUN}.catalog.internal
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+a_records:
+  app: {name: app, ttl: 60, ip_addresses: [10.250.0.10]}
+txt_records:
+  owner: {name: "@", ttl: 60, records: {a: {value: [catalog-run=${RUN}]}}}
+EOF
+# An identity with a federated credential; no outbound role assignment
+# (the live identity may not assign roles).
+cat >"${WORK}/uai.yaml" <<EOF
+name: ${RUN}-uai
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+tags: {catalog-run: ${RUN}}
+federated_identity_credentials:
+  gh: {name: gh-main, audience: [api://AzureADTokenExchange], issuer: https://token.actions.githubusercontent.com, subject: "repo:highfivelabs/catalog:ref:refs/heads/main"}
+EOF
+# A workspace at the smallest retention its SKU takes, with a diagnostic
+# setting to itself (the module's default destination).
+cat >"${WORK}/law.yaml" <<EOF
+name: ${RUN}-law
+location: ${LOCATION}
+resource_group_name: ${RG}
+log_analytics_workspace_retention_in_days: 30
+tags: {catalog-run: ${RUN}}
+diagnostic_settings:
+  self: {log_groups: [audit], metric_categories: []}
+EOF
+# A Basic registry (the cheapest; no zone redundancy below Premium) with a
+# cache rule for an anonymous MCR image (Docker Hub needs credentials). Its
+# name is letters and digits.
+cat >"${WORK}/acr.yaml" <<EOF
+name: ${RUN}acr
+location: ${LOCATION}
+resource_group_name: ${RG}
+sku: Basic
+zone_redundancy_enabled: false
+tags: {catalog-run: ${RUN}}
+cache_rules:
+  mcr: {name: mcr-busybox, source_repository: mcr.microsoft.com/azurelinux/busybox, target_repository: cache/busybox}
+EOF
+# A Basic policy (the cheapest tier) with one rule collection group: a
+# network rule collection and an application rule collection.
+cat >"${WORK}/fwp.yaml" <<EOF
+name: ${RUN}-fwp
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+firewall_policy_sku: Basic
+firewall_policy_threat_intelligence_mode: Alert
+tags: {catalog-run: ${RUN}}
+rule_collection_groups:
+  core:
+    name: rcg-core
+    priority: 200
+    network_rule_collection:
+      - name: dns
+        priority: 400
+        action: Allow
+        rule:
+          - {name: dns, protocols: [UDP, TCP], source_addresses: [10.250.0.0/24], destination_addresses: [168.63.129.16], destination_ports: ["53"]}
+    application_rule_collection:
+      - name: web
+        priority: 500
+        action: Allow
+        rule:
+          - {name: microsoft, source_addresses: [10.250.0.0/24], destination_fqdns: ["*.microsoft.com"], protocols: [{type: Https, port: 443}]}
+EOF
+# A public Standard load balancer with a regional (zoneless) public IP the
+# chart makes: a pool, a TCP probe, a rule, a NAT rule and an outbound rule
+# on the one frontend (the rule leaves outbound SNAT to the outbound rule).
+# No backends: nothing is reachable, and an empty pool costs nothing more.
+cat >"${WORK}/lb.yaml" <<EOF
+name: ${RUN}-lb
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+tags: {catalog-run: ${RUN}}
+frontend_ip_configurations:
+  pub: {name: fe-public, create_public_ip_address: true, public_ip_address_resource_name: ${RUN}-lb-pip, zones: [None]}
+backend_address_pools:
+  web: {name: be-web}
+lb_probes:
+  tcp: {name: probe-tcp, protocol: Tcp, port: 80}
+lb_rules:
+  http: {name: rule-http, frontend_ip_configuration_name: fe-public, backend_address_pool_object_names: [web], frontend_port: 80, backend_port: 80, probe_object_name: tcp, disable_outbound_snat: true}
+lb_nat_rules:
+  ssh: {name: nat-ssh, frontend_ip_configuration_name: fe-public, protocol: Tcp, frontend_port: 2222, backend_port: 22}
+lb_outbound_rules:
+  out: {name: outbound-web, frontend_ip_configurations: [{name: fe-public}], backend_address_pool_object_name: web}
+EOF
 # A Basic bastion host with the zoneless public IP it makes, in an
 # AzureBastionSubnet (/26, Azure's smallest for it) of a network of the run
 # that the case also applies (CASE.network.yaml: the network chart's
@@ -258,7 +384,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); run ${RUN}; Azure Service Operator v${ASO_VERSION} on kind; one resource group of the sandbox subscription."
+  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); run ${RUN}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager (${ASOX_TARBALL:-${ASOX_DIR}}) on kind; one resource group of the sandbox subscription."
   echo
   echo "| Chart | Object | Ready | Deleted | Gone from Azure | Message |"
   echo "| --- | --- | --- | --- | --- | --- |"
@@ -267,7 +393,11 @@ summary="${OUT}/summary.md"
 total=0; failed=0
 for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageaccount kv:avm-res-keyvault-vault \
     nsg:avm-res-network-networksecuritygroup rt:avm-res-network-routetable natgw:avm-res-network-natgateway \
-    pip:avm-res-network-publicipaddress bas:avm-res-network-bastionhost; do
+    pip:avm-res-network-publicipaddress dns:avm-res-network-privatednszone \
+    uai:avm-res-managedidentity-userassignedidentity law:avm-res-operationalinsights-workspace \
+    acr:avm-res-containerregistry-registry fwp:avm-res-network-firewallpolicy \
+    lb:avm-res-network-loadbalancer \
+    bas:avm-res-network-bastionhost; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -310,7 +440,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     if kubectl get -n "${NS}" "${o}" >/dev/null 2>&1; then deleted=no; else deleted=yes; fi
     gone=n/a
     if [[ -n "${armid[$o]}" ]]; then
-      ns="$(cut -d/ -f7 <<<"${armid[$o]}")"; rtype="$(cut -d/ -f8 <<<"${armid[$o]}")"
+      # The provider and type after the last /providers/: an extension
+      # resource (a diagnostic setting) is its own type, not its parent's.
+      tail="${armid[$o]##*/providers/}"; ns="${tail%%/*}"; rest="${tail#*/}"; rtype="${rest%%/*}"
       v="$(api "${ARM}/subscriptions/${AZURE_SUBSCRIPTION_ID}/providers/${ns}?api-version=2021-04-01" \
         | jq -r --arg t "${rtype}" '.resourceTypes[] | select((.resourceType|ascii_downcase) == ($t|ascii_downcase)) | .apiVersions | map(select(test("preview")|not)) | .[0] // empty')"
       code="$(api -o /dev/null -w '%{http_code}' "${ARM}${armid[$o]}?api-version=${v}")"
@@ -326,6 +458,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
 done
 
 kubectl -n azureserviceoperator-system logs deployment/azureserviceoperator-controller-manager --tail=-1 >"${OUT}/aso.log" 2>&1 || true
+asox_manager_logs "${OUT}/asox-manager.log"
 {
   echo
   echo "${total} objects; ${failed} failures (an object not Ready, not deleted or still in Azure, or a chart's outputs not evaluated)."
