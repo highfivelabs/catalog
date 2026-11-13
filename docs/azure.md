@@ -792,6 +792,12 @@ perimeter association map to aso-extensions kinds
 scope's `exclusions` stay refused: the module updates a scope it does not
 own, after reading its access modes.
 
+The storage account's `local_user` maps to aso-extensions'
+`StorageAccountsLocalUser` (`storage.azure.hfl.dev/v20260601`, its CRD
+copied in `crds/aso-extensions`); a local user's `ssh_password_enabled`
+stays refused (Azure generates the password and returns it once, the
+builder's decision).
+
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
 (`reference.armId`), so stored access policies cannot be given
