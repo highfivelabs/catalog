@@ -19,16 +19,17 @@
 # avm-res-cognitiveservices-account,
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
-# avm-res-network-azurefirewall)
+# avm-res-network-azurefirewall,
+# avm-res-network-dnsresolver)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw dnspr)
 # applies only those; the default is all but cog, vm and asp (asp: the
 # sandbox has no App Service quota, docs/azure.md). A case may first apply another
-# chart it needs (PRE: the application gateway's virtual network and
-# subnet), or ASO objects of no chart (CASE-pre.objects.yaml: the
+# chart it needs (PRE: the application gateway's and the DNS resolver's
+# virtual networks and subnets), or ASO objects of no chart (CASE-pre.objects.yaml: the
 # firewall's network, subnets and public IPs), deleted after the case's own
 # objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
@@ -79,7 +80,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw dnspr}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -204,7 +205,10 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     networkinterfaces.network.azure.com virtualmachines.compute.azure.com disks.compute.azure.com \
     virtualmachinesextensions.compute.azure.com \
     serverfarms.web.azure.com \
-    azurefirewalls.network.azure.com; do
+    azurefirewalls.network.azure.com \
+    dnsresolvers.network.azure.com dnsresolversinboundendpoints.network.azure.com dnsresolversoutboundendpoints.network.azure.com \
+    dnsforwardingrulesets.network.azure.com dnsforwardingrulesetsforwardingrules.network.azure.com \
+    dnsforwardingrulesetsvirtualnetworklinks.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -621,8 +625,45 @@ spec:
   publicIPAllocationMethod: Static
   tags: {catalog-run: ${RUN}}
 EOF
-declare -A PRE=([appgw]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400)
+# A DNS private resolver (about 0.25 USD an hour per endpoint while it
+# exists) with a dynamic inbound endpoint and an outbound endpoint, each in
+# a /28 of its own (Azure's smallest) delegated to
+# Microsoft.Network/dnsResolvers, in a network the case first makes with
+# the virtual network chart (PRE), and on the outbound endpoint a ruleset
+# with one forwarding rule and the default link to the same network. The
+# group by name and subscription_id. Endpoints take minutes to create and
+# delete (CASE_TIMEOUT).
+cat >"${WORK}/dnspr-pre.yaml" <<EOF
+name: ${RUN}-dnspr-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.252.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  in: {name: snet-inbound, address_prefix: 10.252.0.0/28, delegations: [{name: dnsresolvers, service_delegation: {name: Microsoft.Network/dnsResolvers}}]}
+  out: {name: snet-outbound, address_prefix: 10.252.0.16/28, delegations: [{name: dnsresolvers, service_delegation: {name: Microsoft.Network/dnsResolvers}}]}
+EOF
+cat >"${WORK}/dnspr.yaml" <<EOF
+name: ${RUN}-dnspr
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+virtual_network_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-dnspr-vnet
+tags: {catalog-run: ${RUN}}
+inbound_endpoints:
+  in: {name: ${RUN}-in, subnet_name: snet-inbound}
+outbound_endpoints:
+  out:
+    name: ${RUN}-out
+    subnet_name: snet-outbound
+    forwarding_ruleset:
+      corp:
+        name: ${RUN}-frs
+        rules:
+          corp: {domain_name: corp.catalog.internal., destination_ip_addresses: {"10.252.0.100": "53"}}
+EOF
+declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [dnspr]=1800)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -749,7 +790,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     cog:avm-res-cognitiveservices-account \
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
-    afw:avm-res-network-azurefirewall; do
+    afw:avm-res-network-azurefirewall \
+    dnspr:avm-res-network-dnsresolver; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
