@@ -13,12 +13,13 @@
 # avm-res-network-loadbalancer,
 # avm-res-network-bastionhost,
 # avm-res-insights-component,
-# avm-res-dbforpostgresql-flexibleserver)
+# avm-res-dbforpostgresql-flexibleserver,
+# avm-res-network-privateendpoint)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql)
+# uai law acr fwp lb bas appi psql pe)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -60,7 +61,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -179,7 +180,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     components.insights.azure.com pricingplans.insights.azure.com \
     flexibleservers.dbforpostgresql.azure.com flexibleserversdatabases.dbforpostgresql.azure.com \
     flexibleserversfirewallrules.dbforpostgresql.azure.com flexibleserversconfigurations.dbforpostgresql.azure.com \
-    flexibleserversadministrators.dbforpostgresql.azure.com; do
+    flexibleserversadministrators.dbforpostgresql.azure.com \
+    privateendpoints.network.azure.com privateendpointsprivatednszonegroups.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -442,6 +444,45 @@ server_configuration:
 ad_administrator:
   live: {tenant_id: ${AZURE_TENANT_ID}, object_id: ${SP_OID}, principal_name: aso-extensions-live-tests, principal_type: ServicePrincipal}
 EOF
+# A private endpoint to the blob service of a storage account of the run,
+# in a subnet of a network of the run, with a DNS zone group in the blob
+# service's private DNS zone: the case applies those with it
+# (CASE.with.CHART.yaml: that chart's values, rendered into the case, so
+# they are made, waited for, deleted and checked gone with it). The zone's
+# name is Azure's, not the run's: the case stops if the group has one.
+cat >"${WORK}/pe.yaml" <<EOF
+name: ${RUN}-pe
+location: ${LOCATION}
+parent_id: ${RG}
+network_interface_name: ${RUN}-pe-nic
+private_connection_resource_id: ${RG}/providers/Microsoft.Storage/storageAccounts/${RUN}pe
+subnet_resource_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-pe-vnet/subnets/snet-pe
+subresource_names: [blob]
+private_dns_zone_resource_ids: [${RG}/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net]
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/pe.with.avm-res-network-virtualnetwork.yaml" <<EOF
+name: ${RUN}-pe-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.252.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  pe: {name: snet-pe, address_prefix: 10.252.0.0/27}
+EOF
+cat >"${WORK}/pe.with.avm-res-storage-storageaccount.yaml" <<EOF
+name: ${RUN}pe
+location: ${LOCATION}
+parent_id: ${RG}
+account_sku_name: Standard_LRS
+account_replication_type: LRS
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/pe.with.avm-res-network-privatednszone.yaml" <<EOF
+domain_name: privatelink.blob.core.windows.net
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -461,7 +502,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     lb:avm-res-network-loadbalancer \
     bas:avm-res-network-bastionhost \
     appi:avm-res-insights-component \
-    psql:avm-res-dbforpostgresql-flexibleserver; do
+    psql:avm-res-dbforpostgresql-flexibleserver \
+    pe:avm-res-network-privateendpoint; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -470,6 +512,16 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   if [[ -f "${WORK}/${case_}.network.yaml" ]]; then
     helm template "${case_}-net" charts/azure/avm-res-network-virtualnetwork --namespace "${NS}" -f "${WORK}/${case_}.network.yaml" >>"${OUT}/${chart}/rendered.yaml"
   fi
+  for w in "${WORK}/${case_}".with.*.yaml; do
+    [[ -f "${w}" ]] || continue
+    wchart="${w#"${WORK}/${case_}".with.}" wchart="${wchart%.yaml}"
+    if [[ "${wchart}" == avm-res-network-privatednszone ]]; then
+      zone="$(sed -n 's/^domain_name: //p' "${w}")"
+      code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
+      [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
+    fi
+    helm template "${case_}-${wchart#avm-res-}" "charts/azure/${wchart}" --namespace "${NS}" -f "${w}" >>"${OUT}/${chart}/rendered.yaml"
+  done
   helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
   # What a case needs that its chart does not make (appi's workspace).
   if [[ -f "${WORK}/${case_}.pre.yaml" ]]; then cat "${WORK}/${case_}.pre.yaml" >>"${OUT}/${chart}/rendered.yaml"; fi

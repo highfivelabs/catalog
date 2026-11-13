@@ -525,6 +525,11 @@ real gap.
 | --- | --- |
 | `privateEndpoints@2025-07-01`, `privateDnsZoneGroups` | `network/PrivateEndpoint`, `PrivateEndpointsPrivateDnsZoneGroup`. Covered |
 
+Chart `charts/azure/avm-res-network-privateendpoint` (2026-11-13): 17 of
+21 variables (`ignore_body_changes` a gap; `retry`, `timeouts` and
+`resource_types` by design), 5 of 5 outputs (`private_ip_addresses` from
+the endpoint's DNS configurations, not from its network interface).
+
 ### 24. avm-res-authorization-roleassignment (v0.3.1; azurerm and azuread)
 
 | Creates | ASO |
@@ -851,7 +856,7 @@ chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
 identity, Log Analytics workspace, container registry, firewall policy, load
-balancer and bastion host charts are applied
+balancer, bastion host and private endpoint charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -895,6 +900,17 @@ applies with it) passed in run `cat1113013124a2` on 2026-11-13: 4 objects
 against aso-extensions' fakearm at `b9beb5b`, with PR #98's
 `hack/azure-mock.sh`, run `off-catalog-1113012705-23006`: 2 objects Ready
 and deleted, outputs evaluated).
+The private endpoint (to a storage
+account's blob service, with a DNS zone group in the blob service's
+private DNS zone and a custom network interface name, in a subnet of a
+network the case applies with it, the zone and the account applied with
+it too) passed in run `cat11130308507d` on 2026-11-13: 6 objects Ready,
+outputs evaluated (the network interface's ID and the endpoint's private
+address from its DNS configurations), deleted, Azure answering 404. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO
+against aso-extensions' fakearm at `b9beb5b`, with PR #118's
+`hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
+its zone group Ready and deleted, outputs evaluated).
 
 The Application Insights component (`avm-res-insights-component`, case
 `appi`: workspace-based, a 1 GB daily cap, with a workspace the case makes
