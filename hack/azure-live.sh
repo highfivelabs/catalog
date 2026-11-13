@@ -20,17 +20,19 @@
 # avm-res-compute-virtualmachine,
 # avm-res-web-serverfarm,
 # avm-res-network-azurefirewall,
-# avm-res-network-dnsresolver)
+# avm-res-network-dnsresolver,
+# avm-res-app-containerapp)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw dnspr)
+# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw dnspr ca)
 # applies only those; the default is all but cog, vm and asp (asp: the
-# sandbox has no App Service quota, docs/azure.md). A case may first apply another
-# chart it needs (PRE: the application gateway's and the DNS resolver's
-# virtual networks and subnets), or ASO objects of no chart (CASE-pre.objects.yaml: the
-# firewall's network, subnets and public IPs), deleted after the case's own
+# sandbox has no App Service quota, docs/azure.md). A case may first apply
+# what it needs: another chart (PRE, the networks of the cases that name
+# one) or ASO objects of no chart (CASE-pre.objects.yaml: the firewall's
+# network, subnets and public IPs; the container app's environment),
+# deleted after the case's own
 # objects are gone. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -80,7 +82,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # cog is not in the default: the sandbox subscription has not registered
 # Microsoft.CognitiveServices, and registering a provider is a
 # subscription-scope action the identity may not take (docs/azure.md).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw dnspr}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw dnspr ca}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -174,7 +176,7 @@ helm install aso azure-service-operator --repo https://raw.githubusercontent.com
   --version "v${ASO_VERSION}" --namespace azureserviceoperator-system --create-namespace \
   --set azureSubscriptionID="${AZURE_SUBSCRIPTION_ID}" --set azureTenantID="${AZURE_TENANT_ID}" \
   --set azureClientID="${AZURE_CLIENT_ID}" --set useWorkloadIdentityAuth=true \
-  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*')" \
+  --set crdPattern="$(asox_crd_pattern 'network.azure.com/*;storage.azure.com/*;keyvault.azure.com/*;authorization.azure.com/*;insights.azure.com/*;managedidentity.azure.com/*;operationalinsights.azure.com/*;containerregistry.azure.com/*;dbforpostgresql.azure.com/*;cognitiveservices.azure.com/*;compute.azure.com/*;web.azure.com/*;app.azure.com/*')" \
   --timeout 10m >/dev/null
 # The token where ASO reads it: the chart projects a Kubernetes service
 # account token into /var/run/secrets/tokens (Azure Workload Identity's
@@ -208,7 +210,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     azurefirewalls.network.azure.com \
     dnsresolvers.network.azure.com dnsresolversinboundendpoints.network.azure.com dnsresolversoutboundendpoints.network.azure.com \
     dnsforwardingrulesets.network.azure.com dnsforwardingrulesetsforwardingrules.network.azure.com \
-    dnsforwardingrulesetsvirtualnetworklinks.network.azure.com; do
+    dnsforwardingrulesetsvirtualnetworklinks.network.azure.com \
+    managedenvironments.app.azure.com containerapps.app.azure.com authconfigs.app.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -662,8 +665,45 @@ outbound_endpoints:
         rules:
           corp: {domain_name: corp.catalog.internal., destination_ip_addresses: {"10.252.0.100": "53"}}
 EOF
+# A container app from Microsoft's public hello-world image (no registry
+# credential), scaled to zero when idle, with external ingress on port 80,
+# in a Consumption-only environment of the run made first as an ASO object
+# of no chart (ca-pre.objects.yaml): ASO retries an app whose environment
+# is still provisioning only slowly, so the environment is Ready first. It
+# sends its logs nowhere, so it needs no workspace. The sandbox
+# subscription may hold one environment per region, so a run's environment
+# must be gone before the next run makes one; an environment takes several
+# minutes to create and to delete (CASE_TIMEOUT).
+cat >"${WORK}/ca.yaml" <<EOF
+name: ${RUN}-ca
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+container_app_environment_resource_id: ${RG}/providers/Microsoft.App/managedEnvironments/${RUN}-cae
+tags: {catalog-run: ${RUN}}
+template:
+  min_replicas: 0
+  max_replicas: 1
+  containers:
+    - {name: hello, image: mcr.microsoft.com/k8se/quickstart:latest, cpu: 0.25, memory: 0.5Gi}
+ingress:
+  external_enabled: true
+  target_port: 80
+  traffic_weight: [{latest_revision: true, percentage: 100}]
+EOF
+cat >"${WORK}/ca-pre.objects.yaml" <<EOF
+apiVersion: app.azure.com/v20250101
+kind: ManagedEnvironment
+metadata: {name: ca-env}
+spec:
+  azureName: ${RUN}-cae
+  location: ${LOCATION}
+  owner: {armId: ${RG}}
+  zoneRedundant: false
+  tags: {catalog-run: ${RUN}}
+EOF
 declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [dnspr]=1800)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [dnspr]=1800 [ca]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -791,7 +831,8 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     vm:avm-res-compute-virtualmachine \
     asp:avm-res-web-serverfarm \
     afw:avm-res-network-azurefirewall \
-    dnspr:avm-res-network-dnsresolver; do
+    dnspr:avm-res-network-dnsresolver \
+    ca:avm-res-app-containerapp; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
@@ -861,7 +902,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   wait_gone "${limit}" "${objects[@]}"
   if (( ${#pre_objects[@]} > 0 )); then
     kubectl delete -n "${NS}" -f "${OUT}/${chart}/pre.yaml" --wait=false >/dev/null
-    wait_gone "${TIMEOUT}" "${pre_objects[@]}"
+    wait_gone "${limit}" "${pre_objects[@]}"
   fi
   for o in "${pre_objects[@]}" "${objects[@]}"; do
     total=$((total + 1))
