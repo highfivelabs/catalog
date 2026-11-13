@@ -1,0 +1,60 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/data-catalog-tag/main.tf
+(v60.0.0), Copyright 2024 Google LLC, Apache-2.0.
+
+google_data_catalog_tag.engine: one DataCatalogTag (config-connector-
+extensions, datacatalog.gcp.hfl.dev/v1beta1) per tag of the tags variable
+merged with the factory's files (a tag of the variable wins, whole, as
+fabric's merge does). Its entry is the BigQuery resource's in the
+@bigquery entry group, named as fabric names it: the parent's path,
+base64url-encoded without padding.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ list) }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $all := dict }}
+{{- range $src := list (($v.factories_data | default dict).tags | default dict) ($v.tags | default dict) }}
+{{- range $k, $t := $src }}{{ $_ := set $all $k $t }}{{ end }}
+{{- end }}
+{{- range $key := keys $all | sortAlpha }}
+{{- $t := index $all $key }}
+{{- $entry := $t.parent | b64enc | trimAll "=" | replace "+" "-" | replace "/" "_" }}
+---
+apiVersion: datacatalog.gcp.hfl.dev/v1beta1
+kind: DataCatalogTag
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name $key)) "id" (printf "tag:%s" $key) "project" $t.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  entryRef:
+    external: {{ printf "projects/%s/locations/%s/entryGroups/@bigquery/entries/%s" $t.project_id $t.location $entry | quote }}
+  templateRef:
+    external: {{ $t.template | quote }}
+  {{- with $t.column }}
+  column: {{ . | quote }}
+  {{- end }}
+  {{- with $t.fields }}
+  fields:
+    {{- range $f := keys . | sortAlpha }}
+    {{- $fv := index $t.fields $f | default dict }}
+    {{ $f | quote }}:
+      {{- if not (kindIs "invalid" $fv.bool_value) }}
+      boolValue: {{ $fv.bool_value }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $fv.double_value) }}
+      doubleValue: {{ $fv.double_value }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $fv.enum_value) }}
+      enumValue:
+        displayName: {{ $fv.enum_value | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $fv.string_value) }}
+      stringValue: {{ $fv.string_value | quote }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $fv.timestamp_value) }}
+      timestampValue: {{ $fv.timestamp_value | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
