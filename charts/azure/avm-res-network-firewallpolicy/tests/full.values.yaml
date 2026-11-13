@@ -1,0 +1,84 @@
+# Every input the chart carries: the group by ID, a Premium policy with a
+# base policy, DNS proxy, explicit proxy, a user-assigned identity,
+# insights, intrusion detection, SNAT, SQL redirect, threat intelligence,
+# TLS inspection, tags, a lock, role assignments, a diagnostic setting and
+# a rule collection group with application, NAT and network rules.
+name: fwp-hub
+location: westeurope
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net
+enable_telemetry: false
+firewall_policy_sku: Premium
+firewall_policy_base_policy_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/firewallPolicies/fwp-base
+firewall_policy_auto_learn_private_ranges_enabled: true
+firewall_policy_private_ip_ranges: [10.0.0.0/8, 172.16.0.0/12]
+firewall_policy_sql_redirect_allowed: false
+firewall_policy_threat_intelligence_mode: Deny
+firewall_policy_threat_intelligence_allowlist: {fqdns: [b.example.com, a.example.com], ip_addresses: [203.0.113.10]}
+firewall_policy_dns: {proxy_enabled: true, servers: [10.0.0.4, 10.0.0.5]}
+firewall_policy_explicit_proxy: {enabled: true, http_port: 8080, https_port: 8443, enable_pac_file: true, pac_file_port: 8090, pac_file: "https://st.blob.core.windows.net/pac/proxy.pac?sv=x"}
+firewall_policy_identity:
+  type: UserAssigned
+  identity_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-fw]
+firewall_policy_insights:
+  enabled: true
+  retention_in_days: 30
+  default_log_analytics_workspace_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law-default
+  log_analytics_workspace:
+    - {firewall_location: westeurope, id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law-weu}
+firewall_policy_intrusion_detection:
+  mode: Alert
+  private_ranges: [10.0.0.0/8]
+  signature_overrides: [{id: "2024897", state: Deny}]
+  traffic_bypass:
+    - {name: backup, protocol: TCP, description: nightly backup, destination_addresses: [10.1.0.4], destination_ports: ["443"], source_addresses: [10.2.0.0/24]}
+firewall_policy_tls_certificate: {key_vault_secret_id: "https://kv-fw.vault.azure.net/secrets/fw-ca", name: fw-ca}
+tags: {environment: prod}
+lock: {kind: CanNotDelete}
+role_assignments:
+  netops:
+    role_definition_id_or_name: Network Contributor
+    principal_id: 4179302c-702e-4de7-a061-beacd0a1be09
+    principal_type: Group
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law-default
+rule_collection_groups:
+  core:
+    name: rcg-core
+    priority: 200
+    application_rule_collection:
+      - name: web
+        priority: 300
+        action: Allow
+        rule:
+          - name: microsoft
+            source_addresses: [10.0.0.0/8]
+            destination_fqdns: ["*.microsoft.com"]
+            protocols: [{type: Https, port: 443}, {type: Http, port: 80}]
+            http_headers: [{name: X-Env, value: prod}]
+          - name: updates
+            source_ip_groups: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/ipGroups/ipg-spokes]
+            destination_fqdn_tags: [WindowsUpdate]
+            protocols: [{type: Https, port: 443}]
+    nat_rule_collection:
+      - name: inbound
+        priority: 100
+        action: Dnat
+        rule:
+          - name: ssh
+            protocols: [TCP]
+            source_addresses: ["*"]
+            destination_address: 20.10.10.10
+            destination_ports: ["22"]
+            translated_address: 10.1.0.10
+            translated_port: 22
+    network_rule_collection:
+      - name: dns
+        priority: 400
+        action: Allow
+        rule:
+          - name: dns
+            protocols: [UDP, TCP]
+            source_addresses: [10.0.0.0/8]
+            destination_addresses: [168.63.129.16]
+            destination_ports: ["53"]

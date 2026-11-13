@@ -1,0 +1,186 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric
+modules/net-lb-app-int-cross-region/backend-service.tf (v60.0.0),
+Copyright 2026 Google LLC, Apache-2.0.
+
+google_compute_backend_service.default: one global ComputeBackendService
+(INTERNAL_MANAGED) per backend_service_configs key, named <name>-<key>
+unless it has a name. A backend's group is the key of one of the chart's
+instance groups or network endpoint groups, or an existing group's ID or
+self link; a health check is the key of one of the chart's, or an
+existing one's ID or self link.
+*/ -}}
+{{- $v := .Values }}
+{{- $groups := $v.group_configs | default dict }}
+{{- $negs := $v.neg_configs | default dict }}
+{{- $hcs := .Values.health_check_configs }}
+{{- if kindIs "invalid" $hcs }}{{ $hcs = dict "default" (dict "http" (dict "port_specification" "USE_SERVING_PORT")) }}{{ end }}
+{{- range $k := keys ($v.backend_service_configs | default dict) | sortAlpha }}
+{{- $bs := index $v.backend_service_configs $k }}
+{{- with $bs.log_config }}
+{{- include "kcc.unsupported" (list $ (printf "backend_service_configs.%s.log_config.optional_mode" $k) .optional_mode "ComputeBackendService's logConfig has no optionalMode field") }}
+{{- include "kcc.unsupported" (list $ (printf "backend_service_configs.%s.log_config.optional_fields" $k) .optional_fields "ComputeBackendService's logConfig has no optionalFields field") }}
+{{- end }}
+{{- $healthChecks := list "default" }}
+{{- if not (kindIs "invalid" $bs.health_checks) }}{{ $healthChecks = $bs.health_checks }}{{ end }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeBackendService
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "bs" $k)) "id" (printf "backend_service:%s" $k) "project" (include "netlbaxr.project" (list $ $bs)) "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  resourceID: {{ include "netlbaxr.bsName" (list $ $k) | quote }}
+  location: global
+  description: {{ ternary "Terraform managed." $bs.description (kindIs "invalid" $bs.description) | quote }}
+  loadBalancingScheme: INTERNAL_MANAGED
+  protocol: {{ $bs.protocol | default $v.protocol | default "HTTP" | quote }}
+  {{- with $healthChecks }}
+  healthChecks:
+    {{- range $h := . }}
+    - healthCheckRef:
+        {{- if hasKey $hcs $h }}
+        name: {{ include "kcc.name" (list $.Release.Name "hc" $h) }}
+        {{- else }}
+        external: {{ include "netlbaxr.link" $h | quote }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $bs.affinity_cookie_ttl_sec) }}
+  affinityCookieTtlSec: {{ $bs.affinity_cookie_ttl_sec }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $bs.connection_draining_timeout_sec) }}
+  connectionDrainingTimeoutSec: {{ $bs.connection_draining_timeout_sec }}
+  {{- end }}
+  {{- with $bs.locality_lb_policy }}
+  localityLbPolicy: {{ . | quote }}
+  {{- end }}
+  {{- with $bs.port_name }}
+  portName: {{ . | quote }}
+  {{- end }}
+  {{- with $bs.session_affinity }}
+  sessionAffinity: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $bs.timeout_sec) }}
+  timeoutSec: {{ $bs.timeout_sec }}
+  {{- end }}
+  {{- if $bs.backends }}
+  backend:
+    {{- $seen := dict }}
+    {{- range $b := $bs.backends }}
+    {{- if not (hasKey $seen $b.group) }}
+    {{- $_ := set $seen $b.group true }}
+    {{- $mr := $b.max_rate | default dict }}
+    - balancingMode: {{ $b.balancing_mode | default "UTILIZATION" | quote }}
+      capacityScaler: {{ ternary 1 $b.capacity_scaler (kindIs "invalid" $b.capacity_scaler) }}
+      description: {{ ternary "Terraform managed." $b.description (kindIs "invalid" $b.description) | quote }}
+      group:
+        {{- if hasKey $groups $b.group }}
+        instanceGroupRef:
+          name: {{ include "kcc.name" (list $.Release.Name "group" $b.group) }}
+        {{- else if hasKey $negs $b.group }}
+        {{- $n := index $negs $b.group }}
+        networkEndpointGroupRef:
+          {{- if $n.psc }}
+          external: {{ printf "projects/%s/regions/%s/networkEndpointGroups/%s" $v.project_id $n.psc.region (include "netlbaxr.negName" (list $ $b.group)) | quote }}
+          {{- else if $n.cloudrun }}
+          external: {{ printf "projects/%s/regions/%s/networkEndpointGroups/%s" (include "netlbaxr.project" (list $ $n)) $n.cloudrun.region (include "netlbaxr.negName" (list $ $b.group)) | quote }}
+          {{- else }}
+          name: {{ include "kcc.name" (list $.Release.Name "neg" $b.group) }}
+          {{- end }}
+        {{- else if contains "/instanceGroups/" $b.group }}
+        instanceGroupRef:
+          external: {{ include "netlbaxr.link" $b.group | quote }}
+        {{- else }}
+        networkEndpointGroupRef:
+          external: {{ include "netlbaxr.link" $b.group | quote }}
+        {{- end }}
+      {{- if not (kindIs "invalid" $mr.per_group) }}
+      maxRate: {{ int $mr.per_group }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $mr.per_endpoint) }}
+      maxRatePerEndpoint: {{ $mr.per_endpoint }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $mr.per_instance) }}
+      maxRatePerInstance: {{ $mr.per_instance }}
+      {{- end }}
+      {{- if not (kindIs "invalid" $b.max_utilization) }}
+      maxUtilization: {{ $b.max_utilization }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.circuit_breakers }}
+  circuitBreakers:
+    {{- range $f := list (list "max_connections" "maxConnections") (list "max_pending_requests" "maxPendingRequests") (list "max_requests" "maxRequests") (list "max_requests_per_connection" "maxRequestsPerConnection") (list "max_retries" "maxRetries") }}
+    {{- if not (kindIs "invalid" (index $bs.circuit_breakers (index $f 0))) }}
+    {{ index $f 1 }}: {{ index $bs.circuit_breakers (index $f 0) }}
+    {{- end }}
+    {{- end }}
+    {{- with .connect_timeout }}
+    connectTimeout:
+      {{- include "netlbaxr.duration" (list . false) | trim | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.consistent_hash }}
+  consistentHash:
+    {{- with .http_header_name }}
+    httpHeaderName: {{ . | quote }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .minimum_ring_size) }}
+    minimumRingSize: {{ .minimum_ring_size }}
+    {{- end }}
+    {{- with .http_cookie }}
+    httpCookie:
+      {{- with .name }}
+      name: {{ . | quote }}
+      {{- end }}
+      {{- with .path }}
+      path: {{ . | quote }}
+      {{- end }}
+      {{- with .ttl }}
+      ttl:
+        {{- include "netlbaxr.duration" (list . false) | trim | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.iap_config }}
+  iap:
+    {{- with .oauth2_client_id }}
+    oauth2ClientId: {{ . | quote }}
+    {{- end }}
+    {{- with .oauth2_client_secret }}
+    oauth2ClientSecret:
+      value: {{ . | quote }}
+    {{- end }}
+    {{- with .oauth2_client_secret_sha256 }}
+    oauth2ClientSecretSha256: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.log_config }}
+  logConfig:
+    {{- if not (kindIs "invalid" .enable) }}
+    enable: {{ .enable }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .sample_rate) }}
+    sampleRate: {{ .sample_rate }}
+    {{- end }}
+  {{- end }}
+  {{- with $bs.outlier_detection }}
+  outlierDetection:
+    {{- range $f := list (list "consecutive_errors" "consecutiveErrors") (list "consecutive_gateway_failure" "consecutiveGatewayFailure") (list "enforcing_consecutive_errors" "enforcingConsecutiveErrors") (list "enforcing_consecutive_gateway_failure" "enforcingConsecutiveGatewayFailure") (list "enforcing_success_rate" "enforcingSuccessRate") (list "max_ejection_percent" "maxEjectionPercent") (list "success_rate_minimum_hosts" "successRateMinimumHosts") (list "success_rate_request_volume" "successRateRequestVolume") (list "success_rate_stdev_factor" "successRateStdevFactor") }}
+    {{- if not (kindIs "invalid" (index $bs.outlier_detection (index $f 0))) }}
+    {{ index $f 1 }}: {{ index $bs.outlier_detection (index $f 0) }}
+    {{- end }}
+    {{- end }}
+    {{- with .base_ejection_time }}
+    baseEjectionTime:
+      {{- include "netlbaxr.duration" (list . false) | trim | nindent 6 }}
+    {{- end }}
+    {{- with .interval }}
+    interval:
+      {{- include "netlbaxr.duration" (list . false) | trim | nindent 6 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

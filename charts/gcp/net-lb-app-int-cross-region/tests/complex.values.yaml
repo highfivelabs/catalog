@@ -1,0 +1,75 @@
+# fabric's README, "Complex example": group and NEG backends, HTTPS for one
+# backend service.
+name: ilb-l7-test-0
+project_id: prj-gce
+backend_service_configs:
+  default:
+    backends:
+      - group: nginx-ew1
+      - group: nginx-ew4
+  gce-neg:
+    backends:
+      - {balancing_mode: RATE, group: neg-nginx-ew1, max_rate: {per_endpoint: 1}}
+      - {balancing_mode: RATE, group: neg-nginx-ew4, max_rate: {per_endpoint: 1}}
+  home:
+    backends:
+      - {balancing_mode: RATE, group: neg-home-hello-ew1, max_rate: {per_endpoint: 1}}
+      - {balancing_mode: RATE, group: neg-home-hello-ew4, max_rate: {per_endpoint: 1}}
+    health_checks: [neg]
+    locality_lb_policy: ROUND_ROBIN
+    protocol: HTTPS
+group_configs:
+  nginx-ew1:
+    zone: europe-west1-b
+    instances: [projects/prj-gce/zones/europe-west1-b/instances/nginx-ew1]
+    named_ports: {http: 80}
+  nginx-ew4:
+    zone: europe-west4-b
+    instances: [projects/prj-gce/zones/europe-west4-b/instances/nginx-ew4]
+    named_ports: {http: 80}
+health_check_configs:
+  default:
+    http: {port: 80}
+  neg:
+    https: {host: hello.home.example.com, port: 443}
+neg_configs:
+  neg-nginx-ew1:
+    gce:
+      zone: europe-west1-c
+      endpoints:
+        e-0: {instance: nginx-ew1-c, ip_address: 10.24.32.26, port: 80}
+  neg-nginx-ew4:
+    gce:
+      zone: europe-west4-c
+      endpoints:
+        e-0: {instance: nginx-ew4-c, ip_address: 10.34.32.26, port: 80}
+  neg-home-hello-ew1:
+    hybrid:
+      zone: europe-west1-b
+      endpoints:
+        e-0: {ip_address: 192.168.0.3, port: 443}
+  neg-home-hello-ew4:
+    hybrid:
+      zone: europe-west4-b
+      endpoints:
+        e-0: {ip_address: 192.168.1.3, port: 443}
+urlmap_config:
+  default_service: default
+  host_rules:
+    - hosts: ["*"]
+      path_matcher: gce
+    - hosts: [hello.home.example.com]
+      path_matcher: home
+  path_matchers:
+    gce:
+      default_service: default
+      path_rules:
+        - paths: [/gce-neg, /gce-neg/*]
+          service: gce-neg
+    home:
+      default_service: home
+vpc_config:
+  network: projects/prj-host/global/networks/shared-vpc
+  subnetworks:
+    europe-west1: projects/prj-host/regions/europe-west1/subnetworks/gce
+    europe-west4: projects/prj-host/regions/europe-west4/subnetworks/gce

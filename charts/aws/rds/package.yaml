@@ -1,0 +1,77 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# outputs for what the chart ports, from the live DBInstance
+# (resources.db-instance), groups (db-subnet-group, db-parameter-group,
+# db-option-group), monitoring role (enhanced-monitoring-role), log groups
+# (log-group-<export>) and role associations (role-association-<feature>),
+# and the component's values (inputs). Terraform's id of a group is its
+# name. Not provided: the domain's fields the chart refuses
+# (domain_auth_secret_arn, _dns_ips, _fqdn, _ou), the hosted zone ID and
+# upgrade rollout order, which ACK's status does not report, and the secret
+# rotation's (refused).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-rds
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    enhanced_monitoring_iam_role_name: >-
+      'enhanced-monitoring-role' in resources ? resources['enhanced-monitoring-role'].spec.name : null
+    enhanced_monitoring_iam_role_arn: >-
+      'enhanced-monitoring-role' in resources ? resources['enhanced-monitoring-role'].status.ackResourceMetadata.arn : null
+    db_instance_address: >-
+      'db-instance' in resources && has(resources['db-instance'].status.endpoint) ? resources['db-instance'].status.endpoint.address : null
+    db_instance_arn: >-
+      'db-instance' in resources ? resources['db-instance'].status.ackResourceMetadata.arn : null
+    db_instance_availability_zone: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.availabilityZone) ? resources['db-instance'].spec.availabilityZone : null
+    db_instance_endpoint: >-
+      'db-instance' in resources && has(resources['db-instance'].status.endpoint)
+      ? dyn(resources['db-instance'].status.endpoint.address + ':' + string(resources['db-instance'].status.endpoint.port)) : null
+    db_listener_endpoint: >-
+      'db-instance' in resources && has(resources['db-instance'].status.listenerEndpoint) ? resources['db-instance'].status.listenerEndpoint : null
+    db_instance_engine: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.engine) ? resources['db-instance'].spec.engine : null
+    db_instance_engine_version_actual: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.engineVersion) ? resources['db-instance'].spec.engineVersion : null
+    db_instance_identifier: >-
+      'db-instance' in resources ? resources['db-instance'].spec.dbInstanceIdentifier : null
+    db_instance_resource_id: >-
+      'db-instance' in resources && has(resources['db-instance'].status.dbiResourceID) ? resources['db-instance'].status.dbiResourceID : null
+    db_instance_status: >-
+      'db-instance' in resources && has(resources['db-instance'].status.dbInstanceStatus) ? resources['db-instance'].status.dbInstanceStatus : null
+    db_instance_name: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.dbName) ? resources['db-instance'].spec.dbName : null
+    db_instance_username: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.masterUsername) ? resources['db-instance'].spec.masterUsername : null
+    db_instance_domain: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.domain) ? resources['db-instance'].spec.domain : null
+    db_instance_domain_iam_role_name: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.domainIAMRoleName) ? resources['db-instance'].spec.domainIAMRoleName : null
+    db_instance_port: >-
+      'db-instance' in resources && has(resources['db-instance'].status.endpoint) ? resources['db-instance'].status.endpoint.port : null
+    db_instance_ca_cert_identifier: >-
+      'db-instance' in resources && has(resources['db-instance'].spec.caCertificateIdentifier) ? resources['db-instance'].spec.caCertificateIdentifier : null
+    db_instance_master_user_secret_arn: >-
+      'db-instance' in resources && has(resources['db-instance'].status.masterUserSecret) ? resources['db-instance'].status.masterUserSecret.secretARN : null
+    db_subnet_group_id: >-
+      'db-subnet-group' in resources ? resources['db-subnet-group'].spec.name : null
+    db_subnet_group_arn: >-
+      'db-subnet-group' in resources ? resources['db-subnet-group'].status.ackResourceMetadata.arn : null
+    db_parameter_group_id: >-
+      'db-parameter-group' in resources ? resources['db-parameter-group'].spec.name : null
+    db_parameter_group_arn: >-
+      'db-parameter-group' in resources ? resources['db-parameter-group'].status.ackResourceMetadata.arn : null
+    db_option_group_id: >-
+      'db-option-group' in resources ? resources['db-option-group'].spec.name : null
+    db_option_group_arn: >-
+      'db-option-group' in resources ? resources['db-option-group'].status.ackResourceMetadata.arn : null
+    db_instance_cloudwatch_log_groups: >-
+      resources.filter(k, k.startsWith('log-group-')).transformMapEntry(i, k, {k.substring(10): resources[k].spec})
+    db_instance_role_associations: >-
+      resources.filter(k, k.startsWith('role-association-')).transformMapEntry(i, k, {k.substring(17): resources[k].spec})

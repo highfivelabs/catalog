@@ -1,0 +1,35 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (docs/design.md, "Outputs"): the module's
+# outputs, from the live StateMachine (resources.state-machine), Role
+# (resources.role) and LogGroup (resources.log-group). The module gives ""
+# for what it did not make; so do these. Not provided: state_machine_status
+# (ACK's StateMachine status does not report it).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: aws-step-functions
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [ack]
+  outputs:
+    state_machine_id: >-
+      'state-machine' in resources ? resources['state-machine'].status.ackResourceMetadata.arn : ''
+    state_machine_arn: >-
+      'state-machine' in resources ? resources['state-machine'].status.ackResourceMetadata.arn : ''
+    state_machine_name: >-
+      'state-machine' in resources ? resources['state-machine'].spec.name : ''
+    state_machine_creation_date: >-
+      'state-machine' in resources && has(resources['state-machine'].status.creationDate) ? resources['state-machine'].status.creationDate : ''
+    state_machine_version_arn: >-
+      'state-machine' in resources && has(resources['state-machine'].status.stateMachineVersionARN) ? resources['state-machine'].status.stateMachineVersionARN : ''
+    role_arn: >-
+      'role' in resources ? resources.role.status.ackResourceMetadata.arn : ''
+    role_name: >-
+      'role' in resources ? resources.role.spec.name : ''
+    cloudwatch_log_group_arn: >-
+      'log-group' in resources ? (resources['log-group'].status.ackResourceMetadata.arn.endsWith(':*') ? resources['log-group'].status.ackResourceMetadata.arn.substring(0, size(resources['log-group'].status.ackResourceMetadata.arn) - 2) : resources['log-group'].status.ackResourceMetadata.arn) : ''
+    cloudwatch_log_group_name: >-
+      'log-group' in resources ? resources['log-group'].spec.name : ''

@@ -48,6 +48,95 @@ spec:
   notes: "Cannot delete the resource or its child resources."
 ---
 # Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesCredentialSet
+metadata:
+  name: full-credset-hub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "credential_set:hub"
+spec:
+  azureName: "dockerhub"
+  owner:
+    name: full-acr
+  identity:
+    type: SystemAssigned
+  loginServer: "docker.io"
+  authCredentials:
+    - name: "Credential1"
+      usernameSecretIdentifier: "https://kv-acr.vault.azure.net/secrets/hub-user"
+      passwordSecretIdentifier: "https://kv-acr.vault.azure.net/secrets/hub-token"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesScopeMap
+metadata:
+  name: full-scopemap-pull
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull"
+spec:
+  azureName: "app-pull"
+  owner:
+    name: full-acr
+  actions:
+    - repositories/app/content/read
+    - repositories/app/metadata/read
+  description: "Pull the app repository"
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesToken
+metadata:
+  name: full-token-pull-ci
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull:token:ci"
+spec:
+  azureName: "ci-pull"
+  owner:
+    name: full-acr
+  scopeMapReference:
+    group: containerregistry.azure.hfl.dev
+    kind: RegistriesScopeMap
+    name: full-scopemap-pull
+  status: enabled
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
+apiVersion: containerregistry.azure.hfl.dev/v20251101
+kind: RegistriesToken
+metadata:
+  name: full-token-pull-old
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: avm-res-containerregistry-registry
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "scope_map:pull:token:old"
+spec:
+  azureName: "old-pull"
+  owner:
+    name: full-acr
+  scopeMapReference:
+    group: containerregistry.azure.hfl.dev
+    kind: RegistriesScopeMap
+    name: full-scopemap-pull
+  status: disabled
+---
+# Source: avm-res-containerregistry-registry/templates/main.yaml
 apiVersion: containerregistry.azure.com/v20251101
 kind: Registry
 metadata:
@@ -118,6 +207,8 @@ spec:
     name: full-acr
   sourceRepository: "docker.io/library/nginx"
   targetRepository: "cache/nginx"
+  credentialSetResourceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrplatform/credentialSets/dockerhub"
 ---
 # Source: avm-res-containerregistry-registry/templates/main.yaml
 apiVersion: containerregistry.azure.com/v20251101

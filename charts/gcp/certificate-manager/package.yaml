@@ -1,0 +1,27 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# certificate_ids is the certificates' IDs keyed as fabric keys them, and
+# map_id the map's ID (null without a map), computed from the objects as
+# fabric's provider computes them. fabric's certificates,
+# dns_authorizations and map outputs are whole Terraform objects, which a
+# Package does not output (docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-certificate-manager
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    certificate_ids: >-
+      resources.transformMapEntry(k, v, k.startsWith('certificate:'),
+        {k.substring(12): 'projects/' + v.spec.projectRef.external + '/locations/' + v.spec.location
+          + '/certificates/' + v.spec.resourceID})
+    map_id: >-
+      'map' in resources
+        ? dyn('projects/' + resources.map.spec.projectRef.external + '/locations/global/certificateMaps/'
+          + resources.map.spec.resourceID)
+        : null

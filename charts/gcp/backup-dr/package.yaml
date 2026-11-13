@@ -1,0 +1,37 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected (docs/design.md,
+# "Outputs"), computed from inputs as fabric's resources compute them:
+# backup_vault_id is the vault's ID when the chart makes it (fabric's null
+# otherwise); backup_plans, a map of whole Terraform objects in fabric, is
+# a map of each plan's ID by its key; management_server, a whole object in
+# fabric, is the server's ID. management_server_uri is read from the
+# server's status: {api, web_ui}, the fields of fabric's management_uri
+# (null until the server reports it; the fake cloud's never does).
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-backup-dr
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    backup_vault_id: >-
+      inputs.name == null || inputs.vault_reuse != null ? null :
+      dyn('projects/' + inputs.project_id + '/locations/' + inputs.location + '/backupVaults/' +
+        ('vault' in inputs.names && inputs.names.vault != '' ? inputs.names.vault : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name))
+    backup_plans: >-
+      inputs.backup_plans == null ? {} :
+      inputs.backup_plans.transformMapEntry(k, v,
+        {k: 'projects/' + inputs.project_id + '/locations/' + inputs.location + '/backupPlans/' + (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + k})
+    management_server: >-
+      inputs.management_server_config == null ? null :
+      dyn('projects/' + inputs.project_id + '/locations/' + inputs.location + '/managementServers/' +
+        ('managementServer' in inputs.names && inputs.names.managementServer != '' ? inputs.names.managementServer : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.management_server_config.name))
+    management_server_uri: >-
+      inputs.management_server_config == null || !has(resources.management_server.status.observedState.managementUri) ? null :
+      dyn({'api': resources.management_server.status.observedState.managementUri.api,
+           'web_ui': resources.management_server.status.observedState.managementUri.webUi})

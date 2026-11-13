@@ -1,0 +1,376 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+
+main.tf and its submodules: the subnet group (db_subnet_group,
+rds/DBSubnetGroup), parameter group (db_parameter_group,
+rds/DBParameterGroup), option group (db_option_group, ack-extensions'
+OptionGroup), the DB instance (db_instance: aws_db_instance, rds/DBInstance;
+its log groups, cloudwatchlogs/LogGroup; its enhanced monitoring role,
+iam/Role) and role associations (db_instance_role_association,
+ack-extensions' DBRoleAssociation). The instance references the groups and
+the role by their Kubernetes objects.
+*/ -}}
+{{- include "ack.names" (list $ (list "dbInstance" "dbSubnetGroup" "parameterGroup" "optionGroup" "monitoringRole")) -}}
+{{- $v := .Values -}}
+{{- if $v.putin_khuylo }}
+{{- if not $v.identifier }}
+{{- fail "rds: identifier is required: the name of the RDS instance" }}
+{{- end }}
+{{- $rel := .Release.Name }}
+{{- $region := $v.region }}
+{{- $isReplica := not (kindIs "invalid" $v.replicate_source_db) }}
+
+{{- /* modules/db_subnet_group */}}
+{{- $subnetGroupObj := "" }}
+{{- if $v.create_db_subnet_group }}
+{{- $sgName := include "ack.resourceName" (list $ "dbSubnetGroup" "DB subnet group" ($v.db_subnet_group_name | default $v.identifier) 255) }}
+{{- $subnetGroupObj = include "ack.name" (list $rel "subnet-group") }}
+---
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBSubnetGroup
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $subnetGroupObj "id" "db-subnet-group" "region" $region) | nindent 2 }}
+spec:
+  name: {{ $sgName | quote }}
+  description: {{ $v.db_subnet_group_description | default (printf "%s subnet group" ($v.db_subnet_group_name | default $v.identifier)) | quote }}
+  subnetIDs:
+{{- range $v.subnet_ids }}
+    - {{ . | quote }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags $v.db_subnet_group_tags (dict "Name" ($v.db_subnet_group_name | default $v.identifier))) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{- /* modules/db_parameter_group */}}
+{{- $paramGroupObj := "" }}
+{{- if $v.create_db_parameter_group }}
+{{- if not $v.family }}
+{{- fail "rds: family is required for the parameter group create_db_parameter_group makes (the DB parameter group family, mysql8.0, postgres16, ...)" }}
+{{- end }}
+{{- $pgBase := $v.parameter_group_name | default $v.identifier }}
+{{- $pgName := include "ack.resourceName" (list $ "parameterGroup" "DB parameter group" $pgBase 255) }}
+{{- $paramGroupObj = include "ack.name" (list $rel "parameter-group") }}
+---
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBParameterGroup
+metadata:
+{{- $ann := dict }}
+{{- if $v.parameter_group_skip_destroy }}{{ $ann = dict "services.k8s.aws/deletion-policy" "retain" }}{{ end }}
+{{- include "ack.metadata" (dict "root" $ "name" $paramGroupObj "id" "db-parameter-group" "region" $region "annotations" $ann) | nindent 2 }}
+spec:
+  name: {{ $pgName | quote }}
+  description: {{ $v.parameter_group_description | default (printf "%s parameter group" $pgBase) | quote }}
+  family: {{ $v.family | quote }}
+{{- with $v.parameters }}
+  parameterOverrides:
+{{- range . }}
+    {{ .name | quote }}: {{ .value | toString | quote }}
+{{- end }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags $v.db_parameter_group_tags (dict "Name" $pgBase)) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{- /* modules/db_option_group: not for postgres */}}
+{{- $optionGroup := "" }}
+{{- if and $v.create_db_option_group (ne (toString $v.engine) "postgres") }}
+{{- include "ack.alpha" (list $ "create_db_option_group" true "OptionGroup (ack-extensions)") }}
+{{- if not $v.major_engine_version }}
+{{- fail "rds: major_engine_version is required for the option group create_db_option_group makes (or set create_db_option_group: false)" }}
+{{- end }}
+{{- $ogBase := $v.option_group_name | default $v.identifier }}
+{{- $optionGroup = include "ack.resourceName" (list $ "optionGroup" "DB option group" $ogBase 255) }}
+---
+apiVersion: rds.aws.hfl.dev/v1alpha1
+kind: OptionGroup
+metadata:
+{{- $ann := dict }}
+{{- if $v.option_group_skip_destroy }}{{ $ann = dict "services.k8s.aws/deletion-policy" "retain" }}{{ end }}
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $rel "option-group")) "id" "db-option-group" "region" $region "annotations" $ann) | nindent 2 }}
+spec:
+  name: {{ $optionGroup | quote }}
+  description: {{ $v.option_group_description | default (printf "%s option group" $ogBase) | quote }}
+  engineName: {{ $v.engine | quote }}
+  majorEngineVersion: {{ $v.major_engine_version | quote }}
+{{- with $v.options }}
+  options:
+{{- range . }}
+    - optionName: {{ .option_name | quote }}
+{{- if not (kindIs "invalid" .port) }}
+      port: {{ int64 .port }}
+{{- end }}
+{{- with .version }}
+      optionVersion: {{ . | quote }}
+{{- end }}
+{{- with .db_security_group_memberships }}
+      dbSecurityGroupMemberships:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .vpc_security_group_memberships }}
+      vpcSecurityGroupMemberships:
+{{- toYaml . | nindent 8 }}
+{{- end }}
+{{- with .option_settings }}
+      optionSettings:
+{{- range . }}
+        - name: {{ .name | quote }}
+          value: {{ .value | toString | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with include "ack.tags" (list $ $v.tags $v.db_option_group_tags (dict "Name" $ogBase)) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- else if ne (toString $v.engine) "postgres" }}
+{{- $optionGroup = $v.option_group_name | default "" }}
+{{- end }}
+
+{{- /* modules/db_instance */}}
+{{- if $v.create_db_instance }}
+{{- if not $v.instance_class }}
+{{- fail "rds: instance_class is required: the instance type of the RDS instance" }}
+{{- end }}
+{{- if not $v.engine }}
+{{- fail "rds: engine is required: the database engine (mysql, postgres, ...); ACK's DBInstance needs it even for a read replica, where Terraform takes the source's" }}
+{{- end }}
+{{- $id := include "ack.resourceName" (list $ "dbInstance" "DB instance identifier" $v.identifier 63 "letter") }}
+{{- $instanceObj := include "ack.name" (list $rel "db-instance") }}
+{{- $monitoringObj := include "ack.name" (list $rel "monitoring-role") }}
+{{- if $v.create_monitoring_role }}
+{{- $mrName := include "ack.resourceName" (list $ "monitoringRole" "IAM role" $v.monitoring_role_name 64) }}
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $monitoringObj "id" "enhanced-monitoring-role") | nindent 2 }}
+spec:
+  name: {{ $mrName | quote }}
+{{- with $v.monitoring_role_description }}
+  description: {{ . | quote }}
+{{- end }}
+  assumeRolePolicyDocument: {{ toJson (dict "Version" "2012-10-17" "Statement" (list (dict "Effect" "Allow" "Action" (list "sts:AssumeRole") "Principal" (dict "Service" (list "monitoring.rds.amazonaws.com"))))) | quote }}
+{{- with $v.monitoring_role_permissions_boundary }}
+  permissionsBoundary: {{ . | quote }}
+{{- end }}
+  policies:
+    - {{ printf "arn:%s:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole" (ternary "aws-cn" (ternary "aws-us-gov" "aws" (hasPrefix "us-gov-" (toString $region))) (hasPrefix "cn-" (toString $region))) | quote }}
+{{- with include "ack.tags" (list $ (dict "Name" $v.monitoring_role_name) $v.tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- /* locals.final_snapshot_identifier; random_id.snapshot_identifier's 8 hex characters, from its keepers */}}
+{{- $ann := dict "rds.services.k8s.aws/delete-automated-backups" (toString $v.delete_automated_backups) "rds.services.k8s.aws/skip-final-snapshot" (toString $v.skip_final_snapshot) }}
+{{- if not $v.skip_final_snapshot }}
+{{- $_ := set $ann "rds.services.k8s.aws/final-db-snapshot-identifier" (printf "%s-%s-%s" $v.final_snapshot_identifier_prefix $v.identifier (sha256sum (printf "%s/%s" $v.identifier (toString $v.snapshot_identifier)) | trunc 8)) }}
+{{- end }}
+---
+apiVersion: rds.services.k8s.aws/v1alpha1
+kind: DBInstance
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" $instanceObj "id" "db-instance" "region" $region "annotations" $ann) | nindent 2 }}
+spec:
+  dbInstanceIdentifier: {{ $id | quote }}
+  dbInstanceClass: {{ $v.instance_class | quote }}
+{{- if $isReplica }}
+  sourceDBInstanceIdentifier: {{ $v.replicate_source_db | quote }}
+{{- with $v.replica_mode }}
+  replicaMode: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.engine }}
+  engine: {{ . | quote }}
+{{- end }}
+{{- with $v.engine_version }}
+  engineVersion: {{ . | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.allocated_storage) }}
+  allocatedStorage: {{ int64 $v.allocated_storage }}
+{{- end }}
+{{- with $v.storage_type }}
+  storageType: {{ . | quote }}
+{{- end }}
+  storageEncrypted: {{ $v.storage_encrypted }}
+{{- with $v.kms_key_id }}
+  kmsKeyID: {{ . | quote }}
+{{- end }}
+{{- with $v.license_model }}
+  licenseModel: {{ . | quote }}
+{{- end }}
+{{- with $v.db_name }}
+  dbName: {{ . | quote }}
+{{- end }}
+{{- if and (not $isReplica) $v.username }}
+  masterUsername: {{ $v.username | quote }}
+{{- end }}
+{{- if and (not $isReplica) $v.manage_master_user_password }}
+  manageMasterUserPassword: true
+{{- with $v.master_user_secret_kms_key_id }}
+  masterUserSecretKMSKeyID: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.port }}
+  port: {{ int64 . }}
+{{- end }}
+{{- with $v.domain }}
+  domain: {{ . | quote }}
+{{- end }}
+{{- with $v.domain_iam_role_name }}
+  domainIAMRoleName: {{ . | quote }}
+{{- end }}
+  enableIAMDatabaseAuthentication: {{ $v.iam_database_authentication_enabled }}
+{{- with $v.custom_iam_instance_profile }}
+  customIAMInstanceProfile: {{ . | quote }}
+{{- end }}
+{{- with $v.vpc_security_group_ids }}
+  vpcSecurityGroupIDs:
+{{- range . }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.customer_owned_ip_enabled) }}
+  enableCustomerOwnedIP: {{ $v.customer_owned_ip_enabled }}
+{{- end }}
+{{- if $subnetGroupObj }}
+  dbSubnetGroupRef:
+    from:
+      name: {{ $subnetGroupObj }}
+{{- else if $v.db_subnet_group_name }}
+  dbSubnetGroupName: {{ $v.db_subnet_group_name | quote }}
+{{- end }}
+{{- if $paramGroupObj }}
+  dbParameterGroupRef:
+    from:
+      name: {{ $paramGroupObj }}
+{{- else if $v.parameter_group_name }}
+  dbParameterGroupName: {{ $v.parameter_group_name | quote }}
+{{- end }}
+{{- with $optionGroup }}
+  optionGroupName: {{ . | quote }}
+{{- end }}
+{{- with $v.network_type }}
+  networkType: {{ . | quote }}
+{{- end }}
+{{- with $v.availability_zone }}
+  availabilityZone: {{ . | quote }}
+{{- end }}
+  multiAZ: {{ $v.multi_az }}
+{{- if not (kindIs "invalid" $v.iops) }}
+  iops: {{ int64 $v.iops }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.storage_throughput) }}
+  storageThroughput: {{ int64 $v.storage_throughput }}
+{{- end }}
+  publiclyAccessible: {{ $v.publicly_accessible }}
+{{- with $v.ca_cert_identifier }}
+  caCertificateIdentifier: {{ . | quote }}
+{{- end }}
+  autoMinorVersionUpgrade: {{ $v.auto_minor_version_upgrade }}
+{{- with $v.maintenance_window }}
+  preferredMaintenanceWindow: {{ . | quote }}
+{{- end }}
+{{- with $v.snapshot_identifier }}
+  dbSnapshotIdentifier: {{ . | quote }}
+{{- end }}
+  copyTagsToSnapshot: {{ $v.copy_tags_to_snapshot }}
+  performanceInsightsEnabled: {{ $v.performance_insights_enabled }}
+{{- if $v.performance_insights_enabled }}
+  performanceInsightsRetentionPeriod: {{ int64 $v.performance_insights_retention_period }}
+{{- with $v.performance_insights_kms_key_id }}
+  performanceInsightsKMSKeyID: {{ . | quote }}
+{{- end }}
+{{- end }}
+{{- if not (kindIs "invalid" $v.backup_retention_period) }}
+  backupRetentionPeriod: {{ int64 $v.backup_retention_period }}
+{{- end }}
+{{- with $v.backup_window }}
+  preferredBackupWindow: {{ . | quote }}
+{{- end }}
+{{- if gt (int64 ($v.max_allocated_storage | default 0)) 0 }}
+  maxAllocatedStorage: {{ int64 $v.max_allocated_storage }}
+{{- end }}
+  monitoringInterval: {{ int64 $v.monitoring_interval }}
+{{- if gt (int64 $v.monitoring_interval) 0 }}
+{{- if $v.create_monitoring_role }}
+  monitoringRoleRef:
+    from:
+      name: {{ $monitoringObj }}
+{{- else if $v.monitoring_role_arn }}
+  monitoringRoleARN: {{ $v.monitoring_role_arn | quote }}
+{{- end }}
+{{- end }}
+{{- with $v.database_insights_mode }}
+  databaseInsightsMode: {{ . | quote }}
+{{- end }}
+{{- with $v.character_set_name }}
+  characterSetName: {{ . | quote }}
+{{- end }}
+{{- with $v.nchar_character_set_name }}
+  ncharCharacterSetName: {{ . | quote }}
+{{- end }}
+{{- with $v.timezone }}
+  timezone: {{ . | quote }}
+{{- end }}
+{{- with $v.enabled_cloudwatch_logs_exports }}
+  enableCloudwatchLogsExports:
+{{- range . }}
+    - {{ . | quote }}
+{{- end }}
+{{- end }}
+  deletionProtection: {{ $v.deletion_protection }}
+{{- with include "ack.tags" (list $ $v.tags $v.db_instance_tags) | fromJson }}
+  tags:
+{{- include "ack.tagList" (list .) | nindent 4 }}
+{{- end }}
+{{- /* aws_cloudwatch_log_group.this: not with an identifier prefix (refused) */}}
+{{- if $v.create_cloudwatch_log_group }}
+{{- range $log := $v.enabled_cloudwatch_logs_exports }}
+---
+apiVersion: cloudwatchlogs.services.k8s.aws/v1alpha1
+kind: LogGroup
+metadata:
+{{- $lann := dict }}
+{{- if $v.cloudwatch_log_group_skip_destroy }}{{ $lann = dict "services.k8s.aws/deletion-policy" "retain" }}{{ end }}
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $rel "log" $log)) "id" (printf "log-group-%s" $log) "region" $region "annotations" $lann) | nindent 2 }}
+spec:
+  name: {{ printf "/aws/rds/instance/%s/%s" $id $log | quote }}
+{{- if not (kindIs "invalid" $v.cloudwatch_log_group_retention_in_days) }}
+  retentionDays: {{ int64 $v.cloudwatch_log_group_retention_in_days }}
+{{- end }}
+{{- with $v.cloudwatch_log_group_kms_key_id }}
+  kmsKeyID: {{ . | quote }}
+{{- end }}
+{{- $lt := include "ack.tags" (list $ $v.tags $v.cloudwatch_log_group_tags) | fromJson }}
+{{- if $lt }}
+  {{- /* LogGroup takes its tags as a map */}}
+  tags:
+{{- range $k := keys $lt | sortAlpha }}
+    {{ $k | quote }}: {{ index $lt $k | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- /* module.db_instance_role_association */}}
+{{- range $feature := keys ($v.db_instance_role_associations | default dict) | sortAlpha }}
+{{- include "ack.alpha" (list $ "db_instance_role_associations" true "DBRoleAssociation (ack-extensions)") }}
+---
+apiVersion: rds.aws.hfl.dev/v1alpha1
+kind: DBRoleAssociation
+metadata:
+{{- include "ack.metadata" (dict "root" $ "name" (include "ack.name" (list $rel "role-association" $feature)) "id" (printf "role-association-%s" $feature) "region" $region) | nindent 2 }}
+spec:
+  dbInstanceRef:
+    from:
+      name: {{ $instanceObj }}
+  featureName: {{ $feature | quote }}
+  roleARN: {{ index $v.db_instance_role_associations $feature | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

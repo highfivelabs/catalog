@@ -1,0 +1,53 @@
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20260501
+kind: ManagedCluster
+metadata:
+  name: basic-aks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "managed_cluster"
+spec:
+  addonProfiles:
+    azurepolicy:
+      enabled: false
+  agentPoolProfiles:
+  - count: 3
+    mode: System
+    name: systempool
+    osType: Linux
+    vmSize: Standard_D2ds_v5
+  azureName: aks-example
+  disableLocalAccounts: false
+  dnsPrefix: 350c2dd91b
+  identity:
+    type: SystemAssigned
+  location: eastus2
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: basic-default-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "basic"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "default_agent_pool"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "systempool"
+  owner:
+    name: basic-aks
+  count: 3
+  mode: System
+  osType: Linux
+  vmSize: Standard_D2ds_v5

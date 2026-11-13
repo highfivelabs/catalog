@@ -1,0 +1,60 @@
+# Every variable the chart maps.
+name: psql-full
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data
+administrator_login: psqladmin
+authentication: {active_directory_auth_enabled: true, password_auth_enabled: false, tenant_id: 11111111-2222-3333-4444-555555555555}
+auto_grow_enabled: true
+backup_retention_days: 14
+create_mode: Default
+delegated_subnet_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet/subnets/psql
+geo_redundant_backup_enabled: false
+high_availability: {mode: SameZone, standby_availability_zone: "1"}
+maintenance_window: {day_of_week: "3", start_hour: 2, start_minute: 30}
+private_dns_zone_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/privateDnsZones/psql-full.private.postgres.database.azure.com
+public_network_access_enabled: false
+server_version: "17"
+sku_name: MO_Standard_E4s_v3
+storage_mb: 131072
+storage_tier: P15
+zone: "1"
+tags: {env: prod}
+databases:
+  app: {name: app, charset: UTF8, collation: en_US.utf8}
+  reports: {name: reports}
+firewall_rules:
+  office: {name: office, start_ip_address: 203.0.113.0, end_ip_address: 203.0.113.255}
+server_configuration:
+  slow: {name: log_min_duration_statement, config: "1000"}
+ad_administrator:
+  dba: {tenant_id: 11111111-2222-3333-4444-555555555555, object_id: 33333333-4444-5555-6666-777777777777, principal_name: dba-group, principal_type: Group}
+virtual_endpoint:
+  rw: {name: psql-full-rw, replica_server_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-full-replica, type: ReadWrite}
+customer_managed_key:
+  key_vault_key_id: https://kv-data.vault.azure.net/keys/psql/0123456789abcdef0123456789abcdef
+  primary_user_assigned_identity_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-psql
+  geo_backup_key_vault_key_id: https://kv-data-geo.vault.azure.net/keys/psql/fedcba9876543210fedcba9876543210
+  geo_backup_user_assigned_identity_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-psql-geo
+managed_identities:
+  system_assigned: false
+  user_assigned_resource_ids:
+    - /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-psql
+diagnostic_settings:
+  law:
+    workspace_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-mon/providers/Microsoft.OperationalInsights/workspaces/law
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader: {role_definition_id_or_name: Reader, principal_id: 44444444-5555-6666-7777-888888888888}
+private_endpoints:
+  hub:
+    subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/hub/subnets/pe
+    resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net
+    private_dns_zone_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns/providers/Microsoft.Network/privateDnsZones/privatelink.postgres.database.azure.com]
+    network_interface_name: nic-pe-psql-full
+    application_security_group_associations: {db: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/applicationSecurityGroups/asg-db}
+    ip_configurations:
+      a: {name: ipc-a, private_ip_address: 10.1.0.10}
+    tags: {endpoint: hub}
+    lock: {kind: ReadOnly}
+    role_assignments:
+      reader: {role_definition_id_or_name: /providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7, principal_id: 55555555-6666-7777-8888-999999999999}
