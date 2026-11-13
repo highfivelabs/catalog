@@ -1,0 +1,40 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs that are not whole objects, for what
+# the chart ports: id and name of the gateway (id from the gateway's name, as
+# fabric builds it from var.name), self_link (the new gateway's, else
+# vpn_gateway), router_name (the new router's, else router_config.name) and
+# route_policies, each policy's ID keyed as fabric keys them. Not outputs:
+# md5_keys, random_secret, shared_secrets, tunnel_names and
+# tunnel_self_links (tunnels is refused, so there are none and no secret),
+# and fabric's whole objects (bgp_peers, external_gateway, gateway, router,
+# tunnels; docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-net-vpn-ha
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + inputs.project_id + '/regions/' + inputs.region + '/vpnGateways/'
+      + ('gateway' in resources ? resources.gateway.spec.resourceID : inputs.name)
+    name: "'gateway' in resources ? dyn(resources.gateway.spec.resourceID) : null"
+    self_link: >-
+      'gateway' in resources
+      ? dyn(resources.gateway.status.selfLink)
+      : dyn(inputs.vpn_gateway)
+    router_name: >-
+      'router' in resources
+      ? dyn(resources.router.spec.resourceID)
+      : dyn(inputs.router_config.name)
+    route_policies: >-
+      resources.transformMapEntry(k, v, k.startsWith('route_policy:'),
+        {k.substring(13): has(v.spec.routerRef.external)
+          ? v.spec.routerRef.external + '/routePolicies/' + v.spec.resourceID
+          : 'projects/' + inputs.project_id + '/regions/' + inputs.region
+            + '/routers/' + resources.router.spec.resourceID + '/routePolicies/' + v.spec.resourceID})

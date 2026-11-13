@@ -1,0 +1,50 @@
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInterconnectAttachment
+metadata:
+  name: existing-router
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "attachment"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vlan-604-x"
+  description: "vlan-604-x"
+  region: "europe-west8"
+  routerRef:
+    external: projects/my-project/regions/europe-west8/routers/existing-router
+  type: PARTNER
+  adminEnabled: true
+  edgeAvailabilityDomain: "AVAILABILITY_DOMAIN_2"
+  mtu: "1500"
+---
+# Source: net-vlan-attachment/templates/main.yaml
+apiVersion: compute.gcp.hfl.dev/v1alpha1
+kind: ComputeRouterRoutePolicy
+metadata:
+  name: existing-router-route-policy-export
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "existing-router"
+    app.kubernetes.io/name: net-vlan-attachment
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "route_policy:export"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "export"
+  projectRef:
+    external: "my-project"
+  region: "europe-west8"
+  routerRef:
+    external: projects/my-project/regions/europe-west8/routers/existing-router
+  type: ROUTE_POLICY_TYPE_EXPORT
+  terms:
+    - priority: 1
+      match:
+        expression: "true"

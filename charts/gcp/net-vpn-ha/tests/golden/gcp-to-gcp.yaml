@@ -1,0 +1,47 @@
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeRouter
+metadata:
+  name: gcp-to-gcp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gcp-to-gcp"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "router"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "vpn-net1-to-net-2"
+  region: "europe-west4"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc1"
+  bgp:
+    asn: 64514
+    advertiseMode: CUSTOM
+    advertisedGroups: [ALL_SUBNETS]
+    advertisedIpRanges:
+      - range: "10.0.0.0/8"
+        description: "default"
+---
+# Source: net-vpn-ha/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeVPNGateway
+metadata:
+  name: gcp-to-gcp
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "gcp-to-gcp"
+    app.kubernetes.io/name: net-vpn-ha
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "gateway"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "net1-to-net-2"
+  description: "Terraform managed external VPN gateway"
+  region: "europe-west4"
+  networkRef:
+    external: "projects/my-project/global/networks/vpc1"
+  stackType: IPV4_ONLY
