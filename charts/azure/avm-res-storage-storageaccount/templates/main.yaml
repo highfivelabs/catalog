@@ -16,7 +16,10 @@ deployment is not ported.
 */ -}}
 {{- $v := .Values }}
 {{- $c := .Chart.Name }}
-{{- include "aso.unsupported" (list $ "local_user" $v.local_user "Microsoft.Storage/storageAccounts/localUsers has no ASO or aso-extensions kind") }}
+{{- range $key, $u := ($v.local_user | default dict) }}
+{{- include "aso.unsupported" (list $ (printf "local_user.%s.ssh_password_enabled" $key) $u.ssh_password_enabled "Azure generates the password, returned once by the local user's regeneratePassword action; whether a component may hold one is the builder's decision") }}
+{{- include "aso.unsupported" (list $ (printf "local_user.%s.timeouts" $key) $u.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
+{{- end }}
 {{- include "aso.unsupported" (list $ "static_website" $v.static_website "a static website is set on the blob service's data plane, which ASO does not call") }}
 {{- range $n := list "blob_properties" "file_service_properties" "queue_properties" "table_properties" }}
 {{- include "aso.unsupported" (list $ $n (index $v $n) "ASO has the service kind (StorageAccounts*Service); this chart does not map its properties yet") }}

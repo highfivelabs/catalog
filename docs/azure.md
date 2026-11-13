@@ -700,11 +700,16 @@ aso-extensions:
 
 | Chart | Variable | ARM type with no kind |
 | --- | --- | --- |
-| `avm-res-storage-storageaccount` | `local_user` | `Microsoft.Storage/storageAccounts/localUsers` (SFTP and NFSv3 local users) |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-privatednszone` | `soa_record` | `Microsoft.Network/privateDnsZones/SOA` (the zone's SOA record, which exists with the zone and is only updated; ASO has every other private DNS record kind) |
+
+The storage account's `local_user` maps to aso-extensions'
+`StorageAccountsLocalUser` (`storage.azure.hfl.dev/v20260601`, its CRD
+copied in `crds/aso-extensions`); a local user's `ssh_password_enabled`
+stays refused (Azure generates the password and returns it once, the
+builder's decision).
 
 Not a kind gap, but an ASO field gap: a table's or share's
 `signedIdentifiers[].id` is generated as an ARM reference
