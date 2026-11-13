@@ -24,11 +24,12 @@
 # LIVE_CHARTS picks the charts (default: the pilot's three,
 # "iam-service-account gcs net-vpc"); the others it knows are
 # artifact-registry, net-vpc-firewall, net-vpc-peering, net-lb-int,
-# net-lb-ext and net-vpn-static. Each needs the runner's roles on its
-# resources: the pilot's are catalog-live-tests', artifact-registry needs
-# roles/artifactregistry.admin, net-vpc-firewall roles/compute.securityAdmin
-# (cce-live-tests has both), net-lb-int, net-lb-ext and net-vpn-static
-# roles/compute.networkAdmin (both have it). A chart whose case
+# net-lb-ext, net-vpn-static and net-address. Each needs the runner's
+# roles on its resources: the pilot's are catalog-live-tests',
+# artifact-registry needs roles/artifactregistry.admin, net-vpc-firewall
+# roles/compute.securityAdmin (cce-live-tests has both), net-lb-int,
+# net-lb-ext, net-vpn-static and net-address roles/compute.networkAdmin
+# (both have it). A chart whose case
 # needs objects it does not make (a network for the firewall rules, two for
 # the peering, a network and subnets for the load balancer) has them applied
 # with its render and deleted with it.
@@ -74,6 +75,8 @@ PEER_B="${RUN}-pb"
 ILB="${RUN}-ilb"
 NLB="${RUN}-nlb"
 VPN="${RUN}-vpn"
+ADDR_G="${RUN}-ga"
+ADDR_E="${RUN}-ea"
 LIVE_CHARTS="${LIVE_CHARTS:-iam-service-account gcs net-vpc}"
 SUBNET="${RUN}-sn"
 echo "== live run ${RUN} in ${PROJECT} as ${RUNNER}"
@@ -127,6 +130,8 @@ sweep_run() {
   for n in "${r}-fwnet" "${r}-pa" "${r}-pb" "${r}-ilb-net" "${r}-vpn-net"; do
     "${G[@]}" compute networks delete "$n" >/dev/null 2>&1 && echo "swept network $n" || true
   done
+  "${G[@]}" compute addresses delete "${r}-ga" --global >/dev/null 2>&1 && echo "swept address ${r}-ga" || true
+  "${G[@]}" compute addresses delete "${r}-ea" --region "${REGION}" >/dev/null 2>&1 && echo "swept address ${r}-ea" || true
 }
 # sweep_old: every cat- run older than two hours.
 sweep_old() {
@@ -136,6 +141,7 @@ sweep_old() {
     "${G[@]}" storage buckets list --format='value(name)' | sed -n "s/^${PROJECT}-\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)\$/\1/p"
     "${G[@]}" compute networks list --format='value(name)' | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(net\|fwnet\|pa\|pb\|ilb-net\|vpn-net\)$/\1/p'
     "${G[@]}" artifacts repositories list --location "${REGION}" --format='value(name.basename())' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-ar$/\1/p'
+    "${G[@]}" compute addresses list --format='value(name)' 2>/dev/null | sed -n 's/^\(cat-[0-9]\{8\}-[0-9a-f]\{4\}\)-\(ga\|ea\)$/\1/p'
   } | sort -u | while read -r r; do
     [[ "$(echo "$r" | cut -c5-12)" < "${cutoff}" ]] && { echo "sweeping old run $r"; sweep_run "$r"; }
   done || true
@@ -396,6 +402,15 @@ spec:
   description: catalog live test ${RUN}
 NEEDS
 
+cat >"${OUT}/net-address.values.yaml" <<VALUES
+project_id: ${PROJECT}
+labels: {catalog-run: ${RUN}}
+global_addresses:
+  ${ADDR_G}: {description: catalog live test ${RUN}}
+external_addresses:
+  ${ADDR_E}: {region: ${REGION}, tier: STANDARD, description: catalog live test ${RUN}}
+VALUES
+
 summary="${OUT}/summary.md"
 {
   echo "# Live apply ${RUN}, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -486,6 +501,10 @@ for chart in ${LIVE_CHARTS}; do
       "${G[@]}" compute target-vpn-gateways describe "${VPN}" --region "${REGION}" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute addresses describe "vpn-${VPN}" --region "${REGION}" >/dev/null 2>&1 && gone=no
       "${G[@]}" compute networks describe "${VPN}-net" >/dev/null 2>&1 && gone=no ;;
+    net-address)
+      gone=yes
+      "${G[@]}" compute addresses describe "${ADDR_G}" --global >/dev/null 2>&1 && gone=no
+      "${G[@]}" compute addresses describe "${ADDR_E}" --region "${REGION}" >/dev/null 2>&1 && gone=no ;;
     *) echo "live-apply: no check that ${chart} is gone" >&2; gone=no ;;
   esac
   for o in "${objects[@]}"; do
