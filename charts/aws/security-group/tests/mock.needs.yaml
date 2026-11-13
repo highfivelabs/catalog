@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # What tests/mock.values.yaml needs and the chart does not make: a VPC for
-# the group (hack/mock-apply-aws.sh applies it first, deletes it last).
+# the group and a second VPC it is associated with (hack/mock-apply-aws.sh
+# applies them first, deletes them last).
 apiVersion: ec2.services.k8s.aws/v1alpha1
 kind: VPC
 metadata:
@@ -11,6 +12,18 @@ metadata:
     services.k8s.aws/region: us-east-1
 spec:
   cidrBlocks: [10.30.0.0/16]
+  tags:
+    - key: catalog-test
+      value: "true"
+---
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: VPC
+metadata:
+  name: sg-vpc-other
+  annotations:
+    services.k8s.aws/region: us-east-1
+spec:
+  cidrBlocks: [10.31.0.0/16]
   tags:
     - key: catalog-test
       value: "true"
