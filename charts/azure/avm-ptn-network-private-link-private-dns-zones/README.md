@@ -125,7 +125,19 @@ cases `default` (the module's default example: all 89 zones), `exclusions`,
 (the module's examples, the last two on a few of its zones), `full` and
 `mock`, each validated against ASO v2.22.0's CRD schemas and
 aso-extensions' `ManagementLock` CRD, and the refusals in
-`tests/*.fail.yaml`.
+`tests/*.fail.yaml`. `task test-live-azure` (case `pldns`) narrows the zone
+list with `private_link_private_dns_zones` to three zones of the module's
+list (`privatelink.eastus2.azurecontainerapps.io`, with the region's name;
+`privatelink.eus2.backup.windowsazure.com`, with its code;
+`privatelink.webpubsub.azure.com`) and links each to a network the case
+makes beside it; it stops if the group already has one of the zones, as
+ASO would adopt it. Passed on 2026-11-13 in run `cat111308205866`
+(offload `off-catalog-1113081629-14160`): 7 objects Ready (the network,
+three zones, three links), the outputs evaluated (the zones' IDs and the
+module's map), deleted, Azure answering 404. `task test-mock-azure` applies
+`tests/mock.values.yaml` (two zones, one link each) to aso-extensions' fake
+cloud: passed on 2026-11-13 (offload `off-catalog-1113080244-7256`), 4
+objects Ready and deleted, the outputs evaluated.
 
 ## Changes
 
