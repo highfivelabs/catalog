@@ -1,0 +1,46 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# What tests/mock.values.yaml needs and the chart does not make: the
+# network, the subnet the proxy is in, the region's proxy-only subnet a
+# Secure Web Proxy needs, and the Private Service Connect subnet of the
+# service attachment's NAT.
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: cat-mock-swp-net
+spec:
+  autoCreateSubnetworks: false
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: cat-mock-swp-subnet
+spec:
+  region: us-central1
+  ipCidrRange: 10.10.0.0/24
+  networkRef:
+    name: cat-mock-swp-net
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: cat-mock-swp-proxy
+spec:
+  region: us-central1
+  ipCidrRange: 10.10.1.0/24
+  purpose: REGIONAL_MANAGED_PROXY
+  role: ACTIVE
+  networkRef:
+    name: cat-mock-swp-net
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: cat-mock-swp-psc
+spec:
+  region: us-central1
+  ipCidrRange: 10.10.2.0/24
+  purpose: PRIVATE_SERVICE_CONNECT
+  networkRef:
+    name: cat-mock-swp-net
