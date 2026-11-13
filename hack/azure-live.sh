@@ -10,12 +10,13 @@
 # avm-res-managedidentity-userassignedidentity,
 # avm-res-operationalinsights-workspace, avm-res-containerregistry-registry,
 # avm-res-network-firewallpolicy,
-# avm-res-network-loadbalancer)
+# avm-res-network-loadbalancer,
+# avm-res-network-bastionhost)
 # to the Azure
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb)
+# uai law acr fwp lb bas)
 # applies only those; the default is all. Only on
 # an offload VM acting as the service account the sandbox identity trusts
 # (keyless federation, as aso-extensions' live runs: its docs/live-runs.md);
@@ -57,7 +58,7 @@ ASO_VERSION="$(sed -n 's/^| Azure Service Operator release | `v\([0-9.]*\)`.*/\1
 CERT_MANAGER_VERSION=v1.15.3
 LOCATION="${AZURE_LIVE_LOCATION:-eastus2}"
 TIMEOUT="${LIVE_TIMEOUT:-900}"
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -171,7 +172,8 @@ for crd in virtualnetworks.network.azure.com virtualnetworkssubnets.network.azur
     federatedidentitycredentials.managedidentity.azure.com workspaces.operationalinsights.azure.com \
     registries.containerregistry.azure.com registrycacherules.containerregistry.azure.com \
     firewallpolicies.network.azure.com firewallpoliciesrulecollectiongroups.network.azure.com \
-    loadbalancers.network.azure.com; do
+    loadbalancers.network.azure.com \
+    bastionhosts.network.azure.com; do
   for _ in $(seq 60); do kubectl get crd "${crd}" >/dev/null 2>&1 && break; sleep 5; done
   kubectl wait --for=condition=Established "crd/${crd}" --timeout=120s >/dev/null
 done
@@ -353,6 +355,31 @@ lb_nat_rules:
 lb_outbound_rules:
   out: {name: outbound-web, frontend_ip_configurations: [{name: fe-public}], backend_address_pool_object_name: web}
 EOF
+# A Basic bastion host with the zoneless public IP it makes, in an
+# AzureBastionSubnet (/26, Azure's smallest for it) of a network of the run
+# that the case also applies (CASE.network.yaml: the network chart's
+# values, rendered into the case, so it is made first, waited for, deleted
+# and checked gone with it).
+cat >"${WORK}/bas.yaml" <<EOF
+name: ${RUN}-bas
+location: ${LOCATION}
+parent_id: ${RG}
+sku: Basic
+zones: []
+tags: {catalog-run: ${RUN}}
+ip_configuration:
+  subnet_id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-bas-vnet/subnets/AzureBastionSubnet
+  public_ip_address_name: ${RUN}-bas-pip
+EOF
+cat >"${WORK}/bas.network.yaml" <<EOF
+name: ${RUN}-bas-vnet
+location: ${LOCATION}
+parent_id: ${RG}
+address_space: [10.251.0.0/24]
+tags: {catalog-run: ${RUN}}
+subnets:
+  bastion: {name: AzureBastionSubnet, address_prefix: 10.251.0.0/26}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -369,12 +396,17 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     pip:avm-res-network-publicipaddress dns:avm-res-network-privatednszone \
     uai:avm-res-managedidentity-userassignedidentity law:avm-res-operationalinsights-workspace \
     acr:avm-res-containerregistry-registry fwp:avm-res-network-firewallpolicy \
-    lb:avm-res-network-loadbalancer; do
+    lb:avm-res-network-loadbalancer \
+    bas:avm-res-network-bastionhost; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
-  helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >"${OUT}/${chart}/rendered.yaml"
+  : >"${OUT}/${chart}/rendered.yaml"
+  if [[ -f "${WORK}/${case_}.network.yaml" ]]; then
+    helm template "${case_}-net" charts/azure/avm-res-network-virtualnetwork --namespace "${NS}" -f "${WORK}/${case_}.network.yaml" >>"${OUT}/${chart}/rendered.yaml"
+  fi
+  helm template "${case_}" "${dir}" --namespace "${NS}" -f "${WORK}/${case_}.yaml" >>"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')

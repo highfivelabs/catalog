@@ -522,6 +522,10 @@ real gap.
 | --- | --- |
 | Bastion host | `network/BastionHost` (2025-03-01). Covered |
 
+Covered. Chart `charts/azure/avm-res-network-bastionhost` (2026-11-12):
+21 of 21 variables, every SKU (Developer as the network-only host), the
+public IP it makes as a `PublicIPAddress`.
+
 ### Just below the top 25
 
 | Module | ASO coverage |
@@ -806,8 +810,8 @@ reads it (`/var/run/secrets/tokens/azure-identity`, in place of the
 chart's projected service account token, whose kind issuer Entra does not
 trust). The virtual network, storage account, key vault, network security
 group, route table, NAT gateway, public IP, private DNS zone, managed
-identity, Log Analytics workspace, container registry, firewall policy and load
-balancer charts are applied
+identity, Log Analytics workspace, container registry, firewall policy, load
+balancer and bastion host charts are applied
 (`AZURE_LIVE_CASES` picks some) with tiny resources named for the run, in the one resource group
 the identity is Contributor on; every object must become Ready, the
 Package's outputs are evaluated against the live objects, every object is
@@ -841,6 +845,15 @@ objects, outputs evaluated (the address Azure allocated among them),
 nothing left. Its `tests/mock.values.yaml` passed against the fake cloud
 too (stock ASO against aso-extensions' fakearm at `b9beb5b`, with PR #98's
 `hack/azure-mock.sh`, run `off-catalog-1113012254-13575`: 2 objects Ready
+and deleted, outputs evaluated).
+The bastion host (Basic, with the
+public IP it makes, in the AzureBastionSubnet of a network the case
+applies with it) passed in run `cat1113013124a2` on 2026-11-13: 4 objects
+(the network and subnet among them), outputs evaluated (Azure's
+`dnsName`), deleted, Azure answering 404, nothing left. Its
+`tests/mock.values.yaml` passed against the fake cloud too (stock ASO
+against aso-extensions' fakearm at `b9beb5b`, with PR #98's
+`hack/azure-mock.sh`, run `off-catalog-1113012705-23006`: 2 objects Ready
 and deleted, outputs evaluated).
 
 The AKS chart (`avm-res-containerservice-managedcluster`) is not applied
