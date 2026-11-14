@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "basic"
     app.kubernetes.io/name: biglake-catalog
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "catalog"
     cnrm.cloud.google.com/project-id: "my-project"
@@ -27,7 +27,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "basic"
     app.kubernetes.io/name: biglake-catalog
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "database:my_database"
     cnrm.cloud.google.com/project-id: "my-project"
@@ -44,7 +44,7 @@ spec:
       "owner": "John Doe"
 ---
 # Source: biglake-catalog/templates/main.yaml
-apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+apiVersion: biglake.gcp.hfl.dev/v1beta1
 kind: BigLakeTable
 metadata:
   name: basic-table-my-database-my-table-80fbc8a4
@@ -52,21 +52,20 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "basic"
     app.kubernetes.io/name: biglake-catalog
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
   annotations:
     hfl.dev/id: "table:my_database-my_table"
     cnrm.cloud.google.com/project-id: "my-project"
 spec:
-  parentDatabaseRef:
-    external: "projects/my-project/locations/US/catalogs/my_catalog/databases/my_database"
+  projectRef:
+    external: "projects/my-project"
+  location: "US"
+  catalog: "my_catalog"
+  database: "my_database"
   resourceID: "my_table"
   type: "HIVE"
   hiveOptions:
     tableType: "MANAGED_TABLE"
-    storageDescriptor:
-      locationURI: "gs://my-bucket/my-table-folder"
-      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
-      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"
     parameters:
       "owner": "John Doe"
       "provider": "iceberg"
@@ -76,3 +75,7 @@ spec:
       "spark.sql.sources.schema.numParts": "1"
       "spark.sql.sources.schema.part.0": "{\"fields\":[{\"metadata\":{},\"name\":\"id\",\"nullable\":true,\"type\":\"integer\"},{\"metadata\":{},\"name\":\"name\",\"nullable\":true,\"type\":\"string\"},{\"metadata\":{},\"name\":\"age\",\"nullable\":true,\"type\":\"integer\"}],\"type\":\"struct\"}"
       "transient_lastDdlTime": "1680894197"
+    storageDescriptor:
+      locationUri: "gs://my-bucket/my-table-folder"
+      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
+      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"

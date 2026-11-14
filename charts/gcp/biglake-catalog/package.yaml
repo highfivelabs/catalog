@@ -3,8 +3,8 @@
 #
 # The Bundt Package for this chart (see iam-service-account/package.yaml).
 # Outputs are fabric's declared outputs, selected (docs/design.md,
-# "Outputs"), computed from inputs as fabric's resources compute them:
-# catalog_id is the catalog's Terraform ID
+# "Outputs"), computed from the rendered objects as fabric's resources
+# compute them: catalog_id is the catalog's Terraform ID
 # (projects/<p>/locations/<l>/catalogs/<name>), database_ids and table_ids
 # the databases' and tables' IDs by fabric's keys (<database> and
 # <database>-<table>). catalog, databases and tables are whole Terraform
@@ -15,29 +15,29 @@ kind: Package
 metadata:
   name: gcp-biglake-catalog
 spec:
-  version: 0.1.0
+  version: 0.2.0
   engine: helm
   providers: [kcc]
   outputs:
     catalog_id: >-
-      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
-      ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+      resources.catalog.spec.projectRef.external + '/locations/' + resources.catalog.spec.location +
+      '/catalogs/' + resources.catalog.spec.resourceID
     catalog: >-
-      'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
-      ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name)
+      resources.catalog.spec.projectRef.external + '/locations/' + resources.catalog.spec.location +
+      '/catalogs/' + resources.catalog.spec.resourceID
     database_ids: >-
-      inputs.databases.transformMapEntry(k, v,
-        {k: 'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
-          ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
-          '/databases/' + k})
+      resources.transformMapEntry(k, v, v.kind == 'BigLakeDatabase',
+        {k.substring(9): v.spec.projectRef.external + '/locations/' + v.spec.location +
+          '/catalogs/' + v.spec.catalog + '/databases/' + v.spec.resourceID})
     databases: >-
-      inputs.databases.transformMapEntry(k, v,
-        {k: 'projects/' + inputs.project_id + '/locations/' + inputs.location + '/catalogs/' +
-          ('catalog' in inputs.names && inputs.names.catalog != '' ? inputs.names.catalog : (inputs.namePrefix != '' ? inputs.namePrefix + '-' : '') + inputs.name) +
-          '/databases/' + k})
+      resources.transformMapEntry(k, v, v.kind == 'BigLakeDatabase',
+        {k.substring(9): v.spec.projectRef.external + '/locations/' + v.spec.location +
+          '/catalogs/' + v.spec.catalog + '/databases/' + v.spec.resourceID})
     table_ids: >-
       resources.transformMapEntry(k, v, v.kind == 'BigLakeTable',
-        {k.substring(6): v.spec.parentDatabaseRef.external + '/tables/' + v.spec.resourceID})
+        {k.substring(6): v.spec.projectRef.external + '/locations/' + v.spec.location +
+          '/catalogs/' + v.spec.catalog + '/databases/' + v.spec.database + '/tables/' + v.spec.resourceID})
     tables: >-
       resources.transformMapEntry(k, v, v.kind == 'BigLakeTable',
-        {k.substring(6): v.spec.parentDatabaseRef.external + '/tables/' + v.spec.resourceID})
+        {k.substring(6): v.spec.projectRef.external + '/locations/' + v.spec.location +
+          '/catalogs/' + v.spec.catalog + '/databases/' + v.spec.database + '/tables/' + v.spec.resourceID})
