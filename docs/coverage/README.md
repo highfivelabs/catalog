@@ -154,7 +154,8 @@ for `iam_bindings`, follows its resource's row), as of 2026-11-14. Runs
 are on offload Spot VMs at config-connector-extensions `c2f0c7d2`, or
 `aec29642` for the runs of `cat-11140810-*` and `cat-11140822-*` and
 later, or `2e1ccc9e` for the runs of `cat-11141340-*`, or `d7b52501`
-for the runs of `cat-11141549-*`; the
+for the runs of `cat-11141549-*`, or `384d07c0` for the runs of
+`cat-11141804-*`; the
 chart's README has the details. "Passed" is every object Ready, deleted
 and gone from Google Cloud.
 
@@ -176,7 +177,7 @@ and gone from Google Cloud.
 | `cloud-function-v2` | `CloudFunctions2Function` | **passed** (`cat-11140810-5876`, as `catalog-live-tests`) | |
 | `data-catalog-tag` | `DataCatalogTag` | failed (`cat-11132355-c86b`) | the API: Data Catalog answers "404 Method not found" to tag and tag-template creation |
 | `backup-dr` | `BackupDRManagementServer` | failed (`cat-11140135-fd30`) | the API: new management servers are restricted ("Management Console is on path for deprecation"); Config Connector's vault and plan were Ready but then failed updates (`access_restriction` required; `backup_rules` not updatable) |
-| `biglake-catalog` | `BigLakeCatalog`, `BigLakeDatabase`, `BigLakeTable` | the catalog, the database and the table **Ready**, outputs evaluated, the catalog deleted and everything gone (`cat-11141549-4cb0`, at `d7b52501`, as `catalog-live-tests`); the database's and the table's deletes failed | config-connector-extensions: the catalog's delete takes its database and table with it, and BigLake then answers their deletes and gets with 403; a `missingIs403` kind reads that 403 as not found only before a create, so both finalizers held until the run's 30 minutes ran out |
+| `biglake-catalog` | `BigLakeCatalog`, `BigLakeDatabase`, `BigLakeTable` | **passed** (`cat-11141804-e54f`, at `384d07c0`, as `catalog-live-tests`): the catalog, the database and the table Ready, deleted at once and gone | |
 | `compute-mig` | `ComputeAutoscaler`, `ComputePerInstanceConfig` | **passed**, the autoscaled and the stateful group, each held at 1 VM (`cat-11140822-f385`) | |
 | `gke-cluster-standard`, `gke-cluster-autopilot` | `GKEBackupBackupPlan`, `GKEBackupRestorePlan` | not run | `hack/live-gke.sh` has no backup plan case yet |
 
