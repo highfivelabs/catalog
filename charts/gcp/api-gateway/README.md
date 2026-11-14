@@ -162,6 +162,15 @@ deleted ("has nested resources"). The fix belongs in
 config-connector-extensions: wait for each delete operation, and retry the
 config's while a gateway still uses it.
 
+config-connector-extensions `2e1ccc9e` (#127) does both: the gateway's
+and the config's deletes wait for their operations, a config's delete is
+retried while a gateway still uses it, and configs are read with
+`view=FULL`. The rerun (2026-11-14, `cat-11141340-1026`, offload VM
+`off-catalog-1114133603-32687`, as catalog-live-tests, a 30-minute
+limit) **passed**: the API, its config, the gateway and the three
+`IAMBinding`s Ready, deleted and gone from Google Cloud, Config
+Connector's `APIGatewayAPI` among them. Nothing was left.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: the API, its config, the gateway, the
