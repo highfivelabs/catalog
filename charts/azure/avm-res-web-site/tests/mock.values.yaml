@@ -5,7 +5,11 @@
 # a custom domain, a Key Vault certificate and a lock; and the config
 # sections and publishing policies as aso-extensions kinds: authentication
 # v2, logs, sticky settings, FTP (the module's default) and SCM basic
-# authentication off.
+# authentication off. The application logs also go to Blob Storage, its
+# SAS URL a reference to a Secret the harness makes before the apply with
+# a random value (hack/test-secret.sh; nothing committed), as the line
+# below asks:
+# secret: catalog-web-logs random
 name: catalog-app
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -49,7 +53,7 @@ logs:
   app:
     detailed_error_messages: true
     application_logs:
-      default: {file_system: {level: Warning}}
+      default: {file_system: {level: Warning}, azure_blob_storage: {level: Error, retention_in_days: 7, sas_url: {secretName: catalog-web-logs, key: value}}}
     http_logs:
       default: {file_system: {retention_in_days: 7, retention_in_mb: 35}}
 sticky_settings:

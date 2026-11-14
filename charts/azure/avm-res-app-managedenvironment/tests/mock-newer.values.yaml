@@ -1,7 +1,11 @@
 # For an apply against the fake cloud: the fields after ASO's
 # ManagedEnvironment API version 2025-01-01, so aso-extensions'
 # ManagedEnvironment (app.azure.hfl.dev/v20251002preview) (the chart's only kind),
-# with a Dapr component and a storage owned by its ARM ID, and a lock.
+# with a Dapr component and a storage owned by its ARM ID, and a lock; its
+# Application Insights connection string and Datadog key are references to
+# a Secret the harness makes before the apply with random values
+# (hack/test-secret.sh; nothing committed), as the line below asks:
+# secret: catalog-cae-telemetry random
 name: catalog-cae-newer
 location: eastus2
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -11,6 +15,8 @@ app_logs_configuration: {destination: azure-monitor}
 workload_profiles:
   - {name: Consumption, workload_profile_type: Consumption}
 app_insights_configuration: {}
+connection_string: {secretName: catalog-cae-telemetry, key: value}
+connection_string_version: 1
 availability_zones: ["1", "2", "3"]
 ingress_configuration: {header_count_limit: 120, request_idle_timeout: 10, termination_grace_period_seconds: 600, workload_profile_name: Consumption}
 open_telemetry_configuration:
@@ -18,6 +24,8 @@ open_telemetry_configuration:
     otlp_configurations:
       - {name: collector, endpoint: "https://otel.example.com:4317", insecure: false}
   traces_configuration: {destinations: [collector], include_dapr: true}
+key: {secretName: catalog-cae-telemetry, key: value}
+key_version: 1
 public_network_access: Enabled
 dapr_components:
   state:
