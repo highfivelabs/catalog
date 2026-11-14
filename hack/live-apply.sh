@@ -989,9 +989,14 @@ for chart in ${LIVE_CHARTS}; do
   deadline=$(( $(date +%s) + TIMEOUT ))
   for part in chart needs; do
   [[ -f "${OUT}/${id}.${part}.yaml" ]] || continue
-  kubectl delete -n "${NS}" -f "${OUT}/${id}.${part}.yaml" --wait=false >/dev/null 2>&1 || true
-  mapfile -t pobjects < <(kubectl get -n "${NS}" -f "${OUT}/${id}.${part}.yaml" -o json 2>/dev/null \
+  # The objects to wait for, read before the delete: read after it, one
+  # object already gone (an IAMBinding goes at once) failed the whole get,
+  # the list came back empty, and the wait below ended at once
+  # (cat-11140810-4fc4: the run moved on while Dataplex and API Gateway
+  # were still deleting).
+  mapfile -t pobjects < <(kubectl get -n "${NS}" -f "${OUT}/${id}.${part}.yaml" --ignore-not-found -o json 2>/dev/null \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"' || true)
+  kubectl delete -n "${NS}" -f "${OUT}/${id}.${part}.yaml" --wait=false >/dev/null 2>&1 || true
   # Config Connector's deletion defender runs as its own pod in a real
   # install; here the manager runs alone, so do the defender's part: remove
   # its finalizer, and Config Connector's controller deletes the resource.
