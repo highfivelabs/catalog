@@ -1,0 +1,57 @@
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: stateful
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "stateful"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "mig-test"
+  projectRef:
+    external: "my-project"
+  location: "europe-west8-b"
+  baseInstanceName: "mig-test"
+  description: "Terraform managed."
+  targetSize: 1
+  versions:
+    - name: "default"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"
+---
+# Source: compute-mig/templates/stateful-config.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputePerInstanceConfig
+metadata:
+  name: stateful-instance-instance-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "stateful"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "stateful_config:instance-1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "instance-1"
+  zone: "europe-west8-b"
+  instanceGroupManagerRef:
+    name: stateful
+  minimalAction: "NONE"
+  mostDisruptiveAllowedAction: "REPLACE"
+  preservedState:
+    metadata:
+      "foo": "bar"
+    disk:
+      - deviceName: "data-1"
+        source: "projects/my-project/zones/europe-west8-b/disks/test-disk"
+        deleteRule: NEVER
+        mode: READ_WRITE

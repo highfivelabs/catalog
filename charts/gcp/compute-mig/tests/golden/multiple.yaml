@@ -1,0 +1,31 @@
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: multiple
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "multiple"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "mig-test"
+  projectRef:
+    external: "my-project"
+  location: "europe-west8-b"
+  baseInstanceName: "mig-test"
+  description: "Terraform managed."
+  targetSize: 3
+  versions:
+    - name: "default"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"
+    - name: "canary"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"
+      targetSize:
+        fixed: 1
