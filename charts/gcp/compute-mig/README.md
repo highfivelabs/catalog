@@ -118,8 +118,8 @@ Terraform objects, which a Package does not output (`docs/design.md`,
   config-connector-extensions' per-instance configs create the named
   instance with `createInstances`; Terraform's call
   `updatePerInstanceConfigs`. That grows the group by one, past its
-  `targetSize`, and Config Connector's next reconcile of the group resizes
-  it back. A regional group needs
+  `targetSize`, and Config Connector does not resize it back: live, the
+  group kept the extra VM after a second reconcile (Tests). A regional group needs
   `update_policy.regional_redistribution_type: NONE` for it, as a stateful
   regional group has anyway.
 - **The regional autoscaler takes the group's URL**, not a reference, as
@@ -196,8 +196,27 @@ failed: Compute Engine refused both groups ("Required field
 'resource.targetSize' not specified"), so the autoscaler and the
 per-instance config never had a group; the network, subnet, template and
 health check were made and deleted, and the sweep found nothing left. The
-size rule above is the fix; its live rerun has not run yet (the laptop's
-automation identity cannot act as cce-live-tests).
+size rule above is the fix. The rerun (2026-11-13, `cat-11132344-b82d`,
+offload VM `off-catalog-1113233930-16906`, config-connector-extensions
+`c2f0c7d2`):
+
+- `compute-mig` passed: every object Ready, deleted and gone from Google
+  Cloud, `id` evaluated, and the group held 1 VM after it was made and
+  after a second reconcile.
+- `compute-mig-stateful` failed its size check, and only that: every
+  object (the group and the `ComputePerInstanceConfig` among them) was
+  Ready, deleted and gone, but the group held 2 VMs, the named
+  `cat-11132344-b82d-migs-0` and one the group made for its
+  `target_size`, with `targetSize` 2, after it was made and still after a
+  second reconcile. The cause is config-connector-extensions'
+  `ComputePerInstanceConfig`, which calls `createInstances` (it grows the
+  group by one), where Terraform calls `updatePerInstanceConfigs`; and
+  Config Connector's `ComputeInstanceGroupManager` does not resize the
+  group back to its spec, as "Differences" assumed it would. Until the
+  kind matches Terraform, a stateful named instance adds a VM to the
+  group's size.
+
+The sweep found nothing of the run left.
 
 ## Changes
 
