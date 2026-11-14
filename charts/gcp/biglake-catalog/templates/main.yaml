@@ -9,15 +9,29 @@ google_biglake_catalog.catalog: one BigLakeCatalog
 google_biglake_database.databases: one BigLakeDatabase
 (config-connector-extensions, biglake.gcp.hfl.dev/v1beta1) per key of
 databases.
-google_biglake_table.tables: one BigLakeTable (Config Connector, v1beta1)
-per table of each database, keyed <database>-<table> as fabric keys them.
+google_biglake_table.tables: one BigLakeTable (config-connector-extensions,
+biglake.gcp.hfl.dev/v1beta1) per table of each database, keyed
+<database>-<table> as fabric keys them. Config Connector's own BigLakeTable
+reads BigLake's 403 for a missing table as a denial and never creates one.
+
+BigLake IDs are letters, digits and underscores, so a namePrefix goes on
+the catalog's name with its hyphens as underscores: <namePrefix>_<name>.
 */ -}}
 {{- $v := .Values }}
 {{- include "kcc.names" (list $ (list "catalog")) }}
 {{- $abandon := include "kcc.abandon" . }}
 {{- $project := printf "projects/%s" $v.project_id }}
-{{- $catalog := include "kcc.resourceName" (list $ "catalog" "catalog" $v.name 63) }}
-{{- $catalogID := printf "%s/locations/%s/catalogs/%s" $project $v.location $catalog }}
+{{- $catalog := index ($v.names | default dict) "catalog" | default "" }}
+{{- if not $catalog }}
+{{- $p := include "kcc.namePrefix" . | trimSuffix "-" | replace "-" "_" }}
+{{- $catalog = ternary (printf "%s_%s" $p $v.name) $v.name (ne $p "") }}
+{{- if gt (len $catalog) 63 }}
+{{- fail (printf "biglake-catalog: catalog name %q is %d characters, more than the 63 the cloud allows for a catalog name; namePrefix %q is %d of them (with its \"_\"): shorten the namePrefix or the name" $catalog (len $catalog) $v.namePrefix (add1 (len $v.namePrefix))) }}
+{{- end }}
+{{- end }}
+{{- if not (regexMatch "^[A-Za-z0-9_]+$" $catalog) }}
+{{- fail (printf "biglake-catalog: catalog name %q may contain only letters, digits and underscores" $catalog) }}
+{{- end }}
 ---
 apiVersion: biglake.gcp.hfl.dev/v1beta1
 kind: BigLakeCatalog
@@ -52,26 +66,29 @@ spec:
 {{- range $t, $tb := $d.tables }}
 {{- $h := $tb.hive_options }}
 ---
-apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+apiVersion: biglake.gcp.hfl.dev/v1beta1
 kind: BigLakeTable
 metadata:
   {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "table" $db $t)) "id" (printf "table:%s-%s" $db $t) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
 spec:
-  parentDatabaseRef:
-    external: {{ printf "%s/databases/%s" $catalogID $db | quote }}
+  projectRef:
+    external: {{ $project | quote }}
+  location: {{ $v.location | quote }}
+  catalog: {{ $catalog | quote }}
+  database: {{ $db | quote }}
   resourceID: {{ $t | quote }}
   type: {{ $tb.type | quote }}
   hiveOptions:
     tableType: {{ $h.table_type | quote }}
-    storageDescriptor:
-      locationURI: {{ $h.location_uri | quote }}
-      inputFormat: {{ $h.input_format | quote }}
-      outputFormat: {{ $h.output_format | quote }}
     {{- with $h.parameters }}
     parameters:
       {{- range $k, $p := . }}
       {{ $k | quote }}: {{ $p | quote }}
       {{- end }}
     {{- end }}
+    storageDescriptor:
+      locationUri: {{ $h.location_uri | quote }}
+      inputFormat: {{ $h.input_format | quote }}
+      outputFormat: {{ $h.output_format | quote }}
 {{- end }}
 {{- end }}

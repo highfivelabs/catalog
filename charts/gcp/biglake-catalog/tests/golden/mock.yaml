@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: biglake-catalog
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     env: "test"
   annotations:
     hfl.dev/id: "catalog"
@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: biglake-catalog
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     env: "test"
   annotations:
     hfl.dev/id: "database:mock_db"
@@ -46,7 +46,7 @@ spec:
       "owner": "catalog"
 ---
 # Source: biglake-catalog/templates/main.yaml
-apiVersion: bigquerybiglake.cnrm.cloud.google.com/v1beta1
+apiVersion: biglake.gcp.hfl.dev/v1beta1
 kind: BigLakeTable
 metadata:
   name: mock-table-mock-db-mock-table-0c3bd6c8
@@ -54,21 +54,24 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "mock"
     app.kubernetes.io/name: biglake-catalog
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.2.0"
     env: "test"
   annotations:
     hfl.dev/id: "table:mock_db-mock_table"
     cnrm.cloud.google.com/project-id: "mock-project"
 spec:
-  parentDatabaseRef:
-    external: "projects/mock-project/locations/us/catalogs/catalog_mock_lake/databases/mock_db"
+  projectRef:
+    external: "projects/mock-project"
+  location: "us"
+  catalog: "catalog_mock_lake"
+  database: "mock_db"
   resourceID: "mock_table"
   type: "HIVE"
   hiveOptions:
     tableType: "EXTERNAL_TABLE"
-    storageDescriptor:
-      locationURI: "gs://catalog-mock-bucket/db/table"
-      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
-      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"
     parameters:
       "provider": "iceberg"
+    storageDescriptor:
+      locationUri: "gs://catalog-mock-bucket/db/table"
+      inputFormat: "org.apache.hadoop.mapred.SequenceFileInputFormat"
+      outputFormat: "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"
