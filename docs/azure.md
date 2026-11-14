@@ -754,6 +754,26 @@ none of the tracked modules' variables at their pins creates one
 key, and `avm-res-cognitiveservices-account` v0.11.1 makes projects but no
 project connection or capability host).
 
+**At aso-extensions `8d7f8c2` (2026-11-13, 247 CRDs; `ASOX_COMMIT`
+since)** #87 to #91 built the kinds for the field gaps the charts named
+(section 8): App Service config sections and publishing policies (the rest
+of 4: `SitesConfigAuthSettingsV2`, `SitesConfigLogs`,
+`SitesConfigSlotConfigNames`, `SitesBasicPublishingCredentialsPolicyFtp`
+and `...Scm`, `web.azure.hfl.dev/v20260715`, owned by ASO's `Site`;
+`authsettings` v1 and `backup` are still not built), Application Insights
+linked storage (`ComponentsLinkedStorageAccount`,
+`insights.azure.hfl.dev/v20200301preview`, owned by ASO's `Component`, so
+`insights` joins `ASOX_OWNER_GROUPS`), and five of ASO's own kinds at a newer
+API version, **beside ASO's kinds under ASO's names in our groups**
+(aso-extensions `docs/plan.md` §8 open question 11, option (a)):
+`ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`), `ContainerApp`
+(`app.azure.hfl.dev/v20260701`), `UserAssignedIdentity`
+(`managedidentity.azure.hfl.dev/v20241130`), `VirtualMachine`
+(`compute.azure.hfl.dev/v20250401`) and `ApplicationGateway`
+(`network.azure.hfl.dev/v20260301`). Gap 18 (stale ARM versions) is closed
+for the fields the charts need. Their CRDs are copied in
+`crds/aso-extensions`; the charts map them (section 8).
+
 Already built in aso-extensions and needed by the top modules:
 
 - `VaultSecret` for keyvault, virtual machine, storage account and
@@ -907,7 +927,7 @@ copied in `crds/aso-extensions`), which updates the SOA record set Azure
 makes with the zone and leaves it when deleted.
 
 The rest of what the charts refused for want of a kind now has one in
-aso-extensions (at `f73f5ca`, the commit `ASOX_COMMIT` pins; 236 CRDs).
+aso-extensions (at `8d7f8c2`, the commit `ASOX_COMMIT` pins; 247 CRDs).
 Each is a mapping still to land or landing, not a gap:
 
 | Chart | Variable | aso-extensions kind | Mapped in |
@@ -1273,7 +1293,7 @@ by `hack/azure-mock.sh` and `hack/azure-live.sh`). aso-extensions at
 `ASOX_COMMIT` is built once per run: its manager from `cmd/manager` (the
 stock build: it reads ASO's `aso-controller-settings`, so it talks to the
 Resource Manager ASO talks to) into a scratch image with the host's CA
-bundle, loaded into kind and installed from its `config/default` (its 232
+bundle, loaded into kind and installed from its `config/default` (its 246
 CRDs, its RBAC, the manager under its own service account
 `aso-extensions-manager` in ASO's namespace). The manager starts an
 informer for every ASO kind its kinds name as owners and exits when one's

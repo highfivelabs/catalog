@@ -34,7 +34,7 @@ ASOX_IMAGE=catalog.local/asox-manager:run
 # pkg/controllers OwnerTypes at ASOX_COMMIT): the manager starts an informer
 # for each at startup and exits when one's CRD is missing, so ASO is
 # installed with these groups too (asox_crd_pattern).
-ASOX_OWNER_GROUPS="dbforpostgresql keyvault app resources web operationalinsights containerregistry compute sql containerservice network documentdb cognitiveservices storage"
+ASOX_OWNER_GROUPS="dbforpostgresql keyvault app resources web operationalinsights containerregistry compute sql containerservice network documentdb cognitiveservices storage insights"
 ASOX_NS=azureserviceoperator-system
 ASOX_DEPLOYMENT=aso-extensions-manager
 
