@@ -16,13 +16,14 @@ name: app-example
 location: eastus2
 parent_id: /subscriptions/<id>/resourceGroups/rg-example
 service_plan_resource_id: /subscriptions/<id>/resourceGroups/rg-example/providers/Microsoft.Web/serverFarms/asp-example
-ftp_publish_basic_authentication_enabled: true
 ```
 
 renders one ASO `Site` `app-example`, a Linux web app with the module's
-defaults: HTTPS only, public network access disabled, TLS 1.3, FTPS only
-(`tests/golden/basic.yaml`). `ftp_publish_basic_authentication_enabled:
-true` is required (below).
+defaults: HTTPS only, public network access disabled, TLS 1.3, FTPS only,
+and an aso-extensions `SitesBasicPublishingCredentialsPolicyFtp` that turns
+FTP basic authentication off (the module's default,
+`ftp_publish_basic_authentication_enabled: false`).
+`tests/golden/basic.yaml` sets it `true`, which renders no policy.
 
 ## What it renders
 
@@ -40,7 +41,11 @@ true` is required (below).
 | `azapi_resource.lock`, `.lock_private_endpoint` | `lock` set | aso-extensions `ManagementLock`, `lock` (and `private_endpoint:<key>/lock`), named `lock-<kind>` by default |
 | `azapi_resource.role_assignment`, `.role_assignment_private_endpoint` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`) |
 | `azapi_resource.diagnostic_setting` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
-| `module.config_connectionstrings`, `config_azurestorageaccounts`, `config_authsettings(v2)`, `config_backup`, `config_logs`, `config_slotconfignames`, the publishing credential policies, `azapi_resource_action.active_slot`, `module.extensions_zipdeploy` | | refused when they would write anything (below) |
+| `module.config_authsettingsv2` | `auth_settings_v2` set | aso-extensions `SitesConfigAuthSettingsV2` (`web.azure.hfl.dev/v20260715`), `config_authsettingsv2`, owned by the `Site` |
+| `module.config_logs` | one `logs` entry | aso-extensions `SitesConfigLogs`, `config_logs:<key>` |
+| `module.config_slotconfignames` | `sticky_settings` not empty | aso-extensions `SitesConfigSlotConfigNames`, `config_slotconfignames` |
+| `module.ftp_publishing_credential_policy`, `module.scm_publishing_credential_policy` | `ftp_publish_basic_authentication_enabled` (default) or `scm_publish_basic_authentication_enabled` false | aso-extensions `SitesBasicPublishingCredentialsPolicyFtp` or `...Scm`, `allow: false`, `ftp_publishing_credential_policy` or `scm_publishing_credential_policy` |
+| `module.config_connectionstrings`, `config_azurestorageaccounts`, `config_authsettings` (v1), `config_backup`, `azapi_resource_action.active_slot`, `module.extensions_zipdeploy` | | refused when they would write anything (below) |
 | telemetry | never | not ported |
 
 ## Values: module inputs to ASO
@@ -73,6 +78,10 @@ module's `ignore_null_property`.
 | `private_endpoints`, `private_endpoints_manage_dns_zone_group`, `private_endpoints_inherit_lock` | as above; as in the module, the site's endpoints take only their own lock (the slot module reads `private_endpoints_inherit_lock`) |
 | `tags` | `spec.tags` |
 | `lock`, `role_assignments`, `diagnostic_settings` | the AVM interfaces (avm-utl-interfaces 0.7.0; diagnostic settings v2) |
+| `auth_settings_v2` | `SitesConfigAuthSettingsV2`: the module's body (`modules/config_authsettingsv2`, its defaults for the object's optional attributes), every identity provider; nulls left out, and `allowedPrincipals` and `jwtClaimChecks` as `{}` where the module sends their cleared shape. The config sections have no name of their own (Azure fixes it) and no DELETE: deleting the object leaves the last values on the site until the site goes |
+| `logs` | `SitesConfigLogs`: `detailedErrorMessages`, `failedRequestsTracing`, the first `application_logs` entry's file system level and the first `http_logs` entry's file system retention, as the module takes them. One entry only (each writes the site's one `logs` section); a blob storage destination is refused (its `sas_url` is a secret) |
+| `sticky_settings` | `SitesConfigSlotConfigNames`: every entry's app setting and connection string names, flattened as the module does |
+| `ftp_publish_basic_authentication_enabled`, `scm_publish_basic_authentication_enabled` | `false` renders the `ftp` or `scm` publishing credential policy with `allow: false`; `true` renders nothing, as in the module |
 | `enable_telemetry`, `manage_connection_strings`, `zip_deploy_wait_duration` | accepted; nothing is sent (no telemetry, no connection strings, no zip deploy to wait for) |
 
 ### Not module inputs
@@ -95,18 +104,17 @@ module's `ignore_null_property`.
 | `storage_shares_to_mount` | not-ported | each mount needs the account's access key, a secret value |
 | `kind` (in part) | not-ported | `logicapp` is refused: the module writes the storage account key into an app setting |
 | `logic_app_node_version`, `logic_app_runtime_version`, `bundle_version`, `use_extension_bundle`, `storage_account_share_name` | not-ported | only a Logic App reads them; accepted at their defaults |
-| `auth_settings`, `auth_settings_v2`, `backup`, `logs`, `sticky_settings` | gap | `Microsoft.Web/sites/config` (`authsettings`, `authsettingsV2`, `backup`, `logs`, `slotConfigNames`) has no ASO or aso-extensions kind |
+| `auth_settings`, `backup` | gap | `Microsoft.Web/sites/config` (`authsettings`, `backup`) has no ASO or aso-extensions kind (each has a PUT and no GET; aso-extensions `docs/plan.md` §8 Q13). The module writes `auth_settings` only without `auth_settings_v2`, which is mapped |
+| `logs` (in part) | not-ported | an application or HTTP log's `azure_blob_storage`: its `sas_url` is a secret |
 | `app_service_active_slot` | gap | a slot swap is an action (`slotsswap`), not a resource |
-| `ftp_publish_basic_authentication_enabled` (in part) | gap | **must be set to `true`**: `false`, the module's default, writes `Microsoft.Web/sites/basicPublishingCredentialsPolicies` (`ftp`), which has no kind, so the chart refuses it rather than leave FTP basic authentication on without saying so |
-| `scm_publish_basic_authentication_enabled` (in part) | gap | `false` is refused (the `scm` policy) |
 | `delete_empty_service_plan` (in part) | gap | `false` is refused: ASO sends no `deleteEmptyServerFarm` |
 | `site_config` (in part) | not-ported | `application_insights_connection_string`, `application_insights_key`: secret values |
-| `deployment_slots` (in part) | not-ported | a slot must set `ftp_publish_basic_authentication_enabled` and `webdeploy_publish_basic_authentication_enabled` to `true`; its `connection_strings`, `storage_shares_to_mount`, `zip_deploy_file`, `site_config.application_insights_*` and `custom_domains.*.certificate_key` are refused |
+| `deployment_slots` (in part) | not-ported | a slot must set `ftp_publish_basic_authentication_enabled` and `webdeploy_publish_basic_authentication_enabled` to `true` (a slot's publishing policies have no kind; aso-extensions' are the site's); its `connection_strings`, `storage_shares_to_mount`, `zip_deploy_file`, `site_config.application_insights_*` and `custom_domains.*.certificate_key` are refused |
 | `certificates` (in part) | not-ported | `pfx_blob`, `password`: secret material. Use Key Vault |
 | `custom_domains` (in part) | not-ported | `certificate_key`: the binding takes the thumbprint Azure computes for the certificate, which a render cannot read; set `thumbprint` |
 
-Coverage: 76 of the module's 99 variables are accepted (8 of them in
-part), 23 refused; 13 of its 14 outputs.
+Coverage: 79 of the module's 99 variables are accepted (7 of them in
+part), 20 refused; 13 of its 14 outputs.
 
 ## Outputs
 
@@ -127,9 +135,8 @@ sensitive).
 
 ## From Terraform
 
-A module block's arguments are the values, plus
-`ftp_publish_basic_authentication_enabled: true` (and, per slot, the two
-publishing flags) unless the publishing policies are made elsewhere. ASO
+A module block's arguments are the values (per slot, the two publishing
+flags `true`). ASO
 adopts a site that exists when an object with its name is applied, so keep
 the name and leave `namePrefix` empty; set `deletion_policy: ABANDON` for
 the first apply, `terraform state rm` the module, then remove `ABANDON`.
@@ -147,7 +154,8 @@ refusals.
 `task test CHART=avm-res-web-site`: render cases `basic`, `windows` (a
 Windows .NET app with most site variables, a certificate, a custom domain,
 a private endpoint and the interfaces), `function` (identity-based host
-storage), `flex` (Flex Consumption), `slots`, `names` and `mock`, each
+storage), `flex` (Flex Consumption), `slots`, `names`, `config` (authentication v2,
+logs, sticky settings, both publishing policies) and `mock`, each
 validated against ASO v2.22.0's CRD schemas and aso-extensions' copied CRDs
 (`crds/aso-extensions`), and the refusals in `tests/*.fail.yaml`.
 
@@ -184,6 +192,13 @@ among them, no longer null.
 
 ## Changes
 
+- **0.3.0** (2026-11-13): `auth_settings_v2`, `logs`, `sticky_settings`,
+  `ftp_publish_basic_authentication_enabled` and
+  `scm_publish_basic_authentication_enabled` are mapped to aso-extensions'
+  `SitesConfigAuthSettingsV2`, `SitesConfigLogs`,
+  `SitesConfigSlotConfigNames` and `SitesBasicPublishingCredentialsPolicyFtp`
+  and `...Scm` (aso-extensions `8d7f8c2`). `ftp_publish_basic_authentication_enabled`
+  no longer has to be `true`: its default, `false`, renders the FTP policy.
 - **0.2.0** (2026-11-13): a deployment slot's `private_endpoints` render
   ASO `PrivateEndpoint`s to the site's `sites-<slot>` subresource, with
   their DNS zone groups, locks and role assignments.

@@ -12,10 +12,10 @@ with the body the module builds (_site.tpl, site.body). The config
 submodules the module applies after the site are carried inline where ASO's
 Site has the field: config_appsettings (siteConfig.appSettings, the merged
 app settings of locals.app_settings.tf) and config_metadata
-(siteConfig.metadata). config_connectionstrings, config_azurestorageaccounts,
-config_slotconfignames, config_authsettings(v2), config_backup, config_logs,
-the publishing credential policies and the slot swap are refused
-(upstream.yaml). azapi_resource.lock, role_assignment and
+(siteConfig.metadata). config_authsettingsv2, config_logs, config_slotconfignames and the
+publishing credential policies are aso-extensions kinds (config.yaml).
+config_connectionstrings, config_azurestorageaccounts, config_authsettings
+(v1), config_backup and the slot swap are refused (upstream.yaml). azapi_resource.lock, role_assignment and
 diagnostic_setting: the AVM interfaces (avm-utl-interfaces 0.7.0, diagnostic
 settings v2). Slots, custom domains, certificates and private endpoints are
 in their own templates. The telemetry and extensions_zipdeploy are not
@@ -47,18 +47,12 @@ ported.
 {{- include "aso.unsupported" (list $ "site_config.application_insights_key" .application_insights_key "the Application Insights instrumentation key, which the module marks sensitive as application_insights_key; a secret value is the builder's decision") }}
 {{- end }}
 {{- /* gaps: sites/config sections, publishing policies and actions with no kind */ -}}
-{{- include "aso.unsupported" (list $ "auth_settings" $v.auth_settings "Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind") }}
-{{- include "aso.unsupported" (list $ "auth_settings_v2" $v.auth_settings_v2 "Microsoft.Web/sites/config (authsettingsV2) has no Azure Service Operator or aso-extensions kind") }}
+{{- /* auth_settings (v1) is written only without auth_settings_v2, as the module does */ -}}
+{{- if not $v.auth_settings_v2 }}
+{{- include "aso.unsupported" (list $ "auth_settings" $v.auth_settings "Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind (it has a PUT and no GET; use auth_settings_v2)") }}
+{{- end }}
 {{- include "aso.unsupported" (list $ "backup" $v.backup "Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (and its storage_account_url is a SAS URL, a secret)") }}
-{{- include "aso.unsupported" (list $ "logs" $v.logs "Microsoft.Web/sites/config (logs) has no Azure Service Operator or aso-extensions kind") }}
-{{- include "aso.unsupported" (list $ "sticky_settings" $v.sticky_settings "Microsoft.Web/sites/config (slotConfigNames) has no Azure Service Operator or aso-extensions kind") }}
 {{- include "aso.unsupported" (list $ "app_service_active_slot" $v.app_service_active_slot "a slot swap is an action (POST Microsoft.Web/sites/slotsswap), which no Azure Service Operator or aso-extensions kind performs") }}
-{{- if not (eq (toString $v.ftp_publish_basic_authentication_enabled) "true") }}
-{{- fail (printf "%s: ftp_publish_basic_authentication_enabled false (the module's default) is not supported: the module then writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (ftp) with allow false, which has no Azure Service Operator or aso-extensions kind; set it to true to leave FTP basic authentication as Azure has it (docs/azure.md, \"Charts\")" $n) }}
-{{- end }}
-{{- if not (eq (toString $v.scm_publish_basic_authentication_enabled) "true") }}
-{{- fail (printf "%s: scm_publish_basic_authentication_enabled false is not supported: the module then writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (scm) with allow false, which has no Azure Service Operator or aso-extensions kind (docs/azure.md, \"Charts\")" $n) }}
-{{- end }}
 {{- if not (eq (toString $v.delete_empty_service_plan) "true") }}
 {{- fail (printf "%s: delete_empty_service_plan false is not supported: Azure Service Operator deletes a site without the deleteEmptyServerFarm query parameter, so Azure's default (true) applies (docs/azure.md, \"Charts\")" $n) }}
 {{- end }}
