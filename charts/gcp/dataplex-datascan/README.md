@@ -121,9 +121,12 @@ the outputs evaluated (`type` null: mockgcp's scan reports none) and both
 were deleted. The `IAMMember`s (`v1alpha1`) are only render-tested: alpha
 features are not in fake-cloud cases.
 
-Not applied live: the Dataplex API is enabled in the live-test project,
-but neither live-test service account has a Dataplex role, and this work
-changes no IAM.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=dataplex-datascan`, `tests/live.yaml`;
+2026-11-13, run `cat-11132355-c86b`, offload VM
+`off-catalog-1113235106-15596`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): an on-demand
+data quality scan of a BigQuery table of the run, and a role on it.
+Passed: the scan and its `IAMBinding` Ready, deleted and gone, with the
+dataset and table.
 
 ## Changes
 

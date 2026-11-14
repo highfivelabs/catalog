@@ -97,8 +97,12 @@ database and a table. On 2026-11-12 (offload VM
 `off-catalog-1113001844-20314`, config-connector-extensions `11baa460`) all
 three became Ready, the outputs evaluated and all three were deleted.
 
-Not applied live: the BigLake API is not enabled in the live-test
-project, and neither live-test service account has a BigLake role.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=biglake-catalog`, `tests/live.yaml`):
+blocked by a role. As cce-live-tests (2026-11-13, `cat-11132355-c86b`)
+and as catalog-live-tests (2026-11-14, `cat-11140120-96a6`), Google Cloud
+denied `biglake.catalogs.get`, `biglake.databases.get` and
+`biglake.tables.get`: neither account holds a BigLake role
+(`roles/biglake.admin`). Nothing was made or left.
 
 ## Changes
 
