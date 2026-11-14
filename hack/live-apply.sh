@@ -326,7 +326,9 @@ list_left() {
   "${G[@]}" compute instances list --format='value(name)' 2>/dev/null | grep -E '^cat-' || true
   local c
   for c in ${LIVE_CHARTS}; do
-    [[ -f "$(case_base "$c").gone" ]] && { gone_lines "$(case_base "$c").gone" describe || true; }
+    # Not "[[ -f ]] && ...": for a case written into this script (no .gone)
+    # that would end the function, and the run under errexit, with 1.
+    [[ ! -f "$(case_base "$c").gone" ]] || { gone_lines "$(case_base "$c").gone" describe || true; }
   done
 }
 cleanup() {
