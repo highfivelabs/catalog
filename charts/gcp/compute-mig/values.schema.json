@@ -1,0 +1,972 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "compute-mig values (fabric compute-mig v60.0.0)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "instance_template",
+    "location",
+    "name",
+    "project_id"
+  ],
+  "properties": {
+    "names": {
+      "description": "The group's (and its instances' base name), the health check's and the autoscaler's names in full (not Terraform variables; docs/design.md, \"Names, labels and tags\"). A name set here takes no prefix.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "healthCheck": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "autoscaler": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+        }
+      }
+    },
+    "namePrefix": {
+      "description": "Optional convenience (not a Terraform variable): <namePrefix>- in front of every derived name. A DNS label. Empty changes nothing.",
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    },
+    "labels": {
+      "description": "Kubernetes labels on every object (not a fabric variable); none of the module's resources takes Google Cloud labels.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 63
+      }
+    },
+    "tags": {
+      "description": "Cloud labels on every resource that takes them (none of the module's resources does).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "propertyNames": {
+        "pattern": "^[a-z]([a-z0-9_-]{0,61}[a-z0-9])?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^([a-z0-9]([a-z0-9_-]{0,61}[a-z0-9])?)?$"
+      }
+    },
+    "all_instances_config": {
+      "description": "Metadata and labels set to all instances in the group: {labels, metadata}. Refused when set: ComputeInstanceGroupManager has no allInstancesConfig field.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "auto_healing_policies": {
+      "description": "Auto-healing policies for this group.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "health_check": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "initial_delay_sec": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "initial_delay_sec"
+      ]
+    },
+    "autoscaler_config": {
+      "description": "Optional autoscaler configuration.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "max_replicas": {
+          "type": "number"
+        },
+        "min_replicas": {
+          "type": "number"
+        },
+        "cooldown_period": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scaling_control": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "down": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "max_replicas_fixed": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "max_replicas_percent": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "time_window_sec": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "in": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "max_replicas_fixed": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "max_replicas_percent": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "time_window_sec": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "scaling_signals": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "cpu_utilization": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "target": {
+                  "type": "number"
+                },
+                "optimize_availability": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "target"
+              ]
+            },
+            "load_balancing_utilization": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "target": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "target"
+              ]
+            },
+            "metrics": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "target_value": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "single_instance_assignment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "time_series_filter": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            },
+            "schedules": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "duration_sec": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "min_required_replicas": {
+                    "type": "number"
+                  },
+                  "cron_schedule": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": [
+                      "boolean",
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "timezone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "disabled": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "duration_sec",
+                  "name",
+                  "min_required_replicas",
+                  "cron_schedule"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "max_replicas",
+        "min_replicas"
+      ]
+    },
+    "default_version_name": {
+      "description": "Name used for the default version.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Optional description used for all resources managed by this module.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "distribution_policy": {
+      "description": "Distribution policy for regional MIG.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "target_shape": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "zones": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "health_check_config": {
+      "description": "Optional auto-created health check configuration.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "check_interval_sec": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "enable_logging": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "healthy_threshold": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "timeout_sec": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "unhealthy_threshold": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "grpc": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "service_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "http": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "http2": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "https": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "tcp": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "ssl": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "port_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port_specification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_header": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "response": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "instance_flexibility_policy_selections": {
+      "description": "Instance flexibility policy selections, {NAME: {rank, machine_types}}. Refused when set: ComputeInstanceGroupManager has no instanceFlexibilityPolicy field.",
+      "type": "object"
+    },
+    "instance_lifecycle_policy": {
+      "description": "The instance lifecycle policy for the MIG. Refused when set: ComputeInstanceGroupManager has no instanceLifecyclePolicy field.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "instance_template": {
+      "description": "Instance template for the default version.",
+      "type": "string",
+      "minLength": 1
+    },
+    "location": {
+      "description": "Compute zone or region.",
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "description": "Managed group name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "named_ports": {
+      "description": "Named ports.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "project_id": {
+      "description": "Project id.",
+      "type": "string",
+      "minLength": 1
+    },
+    "stateful_config": {
+      "description": "Stateful configuration for individual instances.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "minimal_action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "most_disruptive_action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "remove_state_on_destroy": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "preserved_state": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "disks": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "delete_on_instance_deletion": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "read_only": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "source"
+                  ]
+                }
+              },
+              "metadata": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "stateful_disks": {
+      "description": "Stateful disk configuration applied at the MIG level to all instances, in device name => on permanent instance delete rule as boolean.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "target_pools": {
+      "description": "Optional list of URLs for target pools to which new instances in the group are added.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "target_size": {
+      "description": "Group target size, leave null when using an autoscaler.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "update_policy": {
+      "description": "Update policy. Minimal action and type are required.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "minimal_action": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "max_surge": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "fixed": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "percent": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        },
+        "max_unavailable": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "fixed": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "percent": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        },
+        "min_ready_sec": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "most_disruptive_action": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "regional_redistribution_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "replacement_method": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "minimal_action",
+        "type"
+      ]
+    },
+    "versions": {
+      "description": "Additional application versions, target_size is optional.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "instance_template": {
+            "type": "string"
+          },
+          "target_size": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "fixed": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "percent": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "instance_template"
+        ]
+      }
+    },
+    "wait_for_instances": {
+      "description": "Wait for all instances to be created/updated before returning: {enabled, status}. Refused when set: a Terraform client-side wait with no Config Connector field.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "deletion_policy": {
+      "description": "Not a fabric variable: DELETE (default) or ABANDON; PREVENT is refused.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "DELETE",
+        "ABANDON",
+        "PREVENT",
+        null
+      ]
+    }
+  }
+}

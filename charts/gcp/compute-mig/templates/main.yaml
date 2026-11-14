@@ -1,0 +1,147 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/compute-mig/main.tf (v60.0.0),
+Copyright 2022 Google LLC, Apache-2.0.
+
+google_compute_instance_group_manager.default (a zone) or
+google_compute_region_instance_group_manager.default (a region): one
+ComputeInstanceGroupManager, whose location is the zone or the region.
+*/ -}}
+{{- $v := .Values }}
+{{- include "kcc.names" (list $ (list "group" "healthCheck" "autoscaler")) }}
+{{- include "kcc.unsupported" (list $ "all_instances_config" $v.all_instances_config "ComputeInstanceGroupManager has no allInstancesConfig field: set the labels and metadata in the instance template") }}
+{{- include "kcc.unsupported" (list $ "instance_lifecycle_policy" $v.instance_lifecycle_policy "ComputeInstanceGroupManager has no instanceLifecyclePolicy field, so the group keeps the API's default repair behaviour") }}
+{{- include "kcc.unsupported" (list $ "instance_flexibility_policy_selections" $v.instance_flexibility_policy_selections "ComputeInstanceGroupManager has no instanceFlexibilityPolicy field: use one machine type, in the instance template") }}
+{{- include "kcc.unsupported" (list $ "wait_for_instances" $v.wait_for_instances "Terraform's wait for the group's instances is a client-side wait with no Config Connector field; Bundt waits for the group to be Ready, not for its instances") }}
+{{- $regional := include "computeMig.regional" . }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- $name := include "computeMig.groupName" . }}
+{{- $hc := $v.auto_healing_policies }}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list .Release.Name)) "id" "group_manager" "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  resourceID: {{ $name | quote }}
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  location: {{ $v.location | quote }}
+  baseInstanceName: {{ $name | quote }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  {{- /* target_size null (fabric's advice with an autoscaler) renders the
+  autoscaler's min_replicas: Compute Engine requires a size on insert, and
+  Config Connector's controller never sends a size of 0, so the group
+  starts at the size the autoscaler would give it at once (README.md,
+  "The target size"). Without an autoscaler there is no size to take. */}}
+  {{- if not (kindIs "invalid" $v.target_size) }}
+  {{- if eq (int $v.target_size) 0 }}
+  {{- fail "compute-mig: target_size 0 is not supported: Config Connector never sends a group size of 0, and Compute Engine requires one on insert (README.md, \"The target size\")" }}
+  {{- end }}
+  targetSize: {{ $v.target_size }}
+  {{- else if not (kindIs "invalid" $v.autoscaler_config) }}
+  targetSize: {{ $v.autoscaler_config.min_replicas }}
+  {{- else }}
+  {{- fail "compute-mig: target_size is required without autoscaler_config: Compute Engine requires a group's size on insert and Config Connector never sends 0, where Terraform creates the group empty (README.md, \"The target size\")" }}
+  {{- end }}
+  {{- with $v.target_pools }}
+  targetPools:
+    {{- range . }}
+    - external: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with $hc }}
+  autoHealingPolicies:
+    - initialDelaySec: {{ .initial_delay_sec }}
+      {{- if .health_check }}
+      healthCheckRef:
+        external: {{ .health_check | quote }}
+      {{- else if not (kindIs "invalid" $v.health_check_config) }}
+      healthCheckRef:
+        name: {{ include "kcc.name" (list $.Release.Name) }}
+      {{- end }}
+  {{- end }}
+  {{- with $v.named_ports }}
+  namedPorts:
+    {{- range $n := keys . | sortAlpha }}
+    - name: {{ $n | quote }}
+      port: {{ index $v.named_ports $n }}
+    {{- end }}
+  {{- end }}
+  {{- with $v.stateful_disks }}
+  statefulPolicy:
+    preservedState:
+      disks:
+        {{- range $d := keys . | sortAlpha }}
+        {{ $d | quote }}:
+          autoDelete: {{ ternary "ON_PERMANENT_INSTANCE_DELETION" "NEVER" (index $v.stateful_disks $d) }}
+        {{- end }}
+  {{- end }}
+  {{- with $v.update_policy }}
+  updatePolicy:
+    minimalAction: {{ .minimal_action | quote }}
+    type: {{ .type | quote }}
+    {{- if and $regional (not (kindIs "invalid" .regional_redistribution_type)) }}
+    instanceRedistributionType: {{ .regional_redistribution_type | quote }}
+    {{- end }}
+    {{- range $f := list (list "max_surge" "maxSurge") (list "max_unavailable" "maxUnavailable") }}
+    {{- with index $.Values.update_policy (index $f 0) }}
+    {{- if or (not (kindIs "invalid" .fixed)) (not (kindIs "invalid" .percent)) }}
+    {{ index $f 1 }}:
+      {{- if not (kindIs "invalid" .fixed) }}
+      fixed: {{ .fixed }}
+      {{- end }}
+      {{- if not (kindIs "invalid" .percent) }}
+      percent: {{ .percent }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if not (kindIs "invalid" .min_ready_sec) }}
+    minReadySec: {{ .min_ready_sec }}
+    {{- end }}
+    {{- with .most_disruptive_action }}
+    mostDisruptiveAllowedAction: {{ . | quote }}
+    {{- end }}
+    {{- with .replacement_method }}
+    replacementMethod: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if $regional }}
+  {{- with $v.distribution_policy }}
+  distributionPolicy:
+    {{- with .target_shape }}
+    targetShape: {{ . | quote }}
+    {{- end }}
+    {{- with .zones }}
+    zones:
+      {{- range . }}
+      - zone: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  versions:
+    - name: {{ $v.default_version_name | quote }}
+      instanceTemplateRef:
+        external: {{ $v.instance_template | quote }}
+    {{- range $k := keys $v.versions | sortAlpha }}
+    {{- $ver := index $v.versions $k }}
+    - name: {{ $k | quote }}
+      instanceTemplateRef:
+        external: {{ $ver.instance_template | quote }}
+      {{- with $ver.target_size }}
+      {{- if or (not (kindIs "invalid" .fixed)) (not (kindIs "invalid" .percent)) }}
+      targetSize:
+        {{- if not (kindIs "invalid" .fixed) }}
+        fixed: {{ .fixed }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .percent) }}
+        percent: {{ .percent }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+    {{- end }}

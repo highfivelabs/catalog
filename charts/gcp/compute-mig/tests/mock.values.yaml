@@ -1,0 +1,34 @@
+# Applied to the fake cloud by hack/mock-apply.sh, with the template and
+# network in tests/mock.needs.yaml: a regional group with two versions, the
+# auto-created health check for auto-healing, a regional autoscaler and one
+# stateful instance (redistribution off, as createInstances needs), no
+# target_size.
+project_id: mock-project
+location: us-central1
+name: catalog-mock-mig
+instance_template: projects/mock-project/global/instanceTemplates/catalog-mock-mig
+named_ports: {http: 80}
+distribution_policy:
+  zones: [us-central1-a, us-central1-b]
+update_policy:
+  minimal_action: REFRESH
+  type: OPPORTUNISTIC
+  regional_redistribution_type: NONE
+  max_surge: {fixed: 0}
+  max_unavailable: {fixed: 2}
+versions:
+  canary:
+    instance_template: projects/mock-project/global/instanceTemplates/catalog-mock-mig
+    target_size: {fixed: 1}
+auto_healing_policies: {initial_delay_sec: 300}
+health_check_config:
+  tcp: {port: 22}
+autoscaler_config:
+  max_replicas: 2
+  min_replicas: 1
+  scaling_signals:
+    cpu_utilization: {target: 0.8}
+stateful_config:
+  catalog-mock-mig-0:
+    preserved_state:
+      metadata: {role: primary}

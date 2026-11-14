@@ -1,0 +1,123 @@
+---
+# Source: compute-mig/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-mig"
+  location: global
+  description: "Terraform managed."
+  tcpHealthCheck:
+    port: 22
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  resourceID: "catalog-mock-mig"
+  projectRef:
+    external: "mock-project"
+  location: "us-central1"
+  baseInstanceName: "catalog-mock-mig"
+  description: "Terraform managed."
+  targetSize: 1
+  autoHealingPolicies:
+    - initialDelaySec: 300
+      healthCheckRef:
+        name: mock
+  namedPorts:
+    - name: "http"
+      port: 80
+  updatePolicy:
+    minimalAction: "REFRESH"
+    type: "OPPORTUNISTIC"
+    instanceRedistributionType: "NONE"
+    maxSurge:
+      fixed: 0
+    maxUnavailable:
+      fixed: 2
+  distributionPolicy:
+    zones:
+      - zone: "us-central1-a"
+      - zone: "us-central1-b"
+  versions:
+    - name: "default"
+      instanceTemplateRef:
+        external: "projects/mock-project/global/instanceTemplates/catalog-mock-mig"
+    - name: "canary"
+      instanceTemplateRef:
+        external: "projects/mock-project/global/instanceTemplates/catalog-mock-mig"
+      targetSize:
+        fixed: 1
+---
+# Source: compute-mig/templates/autoscaler.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeRegionAutoscaler
+metadata:
+  name: mock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "autoscaler"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  resourceID: "catalog-mock-mig"
+  region: "us-central1"
+  target: "projects/mock-project/regions/us-central1/instanceGroupManagers/catalog-mock-mig"
+  description: "Terraform managed."
+  autoscalingPolicy:
+    minReplicas: 1
+    maxReplicas: 2
+    cooldownPeriod: 60
+    mode: "ON"
+    cpuUtilization:
+      target: 0.8
+      predictiveMethod: NONE
+---
+# Source: compute-mig/templates/stateful-config.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeRegionPerInstanceConfig
+metadata:
+  name: mock-instance-catalog-mock-mig-0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "stateful_config:catalog-mock-mig-0"
+    cnrm.cloud.google.com/project-id: "mock-project"
+spec:
+  projectRef:
+    external: "mock-project"
+  resourceID: "catalog-mock-mig-0"
+  region: "us-central1"
+  regionInstanceGroupManagerRef:
+    name: mock
+  preservedState:
+    metadata:
+      "role": "primary"
