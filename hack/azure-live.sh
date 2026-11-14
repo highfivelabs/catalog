@@ -883,8 +883,13 @@ EOF
 # sends its logs nowhere, so it needs no workspace. The sandbox
 # subscription may hold one environment per region, so a run's environment
 # must be gone before the next run makes one; an environment takes several
-# minutes to create and to delete (CASE_TIMEOUT).
+# minutes to create and to delete (CASE_TIMEOUT). The app has a secret
+# whose value is a reference to a Kubernetes Secret the harness makes for
+# the run from random bytes (hack/test-secret.sh, from the "# secret:"
+# line; docs/secrets.md), given to the container as an environment
+# variable.
 cat >"${WORK}/ca.yaml" <<EOF
+# secret: ${RUN}-ca-secrets random
 name: ${RUN}-ca
 location: ${LOCATION}
 resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
@@ -895,7 +900,9 @@ template:
   min_replicas: 0
   max_replicas: 1
   containers:
-    - {name: hello, image: mcr.microsoft.com/k8se/quickstart:latest, cpu: 0.25, memory: 0.5Gi}
+    - {name: hello, image: mcr.microsoft.com/k8se/quickstart:latest, cpu: 0.25, memory: 0.5Gi, env: [{name: API_KEY, secret_name: api-key}]}
+secrets:
+  api: {name: api-key, value: {secretName: ${RUN}-ca-secrets, key: value}}
 ingress:
   external_enabled: true
   target_port: 80
