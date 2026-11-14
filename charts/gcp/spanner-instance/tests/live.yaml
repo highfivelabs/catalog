@@ -1,6 +1,6 @@
 # The live case (hack/live-apply.sh LIVE_CHARTS=spanner-instance): a
 # user-managed instance configuration (config-connector-extensions'
-# SpannerInstanceConfig) on regional-us-central1's replicas, an instance on
+# SpannerInstanceConfig) with regional-us-central1's replicas, an instance on
 # it at the smallest size (100 processing units), a database with DDL, and
 # IAM on both.
 project_id: ${PROJECT}
@@ -12,8 +12,12 @@ instance:
     name: custom-${RUN}
     auto_create:
       base_config: regional-${REGION}
+      # Every replica of the base config (three read-write ones in the
+      # region: the API refuses a list missing one, run cat-11132355-c86b).
       replicas:
         - {location: ${REGION}, type: READ_WRITE, default_leader_location: true}
+        - {location: ${REGION}, type: READ_WRITE}
+        - {location: ${REGION}, type: READ_WRITE}
   processing_units: 100
 databases:
   orders:
