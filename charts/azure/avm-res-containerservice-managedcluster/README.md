@@ -74,6 +74,7 @@ is `vnetSubnetReference.armId`, a load balancer's `public_ips[].id` is
 | --- | --- |
 | `name`, `location`, `parent_id` (required) | `azureName`, `location`, `owner.armId` |
 | `aad_profile`, `ai_toolchain_operator_profile`, `api_server_access_profile`, `auto_scaler_profile`, `auto_upgrade_profile`, `azure_monitor_profile`, `bootstrap_profile`, `disable_local_accounts`, `disk_encryption_set_id`, `enable_rbac`, `extended_location`, `fqdn_subdomain`, `hosted_system_profile`, `http_proxy_config`, `ingress_profile`, `kind`, `kube_proxy_config` (`networkProfile.kubeProxyConfig`), `kubernetes_version`, `linux_profile`, `metrics_profile`, `network_profile`, `node_provisioning_profile`, `node_resource_group`, `node_resource_group_profile`, `oidc_issuer_profile`, `pod_identity_profile`, `private_link_resources`, `public_network_access`, `security_profile`, `service_mesh_profile`, `service_principal_profile`, `sku`, `storage_profile`, `support_plan`, `upgrade_settings`, `windows_profile`, `workload_auto_scaler_profile` | the cluster's properties of the same name |
+| `windows_profile_password` (with `windows_profile_password_version`), `aad_profile.server_app_secret`, `service_principal_profile.secret` | `windowsProfile.adminPassword` (only with `windows_profile`, as the module sends it), `aadProfile.serverAppSecret`, `servicePrincipalProfile.secret`, each a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. The version is required with the password, as in the module, and does nothing; the module's 14-character minimum is not checked (the chart never sees the value). `windows_profile.admin_password` is not sent, as in the module |
 | `dns_prefix` | `dnsPrefix`; without it or `fqdn_subdomain`, 10 characters of the SHA-256 of the release and `name` (the module: a `random_string`, as stable once made) |
 | `managed_identities` | `identity`: `SystemAssigned` or `UserAssigned` (an AKS cluster has one or the other) |
 | `identity_profile` | `identityProfile.kubeletidentity.resourceReference` |
@@ -91,10 +92,7 @@ the module sends for one: no agent pool, no Azure Policy or Key Vault
 add-on, and its `network_profile` only when `outbound_type` is not
 `loadBalancer`.
 
-**Refused** (`upstream.yaml`): a secret value anywhere
-(`aad_profile.server_app_secret`, `service_principal_profile.secret`,
-`windows_profile_password` and its `_version`: how a component supplies a
-secret is not settled); `enable_os_disk_full_caching` and
+**Refused** (`upstream.yaml`): `enable_os_disk_full_caching` and
 `gpu_profile.nvidia` on a pool, and an agent pool's
 `delete_options.ignore_pod_disruption_budget` (gaps: ASO has none of
 them); `timeouts`, `cluster_timeouts`,
@@ -171,7 +169,10 @@ repository, release, commit, licence and the date last synced.
 maintenance window, a namespace, the interfaces, a private endpoint,
 monitoring and alerting), `monitoring` (a long name's cut data collection
 names, an endpoint whose zone group is left to others), `preview`,
-`automatic`, `names` and `mock`, each validated against ASO v2.22.0's
+`automatic`, `names`, `secrets` (the Windows password, a service
+principal's secret and a legacy AAD server secret from Secrets), `mock`
+and `mock-windows` (a Windows pool, its password from a Secret the
+fake-cloud run makes), each validated against ASO v2.22.0's
 CRD schemas and aso-extensions' CRDs, and the refusals in
 `tests/*.fail.yaml`. Not applied live: an AKS cluster makes its node
 resource group (`MC_...`) outside the sandbox's one resource group, which
@@ -187,6 +188,11 @@ Ready and deleted, the outputs evaluated.
 
 ## Changes
 
+- **0.3.0** (2026-11-14): `windows_profile_password` (with its
+  `_version`), `aad_profile.server_app_secret` and
+  `service_principal_profile.secret` are mapped as references to a
+  Kubernetes Secret, `{secretName, key}` (docs/secrets.md, the builder's
+  decision).
 - **0.2.0** (2026-11-13): `private_endpoints` (with
   `private_endpoints_manage_dns_zone_group`), `onboard_monitoring` (with
   `prometheus_workspace_id`) and `onboard_alerts` (with `alert_email`)

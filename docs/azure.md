@@ -483,9 +483,8 @@ and default privileges, ownership).
 Charted as `charts/azure/avm-res-dbforpostgresql-flexibleserver`
 (2026-11-12): 36 of 40 variables and 6 of 6 outputs, private endpoints
 included. The administrator password (`administrator_password` and its
-write-only pair) is refused: a secret value does not belong in a
-component's inputs, so a server the chart creates uses Entra
-authentication only (section 8).
+write-only pair) is a reference to a Kubernetes Secret since 0.2.0
+(2026-11-14, `docs/secrets.md`), so password authentication renders too.
 
 ### 18. avm-res-cognitiveservices-account (v0.11.1)
 
@@ -668,7 +667,7 @@ public IP it makes as a `PublicIPAddress`.
 
 | Module | ASO coverage |
 | --- | --- |
-| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. Entra database users: aso-extensions candidate a1, PR #5104. Chart `charts/azure/avm-res-sql-server` (2026-11-13): 23 of 28 variables (2 in part) and 6 of 8 outputs. The administrator password (given, write-only, generated, or copied to Key Vault) and the two password outputs are refused (a secret value, section 8), so the server is Entra-only; refused too: a database's `import`, a threat detection storage key, and firewall rule `timeouts`. The express vulnerability assessment is aso-extensions' `ServersSqlVulnerabilityAssessment`, mapped in 0.2.0; a DataWarehouse database's `geo_backup_enabled: false` is its `ServersDatabasesGeoBackupPolicy` (gap 19), mapped in 0.3.0 at aso-extensions `f73f5ca`. Fake cloud and live (centralus; eastus2 refuses SQL servers for the sandbox subscription) passed; details in the chart's README |
+| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. Entra database users: aso-extensions candidate a1, PR #5104. Chart `charts/azure/avm-res-sql-server` (2026-11-13): 23 of 28 variables (2 in part) and 6 of 8 outputs. The administrator password, given or write-only, is a reference to a Kubernetes Secret since 0.4.0 (2026-11-14, `docs/secrets.md`); a generated one, its Key Vault copy and the two password outputs are refused (the catalog never generates a secret); refused too: a database's `import`, a threat detection storage key, and firewall rule `timeouts`. The express vulnerability assessment is aso-extensions' `ServersSqlVulnerabilityAssessment`, mapped in 0.2.0; a DataWarehouse database's `geo_backup_enabled: false` is its `ServersDatabasesGeoBackupPolicy` (gap 19), mapped in 0.3.0 at aso-extensions `f73f5ca`. Fake cloud and live (centralus; eastus2 refuses SQL servers for the sandbox subscription) passed; details in the chart's README |
 | avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered. Chart `charts/azure/avm-res-network-azurefirewall` (2026-11-13): 18 of 23 variables (the five refused are the azapi mechanics: `ignore_body_changes`, `resource_types`, `retry`, `timeouts`, `firewall_timeouts`), 2 of 4 outputs: ASO's status has no IP configuration's private address (section 8) |
 | avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered. Chart `charts/azure/avm-res-web-serverfarm` (2026-11-12): `ServerFarm` at 2025-05-01 (the module sends 2025-03-01), 25 of 27 variables (`retry`, `timeouts` and a non-default `server_farm_resource_type` refused; `location` was missing from `values.yaml` until 2026-11-13), both outputs |
 | avm-ptn-alz (35) | management groups, their settings and subscriptions, policy definitions, set definitions and assignments: no ASO kind (management groups are issue #2249, open), `aso-ext` at `b9beb5b` (`management.azure.hfl.dev`, `authorization.azure.hfl.dev` 2026-07-01). Role definitions and assignments: ASO. Chart `charts/azure/avm-ptn-alz` (2026-11-13): 18 of 26 variables (4 in part) and 7 of 7 outputs. The module reads its architecture from the alz provider's library (`data alz_architecture`, fetched and resolved at plan); a render cannot and the chart does not vendor the library, so it takes that data source's result as `architecture` and makes every management group, policy and role resource of it as the module does (the policy role assignments' principals from each assignment's identity through `configMapExpressions`). Refused: the resolution's arguments (`policy_default_values`, the non-compliance message settings, the two `assignPermissions` overrides, `policy_assignments_to_modify` but for `creation_enabled` and `role_assignments_enabled`, which are applied), a subscription's move to another group at destroy (`parent`, `custom`, a real `intermediate_root`), and the azapi mechanics. Not applied live (tenant and management group scope); renders and the fake cloud only, which found gaps 20 and 21 of aso-extensions (section 5: a child group is not retried while its parent is made; the manager cannot write the ConfigMap a policy assignment's principal goes through), both fixed at `3d9ba27`, so the mock now carries a second level, a policy identity and its role assignment, and hierarchy settings on the tenant root group (chart README) |
@@ -1034,10 +1033,11 @@ fields of the interface in ARM, and the data disk attachments entries of
 the machine's `storageProfile.dataDisks`. Run commands, the shutdown
 schedule and maintenance assignments are aso-extensions kinds
 (`VirtualMachinesRunCommand`, `Schedule`, `ConfigurationAssignment`, CRDs
-copied in `crds/aso-extensions`). It refuses what needs a secret value
-(an admin password, generating an SSH key pair or password, protected run
-command parameters and extension settings; the builder's decision), so a
-Windows machine renders only from an attached OS disk; and the gaps:
+copied in `crds/aso-extensions`). Its admin password is a reference to a Kubernetes Secret since 0.4.0
+(2026-11-14, `docs/secrets.md`), so a Windows machine renders its OS
+profile. It refuses generating an SSH key pair or password, protected run
+command parameters and extension settings, and unattend content (plain
+text in the kind); and the gaps:
 
 | Chart | Variable | Missing |
 | --- | --- | --- |

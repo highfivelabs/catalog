@@ -68,6 +68,8 @@ convert one to one. How the server's map onto `FlexibleServer`:
 | `storage_mb`, `storage_tier`, `auto_grow_enabled` | `storage.storageSizeGB` (`storage_mb / 1024`), `storage.tier`, `storage.autoGrow` |
 | `backup_retention_days`, `geo_redundant_backup_enabled` | `backup.backupRetentionDays`, `backup.geoRedundantBackup` |
 | `authentication` | `authConfig` (`activeDirectoryAuth`, `passwordAuth`, `tenantId`) |
+| `administrator_login` | `administratorLogin` |
+| `administrator_password`, or `administrator_password_wo` with `administrator_password_wo_version` | `administratorLoginPassword`, as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. The two are one field here (ASO keeps no state); not both, as in azurerm. The version is required with `_wo` and does nothing |
 | `high_availability` | `highAvailability`; null is `mode: Disabled`, as azurerm sends it |
 | `maintenance_window` | `maintenanceWindow` with `customWindow: Enabled`; null leaves the system window |
 | `delegated_subnet_id`, `private_dns_zone_id`, `public_network_access_enabled` | `network.delegatedSubnetResourceReference`, `network.privateDnsZoneArmResourceReference`, `network.publicNetworkAccess` |
@@ -78,17 +80,12 @@ convert one to one. How the server's map onto `FlexibleServer`:
 
 Not as in the module:
 
-- **No password.** `administrator_password`, `administrator_password_wo`
-  and `administrator_password_wo_version` are refused (by design): a
-  password is a secret value, which does not belong in a component's
-  inputs. ASO takes one only from a Kubernetes Secret
-  (`administratorLoginPassword`), and how a component supplies that Secret
-  is the builder's decision, still open. Because Azure needs a password
-  when password authentication is on, a server the chart creates
-  (`create_mode` `Default`) must set `authentication:
-  {active_directory_auth_enabled: true, password_auth_enabled: false}`;
-  the render stops otherwise, naming the reason. `administrator_login` is
-  kept.
+- **The password from a Kubernetes Secret.** Password authentication
+  (the default) on a server the chart creates (`create_mode` `Default`)
+  needs `administrator_login` and a password reference (above); the render
+  stops otherwise, naming the reason. Entra-only servers
+  (`authentication: {active_directory_auth_enabled: true,
+  password_auth_enabled: false}`) need neither.
 - **`timeouts`** (the server's and each database's) are refused: ASO has no
   per-request timeouts; Bundt sets a component's time limit.
 - **`firewall_rules`' default** (`rule1`, every address) is applied in the
@@ -127,7 +124,9 @@ resource in Azure when the component is deleted.
 
 `tests/*.values.yaml` render to `tests/golden/` and pass `kubeconform
 -strict`; `tests/*.fail.yaml` must be refused with the message on their
-first line. `tests/mock.values.yaml` is applied to aso-extensions' fake
+first line. `password` renders password authentication with the
+administrator's password a Secret reference, `password-wo` the write-only
+form. `tests/mock.values.yaml` is applied to aso-extensions' fake
 cloud (`task test-mock-azure`), and the `psql` case of `hack/azure-live.sh`
 to the Azure sandbox (`docs/azure.md`, "8. Charts", Testing).
 
@@ -137,3 +136,12 @@ and deleted and the outputs evaluated, `fqdn` among them
 (`<server>.postgres.database.azure.com`). Earlier runs at `b9beb5b` had
 every object Ready but no outputs: that fake computed no
 `fullyQualifiedDomainName`.
+
+## Changes
+
+- **0.2.0** (2026-11-14): `administrator_password` and
+  `administrator_password_wo` (with its `_version`) are mapped as
+  references to a Kubernetes Secret, `{secretName, key}` (docs/secrets.md,
+  the builder's decision), so password authentication is no longer
+  refused.
+- **0.1.0** (2026-11-13): the port.

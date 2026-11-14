@@ -22,47 +22,25 @@ synced: 2026-11-12
 # field; the reason names the type when a kind is missing), not-ported (one
 # exists, the chart does not map it yet) or by-design (Bundt replaces it).
 refused:
-  # Secret values: the builder decides how a component supplies one.
-  - variable: admin_password
-    kind: not-ported
-    reason: "a secret value (ASO's osProfile.adminPassword is a SecretReference); how a component supplies one is the builder's decision"
+  # Secret values: generated ones never (docs/secrets.md); run command
+  # secrets not yet.
   - variable: generated_secrets_key_vault_secret_config
-    kind: not-ported
-    reason: "writes a generated password or SSH private key to Key Vault (a secret value; aso-extensions' VaultSecret takes one from a Kubernetes Secret)"
+    kind: by-design
+    reason: "writes a generated password or SSH private key to Key Vault; the catalog never generates a secret (docs/secrets.md)"
   - variable: run_commands_secrets
     kind: not-ported
     reason: "protected parameters and run-as passwords are secret values"
   - variable: account_credentials
-    kind: not-ported
+    kind: by-design
     partial: true
-    reason: "admin_credentials.username and ssh_keys are mapped; admin_credentials.password and key_vault_configuration (secret values), password_authentication_disabled false (needs a password) and generating a key or password are refused"
+    reason: "admin_credentials (username, ssh_keys, the password as a Kubernetes Secret reference) and password_authentication_disabled are mapped; key_vault_configuration is refused: it writes a generated password or SSH private key to Key Vault, and the catalog never generates a secret"
   - variable: generate_admin_password_or_ssh_key
-    kind: not-ported
+    kind: by-design
     partial: true
-    reason: "accepted when public keys are given; generating an SSH key pair or a password makes a secret value"
-  - variable: disable_password_authentication
-    kind: not-ported
-    partial: true
-    reason: "true (the default) is mapped; false needs a password, a secret value"
-  - variable: os_type
-    kind: not-ported
-    partial: true
-    reason: "Linux is mapped; Windows only with an attached OS disk (os_disk_attach_mode), since a Windows OS profile needs an admin password, a secret value"
+    reason: "accepted when public keys or a password reference are given; generating an SSH key pair or a password is refused: the catalog never generates a secret"
   - variable: additional_unattend_contents
-    kind: not-ported
-    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
-  - variable: enable_automatic_updates
-    kind: not-ported
-    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
-  - variable: hotpatching_enabled
-    kind: not-ported
-    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
-  - variable: timezone
-    kind: not-ported
-    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
-  - variable: winrm_listeners
-    kind: not-ported
-    reason: "Windows OS profile only (os_type: a Windows OS profile needs an admin password)"
+    kind: gap
+    reason: "an unattend file's content can carry a password (AutoLogon) and azurerm treats it as sensitive, but the VirtualMachine takes it only in plain text (no SecretReference), so it would sit in the component's inputs"
   # Kinds and fields ASO and aso-extensions lack.
   - variable: azure_backup_configurations
     kind: gap

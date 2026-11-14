@@ -1,0 +1,90 @@
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20260501
+kind: ManagedCluster
+metadata:
+  name: mock-windows-aks
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-windows"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "managed_cluster"
+spec:
+  addonProfiles:
+    azurepolicy:
+      enabled: false
+  agentPoolProfiles:
+  - count: 1
+    mode: System
+    name: systempool
+    osType: Linux
+    tags:
+      catalog: mock
+    vmSize: Standard_D2ds_v5
+  azureName: catalog-akswin
+  disableLocalAccounts: false
+  dnsPrefix: catalogakswin
+  identity:
+    type: SystemAssigned
+  location: eastus2
+  networkProfile:
+    networkPlugin: azure
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+  sku:
+    name: Base
+    tier: Free
+  tags:
+    catalog: mock
+  windowsProfile:
+    adminPassword:
+      key: value
+      name: catalog-aks-windows
+    adminUsername: winadmin
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: mock-windows-default-pool
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-windows"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "default_agent_pool"
+    serviceoperator.azure.com/reconcile-policy: detach-on-delete
+spec:
+  azureName: "systempool"
+  owner:
+    name: mock-windows-aks
+  count: 1
+  mode: System
+  osType: Linux
+  tags:
+    catalog: mock
+  vmSize: Standard_D2ds_v5
+---
+# Source: avm-res-containerservice-managedcluster/templates/main.yaml
+apiVersion: containerservice.azure.com/v20251002preview
+kind: ManagedClustersAgentPool
+metadata:
+  name: mock-windows-pool-win
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-windows"
+    app.kubernetes.io/name: avm-res-containerservice-managedcluster
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "agent_pool:win"
+spec:
+  azureName: "win"
+  owner:
+    name: mock-windows-aks
+  count: 1
+  mode: User
+  osType: Windows
+  vmSize: Standard_D4ds_v5
