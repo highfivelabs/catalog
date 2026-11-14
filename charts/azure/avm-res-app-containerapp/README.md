@@ -155,7 +155,11 @@ deleted and gone from Azure; fake cloud run `off-catalog-1113030900-10353`,
 both objects Ready and deleted, outputs evaluated. 0.4.0 (2026-11-14): fake cloud run
 `off-catalog-1114090347-8775` (aso-extensions `8d7f8c2`), `mock` with a
 secret from a Secret the run made and `mock-kind`, every object Ready and
-deleted, outputs evaluated.
+deleted, outputs evaluated. Live run `cat111409089072` (offload
+`off-catalog-1114090347-26947`, 2026-11-14): the `ca` case with a secret
+whose value is a reference to a Kubernetes Secret the run made, given to
+the container as `API_KEY`; the environment and the app Ready, outputs
+evaluated, both deleted and gone from Azure.
 
 ## Changes
 
