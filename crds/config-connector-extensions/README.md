@@ -62,7 +62,7 @@ validate Config Connector's own kinds against its CRDs.
 | `compute.gcp.hfl.dev_computeregionperinstanceconfigs.yaml` | `ComputeRegionPerInstanceConfig` (`compute.gcp.hfl.dev/v1beta1`; Config Connector's own is `v1alpha1`) | `config/crds/` at `35833eb8c7594675ea5237c11373665cd806658e` (2026-11-12) |
 
 `Taskfile.yml`'s `CCE_COMMIT`, which the fake-cloud and live runs use, is
-`d7b525010062e2ef9b34cbdc8409add693ebb00a` (2026-11-14), at or after every
+`384d07c01932defd747c17038a833ca3b591fa7a` (2026-11-14), at or after every
 copy above, so the fake cloud serves each of these kinds (each file is the
 same at the pin). A CRD copied from a later commit needs the pin moved
 first, in its own change, before a fake-cloud case renders the kind; until
