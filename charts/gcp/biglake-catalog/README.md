@@ -100,6 +100,8 @@ Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a catalog, a
 database and a table. On 2026-11-12 (offload VM
 `off-catalog-1113001844-20314`, config-connector-extensions `11baa460`) all
 three became Ready, the outputs evaluated and all three were deleted.
+That run had Config Connector's `BigLakeTable`; chart 0.2.0's table has
+not been run on the fake cloud.
 
 Live (`hack/live-apply.sh` `LIVE_CHARTS=biglake-catalog`, `tests/live.yaml`):
 blocked by a role. As cce-live-tests (2026-11-13, `cat-11132355-c86b`)
@@ -137,6 +139,27 @@ upstream: config-connector-extensions' `BigLakeDatabase` needs
 `BigLakeTable` (`bigquerybiglake.cnrm.cloud.google.com`) takes the 403
 for a denial the same way. Neither was made, so each delete was a no-op;
 the sweep after found nothing left.
+
+config-connector-extensions `d7b52501` (#128) reads that 403 as not
+found for `BigLakeDatabase` too, and adds its own `BigLakeTable`, which
+chart 0.2.0 renders. The rerun (2026-11-14, `cat-11141549-4cb0`, offload
+VM `off-catalog-1114154511-1030`, as catalog-live-tests, a 30-minute
+limit) **made everything**: the catalog (`cat_11141549_4cb0_lake`), the
+database `live_db`, the table `live_table` and the bucket were Ready
+within seconds (the database's and the table's first creates were
+refused with 403 just after the catalog was made, and the retries
+went through), and the outputs evaluated. **The delete failed.** Every
+object is deleted at once; the catalog's delete went through and took
+its database and table with it, and BigLake then answered the
+database's and the table's deletes and gets with 403. Once an object
+has made its resource, config-connector-extensions reads a 403 as a
+denial, not as gone (`pkg/discokind`'s `Find` reads it as not found
+only before a create, and `Delete` not at all), so both finalizers held
+for the whole 30 minutes and the run failed. The fix belongs in
+config-connector-extensions: for a `missingIs403` kind, a 403 on the
+delete or the get after it should end the delete. The sweep removed
+the bucket; a check by hand found no catalog in `us`, `us-central1` or
+`eu`, no `cat-` bucket and no VM left.
 
 ## Changes
 
