@@ -779,7 +779,9 @@ for chart in ${LIVE_CHARTS}; do
   base="$(case_base "${chart}")"; id="${chart/:/-}"
   dir="charts/gcp/${chart%%:*}"
   helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${id}.values.yaml" >"${OUT}/${id}.rendered.yaml"
-  # What the case needs and the chart does not make, applied and deleted with it.
+  # What the case needs and the chart does not make, applied with it and
+  # deleted after it (a network an association holds goes once that is gone).
+  cp "${OUT}/${id}.rendered.yaml" "${OUT}/${id}.chart.yaml"
   if [[ -f "${OUT}/${id}.needs.yaml" ]]; then
     { cat "${OUT}/${id}.needs.yaml"; echo "---"; cat "${OUT}/${id}.rendered.yaml"; } >"${OUT}/${id}.with-needs.yaml"
     mv "${OUT}/${id}.with-needs.yaml" "${OUT}/${id}.rendered.yaml"
@@ -805,14 +807,19 @@ for chart in ${LIVE_CHARTS}; do
     | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${id}.live.json"
   bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${id}.live.json" "${dir}/values.yaml" "${OUT}/${id}.values.yaml" >"${OUT}/${id}.outputs.json" 2>&1 || failed=$((failed + 1))
   cat "${OUT}/${id}.outputs.json"
-  kubectl delete -n "${NS}" -f "${OUT}/${id}.rendered.yaml" --wait=false >/dev/null
+  # The chart's objects first, then what the case needs.
+  deadline=$(( $(date +%s) + TIMEOUT ))
+  for part in chart needs; do
+  [[ -f "${OUT}/${id}.${part}.yaml" ]] || continue
+  kubectl delete -n "${NS}" -f "${OUT}/${id}.${part}.yaml" --wait=false >/dev/null 2>&1 || true
+  mapfile -t pobjects < <(kubectl get -n "${NS}" -f "${OUT}/${id}.${part}.yaml" -o json 2>/dev/null \
+    | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"' || true)
   # Config Connector's deletion defender runs as its own pod in a real
   # install; here the manager runs alone, so do the defender's part: remove
   # its finalizer, and Config Connector's controller deletes the resource.
-  deadline=$(( $(date +%s) + TIMEOUT ))
   while (( $(date +%s) < deadline )); do
     left=0
-    for o in "${objects[@]}"; do
+    for o in "${pobjects[@]}"; do
       f="$(kubectl get -n "${NS}" "$o" -o jsonpath='{.metadata.finalizers}' 2>/dev/null)" || continue
       left=$((left + 1))
       if [[ "${f}" == *deletion-defender* ]]; then
@@ -823,6 +830,7 @@ for chart in ${LIVE_CHARTS}; do
     done
     (( left == 0 )) && break
     sleep 3
+  done
   done
   case "${chart}" in
     gcs) "${G[@]}" storage buckets describe "gs://${BUCKET}" >/dev/null 2>&1 && gone=no || gone=yes ;;
