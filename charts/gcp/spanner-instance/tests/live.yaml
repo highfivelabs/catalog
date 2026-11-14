@@ -1,0 +1,30 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=spanner-instance): a
+# user-managed instance configuration (config-connector-extensions'
+# SpannerInstanceConfig) with regional-us-central1's replicas, an instance on
+# it at the smallest size (100 processing units), a database with DDL, and
+# IAM on both.
+project_id: ${PROJECT}
+labels: {catalog-run: ${RUN}}
+instance:
+  name: ${RUN}-sp
+  display_name: catalog live ${RUN}
+  config:
+    name: custom-${RUN}
+    auto_create:
+      base_config: regional-${REGION}
+      # Every replica of the base config (three read-write ones in the
+      # region: the API refuses a list missing one, run cat-11132355-c86b).
+      replicas:
+        - {location: ${REGION}, type: READ_WRITE, default_leader_location: true}
+        - {location: ${REGION}, type: READ_WRITE, default_leader_location: false}
+        - {location: ${REGION}, type: READ_WRITE, default_leader_location: false}
+  processing_units: 100
+databases:
+  orders:
+    deletion_protection: false
+    ddl:
+      - CREATE TABLE t (id INT64) PRIMARY KEY (id)
+    iam:
+      roles/spanner.databaseReader: ["serviceAccount:${RUNNER}"]
+iam:
+  roles/spanner.viewer: ["serviceAccount:${RUNNER}"]

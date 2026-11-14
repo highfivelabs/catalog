@@ -1,0 +1,22 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=certificate-manager): a DNS
+# authorization, a certificate it authorizes (it stays provisioning: no
+# one answers the DNS challenge), a map with an entry for it, and an
+# issuance config (config-connector-extensions'
+# CertificateManagerCertificateIssuanceConfig) on a CA pool of the run.
+project_id: ${PROJECT}
+labels: {catalog-run: ${RUN}}
+dns_authorizations:
+  ${RUN}-dns: {domain: ${RUN}.example.com}
+certificates:
+  ${RUN}-cert:
+    managed: {domains: [${RUN}.example.com], dns_authorizations: [${RUN}-dns]}
+issuance_configs:
+  ${RUN}-ic:
+    ca_pool: projects/${PROJECT}/locations/${REGION}/caPools/${RUN}-pool
+    key_algorithm: ECDSA_P256
+    lifetime: 1814400s
+    rotation_window_percentage: 34
+map:
+  name: ${RUN}-map
+  entries:
+    ${RUN}-entry: {certificates: [${RUN}-cert], hostname: ${RUN}.example.com}

@@ -91,6 +91,16 @@ config-connector-extensions' CRD schemas, and the refusals in
 VM, which the live tests do not make (no VMs), and route policies'
 extension kind is newer than the fake cloud's pin (`CCE_COMMIT`).
 
+Live (`hack/live-apply.sh` `LIVE_CHARTS=ncc-spoke-ra`, `tests/live.yaml`; as
+cce-live-tests, config-connector-extensions `c2f0c7d2`): a hub, a router appliance spoke on one e2-micro VM
+of the run (no BGP speaker on it), its Cloud Router, interfaces and peers,
+and an import route policy (config-connector-extensions'
+`ComputeRouterRoutePolicy`). The first run (`cat-11140046-902f`) put an
+interface on 10.0.0.14, the address Google Cloud reserves in a /28; with
+.10 and .11 the rerun (2026-11-14, `cat-11140135-fd30`, offload VM
+`off-catalog-1114013054-5293`) passed: every object Ready, deleted and
+gone.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.

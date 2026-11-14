@@ -152,10 +152,19 @@ config-connector-extensions `c2f0c7d2`) all 8 objects became Ready, the
 outputs evaluated (`authz_extension_ids` and `authz_policy_ids` included)
 and all 8 were deleted.
 
-Not applied live: live runs are pending KEYLIVE, and the Network Services
-API (agent gateways are in preview) is not on in the live-test project
-(config-connector-extensions' own live tests of both kinds skip for that
-reason).
+Live (`hack/live-apply.sh` `LIVE_CHARTS=geap-agent-gateway`, `tests/live.yaml`;
+2026-11-14, run `cat-11140025-cb6a`, offload VM
+`off-catalog-1114002056-10707`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): a
+Google-managed egress gateway over a network attachment of the run,
+fabric's default IAP authorization, and an IAM v3 access policy bound to
+the gateway. The gateway, its connectivity template, the IAP
+`NetworkServicesAuthzExtension` and `NetworkSecurityAuthzPolicy` were
+Ready and deleted. The access policy failed, on config-connector-
+extensions' side: `IAMAccessPolicy` got "429 Quota exceeded for quota
+metric 'GetAccessPolicy Requests'" (IAM allows 5 a minute), so its
+`IAMPolicyBinding` never had a policy; and the attachment's network and
+subnet outlived the run's limit (the sweep deleted them). Model Armor
+needs templates of its own API, which the fake-cloud case covers.
 
 ## Changes
 

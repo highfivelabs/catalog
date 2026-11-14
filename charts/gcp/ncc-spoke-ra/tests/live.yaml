@@ -1,0 +1,30 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=ncc-spoke-ra): a hub, a
+# router appliance spoke on one e2-micro VM of the run (live.extra.yaml; no
+# BGP speaker runs on it, so the sessions stay down), its Cloud Router,
+# interfaces and peer, and an import route policy (config-connector-
+# extensions' ComputeRouterRoutePolicy, v1alpha1, so allow_alpha).
+allow_alpha: true
+hub: {create: true, name: ${RUN}-hub, description: catalog live test ${RUN}}
+name: ${RUN}-spoke
+project_id: ${PROJECT}
+region: ${REGION}
+labels: {catalog-run: ${RUN}}
+router_appliances:
+  - {internal_ip: 10.0.0.3, vm_self_link: projects/${PROJECT}/zones/${REGION}-a/instances/${RUN}-ra}
+router_config:
+  asn: 65000
+  # Not .14: Google Cloud reserves a subnet's second-to-last address
+  # (run cat-11140046-902f).
+  ip_interface0: 10.0.0.10
+  ip_interface1: 10.0.0.11
+  peer_asn: 65001
+  route_policies:
+    import-rfc1918:
+      type: IMPORT
+      terms:
+        - priority: 1
+          match: {expression: "destination == '10.0.0.0/8'", title: rfc1918}
+          actions: [{expression: accept()}]
+vpc_config:
+  network_name: projects/${PROJECT}/global/networks/${RUN}-ra-net
+  subnet_self_link: projects/${PROJECT}/regions/${REGION}/subnetworks/${RUN}-ra-sn

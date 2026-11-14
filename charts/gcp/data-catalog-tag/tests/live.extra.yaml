@@ -1,0 +1,48 @@
+# What the live case's tags need: the tag template they fill in (Config
+# Connector's DataCatalogTagTemplate, v1alpha1), and the dataset and table
+# they are on.
+apiVersion: datacatalog.cnrm.cloud.google.com/v1alpha1
+kind: DataCatalogTagTemplate
+metadata:
+  name: live-dct-tt
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  projectRef: {external: ${PROJECT}}
+  location: ${REGION}
+  resourceID: ${RUN_}_tt
+  displayName: catalog live test ${RUN}
+  fields:
+    owner:
+      displayName: Owner
+      isRequired: true
+      type: {primitiveType: STRING}
+    score:
+      displayName: Score
+      type: {primitiveType: DOUBLE}
+    reviewed:
+      displayName: Reviewed
+      type: {primitiveType: BOOL}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryDataset
+metadata:
+  name: live-dct-ds
+  annotations:
+    cnrm.cloud.google.com/project-id: ${PROJECT}
+    cnrm.cloud.google.com/delete-contents-on-destroy: "true"
+  labels: {catalog-run: ${RUN}}
+spec:
+  resourceID: ${RUN_}_dct
+  location: ${REGION}
+  description: catalog live test ${RUN}
+---
+apiVersion: bigquery.cnrm.cloud.google.com/v1beta1
+kind: BigQueryTable
+metadata:
+  name: live-dct-orders
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+  labels: {catalog-run: ${RUN}}
+spec:
+  resourceID: orders
+  datasetRef: {name: live-dct-ds}
+  schema: '[{"name": "customer_id", "type": "STRING"}, {"name": "total", "type": "NUMERIC"}]'

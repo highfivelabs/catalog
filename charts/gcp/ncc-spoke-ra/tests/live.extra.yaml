@@ -1,0 +1,46 @@
+# The router appliance: one e2-micro VM that forwards IP, on a network and
+# subnet of the run.
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: live-ra-net
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${RUN}-ra-net
+  autoCreateSubnetworks: false
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeSubnetwork
+metadata:
+  name: live-ra-sn
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+spec:
+  resourceID: ${RUN}-ra-sn
+  region: ${REGION}
+  ipCidrRange: 10.0.0.0/28
+  networkRef: {name: live-ra-net}
+  description: catalog live test ${RUN}
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstance
+metadata:
+  name: live-ra-vm
+  annotations: {cnrm.cloud.google.com/project-id: ${PROJECT}}
+  labels: {catalog-run: ${RUN}}
+spec:
+  resourceID: ${RUN}-ra
+  zone: ${REGION}-a
+  machineType: e2-micro
+  canIpForward: true
+  bootDisk:
+    autoDelete: true
+    initializeParams:
+      size: 10
+      type: pd-standard
+      sourceImageRef: {external: projects/debian-cloud/global/images/family/debian-12}
+  networkInterface:
+    - networkRef: {name: live-ra-net}
+      subnetworkRef: {name: live-ra-sn}
+      networkIp: 10.0.0.3
+  shieldedInstanceConfig: {enableSecureBoot: true, enableVtpm: true, enableIntegrityMonitoring: true}

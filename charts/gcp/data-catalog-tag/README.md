@@ -93,11 +93,16 @@ fabric's base64url naming gives) and both were deleted. mockgcp does not
 check that the `@bigquery` entry exists, checks no field against the
 template, and gives every tag the same ID (`mocktagid`).
 
-Not applied live: the live harness (`hack/live-apply.sh`) runs only Config
-Connector's controllers, not config-connector-extensions', which serve
-`DataCatalogTag`; the Data Catalog API is off in the live-test project and
-neither live-test service account has a Data Catalog role, and this work
-enables no API and changes no IAM.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=data-catalog-tag`, `tests/live.yaml`;
+2026-11-13, run `cat-11132355-c86b`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): a tag on
+a BigQuery dataset of the run and one on a column of its table, with a
+tag template `tests/live.extra.yaml` makes. Failed, on the API's side:
+Data Catalog answered "Error 404: Method not found" both to the template
+(Config Connector's `DataCatalogTagTemplate`) and to both tags
+(config-connector-extensions' `DataCatalogTag`, which did resolve each
+BigQuery entry first). Data Catalog's tag methods are retired for this
+project (Dataplex Universal Catalog replaces them), so the kind cannot be
+proven live here. Nothing was left.
 
 ## Changes
 

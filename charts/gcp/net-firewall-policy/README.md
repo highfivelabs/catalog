@@ -110,6 +110,17 @@ mirroring rules are render-tested only: the fake cloud's pin
 (`CCE_COMMIT`) predates those config-connector-extensions kinds.
 Hierarchical policies need an organization or folder and are not applied.
 
+Live (`hack/live-apply.sh`, `tests/live.yaml` and `tests/live-regional.yaml`;
+as cce-live-tests, config-connector-extensions `c2f0c7d2`): a global policy (config-connector-extensions'
+`ComputeNetworkFirewallPolicyRule` for its two rules) and a regional one
+(`ComputeRegionNetworkFirewallPolicy`, its association and rules), each
+attached to a network of the run. The regional case passed on 2026-11-13
+(run `cat-11132355-cc50`): every object Ready, deleted and gone. The global
+case's first run made every object Ready and deleted the policy, but the
+network, deleted at the same time as the association, outlived the limit;
+the harness now deletes what a case needs after the chart's objects, and
+the rerun (2026-11-14, `cat-11140025-cb6a`) passed.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.
