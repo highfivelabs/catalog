@@ -123,6 +123,15 @@ the run, and a role on the lake and on the zone.
   deleted them after). Both failures are the extension's: its Dataplex
   controllers poll faster than Dataplex's quota allows and do not back
   off.
+- 2026-11-14, runs `cat-11140810-4fc4` and `cat-11141004-80a0`
+  (config-connector-extensions `aec29642`, which backs off on 429 and no
+  longer patches the asset on every reconcile): every object Ready
+  (Dataplex refused writes for quota several times; the controllers waited
+  and went on). In the first, the extension deleted the lake, zone and
+  asset within seven minutes, but the run had stopped waiting at once
+  (`hack/live-apply.sh` read the objects to wait for after deleting them;
+  fixed). The second, with the fix, **passed**: every object Ready,
+  deleted and gone from Google Cloud.
 
 ## Changes
 

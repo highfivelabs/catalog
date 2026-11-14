@@ -104,6 +104,19 @@ denied `biglake.catalogs.get`, `biglake.databases.get` and
 `biglake.tables.get`: neither account holds a BigLake role
 (`roles/biglake.admin`). Nothing was made or left.
 
+The rerun (2026-11-14, `cat-11140810-4fc4`, offload VM
+`off-catalog-1114080558-15613`, as cce-live-tests, now holding
+`roles/biglake.admin`; config-connector-extensions `aec29642`) failed the
+same way: "Permission 'biglake.catalogs.get' denied ... (or it may not
+exist)", and the same for the database and the table, though the role
+grants those permissions. BigLake answers a get of a catalog that does
+not exist with 403, not 404 (an administrator's get of a made-up catalog
+name returns 403 too, while the list returns 200), so config-connector-
+extensions' `BigLakeCatalog`, which reads before it creates, takes the
+missing catalog for a denial and never creates it. The fix belongs in
+config-connector-extensions (read a 403 on get as not found, or look the
+catalog up by list). The bucket was made and deleted; nothing was left.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: the catalog, its databases and their
