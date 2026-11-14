@@ -350,8 +350,9 @@ mapped too; `customer_managed_key` is a gap (section 8).
 
 Chart `charts/azure/avm-res-keyvault-vault`: private endpoints mapped from
 0.2.0 (2026-11-13) as `PrivateEndpoint` and
-`PrivateEndpointsPrivateDnsZoneGroup`; secrets stay refused (a secret's
-value, the builder's decision).
+`PrivateEndpointsPrivateDnsZoneGroup`; secrets from 0.3.0 (2026-11-14)
+as aso-extensions `VaultSecret`s, each value a reference to a Kubernetes
+Secret (secrets.md).
 
 ### 5. avm-res-compute-virtualmachine (v0.21.0; mostly azurerm)
 
@@ -481,11 +482,10 @@ The ARM side is covered. Database users are the data plane: `aso-ext`
 and default privileges, ownership).
 
 Charted as `charts/azure/avm-res-dbforpostgresql-flexibleserver`
-(2026-11-12): 36 of 40 variables and 6 of 6 outputs, private endpoints
+(2026-11-12): 39 of 40 variables (0.2.0) and 6 of 6 outputs, private endpoints
 included. The administrator password (`administrator_password` and its
-write-only pair) is refused: a secret value does not belong in a
-component's inputs, so a server the chart creates uses Entra
-authentication only (section 8).
+write-only pair) is a reference to a Kubernetes Secret since 0.2.0
+(2026-11-14, `docs/secrets.md`), so password authentication renders too.
 
 ### 18. avm-res-cognitiveservices-account (v0.11.1)
 
@@ -497,7 +497,8 @@ authentication only (section 8).
 
 Chart `charts/azure/avm-res-cognitiveservices-account` (2026-11-13): 38 of
 41 variables (`retry`, `timeouts` by design; the search service key, a
-secret value, not ported; a user-assigned identity for the customer
+secret value, not ported until 0.2.0, which takes it as a reference to a
+Kubernetes Secret (secrets.md); a user-assigned identity for the customer
 managed key and a deployment's dynamic throttling refused: field gaps), 7
 of 11 outputs (not the access keys, the sensitive object or the whole
 account). Private endpoints, deployments and RAI policies are mapped.
@@ -576,9 +577,10 @@ Covered. Chart `charts/azure/avm-res-app-containerapp`
 Since 0.2.0 `kind` renders aso-extensions' `ContainerApp`
 (`app.azure.hfl.dev/v20260701`) in place of ASO's. Refused: `timeouts`
 (by design), and in part
-a null `location`, an identity setting's `Retain` lifecycle (not in
-2025-01-01), registry passwords and secret values (secret values; Key
-Vault references are taken).
+a null `location` and an identity setting's `Retain` lifecycle (not in
+2025-01-01). Since 0.4.0 a secret's value is a reference to a Kubernetes
+Secret ([secrets.md](secrets.md)), and with it a registry's username and
+password secret name.
 
 ### 22. avm-res-web-site (v0.24.1; azapi)
 
@@ -600,9 +602,10 @@ credential policies (`ftp_publish_basic_authentication_enabled: false`,
 the module's default, renders the FTP one) are too. Still gaps: the
 `sites/config` sections `auth_settings` (v1) and `backup`, a slot's
 publishing credential policies and the slot swap (`app_service_active_slot`,
-an action). Connection strings, storage mounts, the Application Insights
-key and connection string and PFX uploads are refused as secret values
-(the builder's decision); Logic Apps (`kind: logicapp`) too, since the
+an action). Connection strings and the Application Insights key and
+connection string are refused as secret values (the builder's decision;
+storage mounts' access keys and PFX uploads are references to Kubernetes
+Secrets from 0.5.0, secrets.md); Logic Apps (`kind: logicapp`) too, since the
 module writes the storage account key into an app setting. Not applied
 live: the sandbox's App Service quota is 0 (the serverfarm chart below);
 its case `web` is opt-in. Its `tests/mock.values.yaml` passed against the
@@ -668,14 +671,14 @@ public IP it makes as a `PublicIPAddress`.
 
 | Module | ASO coverage |
 | --- | --- |
-| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. Entra database users: aso-extensions candidate a1, PR #5104. Chart `charts/azure/avm-res-sql-server` (2026-11-13): 23 of 28 variables (2 in part) and 6 of 8 outputs. The administrator password (given, write-only, generated, or copied to Key Vault) and the two password outputs are refused (a secret value, section 8), so the server is Entra-only; refused too: a database's `import`, a threat detection storage key, and firewall rule `timeouts`. The express vulnerability assessment is aso-extensions' `ServersSqlVulnerabilityAssessment`, mapped in 0.2.0; a DataWarehouse database's `geo_backup_enabled: false` is its `ServersDatabasesGeoBackupPolicy` (gap 19), mapped in 0.3.0 at aso-extensions `f73f5ca`. Fake cloud and live (centralus; eastus2 refuses SQL servers for the sandbox subscription) passed; details in the chart's README |
+| avm-res-sql-server (31) | server, databases, elastic pools and firewall rules: `sql/Server`, `ServersDatabase`, `ServersElasticPool`, `ServersFirewallRule` and 20 more `sql/*` kinds. Entra database users: aso-extensions candidate a1, PR #5104. Chart `charts/azure/avm-res-sql-server` (2026-11-13): 26 of 28 variables at 0.4.0 (2 in part) and 6 of 8 outputs. The administrator password, given or write-only, is a reference to a Kubernetes Secret since 0.4.0 (2026-11-14, `docs/secrets.md`); a generated one, its Key Vault copy and the two password outputs are refused (the catalog never generates a secret); refused too: a database's `import`, a threat detection storage key, and firewall rule `timeouts`. The express vulnerability assessment is aso-extensions' `ServersSqlVulnerabilityAssessment`, mapped in 0.2.0; a DataWarehouse database's `geo_backup_enabled: false` is its `ServersDatabasesGeoBackupPolicy` (gap 19), mapped in 0.3.0 at aso-extensions `f73f5ca`. Fake cloud and live (centralus; eastus2 refuses SQL servers for the sandbox subscription) passed; details in the chart's README |
 | avm-res-network-azurefirewall (32) | `network/AzureFirewall`. Covered. Chart `charts/azure/avm-res-network-azurefirewall` (2026-11-13): 18 of 23 variables (the five refused are the azapi mechanics: `ignore_body_changes`, `resource_types`, `retry`, `timeouts`, `firewall_timeouts`), 2 of 4 outputs: ASO's status has no IP configuration's private address (section 8) |
 | avm-res-web-serverfarm (33) | `web/ServerFarm`. Covered. Chart `charts/azure/avm-res-web-serverfarm` (2026-11-12): `ServerFarm` at 2025-05-01 (the module sends 2025-03-01), 25 of 27 variables (`retry`, `timeouts` and a non-default `server_farm_resource_type` refused; `location` was missing from `values.yaml` until 2026-11-13), both outputs |
 | avm-ptn-alz (35) | management groups, their settings and subscriptions, policy definitions, set definitions and assignments: no ASO kind (management groups are issue #2249, open), `aso-ext` at `b9beb5b` (`management.azure.hfl.dev`, `authorization.azure.hfl.dev` 2026-07-01). Role definitions and assignments: ASO. Chart `charts/azure/avm-ptn-alz` (2026-11-13): 18 of 26 variables (4 in part) and 7 of 7 outputs. The module reads its architecture from the alz provider's library (`data alz_architecture`, fetched and resolved at plan); a render cannot and the chart does not vendor the library, so it takes that data source's result as `architecture` and makes every management group, policy and role resource of it as the module does (the policy role assignments' principals from each assignment's identity through `configMapExpressions`). Refused: the resolution's arguments (`policy_default_values`, the non-compliance message settings, the two `assignPermissions` overrides, `policy_assignments_to_modify` but for `creation_enabled` and `role_assignments_enabled`, which are applied), a subscription's move to another group at destroy (`parent`, `custom`, a real `intermediate_root`), and the azapi mechanics. Not applied live (tenant and management group scope); renders and the fake cloud only, which found gaps 20 and 21 of aso-extensions (section 5: a child group is not retried while its parent is made; the manager cannot write the ConfigMap a policy assignment's principal goes through), both fixed at `3d9ba27`, so the mock now carries a second level, a policy identity and its role assignment, and hierarchy settings on the tenant root group (chart README) |
 | avm-res-documentdb-databaseaccount (36) | `documentdb/DatabaseAccount` (2024-08-15) and its SQL and Mongo children; Gremlin databases and graphs and the SQL dedicated gateway are aso-extensions' `DatabaseAccountsGremlinDatabase`, `DatabaseAccountsGremlinDatabasesGraph` and `DatabaseAccountsService`. Covered. Chart `charts/azure/avm-res-documentdb-databaseaccount` (2026-11-13): 38 of 38 variables, 43 of 47 outputs (the keys, the two connection-string maps and `resource`, which carry secret values, are not outputs). Fake cloud passed (9 objects; 41 of 43 outputs: fakearm's account has no `documentEndpoint` or location IDs). Not applied live: the sandbox has not registered `Microsoft.DocumentDB` (403 on the register call, run `cat11130805699c`) |
 | avm-res-network-dnsresolver (37) | `network/DnsResolver`, its inbound and outbound endpoints, forwarding rulesets, rules and VNet links (2022-07-01, the version azurerm sends). Covered. Chart `charts/azure/avm-res-network-dnsresolver` (2026-11-13): 10 of 10 variables, 7 of 7 outputs (the azurerm-shaped ones with the attributes ASO's status has); live case `dnspr` (chart README) |
 | avm-res-cache-redis (38) | `cache/Redis`, access policies, assignments, firewall rules, linked servers, patch schedule (2024-11-01). Covered. Chart `charts/azure/avm-res-cache-redis` (2026-11-13): 31 of 31 variables, `redis_configuration` in part (its three storage connection strings carry the account's key, secret values, refused by design), 4 of 5 outputs (not the sensitive `resource`, which carries the access keys). Passed the fake cloud (run `off-catalog-1113075628-30638`); not applied live: the sandbox subscription has not registered `Microsoft.Cache`, and ASO's registration is refused (403, run `cat11130800eaa5`; nothing was created), so the `redis` case is out of the default set (chart README) |
-| avm-res-app-managedenvironment (40) | `app/ManagedEnvironment` (2025-01-01) and all nine child types as aso-extensions kinds at `3d9ba27` (`ManagedEnvironments*`: certificates, Dapr components and subscriptions, storages, managed certificates, Java and .NET components, HTTP route configs, maintenance configurations). Chart `charts/azure/avm-res-app-managedenvironment` (2026-11-13): 48 of 72 variables (7 in part), 16 of 18 outputs. The environment's fields after 2025-01-01 (`appInsightsConfiguration`, `availabilityZones`, `diskEncryptionConfiguration`, `ingressConfiguration`, `openTelemetryConfiguration`, `publicNetworkAccess`) are mapped since 0.3.0 to aso-extensions' `ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`, `8d7f8c2`), rendered in place of ASO's when one is set. **GAP**: a Java component's `ingress` (an empty object the module sends; the kind's spec has none). The Application Insights connection string and the Datadog key are references to Kubernetes Secrets since 0.5.0 ([secrets.md](secrets.md)); the other secret inputs (the Log Analytics shared key, certificate passwords and blobs, Dapr credentials, storage account keys) are still refused, each a candidate for the same pattern |
+| avm-res-app-managedenvironment (40) | `app/ManagedEnvironment` (2025-01-01) and all nine child types as aso-extensions kinds at `3d9ba27` (`ManagedEnvironments*`: certificates, Dapr components and subscriptions, storages, managed certificates, Java and .NET components, HTTP route configs, maintenance configurations). Chart `charts/azure/avm-res-app-managedenvironment` (2026-11-13): 48 of 72 variables (7 in part), 16 of 18 outputs. The environment's fields after 2025-01-01 (`appInsightsConfiguration`, `availabilityZones`, `diskEncryptionConfiguration`, `ingressConfiguration`, `openTelemetryConfiguration`, `publicNetworkAccess`) are mapped since 0.3.0 to aso-extensions' `ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`, `8d7f8c2`), rendered in place of ASO's when one is set. **GAP**: a Java component's `ingress` (an empty object the module sends; the kind's spec has none). The Application Insights connection string and the Datadog key are references to Kubernetes Secrets since 0.5.0, and every other secret input since 0.6.0 (the Log Analytics shared key, the custom domain certificate, Dapr's Application Insights credentials, a certificate's password and blob, a Dapr secret's value, a storage account key; [secrets.md](secrets.md)); `log_analytics_workspace` stays refused (the module reads the workspace's customer ID and key from Azure) |
 | avm-res-network-applicationgateway (41) | `network/ApplicationGateway` (2022-07-01, old). Chart `charts/azure/avm-res-network-applicationgateway` (2026-11-12): 41 of 50 variables, everything 2022-07-01 carries; what later versions added is refused by name (section 8) |
 | avm-ptn-network-private-link-private-dns-zones (42) | `network/PrivateDnsZone`, `PrivateDnsZonesVirtualNetworkLink` (2024-06-01). Covered. Chart `charts/azure/avm-ptn-network-private-link-private-dns-zones` (2026-11-13): 18 of 19 variables (`timeouts` refused; `location` accepted in part for the regions of `avm-utl-regions` 0.12.0's data, which the chart carries as a table for `{regionName}` and `{regionCode}`, where the module reads the subscription's live list; a link name template takes the module's four placeholders, not other Terraform template expressions), 3 of 3 outputs; the module's zone and link logic is computed in the template. Live (three zones and their links to a network of the run) passed in run `cat111308205866`, the fake cloud in `off-catalog-1113080244-7256` |
 | avm-res-network-ddosprotectionplan (44) | `network/DdosProtectionPlan` (2025-03-01). Covered. Chart `charts/azure/avm-res-network-ddosprotectionplan` (2026-11-13): 7 of 7 variables, 3 of 3 outputs. Not applied live: Azure bills a DDoS Network Protection plan at about 2,944 USD a month from its creation, far above the sandbox's limit; renders and the fake cloud only (chart README) |
@@ -1034,10 +1037,11 @@ fields of the interface in ARM, and the data disk attachments entries of
 the machine's `storageProfile.dataDisks`. Run commands, the shutdown
 schedule and maintenance assignments are aso-extensions kinds
 (`VirtualMachinesRunCommand`, `Schedule`, `ConfigurationAssignment`, CRDs
-copied in `crds/aso-extensions`). It refuses what needs a secret value
-(an admin password, generating an SSH key pair or password, protected run
-command parameters and extension settings; the builder's decision), so a
-Windows machine renders only from an attached OS disk; and the gaps:
+copied in `crds/aso-extensions`). Its admin password is a reference to a Kubernetes Secret since 0.4.0
+(2026-11-14, `docs/secrets.md`), so a Windows machine renders its OS
+profile. It refuses generating an SSH key pair or password, protected run
+command parameters and extension settings, and unattend content (plain
+text in the kind); and the gaps:
 
 | Chart | Variable | Missing |
 | --- | --- | --- |
@@ -1096,10 +1100,12 @@ a chart takes secret material as a reference to a Kubernetes Secret,
 `{secretName, key}`, which External Secrets Operator puts in the cluster;
 never as a value, and never generated. Mapped so far: the application
 gateway's certificates, the Container Apps environment's Application
-Insights connection string and Datadog key, and the web app's Blob
-Storage log SAS URLs. secrets.md lists the variables still refused as
-secret values whose kinds already take a `SecretReference` (the Key
-Vault module's `secrets` onto aso-extensions' `VaultSecret` among them).
+Insights connection string and Datadog key, the web app's Blob Storage
+log SAS URLs, PFX certificates and storage mounts' access keys, the
+Cognitive Services account's search key, and the Key Vault module's
+`secrets` (aso-extensions' `VaultSecret`). secrets.md lists the variables
+still refused as secret values whose kinds already take a
+`SecretReference`.
 
 **Testing.** Layer 1 (render, `task test`) as on Google Cloud: golden
 files, `kubeconform -strict` against ASO v2.22.0's CRDs and aso-extensions'

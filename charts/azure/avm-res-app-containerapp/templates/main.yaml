@@ -16,8 +16,8 @@ azapi_resource.lock: an aso-extensions ManagementLock.
 azapi_resource.role_assignments: ASO RoleAssignments.
 The telemetry and the module's data sources (the resource group, the
 existing app's revision suffix) are not ported. timeouts is
-refused, and parts of identity_settings, registries and secrets
-(upstream.yaml).
+refused, and part of identity_settings (upstream.yaml). A secret's value
+is a reference to a Kubernetes Secret (docs/secrets.md).
 */ -}}
 {{- define "containerapp.identityRef" -}}
 {{- if hasPrefix "/" . -}}
@@ -260,14 +260,20 @@ spec:
     {{- with $v.registries }}
     registries:
       {{- range . }}
-      {{- if or .password_secret_name .username }}
-      {{- fail "avm-res-app-containerapp: registries: password_secret_name and username are not supported: a registry password is a secret value, which the chart does not take; pull with a managed identity (identity) instead (docs/azure.md, \"Charts\")" }}
-      {{- end }}
+      {{- /* password_secret_name names one of the app's secrets (whose
+      value is a Kubernetes Secret reference or a Key Vault secret), not the
+      password itself. */}}
       - {{- with .identity }} identityReference:
           {{- include "containerapp.identityRef" . | nindent 10 }}
         {{- end }}
+        {{- with .password_secret_name }}
+        passwordSecretRef: {{ . | quote }}
+        {{- end }}
         {{- with .server }}
         server: {{ . | quote }}
+        {{- end }}
+        {{- with .username }}
+        username: {{ . | quote }}
         {{- end }}
       {{- end }}
     {{- end }}
@@ -281,15 +287,22 @@ spec:
     {{- with $v.secrets }}
     secrets:
       {{- range $k, $s := . }}
-      {{- if not (kindIs "invalid" $s.value) }}
-      {{- fail (printf "avm-res-app-containerapp: secrets.%s: a secret's value is not supported: it would sit in the component's inputs; reference a Key Vault secret (key_vault_secret_id and identity) instead (docs/azure.md, \"Charts\")" $k) }}
-      {{- end }}
-      {{- if not $s.key_vault_secret_id }}{{ fail "avm-res-app-containerapp: Each secret must have either 'value' or 'key_vault_secret_id' specified, but not both." }}{{ end }}
-      {{- if not $s.identity }}{{ fail "avm-res-app-containerapp: When 'key_vault_secret_id' is specified, 'identity' must also be provided for authentication." }}{{ end }}
-      - identityReference:
-          {{- include "containerapp.identityRef" $s.identity | nindent 10 }}
-        keyVaultUrl: {{ $s.key_vault_secret_id | quote }}
+      {{- /* A secret's value is a reference to a Kubernetes Secret
+      ({secretName, key}; docs/secrets.md), which the kind takes as a
+      SecretReference; a string (the secret itself) is refused. */ -}}
+      {{- $ref := include "aso.secretRef" (list $ (printf "secrets.%s.value" $k) $s.value) }}
+      {{- if not (or (and $ref (not $s.key_vault_secret_id)) (and (not $ref) $s.key_vault_secret_id)) }}{{ fail "avm-res-app-containerapp: Each secret must have either 'value' or 'key_vault_secret_id' specified, but not both." }}{{ end }}
+      {{- if and $s.key_vault_secret_id (not $s.identity) }}{{ fail "avm-res-app-containerapp: When 'key_vault_secret_id' is specified, 'identity' must also be provided for authentication." }}{{ end }}
+      - {{- with $s.identity }} identityReference:
+          {{- include "containerapp.identityRef" . | nindent 10 }}
+        {{- end }}
+        {{- with $s.key_vault_secret_id }}
+        keyVaultUrl: {{ . | quote }}
+        {{- end }}
         name: {{ $s.name | quote }}
+        {{- with $ref }}
+        value: {{ . }}
+        {{- end }}
       {{- end }}
     {{- end }}
     {{- with $v.service }}

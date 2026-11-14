@@ -1,7 +1,11 @@
 # For an apply against the fake cloud (docs/azure.md, "8. Charts"): an
 # environment in the fake cloud's resource group with one of each child
 # kind the chart maps (the fake keeps any body: the Key Vault references
-# and the share are not read), and a lock.
+# and the share are not read), and a lock. A certificate's password and
+# blob, a Dapr component's secret and a share's account key are references
+# to a Secret the harness makes before the apply with a random value
+# (hack/test-secret.sh; nothing committed), as the line below asks:
+# secret: catalog-cae-secrets random
 name: catalog-cae
 location: eastus2
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -17,6 +21,13 @@ certificates:
     certificate_key_vault_properties:
       identity: System
       key_vault_url: https://catalog-kv.vault.azure.net/secrets/cert
+  blob:
+    name: blob-cert
+    location: eastus2
+    password: {secretName: catalog-cae-secrets, key: value}
+    password_version: 1
+    value: {secretName: catalog-cae-secrets, key: value}
+    value_version: 1
 dapr_components:
   state:
     name: statestore
@@ -24,6 +35,11 @@ dapr_components:
     dapr_components_version: v1
     metadata:
       - {name: accountName, value: catalogst}
+      - {name: accountKey, secret_ref: account-key}
+    secrets:
+      - name: account-key
+        value: {secretName: catalog-cae-secrets, key: value}
+    secrets_version: 1
 dapr_subscriptions:
   orders:
     name: orders
@@ -38,6 +54,11 @@ storages:
       account_name: catalogst
       share_name: share
       account_key_vault_properties: {identity: System, key_vault_url: "https://catalog-kv.vault.azure.net/secrets/storage-key"}
+  files-key:
+    name: files-key
+    account_key: {secretName: catalog-cae-secrets, key: value}
+    account_key_version: 1
+    azure_file: {access_mode: ReadOnly, account_name: catalogst, share_name: share}
   nfs:
     name: nfs
     nfs_azure_file: {access_mode: ReadWrite, server: catalogst.file.core.windows.net, share_name: /catalogst/nfs}

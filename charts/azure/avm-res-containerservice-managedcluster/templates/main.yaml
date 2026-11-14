@@ -22,16 +22,21 @@ ported: their result is a secret. The telemetry is not ported.
 */ -}}
 {{- $v := .Values }}
 {{- $chart := .Chart.Name }}
-{{- $why := dict "timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "cluster_timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "agentpool_timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "retry" "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready" "ignore_body_changes" "Azure Service Operator applies the whole spec; it cannot leave a field to another writer" "resource_types" "ASO's kinds fix the API versions (ManagedCluster 2026-05-01, its agent pools 2025-10-02-preview)" "create_agentpools_before_destroy" "Azure Service Operator updates an agent pool in place and never replaces it" "windows_profile_password" "a Windows administrator password is a secret value; how a component supplies one (a Kubernetes Secret ASO reads) is not settled" "windows_profile_password_version" "it versions windows_profile_password, which is refused" }}
+{{- $why := dict "timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "cluster_timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "agentpool_timeouts" "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" "retry" "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready" "ignore_body_changes" "Azure Service Operator applies the whole spec; it cannot leave a field to another writer" "resource_types" "ASO's kinds fix the API versions (ManagedCluster 2026-05-01, its agent pools 2025-10-02-preview)" "create_agentpools_before_destroy" "Azure Service Operator updates an agent pool in place and never replaces it" }}
 {{- range $name := keys $why | sortAlpha }}
 {{- include "aso.unsupported" (list $ $name (index $v $name) (index $why $name)) }}
 {{- end }}
-{{- with $v.aad_profile }}
-{{- include "aso.unsupported" (list $ "aad_profile.server_app_secret" .server_app_secret "a server application secret is a secret value; how a component supplies one is not settled") }}
-{{- end }}
-{{- with $v.service_principal_profile }}
-{{- include "aso.unsupported" (list $ "service_principal_profile.secret" .secret "a service principal secret is a secret value; how a component supplies one is not settled") }}
-{{- end }}
+{{- /* Secrets: references to Kubernetes Secrets ({secretName, key};
+docs/secrets.md), which ASO's ManagedCluster takes as SecretReferences:
+the Windows nodes' admin password (the module's sensitive_body, sent only
+with windows_profile; its _version is required with it, as in the module,
+and does nothing: ASO sends the whole body on every change), the legacy
+AAD server application secret and the service principal's secret.
+windows_profile.admin_password is not sent, as in the module. */ -}}
+{{- $winPwRef := include "aso.secretRef" (list $ "windows_profile_password" $v.windows_profile_password) }}
+{{- if and $winPwRef (kindIs "invalid" $v.windows_profile_password_version) }}{{ fail (printf "%s: Must be specified when `windows_profile_password` is used (windows_profile_password_version)" $chart) }}{{ end }}
+{{- $srvRef := include "aso.secretRef" (list $ "aad_profile.server_app_secret" ($v.aad_profile | default dict).server_app_secret) }}
+{{- $spRef := include "aso.secretRef" (list $ "service_principal_profile.secret" ($v.service_principal_profile | default dict).secret) }}
 {{- include "aso.names" (list $ (list "managedCluster")) }}
 {{- if not $v.name }}{{ fail (printf "%s: name is required" $chart) }}{{ end }}
 {{- if not (regexMatch "^[a-zA-Z0-9]$|^[a-zA-Z0-9][-_a-zA-Z0-9]{0,61}[a-zA-Z0-9]$" $v.name) }}
@@ -105,7 +110,11 @@ ported: their result is a secret. The telemetry is not ported.
 {{- $_ := unset $in "kube_proxy_config" }}
 {{- with $in.aad_profile }}{{ $_ := unset . "server_app_secret" }}{{ end }}
 {{- with $in.service_principal_profile }}{{ $_ := unset . "secret" }}{{ end }}
+{{- with $in.windows_profile }}{{ $_ := unset . "admin_password" }}{{ end }}
 {{- $props := index (include "aks.conv" (dict "k" "" "v" $in) | fromJson) "v" }}
+{{- if $srvRef }}{{ $_ := set $props "aadProfile" (merge ($props.aadProfile | default dict) (dict "serverAppSecret" (fromJson $srvRef))) }}{{ end }}
+{{- if $spRef }}{{ $_ := set $props "servicePrincipalProfile" (merge ($props.servicePrincipalProfile | default dict) (dict "secret" (fromJson $spRef))) }}{{ end }}
+{{- if and $winPwRef (not (kindIs "invalid" $v.windows_profile)) }}{{ $_ := set $props "windowsProfile" (merge ($props.windowsProfile | default dict) (dict "adminPassword" (fromJson $winPwRef))) }}{{ end }}
 {{- with $v.auto_scaler_profile }}
 {{- $asp := dict }}
 {{- range $k, $x := . }}{{ if not (kindIs "invalid" $x) }}{{ $_ := set $asp (replace "_" "-" $k) $x }}{{ end }}{{ end }}

@@ -2,8 +2,10 @@
 # ManagedEnvironment API version 2025-01-01, so aso-extensions'
 # ManagedEnvironment (app.azure.hfl.dev/v20251002preview) (the chart's only kind),
 # with a Dapr component and a storage owned by its ARM ID, and a lock; its
-# Application Insights connection string and Datadog key are references to
-# a Secret the harness makes before the apply with random values
+# Application Insights connection string, Datadog key, Log Analytics shared
+# key, custom domain certificate's password and blob, and Dapr's
+# Application Insights connection string and instrumentation key are
+# references to a Secret the harness makes before the apply with random values
 # (hack/test-secret.sh; nothing committed), as the line below asks:
 # secret: catalog-cae-telemetry random
 name: catalog-cae-newer
@@ -11,7 +13,20 @@ location: eastus2
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
 zone_redundant: false
 tags: {catalog: mock}
-app_logs_configuration: {destination: azure-monitor}
+app_logs_configuration:
+  destination: log-analytics
+  log_analytics_configuration: {customer_id: 00000000-0000-0000-0000-0000000000aa}
+shared_key: {secretName: catalog-cae-telemetry, key: value}
+shared_key_version: 1
+custom_domain_configuration: {dns_suffix: apps.catalog.example}
+certificate_password: {secretName: catalog-cae-telemetry, key: value}
+certificate_password_version: 1
+certificate_value: {secretName: catalog-cae-telemetry, key: value}
+certificate_value_version: 1
+dapr_ai_connection_string: {secretName: catalog-cae-telemetry, key: value}
+dapr_ai_connection_string_version: 1
+dapr_ai_instrumentation_key: {secretName: catalog-cae-telemetry, key: value}
+dapr_ai_instrumentation_key_version: 1
 workload_profiles:
   - {name: Consumption, workload_profile_type: Consumption}
 app_insights_configuration: {}

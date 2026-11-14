@@ -26,10 +26,19 @@ telemetry deployment is not ported.
 */ -}}
 {{- $v := .Values }}
 {{- $chart := .Chart.Name }}
-{{- $secret := "a password is a secret value, which does not belong in a component's inputs; use Entra authentication (authentication.password_auth_enabled: false)" }}
-{{- include "aso.unsupported" (list $ "administrator_password" $v.administrator_password $secret) }}
-{{- include "aso.unsupported" (list $ "administrator_password_wo" $v.administrator_password_wo $secret) }}
-{{- include "aso.unsupported" (list $ "administrator_password_wo_version" $v.administrator_password_wo_version "it versions administrator_password_wo, which is refused") }}
+{{- /* The administrator password: a reference to a Kubernetes Secret
+({secretName, key}; docs/secrets.md), which ASO's FlexibleServer takes as
+its administratorLoginPassword SecretReference. administrator_password and
+the write-only administrator_password_wo are the same field here (ASO
+never keeps the value in state either), not both, as azurerm has it; the
+_wo_version is required with _wo and does nothing: ASO sends the whole
+body on every change. */ -}}
+{{- $pwRef := include "aso.secretRef" (list $ "administrator_password" $v.administrator_password) }}
+{{- $woRef := include "aso.secretRef" (list $ "administrator_password_wo" $v.administrator_password_wo) }}
+{{- if and $pwRef $woRef }}{{ fail (printf "%s: administrator_password and administrator_password_wo cannot be used together; give only one" $chart) }}{{ end }}
+{{- if and $woRef (kindIs "invalid" $v.administrator_password_wo_version) }}{{ fail (printf "%s: When administrator_password_wo is set, administrator_password_wo_version must also be set." $chart) }}{{ end }}
+{{- if and (not $woRef) (not (kindIs "invalid" $v.administrator_password_wo_version)) }}{{ fail (printf "%s: administrator_password_wo_version versions administrator_password_wo: set both or neither" $chart) }}{{ end }}
+{{- $passwordRef := $pwRef | default $woRef }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- range $k, $d := $v.databases }}
 {{- include "aso.unsupported" (list $ (printf "databases.%s.timeouts" $k) $d.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
@@ -48,8 +57,8 @@ telemetry deployment is not ported.
 {{- $mode := $v.create_mode | default "Default" }}
 {{- $auth := $v.authentication | default dict }}
 {{- $passwordAuth := ternary true $auth.password_auth_enabled (kindIs "invalid" $auth.password_auth_enabled) }}
-{{- if and $passwordAuth (eq $mode "Default") }}
-{{- fail (printf "%s: password authentication needs administrator_password, a secret value the chart does not take: set authentication.password_auth_enabled: false and active_directory_auth_enabled: true (docs/azure.md, \"Charts\")" $chart) }}
+{{- if and $passwordAuth (eq $mode "Default") (not (and $v.administrator_login $passwordRef)) }}
+{{- fail (printf "%s: password authentication needs administrator_login and administrator_password, a reference to a Kubernetes Secret (docs/secrets.md); or set authentication.password_auth_enabled: false and active_directory_auth_enabled: true" $chart) }}
 {{- end }}
 {{- if and $auth.tenant_id (not $auth.active_directory_auth_enabled) }}
 {{- fail (printf "%s: authentication.tenant_id needs active_directory_auth_enabled: true" $chart) }}
@@ -72,6 +81,9 @@ spec:
     {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
   {{- with $v.administrator_login }}
   administratorLogin: {{ . | quote }}
+  {{- end }}
+  {{- with $passwordRef }}
+  administratorLoginPassword: {{ . }}
   {{- end }}
   {{- with $v.authentication }}
   authConfig:

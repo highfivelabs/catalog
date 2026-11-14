@@ -3945,10 +3945,10 @@ azure,avm-res-keyvault-vault,purge_protection_enabled,bool,yes,,
 azure,avm-res-keyvault-vault,resource_types,"object({authorization_locks, authorization_role_assignments, insights_diagnostic_settings, keyvault_vaults, network_private_endpoints, network_private_endpoints_private_dns_zone_groups})",no,ASO's kinds fix the API versions (Vault 2023-07-01),by-design
 azure,avm-res-keyvault-vault,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-keyvault-vault,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
-azure,avm-res-keyvault-vault,secrets,"map(object({content_type, expiration_date, name, not_before_date, role_assignments, tags}))",no,"aso-extensions has VaultSecret, whose value comes from a Kubernetes Secret; how a component supplies that Secret is not settled, so the chart does not map secrets yet",not-ported
-azure,avm-res-keyvault-vault,secrets_value,map(string),no,"the values of secrets, which the chart does not map yet (a secret's value belongs in a Kubernetes Secret, not in a component's inputs)",not-ported
-azure,avm-res-keyvault-vault,secrets_value_wo,map(string),no,"the write-only values of secrets, which the chart does not map yet",not-ported
-azure,avm-res-keyvault-vault,secrets_value_wo_version,map(number),no,"the write-only value versions of secrets, which the chart does not map yet",not-ported
+azure,avm-res-keyvault-vault,secrets,"map(object({content_type, expiration_date, name, not_before_date, role_assignments, tags}))",yes,,
+azure,avm-res-keyvault-vault,secrets_value,map(string),yes,,
+azure,avm-res-keyvault-vault,secrets_value_wo,map(string),yes,,
+azure,avm-res-keyvault-vault,secrets_value_wo_version,map(number),yes,,
 azure,avm-res-keyvault-vault,sku_name,string,yes,,
 azure,avm-res-keyvault-vault,soft_delete_retention_days,number,yes,,
 azure,avm-res-keyvault-vault,tags,map(string),yes,,
@@ -3957,9 +3957,9 @@ azure,avm-res-keyvault-vault,timeouts,"object({create, delete, read, update})",n
 azure,avm-res-keyvault-vault,wait_for_rbac_before_contact_operations,"object({create, destroy})",yes,,
 azure,avm-res-keyvault-vault,wait_for_rbac_before_key_operations,"object({create, destroy})",yes,,
 azure,avm-res-keyvault-vault,wait_for_rbac_before_secret_operations,"object({create, destroy})",yes,,
-azure,avm-res-compute-virtualmachine,account_credentials,"object({admin_credentials, key_vault_configuration, password_authentication_disabled})",partial,"admin_credentials.username and ssh_keys are mapped; admin_credentials.password and key_vault_configuration (secret values), password_authentication_disabled false (needs a password) and generating a key or password are refused",not-ported
-azure,avm-res-compute-virtualmachine,additional_unattend_contents,"list(object({content, setting}))",no,Windows OS profile only (os_type: a Windows OS profile needs an admin password),not-ported
-azure,avm-res-compute-virtualmachine,admin_password,string,no,a secret value (ASO's osProfile.adminPassword is a SecretReference); how a component supplies one is the builder's decision,not-ported
+azure,avm-res-compute-virtualmachine,account_credentials,"object({admin_credentials, key_vault_configuration, password_authentication_disabled})",partial,"admin_credentials (username, ssh_keys, the password as a Kubernetes Secret reference) and password_authentication_disabled are mapped; key_vault_configuration is refused: it writes a generated password or SSH private key to Key Vault, and the catalog never generates a secret",by-design
+azure,avm-res-compute-virtualmachine,additional_unattend_contents,"list(object({content, setting}))",no,"an unattend file's content can carry a password (AutoLogon) and azurerm treats it as sensitive, but the VirtualMachine takes it only in plain text (no SecretReference), so it would sit in the component's inputs",gap
+azure,avm-res-compute-virtualmachine,admin_password,string,yes,,
 azure,avm-res-compute-virtualmachine,admin_ssh_keys,"list(object({public_key, username}))",yes,,
 azure,avm-res-compute-virtualmachine,admin_username,string,yes,,
 azure,avm-res-compute-virtualmachine,allow_extension_operations,bool,yes,,
@@ -3976,19 +3976,19 @@ azure,avm-res-compute-virtualmachine,data_disk_managed_disks,"map(object({cachin
 azure,avm-res-compute-virtualmachine,dedicated_host_group_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,dedicated_host_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
-azure,avm-res-compute-virtualmachine,disable_password_authentication,bool,partial,"true (the default) is mapped; false needs a password, a secret value",not-ported
+azure,avm-res-compute-virtualmachine,disable_password_authentication,bool,yes,,
 azure,avm-res-compute-virtualmachine,disk_controller_type,string,yes,,
 azure,avm-res-compute-virtualmachine,edge_zone,string,yes,,
-azure,avm-res-compute-virtualmachine,enable_automatic_updates,bool,no,Windows OS profile only (os_type: a Windows OS profile needs an admin password),not-ported
+azure,avm-res-compute-virtualmachine,enable_automatic_updates,bool,yes,,
 azure,avm-res-compute-virtualmachine,enable_telemetry,bool,yes,,
 azure,avm-res-compute-virtualmachine,encryption_at_host_enabled,bool,yes,,
 azure,avm-res-compute-virtualmachine,eviction_policy,string,yes,,
 azure,avm-res-compute-virtualmachine,extensions,"map(object({auto_upgrade_minor_version, automatic_upgrade_enabled, deploy_sequence, failure_suppression_enabled, name, protected_settings, +8}))",partial,"mapped, except an entry's protected_settings (a secret value; protected_settings_from_key_vault is mapped), provision_after_extensions (ASO's VirtualMachinesExtension is at ARM API 2022-03-01, before it) and timeouts; deploy_sequence is accepted and has no effect (ASO reconciles every child once the machine is Ready)",gap
 azure,avm-res-compute-virtualmachine,extensions_time_budget,string,yes,,
 azure,avm-res-compute-virtualmachine,gallery_applications,"map(object({configuration_blob_uri, order, tag, version_id}))",yes,,
-azure,avm-res-compute-virtualmachine,generate_admin_password_or_ssh_key,bool,partial,accepted when public keys are given; generating an SSH key pair or a password makes a secret value,not-ported
-azure,avm-res-compute-virtualmachine,generated_secrets_key_vault_secret_config,"object({content_type, expiration_date_length_in_days, key_vault_resource_id, name, not_before_date, tags})",no,writes a generated password or SSH private key to Key Vault (a secret value; aso-extensions' VaultSecret takes one from a Kubernetes Secret),not-ported
-azure,avm-res-compute-virtualmachine,hotpatching_enabled,bool,no,Windows OS profile only (os_type: a Windows OS profile needs an admin password),not-ported
+azure,avm-res-compute-virtualmachine,generate_admin_password_or_ssh_key,bool,partial,accepted when public keys or a password reference are given; generating an SSH key pair or a password is refused: the catalog never generates a secret,by-design
+azure,avm-res-compute-virtualmachine,generated_secrets_key_vault_secret_config,"object({content_type, expiration_date_length_in_days, key_vault_resource_id, name, not_before_date, tags})",no,writes a generated password or SSH private key to Key Vault; the catalog never generates a secret (docs/secrets.md),by-design
+azure,avm-res-compute-virtualmachine,hotpatching_enabled,bool,yes,,
 azure,avm-res-compute-virtualmachine,license_type,string,yes,,
 azure,avm-res-compute-virtualmachine,location,string,yes,,
 azure,avm-res-compute-virtualmachine,lock,"object({kind, name})",yes,,
@@ -4000,7 +4000,7 @@ azure,avm-res-compute-virtualmachine,network_interfaces,"map(object({accelerated
 azure,avm-res-compute-virtualmachine,os_disk,"object({caching, diff_disk_settings, disk_encryption_set_id, disk_size_gb, name, secure_vm_disk_encryption_set_id, +3})",yes,,
 azure,avm-res-compute-virtualmachine,os_disk_attach_mode,bool,yes,,
 azure,avm-res-compute-virtualmachine,os_managed_disk_id,string,yes,,
-azure,avm-res-compute-virtualmachine,os_type,string,partial,"Linux is mapped; Windows only with an attached OS disk (os_disk_attach_mode), since a Windows OS profile needs an admin password, a secret value",not-ported
+azure,avm-res-compute-virtualmachine,os_type,string,yes,,
 azure,avm-res-compute-virtualmachine,patch_assessment_mode,string,yes,,
 azure,avm-res-compute-virtualmachine,patch_mode,string,yes,,
 azure,avm-res-compute-virtualmachine,plan,"object({name, product, publisher})",yes,,
@@ -4024,12 +4024,12 @@ azure,avm-res-compute-virtualmachine,source_image_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,tags,map(string),yes,,
 azure,avm-res-compute-virtualmachine,termination_notification,"object({enabled, timeout})",yes,,
 azure,avm-res-compute-virtualmachine,timeouts,"object({azurerm_virtual_machine_extension, azurerm_virtual_machine_run_command})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
-azure,avm-res-compute-virtualmachine,timezone,string,no,Windows OS profile only (os_type: a Windows OS profile needs an admin password),not-ported
+azure,avm-res-compute-virtualmachine,timezone,string,yes,,
 azure,avm-res-compute-virtualmachine,user_data,string,yes,,
 azure,avm-res-compute-virtualmachine,virtual_machine_scale_set_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,vm_additional_capabilities,"object({hibernation_enabled, ultra_ssd_enabled})",yes,,
 azure,avm-res-compute-virtualmachine,vtpm_enabled,bool,yes,,
-azure,avm-res-compute-virtualmachine,winrm_listeners,"set(object({certificate_url, protocol}))",no,Windows OS profile only (os_type: a Windows OS profile needs an admin password),not-ported
+azure,avm-res-compute-virtualmachine,winrm_listeners,"set(object({certificate_url, protocol}))",yes,,
 azure,avm-res-compute-virtualmachine,zone,string,yes,,
 azure,avm-res-resources-resourcegroup,enable_telemetry,bool,yes,,
 azure,avm-res-resources-resourcegroup,ignore_tag_changes,bool,no,Azure Service Operator applies every tag it is given and cannot leave the tags to another writer (no ignore-changes),gap
@@ -4230,7 +4230,7 @@ azure,avm-res-network-firewallpolicy,name,string,yes,,
 azure,avm-res-network-firewallpolicy,resource_group_name,string,yes,,
 azure,avm-res-network-firewallpolicy,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
 azure,avm-res-network-firewallpolicy,tags,map(string),yes,,
-azure,avm-res-containerservice-managedcluster,aad_profile,"object({admin_group_object_ids, client_app_id, enable_azure_rbac, managed, server_app_id, server_app_secret, +1})",partial,"accepted, but server_app_secret is refused: a secret value, and how a component supplies one (a Kubernetes Secret ASO reads) is not settled",not-ported
+azure,avm-res-containerservice-managedcluster,aad_profile,"object({admin_group_object_ids, client_app_id, enable_azure_rbac, managed, server_app_id, server_app_secret, +1})",yes,,
 azure,avm-res-containerservice-managedcluster,addon_profile_azure_policy,"object({config, enabled})",yes,,
 azure,avm-res-containerservice-managedcluster,addon_profile_confidential_computing,"object({config, enabled})",yes,,
 azure,avm-res-containerservice-managedcluster,addon_profile_ingress_application_gateway,"object({config, enabled})",yes,,
@@ -4292,7 +4292,7 @@ azure,avm-res-containerservice-managedcluster,retry,"object({error_message_regex
 azure,avm-res-containerservice-managedcluster,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
 azure,avm-res-containerservice-managedcluster,security_profile,"object({azure_key_vault_kms, custom_ca_trust_certificates, defender, image_cleaner, image_integrity, workload_identity})",yes,,
 azure,avm-res-containerservice-managedcluster,service_mesh_profile,"object({istio, mode})",yes,,
-azure,avm-res-containerservice-managedcluster,service_principal_profile,"object({client_id, secret})",partial,"accepted, but secret is refused: a secret value, and how a component supplies one (a Kubernetes Secret ASO reads) is not settled",not-ported
+azure,avm-res-containerservice-managedcluster,service_principal_profile,"object({client_id, secret})",yes,,
 azure,avm-res-containerservice-managedcluster,sku,"object({name, tier})",yes,,
 azure,avm-res-containerservice-managedcluster,storage_profile,"object({blob_csi_driver, disk_csi_driver, file_csi_driver, snapshot_controller})",yes,,
 azure,avm-res-containerservice-managedcluster,support_plan,string,yes,,
@@ -4300,14 +4300,14 @@ azure,avm-res-containerservice-managedcluster,tags,map(string),yes,,
 azure,avm-res-containerservice-managedcluster,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-containerservice-managedcluster,upgrade_settings,object({override_settings}),yes,,
 azure,avm-res-containerservice-managedcluster,windows_profile,"object({admin_password, admin_username, enable_csi_proxy, gmsa_profile, license_type})",yes,,
-azure,avm-res-containerservice-managedcluster,windows_profile_password,string,no,a Windows administrator password is a secret value; how a component supplies one (a Kubernetes Secret ASO reads) is not settled,not-ported
-azure,avm-res-containerservice-managedcluster,windows_profile_password_version,string,no,"it versions windows_profile_password, which is refused",not-ported
+azure,avm-res-containerservice-managedcluster,windows_profile_password,string,yes,,
+azure,avm-res-containerservice-managedcluster,windows_profile_password_version,string,yes,,
 azure,avm-res-containerservice-managedcluster,workload_auto_scaler_profile,"object({keda, vertical_pod_autoscaler})",yes,,
 azure,avm-res-dbforpostgresql-flexibleserver,ad_administrator,"map(object({object_id, principal_name, principal_type, tenant_id}))",yes,,
 azure,avm-res-dbforpostgresql-flexibleserver,administrator_login,string,yes,,
-azure,avm-res-dbforpostgresql-flexibleserver,administrator_password,string,no,"a password is a secret value, which does not belong in a component's inputs; ASO's administratorLoginPassword is a reference to a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open). Use Entra authentication (authentication.password_auth_enabled: false)",by-design
-azure,avm-res-dbforpostgresql-flexibleserver,administrator_password_wo,string,no,"a write-only password is a secret value, refused as administrator_password is",by-design
-azure,avm-res-dbforpostgresql-flexibleserver,administrator_password_wo_version,string,no,"the version of administrator_password_wo, which is refused",by-design
+azure,avm-res-dbforpostgresql-flexibleserver,administrator_password,string,yes,,
+azure,avm-res-dbforpostgresql-flexibleserver,administrator_password_wo,string,yes,,
+azure,avm-res-dbforpostgresql-flexibleserver,administrator_password_wo_version,string,yes,,
 azure,avm-res-dbforpostgresql-flexibleserver,authentication,"object({active_directory_auth_enabled, password_auth_enabled, tenant_id})",yes,,
 azure,avm-res-dbforpostgresql-flexibleserver,auto_grow_enabled,bool,yes,,
 azure,avm-res-dbforpostgresql-flexibleserver,backup_retention_days,number,yes,,
@@ -4348,7 +4348,7 @@ azure,avm-res-cognitiveservices-account,aml_workspace,"object({identity_client_i
 azure,avm-res-cognitiveservices-account,associated_projects,list(string),yes,,
 azure,avm-res-cognitiveservices-account,cognitive_deployments,"map(object({dynamic_throttling_enabled, model, name, rai_policy_name, retry, scale, +2}))",partial,"accepted, but dynamic_throttling_enabled true is refused (ASO's Deployment has no dynamicThrottlingEnabled), and so are retry and timeouts (by design)",gap
 azure,avm-res-cognitiveservices-account,custom_question_answering_search_service_id,string,yes,,
-azure,avm-res-cognitiveservices-account,custom_question_answering_search_service_key,string,no,"a secret value: ASO reads the key from a Kubernetes Secret (apiProperties.qnaAzureSearchEndpointKey), and how a component supplies a Secret is not settled",not-ported
+azure,avm-res-cognitiveservices-account,custom_question_answering_search_service_key,string,yes,,
 azure,avm-res-cognitiveservices-account,custom_subdomain_name,string,yes,,
 azure,avm-res-cognitiveservices-account,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",partial,"accepted, but user_assigned_identity is refused (the module reads its client ID from Azure; ASO's Account takes encryption.keyVaultProperties.identityClientId only as a literal) and key_version is required (the module reads the key's current version from Key Vault)",gap
 azure,avm-res-cognitiveservices-account,default_project,string,yes,,
@@ -4450,13 +4450,13 @@ azure,avm-res-app-containerapp,lock,"object({kind, name})",yes,,
 azure,avm-res-app-containerapp,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
 azure,avm-res-app-containerapp,max_inactive_revisions,number,yes,,
 azure,avm-res-app-containerapp,name,string,yes,,
-azure,avm-res-app-containerapp,registries,"list(object({identity, password_secret_name, server, username}))",partial,"accepted, but password_secret_name and username are refused: a registry password is a secret value, which the chart does not take (pull with a managed identity)",not-ported
+azure,avm-res-app-containerapp,registries,"list(object({identity, password_secret_name, server, username}))",yes,,
 azure,avm-res-app-containerapp,resource_group_id,string,yes,,
 azure,avm-res-app-containerapp,resource_group_name,string,yes,,
 azure,avm-res-app-containerapp,revision_mode,string,yes,,
 azure,avm-res-app-containerapp,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
 azure,avm-res-app-containerapp,runtime,object({java}),yes,,
-azure,avm-res-app-containerapp,secrets,"map(object({identity, key_vault_secret_id, name, value}))",partial,"accepted for Key Vault references (key_vault_secret_id and identity), but a secret's value is refused: it would sit in the component's inputs, and how a component supplies a Kubernetes Secret is not settled",not-ported
+azure,avm-res-app-containerapp,secrets,"map(object({identity, key_vault_secret_id, name, value}))",yes,,
 azure,avm-res-app-containerapp,service,object({type}),yes,,
 azure,avm-res-app-containerapp,tags,map(string),yes,,
 azure,avm-res-app-containerapp,template,"object({azure_queue_scale_rules, containers, cooldown_period, custom_scale_rules, http_scale_rules, init_containers, +8})",yes,,
@@ -4474,7 +4474,7 @@ azure,avm-res-web-site,auto_generated_domain_name_label_scope,string,yes,,
 azure,avm-res-web-site,backup,"map(object({enabled, name, schedule, storage_account_url}))",no,"Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (its storage_account_url is a SAS URL, a secret, as well)",gap
 azure,avm-res-web-site,builtin_logging_enabled,bool,yes,,
 azure,avm-res-web-site,bundle_version,string,no,"only a Logic App reads it (the extension bundle's version), and kind logicapp is refused; accepted at its default",not-ported
-azure,avm-res-web-site,certificates,"map(object({host_names, key_vault_id, key_vault_secret_name, name, password, pfx_blob, +1}))",partial,"accepted as aso-extensions Certificate from Key Vault (key_vault_id, key_vault_secret_name), but pfx_blob and password are refused: secret material, the builder's decision",not-ported
+azure,avm-res-web-site,certificates,"map(object({host_names, key_vault_id, key_vault_secret_name, name, password, pfx_blob, +1}))",yes,,
 azure,avm-res-web-site,client_affinity_enabled,bool,yes,,
 azure,avm-res-web-site,client_affinity_partitioning_enabled,bool,yes,,
 azure,avm-res-web-site,client_affinity_proxy_enabled,bool,yes,,
@@ -4488,7 +4488,7 @@ azure,avm-res-web-site,custom_domains,"map(object({certificate_key, hostname, ss
 azure,avm-res-web-site,daily_memory_time_quota,number,yes,,
 azure,avm-res-web-site,dapr_config,"object({app_id, app_port, enable_api_logging, enabled, http_max_request_size, http_read_buffer_size, +1})",yes,,
 azure,avm-res-web-site,delete_empty_service_plan,bool,partial,"accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter",gap
-azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
+azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings (secret values in plain text), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
 azure,avm-res-web-site,deployment_slots_inherit_lock,bool,yes,,
 azure,avm-res-web-site,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-web-site,dns_configuration,"object({dns_alt_server, dns_max_cache_timeout, dns_retry_attempt_count, dns_retry_attempt_timeout, dns_servers})",yes,,
@@ -4535,7 +4535,7 @@ azure,avm-res-web-site,scm_site_also_stopped,bool,yes,,
 azure,avm-res-web-site,service_plan_resource_id,string,yes,,
 azure,avm-res-web-site,site_config,"object({always_on, api_definition_url, api_management_api_id, app_command_line, app_scale_limit, application_insights_connection_string, +59})",partial,"accepted, but application_insights_connection_string and application_insights_key are refused: the Application Insights connection string and key, which the module marks sensitive at the root (a secret value, the builder's decision)",not-ported
 azure,avm-res-web-site,slot_sensitive_app_settings,map(map(string)),no,secret values (the module marks them sensitive); how a component supplies one is the builder's decision,not-ported
-azure,avm-res-web-site,slots_storage_shares_to_mount_sensitive_values,map(string),no,"storage account access keys, secret values (the module marks them sensitive); how a component supplies one is the builder's decision",not-ported
+azure,avm-res-web-site,slots_storage_shares_to_mount_sensitive_values,map(string),yes,,
 azure,avm-res-web-site,ssh_enabled,bool,yes,,
 azure,avm-res-web-site,sticky_settings,"map(object({app_setting_names, connection_string_names}))",yes,,
 azure,avm-res-web-site,storage_account_access_key,string,no,a secret value (the module marks it sensitive) the module writes into the AzureWebJobsStorage connection string; how a component supplies one is the builder's decision. Use storage_uses_managed_identity,not-ported
@@ -4545,7 +4545,7 @@ azure,avm-res-web-site,storage_account_share_name,string,no,"only a Logic App re
 azure,avm-res-web-site,storage_authentication_type,string,yes,,
 azure,avm-res-web-site,storage_container_endpoint,string,yes,,
 azure,avm-res-web-site,storage_container_type,string,yes,,
-azure,avm-res-web-site,storage_shares_to_mount,"map(object({access_key, account_name, mount_path, name, share_name, type}))",no,"each mount needs the storage account's access key, a secret value (ASO's siteConfig.azureStorageAccounts takes it from a Kubernetes Secret); how a component supplies one is the builder's decision",not-ported
+azure,avm-res-web-site,storage_shares_to_mount,"map(object({access_key, account_name, mount_path, name, share_name, type}))",yes,,
 azure,avm-res-web-site,storage_user_assigned_identity_client_id,string,yes,,
 azure,avm-res-web-site,storage_user_assigned_identity_id,string,yes,,
 azure,avm-res-web-site,storage_uses_managed_identity,bool,yes,,
@@ -4635,10 +4635,10 @@ azure,avm-res-network-bastionhost,tunneling_enabled,bool,yes,,
 azure,avm-res-network-bastionhost,virtual_network_id,string,yes,,
 azure,avm-res-network-bastionhost,zones,set(string),yes,,
 azure,avm-res-sql-server,administrator_login,string,yes,,
-azure,avm-res-sql-server,administrator_login_password,string,no,"a password is a secret value, which does not belong in a component's inputs; ASO's administratorLoginPassword is a reference to a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open). Use Entra-only authentication (azuread_administrator with azuread_authentication_only: true)",by-design
-azure,avm-res-sql-server,administrator_login_password_key_vault_configuration,"object({content_type, expiration_date, key_vault_resource_id, secret_name, tags})",no,"it stores the administrator password, a secret value the chart does not take, in Key Vault; aso-extensions' VaultSecret takes its value from a Kubernetes Secret, and how a component supplies that Secret is the builder's decision (open)",by-design
-azure,avm-res-sql-server,administrator_login_password_wo,string,no,"a write-only password is a secret value, refused as administrator_login_password is",by-design
-azure,avm-res-sql-server,administrator_login_password_wo_version,number,no,"the version of administrator_login_password_wo, which is refused",by-design
+azure,avm-res-sql-server,administrator_login_password,string,yes,,
+azure,avm-res-sql-server,administrator_login_password_key_vault_configuration,"object({content_type, expiration_date, key_vault_resource_id, secret_name, tags})",no,"it writes the administrator password into Key Vault, a value the chart never holds (the password is a Kubernetes Secret reference, docs/secrets.md); keep it in Key Vault and let External Secrets Operator fill the Secret instead",by-design
+azure,avm-res-sql-server,administrator_login_password_wo,string,yes,,
+azure,avm-res-sql-server,administrator_login_password_wo_version,number,yes,,
 azure,avm-res-sql-server,azuread_administrator,"object({azuread_authentication_only, login_username, object_id, tenant_id})",yes,,
 azure,avm-res-sql-server,connection_policy,string,yes,,
 azure,avm-res-sql-server,databases,"map(object({auto_pause_delay_in_minutes, collation, create_mode, diagnostic_settings, elastic_pool_key, geo_backup_enabled, +26}))",partial,"accepted, except import (a .bacpac import is a POST action with a storage key and an administrator password, secret values, and no ASO kind) and threat_detection_policy.storage_account_access_key (a secret value; ASO takes it only from a Kubernetes Secret). geo_backup_enabled false on a DataWarehouse (DW) SKU is aso-extensions' ServersDatabasesGeoBackupPolicy (Disabled). managed_identities.system_assigned is accepted and ignored, as the module ignores it",gap
@@ -4647,7 +4647,7 @@ azure,avm-res-sql-server,elastic_pools,"map(object({diagnostic_settings, license
 azure,avm-res-sql-server,enable_telemetry,bool,yes,,
 azure,avm-res-sql-server,express_vulnerability_assessment_enabled,bool,yes,,
 azure,avm-res-sql-server,firewall_rules,"map(object({end_ip_address, start_ip_address, timeouts}))",partial,"accepted, but a rule's timeouts are refused: Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit",by-design
-azure,avm-res-sql-server,generate_administrator_login_password,bool,no,"a generated password is a secret value, refused as administrator_login_password is (the module's random_password is not ported)",by-design
+azure,avm-res-sql-server,generate_administrator_login_password,bool,no,"the catalog never generates a secret (docs/secrets.md); the password comes from a Kubernetes Secret (administrator_login_password, a reference). The module's random_password is not ported",by-design
 azure,avm-res-sql-server,location,string,yes,,
 azure,avm-res-sql-server,lock,"object({kind, name})",yes,,
 azure,avm-res-sql-server,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
@@ -4818,27 +4818,27 @@ azure,avm-res-cache-redis,tags,map(string),yes,,
 azure,avm-res-cache-redis,tenant_settings,map(string),yes,,
 azure,avm-res-cache-redis,zones,list(string),yes,,
 azure,avm-res-app-managedenvironment,app_insights_configuration,object({connection_string}),yes,,
-azure,avm-res-app-managedenvironment,app_logs_configuration,"object({destination, log_analytics_configuration})",partial,"accepted with destination azure-monitor (or none), but destination log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,app_logs_configuration,"object({destination, log_analytics_configuration})",yes,,
 azure,avm-res-app-managedenvironment,availability_zones,list(string),yes,,
-azure,avm-res-app-managedenvironment,certificate_password,string,no,"the custom domain certificate's password, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
-azure,avm-res-app-managedenvironment,certificate_password_version,number,no,"tracks certificate_password, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,certificate_value,string,no,"the custom domain certificate's blob, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
-azure,avm-res-app-managedenvironment,certificate_value_version,number,no,"tracks certificate_value, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,certificates,"map(object({certificate_key_vault_properties, location, name, password, password_version, tags, +2}))",partial,"accepted with a Key Vault certificate (certificate_key_vault_properties), but password and value are refused: secret values the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,certificate_password,string,yes,,
+azure,avm-res-app-managedenvironment,certificate_password_version,number,yes,,
+azure,avm-res-app-managedenvironment,certificate_value,string,yes,,
+azure,avm-res-app-managedenvironment,certificate_value_version,number,yes,,
+azure,avm-res-app-managedenvironment,certificates,"map(object({certificate_key_vault_properties, location, name, password, password_version, tags, +2}))",yes,,
 azure,avm-res-app-managedenvironment,connection_string,string,yes,,
 azure,avm-res-app-managedenvironment,connection_string_version,number,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_identity,string,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_url,string,yes,,
-azure,avm-res-app-managedenvironment,custom_domain_certificate_password,string,no,"deprecated; the custom domain certificate's password, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,custom_domain_certificate_value,string,no,"deprecated; the custom domain certificate's blob, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,custom_domain_configuration,"object({certificate_key_vault_properties, certificate_value, dns_suffix})",partial,"accepted with a Key Vault certificate (certificate_key_vault_properties) and dns_suffix, but certificate_value is refused: a certificate's blob is a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,custom_domain_certificate_password,string,yes,,
+azure,avm-res-app-managedenvironment,custom_domain_certificate_value,string,yes,,
+azure,avm-res-app-managedenvironment,custom_domain_configuration,"object({certificate_key_vault_properties, certificate_value, dns_suffix})",yes,,
 azure,avm-res-app-managedenvironment,custom_domain_dns_suffix,string,yes,,
-azure,avm-res-app-managedenvironment,dapr_ai_connection_string,string,no,"an Application Insights connection string for Dapr, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,dapr_ai_connection_string_version,number,no,"tracks dapr_ai_connection_string, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key,string,no,"an instrumentation key for Dapr, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key_version,number,no,"tracks dapr_ai_instrumentation_key, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,dapr_application_insights_connection_string,string,no,"deprecated; an Application Insights connection string for Dapr, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,dapr_components,"map(object({component_type, dapr_components_version, ignore_errors, init_timeout, metadata, name, +4}))",partial,"accepted, with Key Vault secret references (key_vault_url and identity), but a secret's value is refused: a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,dapr_ai_connection_string,string,yes,,
+azure,avm-res-app-managedenvironment,dapr_ai_connection_string_version,number,yes,,
+azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key,string,yes,,
+azure,avm-res-app-managedenvironment,dapr_ai_instrumentation_key_version,number,yes,,
+azure,avm-res-app-managedenvironment,dapr_application_insights_connection_string,string,yes,,
+azure,avm-res-app-managedenvironment,dapr_components,"map(object({component_type, dapr_components_version, ignore_errors, init_timeout, metadata, name, +4}))",yes,,
 azure,avm-res-app-managedenvironment,dapr_configuration,object({}),yes,,
 azure,avm-res-app-managedenvironment,dapr_subscriptions,"map(object({bulk_subscribe, dead_letter_topic, metadata, name, pubsub_name, routes, +2}))",yes,,
 azure,avm-res-app-managedenvironment,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
@@ -4859,10 +4859,10 @@ azure,avm-res-app-managedenvironment,key_version,number,yes,,
 azure,avm-res-app-managedenvironment,kind,string,yes,,
 azure,avm-res-app-managedenvironment,location,string,yes,,
 azure,avm-res-app-managedenvironment,lock,"object({kind, name, notes})",yes,,
-azure,avm-res-app-managedenvironment,log_analytics_workspace,object({resource_id}),no,"the module reads the workspace's primary shared key and sends it, a secret value the chart does not take (send logs to Azure Monitor with diagnostic_settings)",not-ported
-azure,avm-res-app-managedenvironment,log_analytics_workspace_customer_id,string,no,"deprecated; a Log Analytics destination needs the workspace's shared key, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,log_analytics_workspace_destination,string,partial,"deprecated; accepted as azure-monitor, but log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,log_analytics_workspace_primary_shared_key,string,no,"deprecated; the workspace's shared key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,log_analytics_workspace,object({resource_id}),no,"the module reads the workspace's customer ID and primary shared key from Azure, which a render cannot (give app_logs_configuration.log_analytics_configuration.customer_id and shared_key, a reference to a Kubernetes Secret)",by-design
+azure,avm-res-app-managedenvironment,log_analytics_workspace_customer_id,string,yes,,
+azure,avm-res-app-managedenvironment,log_analytics_workspace_destination,string,yes,,
+azure,avm-res-app-managedenvironment,log_analytics_workspace_primary_shared_key,string,yes,,
 azure,avm-res-app-managedenvironment,maintenance_configurations,"map(object({name, scheduled_entries}))",yes,,
 azure,avm-res-app-managedenvironment,managed_certificates,"map(object({domain_control_validation, location, name, subject_name, tags}))",yes,,
 azure,avm-res-app-managedenvironment,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
@@ -4879,9 +4879,9 @@ azure,avm-res-app-managedenvironment,resource_group_name,string,yes,,
 azure,avm-res-app-managedenvironment,resource_types,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,"ASO's and aso-extensions' kinds fix the API versions (aso-extensions' ManagedEnvironment 2025-10-02-preview; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)",by-design
 azure,avm-res-app-managedenvironment,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-app-managedenvironment,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
-azure,avm-res-app-managedenvironment,shared_key,string,no,"the Log Analytics workspace's shared key, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,shared_key_version,number,no,"tracks shared_key, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,storages,"map(object({account_key, account_key_version, azure_file, name, nfs_azure_file}))",partial,"accepted for NFS and Azure Files shares, the key by Key Vault reference (azure_file.account_key_vault_properties), but the account key (account_key, azure_file.account_key) is refused, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,shared_key,string,yes,,
+azure,avm-res-app-managedenvironment,shared_key_version,number,yes,,
+azure,avm-res-app-managedenvironment,storages,"map(object({account_key, account_key_version, azure_file, name, nfs_azure_file}))",yes,,
 azure,avm-res-app-managedenvironment,tags,map(string),yes,,
 azure,avm-res-app-managedenvironment,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-app-managedenvironment,vnet_configuration,"object({docker_bridge_cidr, infrastructure_subnet_id, internal, platform_reserved_cidr, platform_reserved_dns_ip})",yes,,

@@ -46,7 +46,7 @@ module's default `zone_redundant: true` needs an infrastructure subnet
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock`, named `lock-<kind>` and with the module's notes unless given |
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
-| `time_sleep.lock_removal`, the role definition lookup, the workspace's customer ID and shared key lookups, telemetry | never | not ported: ASO retries a delete a lock still blocks and resolves a role by name itself; the shared key is a secret (below) |
+| `time_sleep.lock_removal`, the role definition lookup, the workspace's customer ID and shared key lookups, telemetry | never | not ported: ASO retries a delete a lock still blocks and resolves a role by name itself; the workspace lookups are Azure reads a render cannot make (give the customer ID and the shared key, below) |
 
 **aso-extensions' kind.** ASO's `ManagedEnvironment` is at ARM API
 version 2025-01-01, without `appInsightsConfiguration`,
@@ -91,8 +91,11 @@ Where the module folds a deprecated input into a newer one (its
 | `resource_group_name` (required), `parent_id` | `owner.armId`: `parent_id` when set, else `/subscriptions/<subscription_id>/resourceGroups/<resource_group_name>`, or `resource_group_name` itself when it is a group's ID |
 | `kind` | `kind` |
 | `managed_identities` | `identity` |
-| `app_logs_configuration`, `log_analytics_workspace_destination` (deprecated) | `appLogsConfiguration.destination`: `azure-monitor`, or none (`{}`). `log-analytics` is refused (below) |
+| `app_logs_configuration`; `log_analytics_workspace_destination`, `log_analytics_workspace_customer_id` (deprecated) | `appLogsConfiguration.destination`: `azure-monitor`, `log-analytics` or none (`{}`); with `log-analytics`, `logAnalyticsConfiguration` (`customerId`, `dynamicJsonColumns` and the shared key). A `log-analytics` destination needs a customer ID and a shared key, as in the module |
+| `shared_key`, `shared_key_version`; `log_analytics_workspace_primary_shared_key` (deprecated) | the Log Analytics shared key, `appLogsConfiguration.logAnalyticsConfiguration.sharedKey`, as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. The version is required with `shared_key`, as in the module, and does nothing |
 | `custom_domain_configuration`; `custom_domain_dns_suffix`, `custom_domain_certificate_key_vault_url`, `custom_domain_certificate_key_vault_identity` (deprecated) | `customDomainConfiguration`: `dnsSuffix` and the Key Vault certificate (`certificateKeyVaultProperties`: the identity by ID, or `System` as `wellKnownName`, and the secret's URL) |
+| `certificate_password`, `certificate_value` (and their `_version`), `custom_domain_configuration.certificate_value`; `custom_domain_certificate_password`, `custom_domain_certificate_value` (deprecated) | the custom domain certificate's password and blob, `customDomainConfiguration.certificatePassword` and `.certificateValue` when there is a custom domain configuration, as references to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. The top-level ones win over the deprecated and nested ones, and need their version, as in the module |
+| `dapr_ai_connection_string`, `dapr_ai_instrumentation_key` (and their `_version`); `dapr_application_insights_connection_string` (deprecated) | `daprAIConnectionString`, `daprAIInstrumentationKey`, as references to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. The versions are required, as in the module, and do nothing |
 | `infrastructure_resource_group`, `infrastructure_resource_group_name` (deprecated) | `infrastructureResourceGroup` |
 | `vnet_configuration`; `infrastructure_subnet_id`, `internal_load_balancer_enabled` (deprecated) | `vnetConfiguration`, the subnet by ID (`infrastructureSubnetReference`) |
 | `peer_authentication`, `peer_authentication_enabled` (deprecated) | `peerAuthentication.mtls.enabled` |
@@ -101,10 +104,10 @@ Where the module folds a deprecated input into a newer one (its
 | `zone_redundant` (default `true`), `zone_redundancy_enabled` (deprecated) | `zoneRedundant` |
 | `dapr_configuration`, `keda_configuration` | accepted: both are empty objects (`object({})`), and the module sends them as `{}`, which carries no setting. ASO's type has neither field (Azure reports the Dapr and KEDA versions in status) |
 | `tags` | `spec.tags` (the environment's only; a certificate's and a managed certificate's own `tags` are theirs, as in the module) |
-| `certificates` | `ManagedEnvironmentsCertificate`: `name`, `location`, `tags`, the Key Vault certificate (`certificate_key_vault_properties`). `password` and `value` are refused; `password_version` and `value_version` are accepted and do nothing, as in the module without a value |
-| `dapr_components` | `ManagedEnvironmentsDaprComponent`: `component_type`, `dapr_components_version` (`version`), `ignore_errors`, `init_timeout`, `metadata` (a value or a secret's name), `scopes`, `secret_store_component`, `secrets` as Key Vault references (`key_vault_url`, `identity`). A secret's `value` is refused. `secrets_version` is required with `secrets`, as in the module, and does nothing: ASO sends the whole body on every change |
+| `certificates` | `ManagedEnvironmentsCertificate`: `name`, `location`, `tags`, the Key Vault certificate (`certificate_key_vault_properties`), and `password` and `value` as references to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. `password_version` and `value_version` are accepted and do nothing |
+| `dapr_components` | `ManagedEnvironmentsDaprComponent`: `component_type`, `dapr_components_version` (`version`), `ignore_errors`, `init_timeout`, `metadata` (a value or a secret's name), `scopes`, `secret_store_component`, `secrets` as Key Vault references (`key_vault_url`, `identity`) or with a `value` that is a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. `secrets_version` is required with `secrets`, as in the module, and does nothing: ASO sends the whole body on every change |
 | `dapr_subscriptions` | `ManagedEnvironmentsDaprSubscription`: `pubsub_name`, `topic`, `dead_letter_topic`, `metadata`, `scopes`, `bulk_subscribe` and `routes` (`default`, `rules`) |
-| `storages` | `ManagedEnvironmentsStorage`: `azure_file` (`access_mode`, `account_name`, `share_name`, and the account key as a Key Vault reference, `account_key_vault_properties`: `key_vault_url` and `identity`) and `nfs_azure_file` (`access_mode`, `server`, `share_name`). The account key itself is refused (a secret value) |
+| `storages` | `ManagedEnvironmentsStorage`: `azure_file` (`access_mode`, `account_name`, `share_name`, and the account key as a Key Vault reference, `account_key_vault_properties`: `key_vault_url` and `identity`) and `nfs_azure_file` (`access_mode`, `server`, `share_name`). `account_key` is `azureFile.accountKey`, as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. `azure_file.account_key`, which the module never sends, must be a reference too and is not sent |
 | `managed_certificates` | `ManagedEnvironmentsManagedCertificate`: `name`, `location`, `subject_name`, `domain_control_validation`, `tags` |
 | `java_components` | `ManagedEnvironmentsJavaComponent`: `Nacos`, `SpringBootAdmin`, `SpringCloudConfig`, `SpringCloudEureka` or `SpringCloudGateway`, with `configurations`, `scale` and `service_binds` (the service by ID). `ingress` is refused: the kind has no ingress in its spec (the module sends an empty object, whose one property, `fqdn`, is read-only) |
 | `dot_net_components` | `ManagedEnvironmentsDotNetComponent`: `component_type` (`AspireDashboard`), `configurations` and `service_binds` (the service by ID) |
@@ -135,9 +138,8 @@ Where the module folds a deprecated input into a newer one (its
 
 ### Refused when set
 
-Secret values are the builder's decision (ASO takes each as a
-`SecretReference` to a Kubernetes Secret, and how a component supplies one
-is not settled); Key Vault references, which hold no value, are taken.
+Secret values are references to Kubernetes Secrets ([secrets](../../../docs/secrets.md));
+a string where one belongs is refused.
 
 | Variable | Kind | Why |
 | --- | --- | --- |
@@ -145,21 +147,13 @@ is not settled); Key Vault references, which hold no value, are taken.
 | `resource_types` | by-design | ASO's and aso-extensions' kinds fix the API versions |
 | `retry` | by-design | ASO retries every failed request itself |
 | `timeouts` | by-design | ASO has no per-request timeouts; Bundt sets a component's time limit |
-| `log_analytics_workspace` | not-ported | the module reads the workspace's primary shared key and sends it: a secret |
-| `shared_key`, `shared_key_version`, `log_analytics_workspace_primary_shared_key`, `log_analytics_workspace_customer_id` | not-ported | a Log Analytics destination needs the workspace's shared key: a secret |
-| `certificate_password`, `certificate_value` (and their `_version`), `custom_domain_certificate_password`, `custom_domain_certificate_value` | not-ported | the custom domain certificate's password and blob: secrets (reference the certificate in Key Vault instead) |
-| `dapr_ai_connection_string`, `dapr_ai_instrumentation_key` (and their `_version`), `dapr_application_insights_connection_string` | not-ported | Application Insights credentials for Dapr: secrets |
+| `log_analytics_workspace` | by-design | the module reads the workspace's customer ID and primary shared key from Azure, which a render cannot: give `app_logs_configuration.log_analytics_configuration.customer_id` and `shared_key` (a reference) |
 
-Accepted in part: `app_logs_configuration` and
-`log_analytics_workspace_destination` (not `log-analytics`, which needs the
-shared key), `custom_domain_configuration` (not `certificate_value`),
-`certificates` (not `password` or `value`), `dapr_components` (not a
-secret's `value`), `storages` (not the account key, a secret; its Key
-Vault reference is mapped), `java_components` (not `ingress`, which
+Accepted in part: `java_components` (not `ingress`, which
 aso-extensions' `ManagedEnvironmentsJavaComponent` at 2026-03-02-preview
 has no spec field for).
 
-Logs without a secret: `app_logs_configuration: {destination:
+Logs without a shared key: `app_logs_configuration: {destination:
 azure-monitor}` and a `diagnostic_settings` entry to the workspace.
 
 ## Outputs
@@ -180,9 +174,11 @@ carry (and a secret besides), and `resource`, the whole azapi object.
 ## From Terraform
 
 A module block's arguments are the values, plus `subscription_id` when
-`resource_group_name` is a name and `parent_id` is not set. Drop the secret
-inputs: send logs to Azure Monitor (above), and give certificates and Dapr
-secrets as Key Vault references. ASO adopts an environment that exists
+`resource_group_name` is a name and `parent_id` is not set. Each secret
+input becomes a reference to the Kubernetes Secret that holds it (External
+Secrets Operator puts it there; docs/secrets.md); `log_analytics_workspace`
+becomes the workspace's customer ID and a reference to its shared key.
+ASO adopts an environment that exists
 when an object with its name is applied, so keep the name and leave
 `namePrefix` empty; set `deletion_policy: ABANDON` for the first apply,
 `terraform state rm` the module, then remove `ABANDON`.
@@ -198,8 +194,12 @@ repository, release, commit, licence and the date last synced.
 
 `task test CHART=avm-res-app-managedenvironment`: render cases `basic`,
 `deprecated`, `full`, `names`, `newer` (aso-extensions' kind), `secrets`
-(the connection string and Datadog key from a Secret), `mock` and
-`mock-newer` (with both from a Secret the fake-cloud run makes), each validated against ASO
+(every secret input from a Secret: the connection string, the Datadog
+key, the Log Analytics shared key, the custom domain certificate, Dapr's
+Application Insights credentials, and a certificate's, a Dapr secret's
+and a share's), `secrets-deprecated` (the deprecated secret inputs),
+`mock` and `mock-newer` (with the secrets from a Secret the fake-cloud run
+makes), each validated against ASO
 v2.22.0's CRD schemas and the aso-extensions CRDs copied in
 `crds/aso-extensions`, and the refusals in `tests/*.fail.yaml`.
 `task test-mock-azure` applies `tests/mock.values.yaml` (the environment
@@ -231,8 +231,25 @@ script's report line read `pre-live.json`, which a case without objects
 made first does not have, and errexit ended the run (fixed in
 `hack/azure-live.sh`); its cleanup deleted what was left.
 
+0.6.0 (2026-11-14): fake cloud run `off-catalog-1114090347-8775`
+(aso-extensions `8d7f8c2`): `mock` (a certificate's password and blob, a
+Dapr secret and a share's account key from a Secret the run made) and
+`mock-newer` (the Log Analytics destination with its shared key, the
+custom domain certificate and Dapr's Application Insights credentials,
+all from a Secret), every object Ready and deleted, outputs evaluated.
+
 ## Changes
 
+- **0.6.0** (2026-11-14): the rest of the secret inputs are mapped as
+  references to a Kubernetes Secret, `{secretName, key}` (docs/secrets.md,
+  the builder's decision): the Log Analytics shared key (so a
+  `log-analytics` destination with its customer ID, and the deprecated
+  `log_analytics_workspace_customer_id` and `_primary_shared_key`), the
+  custom domain certificate's password and blob, Dapr's Application
+  Insights connection string and instrumentation key, a certificate's
+  password and blob, a Dapr component secret's value, and a storage's
+  account key. A string where one belongs is refused.
+  `log_analytics_workspace` stays refused (a lookup in Azure).
 - **0.5.0** (2026-11-14): `connection_string` and `key` (the Datadog API
   key), with their `_version`, are mapped as references to a Kubernetes
   Secret, `{secretName, key}` (docs/secrets.md, the builder's decision).
