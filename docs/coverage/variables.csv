@@ -4468,8 +4468,8 @@ azure,avm-res-web-site,app_service_active_slot,"object({overwrite_network_config
 azure,avm-res-web-site,app_settings,map(string),yes,,
 azure,avm-res-web-site,application_insights_connection_string,string,no,a secret value (the module marks it sensitive); how a component supplies one is the builder's decision,not-ported
 azure,avm-res-web-site,application_insights_key,string,no,a secret value (the module marks it sensitive); how a component supplies one is the builder's decision,not-ported
-azure,avm-res-web-site,auth_settings,"object({active_directory, additional_login_parameters, allowed_external_redirect_urls, default_provider, enabled, facebook, +9})",no,Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind,gap
-azure,avm-res-web-site,auth_settings_v2,"object({auth_enabled, config_file_path, excluded_paths, forward_proxy_convention, forward_proxy_custom_host_header_name, forward_proxy_custom_proto_header_name, +8})",no,Microsoft.Web/sites/config (authsettingsV2) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-web-site,auth_settings,"object({active_directory, additional_login_parameters, allowed_external_redirect_urls, default_provider, enabled, facebook, +9})",no,"Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind (it has a PUT and no GET; aso-extensions plan.md §8 Q13); the module writes it only without auth_settings_v2, which is mapped",gap
+azure,avm-res-web-site,auth_settings_v2,"object({auth_enabled, config_file_path, excluded_paths, forward_proxy_convention, forward_proxy_custom_host_header_name, forward_proxy_custom_proto_header_name, +8})",yes,,
 azure,avm-res-web-site,auto_generated_domain_name_label_scope,string,yes,,
 azure,avm-res-web-site,backup,"map(object({enabled, name, schedule, storage_account_url}))",no,"Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (its storage_account_url is a SAS URL, a secret, as well)",gap
 azure,avm-res-web-site,builtin_logging_enabled,bool,yes,,
@@ -4488,7 +4488,7 @@ azure,avm-res-web-site,custom_domains,"map(object({certificate_key, hostname, ss
 azure,avm-res-web-site,daily_memory_time_quota,number,yes,,
 azure,avm-res-web-site,dapr_config,"object({app_id, app_port, enable_api_logging, enabled, http_max_request_size, http_read_buffer_size, +1})",yes,,
 azure,avm-res-web-site,delete_empty_service_plan,bool,partial,"accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter",gap
-azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
+azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
 azure,avm-res-web-site,deployment_slots_inherit_lock,bool,yes,,
 azure,avm-res-web-site,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-web-site,dns_configuration,"object({dns_alt_server, dns_max_cache_timeout, dns_retry_attempt_count, dns_retry_attempt_timeout, dns_servers})",yes,,
@@ -4497,7 +4497,7 @@ azure,avm-res-web-site,enabled,bool,yes,,
 azure,avm-res-web-site,end_to_end_encryption_enabled,bool,yes,,
 azure,avm-res-web-site,fc1_runtime_name,string,yes,,
 azure,avm-res-web-site,fc1_runtime_version,string,yes,,
-azure,avm-res-web-site,ftp_publish_basic_authentication_enabled,bool,partial,"accepted as true only; false, the module's default, writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (ftp) with allow false, which has no Azure Service Operator or aso-extensions kind",gap
+azure,avm-res-web-site,ftp_publish_basic_authentication_enabled,bool,yes,,
 azure,avm-res-web-site,function_app_uses_fc1,bool,yes,,
 azure,avm-res-web-site,functions_extension_version,string,yes,,
 azure,avm-res-web-site,host_names_disabled,bool,yes,,
@@ -4513,7 +4513,7 @@ azure,avm-res-web-site,location,string,yes,,
 azure,avm-res-web-site,lock,"object({kind, name})",yes,,
 azure,avm-res-web-site,logic_app_node_version,string,no,"only a Logic App reads it (WEBSITE_NODE_DEFAULT_VERSION), and kind logicapp is refused; accepted at its default",not-ported
 azure,avm-res-web-site,logic_app_runtime_version,string,no,"only a Logic App reads it (FUNCTIONS_EXTENSION_VERSION), and kind logicapp is refused; accepted at its default",not-ported
-azure,avm-res-web-site,logs,"map(object({application_logs, detailed_error_messages, failed_requests_tracing, http_logs}))",no,Microsoft.Web/sites/config (logs) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-web-site,logs,"map(object({application_logs, detailed_error_messages, failed_requests_tracing, http_logs}))",partial,"accepted as aso-extensions SitesConfigLogs (one entry: every entry writes the site's one logs section), but an application or HTTP log's azure_blob_storage is refused: its sas_url is a secret value",not-ported
 azure,avm-res-web-site,manage_connection_strings,bool,yes,,
 azure,avm-res-web-site,managed_environment_id,string,yes,,
 azure,avm-res-web-site,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
@@ -4530,14 +4530,14 @@ azure,avm-res-web-site,resource_config,"object({cpu, memory})",yes,,
 azure,avm-res-web-site,resource_types,"object({authorization_locks, authorization_role_assignments, certificate, config_appsettings, config_authsettings, config_authsettingsv2, +14})",no,"the API versions are the kinds' (ASO Site 2025-05-01; aso-extensions SitesSlot, SitesHostNameBinding, SitesSlotsHostNameBinding and Certificate 2026-07-15)",by-design
 azure,avm-res-web-site,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-web-site,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
-azure,avm-res-web-site,scm_publish_basic_authentication_enabled,bool,partial,"accepted as true (the default) only; false writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (scm), which has no Azure Service Operator or aso-extensions kind",gap
+azure,avm-res-web-site,scm_publish_basic_authentication_enabled,bool,yes,,
 azure,avm-res-web-site,scm_site_also_stopped,bool,yes,,
 azure,avm-res-web-site,service_plan_resource_id,string,yes,,
 azure,avm-res-web-site,site_config,"object({always_on, api_definition_url, api_management_api_id, app_command_line, app_scale_limit, application_insights_connection_string, +59})",partial,"accepted, but application_insights_connection_string and application_insights_key are refused: the Application Insights connection string and key, which the module marks sensitive at the root (a secret value, the builder's decision)",not-ported
 azure,avm-res-web-site,slot_sensitive_app_settings,map(map(string)),no,secret values (the module marks them sensitive); how a component supplies one is the builder's decision,not-ported
 azure,avm-res-web-site,slots_storage_shares_to_mount_sensitive_values,map(string),no,"storage account access keys, secret values (the module marks them sensitive); how a component supplies one is the builder's decision",not-ported
 azure,avm-res-web-site,ssh_enabled,bool,yes,,
-azure,avm-res-web-site,sticky_settings,"map(object({app_setting_names, connection_string_names}))",no,Microsoft.Web/sites/config (slotConfigNames) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-web-site,sticky_settings,"map(object({app_setting_names, connection_string_names}))",yes,,
 azure,avm-res-web-site,storage_account_access_key,string,no,a secret value (the module marks it sensitive) the module writes into the AzureWebJobsStorage connection string; how a component supplies one is the builder's decision. Use storage_uses_managed_identity,not-ported
 azure,avm-res-web-site,storage_account_name,string,yes,,
 azure,avm-res-web-site,storage_account_required,bool,yes,,

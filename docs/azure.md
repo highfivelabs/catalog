@@ -588,18 +588,18 @@ Vault references are taken).
 | `slot` | `sites/slots` | aso-extensions `SitesSlot` (2026-07-15) |
 | `hostname_binding` | `sites/hostNameBindings` (and a slot's) | aso-extensions `SitesHostNameBinding`, `SitesSlotsHostNameBinding` |
 | `certificate` | `Web/certificates` | aso-extensions `Certificate` |
-| `config_*` (appsettings, connectionstrings, authsettings, authsettingsV2, logs, backup, metadata, azurestorageaccounts, slotConfigNames) | `sites/config` | **GAP** as separate objects; appsettings, metadata, connection strings and storage mounts inline in `siteConfig` |
-| `publishing_credential_policy` | `sites/basicPublishingCredentialsPolicies` | **GAP** |
+| `config_*` (appsettings, connectionstrings, authsettings, authsettingsV2, logs, backup, metadata, azurestorageaccounts, slotConfigNames) | `sites/config` | aso-extensions `SitesConfigAuthSettingsV2`, `SitesConfigLogs`, `SitesConfigSlotConfigNames` (2026-07-15, `8d7f8c2`); appsettings, metadata, connection strings and storage mounts inline in `siteConfig`; **GAP**: authsettings (v1) and backup (PUT with no GET) |
+| `publishing_credential_policy` | `sites/basicPublishingCredentialsPolicies` | aso-extensions `SitesBasicPublishingCredentialsPolicyFtp`, `...Scm` (2026-07-15, `8d7f8c2`); a slot's: **GAP** |
 
-Ported as `charts/azure/avm-res-web-site` (2026-11-13): 76 of 99
-variables (8 in part), 13 of 14 outputs. The `Site` carries the app
+Ported as `charts/azure/avm-res-web-site` (2026-11-13): 79 of 99
+variables (7 in part), 13 of 14 outputs. The `Site` carries the app
 settings and metadata inline; slots, custom domains and Key Vault
-certificates are aso-extensions kinds. Still gaps: the `sites/config`
-sections the module writes separately (`auth_settings`,
-`auth_settings_v2`, `backup`, `logs`, `sticky_settings`), the publishing
-credential policies (so the chart refuses
-`ftp_publish_basic_authentication_enabled: false`, the module's default,
-and needs it set to `true`) and the slot swap (`app_service_active_slot`,
+certificates are aso-extensions kinds, and from 0.3.0 the config sections
+`auth_settings_v2`, `logs` and `sticky_settings` and both publishing
+credential policies (`ftp_publish_basic_authentication_enabled: false`,
+the module's default, renders the FTP one) are too. Still gaps: the
+`sites/config` sections `auth_settings` (v1) and `backup`, a slot's
+publishing credential policies and the slot swap (`app_service_active_slot`,
 an action). Connection strings, storage mounts, the Application Insights
 key and connection string and PFX uploads are refused as secret values
 (the builder's decision); Logic Apps (`kind: logicapp`) too, since the
