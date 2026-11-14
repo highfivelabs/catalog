@@ -1,0 +1,28 @@
+# A regional group (not a README example; fabric's README shows zonal
+# groups only, the flexible one aside): distribution policy, the regional
+# autoscaler, a stateful instance, redistribution off as createInstances
+# needs.
+project_id: my-project
+location: europe-west8
+name: mig-test
+instance_template: projects/my-project/global/instanceTemplates/nginx-template
+distribution_policy:
+  target_shape: EVEN
+  zones: [europe-west8-a, europe-west8-b]
+update_policy:
+  minimal_action: REFRESH
+  type: OPPORTUNISTIC
+  regional_redistribution_type: NONE
+  max_surge: {fixed: 0}
+  max_unavailable: {fixed: 2}
+autoscaler_config:
+  max_replicas: 4
+  min_replicas: 2
+  scaling_control:
+    down: {max_replicas_fixed: 1, time_window_sec: 600}
+  scaling_signals:
+    load_balancing_utilization: {target: 0.8}
+stateful_config:
+  instance-1:
+    preserved_state:
+      metadata: {role: primary}

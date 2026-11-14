@@ -1,0 +1,25 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Bundt Package for this chart (see ../iam-service-account/package.yaml).
+# Outputs are fabric's declared outputs, selected from the live objects
+# (resources.group_manager). id is built from the spec as the provider's is:
+# projects/<project>/zones/<zone>/instanceGroupManagers/<name> for a zonal
+# group, .../regions/<region>/... for a regional one, the location told
+# apart as fabric's local.is_regional does. Not outputs: fabric's
+# autoscaler, group_manager and health_check, which are whole Terraform
+# objects (docs/design.md, "Outputs").
+apiVersion: hfl.dev/v1
+kind: Package
+metadata:
+  name: gcp-compute-mig
+spec:
+  version: 0.1.0
+  engine: helm
+  providers: [kcc]
+  outputs:
+    id: >-
+      'projects/' + resources.group_manager.metadata.annotations['cnrm.cloud.google.com/project-id']
+      + (resources.group_manager.spec.location.matches('-[a-zA-Z]$|-ai[0-9][a-zA-Z]$') ? '/zones/' : '/regions/')
+      + resources.group_manager.spec.location
+      + '/instanceGroupManagers/' + resources.group_manager.spec.resourceID

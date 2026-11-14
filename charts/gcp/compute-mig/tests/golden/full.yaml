@@ -1,0 +1,176 @@
+---
+# Source: compute-mig/templates/autoscaler.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeAutoscaler
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "autoscaler"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "mig-full"
+  zone: "europe-west8-b"
+  targetRef:
+    name: full
+  description: "Full MIG."
+  autoscalingPolicy:
+    minReplicas: 2
+    maxReplicas: 8
+    cooldownPeriod: 90
+    mode: "ONLY_UP"
+    cpuUtilization:
+      target: 0.7
+      predictiveMethod: OPTIMIZE_AVAILABILITY
+    loadBalancingUtilization:
+      target: 0.9
+    metric:
+      - name: "pubsub.googleapis.com/subscription/num_undelivered_messages"
+        type: "GAUGE"
+        singleInstanceAssignment: 100
+        filter: "resource.type = pubsub_subscription AND resource.label.subscription_id = sub"
+    scaleInControl:
+      maxScaledInReplicas:
+        percent: 50
+      timeWindowSec: 300
+    scalingSchedules:
+      - name: "business-hours"
+        durationSec: 36000
+        minRequiredReplicas: 4
+        schedule: "0 8 * * MON-FRI"
+        description: "true"
+        disabled: false
+        timeZone: "Europe/Rome"
+---
+# Source: compute-mig/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "mig-full"
+  location: global
+  description: "TCP check."
+  checkIntervalSec: 10
+  healthyThreshold: 2
+  timeoutSec: 5
+  unhealthyThreshold: 3
+  tcpHealthCheck:
+    port: 8080
+    proxyHeader: NONE
+    request: ping
+    response: pong
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: full
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  resourceID: "mig-full"
+  projectRef:
+    external: "my-project"
+  location: "europe-west8-b"
+  baseInstanceName: "mig-full"
+  description: "Full MIG."
+  targetSize: 4
+  targetPools:
+    - external: "https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west8/targetPools/pool-a"
+  autoHealingPolicies:
+    - initialDelaySec: 120
+      healthCheckRef:
+        external: "projects/my-project/global/healthChecks/existing"
+  namedPorts:
+    - name: "http"
+      port: 80
+    - name: "https"
+      port: 443
+  statefulPolicy:
+    preservedState:
+      disks:
+        "data-1":
+          autoDelete: ON_PERMANENT_INSTANCE_DELETION
+        "data-2":
+          autoDelete: NEVER
+  updatePolicy:
+    minimalAction: "REPLACE"
+    type: "PROACTIVE"
+    maxSurge:
+      percent: 20
+    maxUnavailable:
+      fixed: 0
+    minReadySec: 30
+    mostDisruptiveAllowedAction: "REPLACE"
+    replacementMethod: "RECREATE"
+  versions:
+    - name: "stable"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"
+    - name: "canary"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-canary"
+      targetSize:
+        percent: 25
+---
+# Source: compute-mig/templates/stateful-config.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputePerInstanceConfig
+metadata:
+  name: full-instance-instance-a
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "full"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    hfl.dev/team: "shop"
+  annotations:
+    hfl.dev/id: "stateful_config:instance-a"
+    cnrm.cloud.google.com/project-id: "my-project"
+    cnrm.cloud.google.com/deletion-policy: abandon
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "instance-a"
+  zone: "europe-west8-b"
+  instanceGroupManagerRef:
+    name: full
+  minimalAction: "REFRESH"
+  mostDisruptiveAllowedAction: "REPLACE"
+  removeInstanceStateOnDestroy: true
+  preservedState:
+    metadata:
+      "role": "primary"
+      "shard": "1"
+    disk:
+      - deviceName: "data-1"
+        source: "projects/my-project/zones/europe-west8-b/disks/a1"
+        deleteRule: ON_PERMANENT_INSTANCE_DELETION
+        mode: READ_ONLY

@@ -1,0 +1,92 @@
+---
+# Source: compute-mig/templates/autoscaler.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeAutoscaler
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "autoscaler"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "shop-dev-web-as"
+  zone: "europe-west8-b"
+  targetRef:
+    name: names
+  description: "Terraform managed."
+  autoscalingPolicy:
+    minReplicas: 1
+    maxReplicas: 3
+    cooldownPeriod: 60
+    mode: "ON"
+    cpuUtilization:
+      target: 0.6
+      predictiveMethod: NONE
+---
+# Source: compute-mig/templates/health-check.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeHealthCheck
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "health_check"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-web-hc"
+  location: global
+  description: "Terraform managed."
+  httpHealthCheck:
+    port: 80
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: names
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "names"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+    environment: "dev"
+    hfl.dev/environment: "dev"
+    hfl.dev/team: "shop"
+    team: "shop"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "shop-dev-web"
+  projectRef:
+    external: "my-project"
+  location: "europe-west8-b"
+  baseInstanceName: "shop-dev-web"
+  description: "Terraform managed."
+  targetSize: 1
+  autoHealingPolicies:
+    - initialDelaySec: 30
+      healthCheckRef:
+        name: names
+  versions:
+    - name: "default"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"
