@@ -7,9 +7,13 @@
 # v2, logs, sticky settings, FTP (the module's default) and SCM basic
 # authentication off. The application logs also go to Blob Storage, its
 # SAS URL a reference to a Secret the harness makes before the apply with
-# a random value (hack/test-secret.sh; nothing committed), as the line
-# below asks:
+# a random value; a second certificate is uploaded as a PFX with its
+# password, and an Azure Files share is mounted with an access key, both
+# from Secrets the harness makes the same way (hack/test-secret.sh; nothing
+# committed), as the lines below ask:
 # secret: catalog-web-logs random
+# secret: catalog-web-tls pfx
+# secret: catalog-web-storage random
 name: catalog-app
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -42,6 +46,12 @@ certificates:
     name: catalog-app-www
     key_vault_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.KeyVault/vaults/catalog-kv
     key_vault_secret_name: www-catalog-example
+  upload:
+    name: catalog-app-upload
+    pfx_blob: {secretName: catalog-web-tls, key: pfx}
+    password: {secretName: catalog-web-tls, key: password}
+storage_shares_to_mount:
+  content: {name: content, account_name: catalogst, share_name: content, mount_path: /mnt/content, access_key: {secretName: catalog-web-storage, key: value}}
 auth_settings_v2:
   auth_enabled: true
   unauthenticated_client_action: Return401

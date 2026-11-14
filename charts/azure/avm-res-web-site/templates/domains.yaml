@@ -9,8 +9,8 @@ module.certificate: one aso-extensions Certificate
 (web.azure.hfl.dev/v20260715; the module sends Microsoft.Web/certificates
 at the module's default version) per certificates entry, owned by the
 resource group parent_id names, on the site's plan, from a Key Vault secret
-(the vault by ARM ID). A PFX upload (pfx_blob, password) is a secret value
-and refused. module.hostname_binding: one aso-extensions
+(the vault by ARM ID) or a PFX upload (pfx_blob, password) as references
+to Kubernetes Secrets (docs/secrets.md). module.hostname_binding: one aso-extensions
 SitesHostNameBinding per custom_domains entry, owned by the Site, named for
 the hostname. A binding's certificate_key is refused: the binding takes the
 certificate's thumbprint, which Azure computes and a render cannot read.
@@ -22,10 +22,15 @@ certificate's thumbprint, which Azure computes and a render cannot read.
 {{- $farm := regexReplaceAll "(?i)/providers/microsoft\\.web/serverfarms/" (toString $v.service_plan_resource_id) "/providers/Microsoft.Web/serverfarms/" }}
 {{- range $key, $c := ($v.certificates | default dict) }}
 {{- $p := printf "certificates.%s" $key }}
-{{- include "aso.unsupported" (list $ (printf "%s.pfx_blob" $p) $c.pfx_blob "a PFX upload is secret material (aso-extensions' Certificate takes pfxBlob from a Kubernetes Secret); how a component supplies one is the builder's decision. Use key_vault_id and key_vault_secret_name") }}
-{{- include "aso.unsupported" (list $ (printf "%s.password" $p) $c.password "a PFX password is a secret value; how a component supplies one is the builder's decision. Use key_vault_id and key_vault_secret_name") }}
-{{- if not $c.key_vault_id }}{{ fail (printf "%s: %s: Either `key_vault_id` (with `key_vault_secret_name`) or `pfx_blob` must be supplied." $n $p) }}{{ end }}
-{{- if not $c.key_vault_secret_name }}{{ fail (printf "%s: %s: `key_vault_id` and `key_vault_secret_name` must be supplied together." $n $p) }}{{ end }}
+{{- /* A PFX upload: pfx_blob and password are references to Kubernetes
+Secrets ({secretName, key}; docs/secrets.md), which aso-extensions'
+Certificate takes as SecretReferences. Key Vault or a PFX, not both, as in
+the module. */ -}}
+{{- $pfx := include "aso.secretRef" (list $ (printf "%s.pfx_blob" $p) $c.pfx_blob) }}
+{{- $pw := include "aso.secretRef" (list $ (printf "%s.password" $p) $c.password) }}
+{{- if not (or $c.key_vault_id $pfx) }}{{ fail (printf "%s: %s: Either `key_vault_id` (with `key_vault_secret_name`) or `pfx_blob` must be supplied." $n $p) }}{{ end }}
+{{- if and (or $c.key_vault_id $c.key_vault_secret_name) $pfx }}{{ fail (printf "%s: %s: Set either `key_vault_id`/`key_vault_secret_name` or `pfx_blob`, not both." $n $p) }}{{ end }}
+{{- if ne (empty $c.key_vault_id) (empty $c.key_vault_secret_name) }}{{ fail (printf "%s: %s: `key_vault_id` and `key_vault_secret_name` must be supplied together." $n $p) }}{{ end }}
 ---
 apiVersion: web.azure.hfl.dev/v20260715
 kind: Certificate
@@ -38,9 +43,17 @@ spec:
     {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
   serverFarmReference:
     armId: {{ $farm | quote }}
+  {{- with $c.key_vault_id }}
   keyVaultReference:
-    armId: {{ $c.key_vault_id | quote }}
+    armId: {{ . | quote }}
   keyVaultSecretName: {{ $c.key_vault_secret_name | quote }}
+  {{- end }}
+  {{- with $pfx }}
+  pfxBlob: {{ . }}
+  {{- end }}
+  {{- with $pw }}
+  password: {{ . }}
+  {{- end }}
   {{- with $c.host_names }}
   hostNames:
     {{- toYaml . | nindent 4 }}
