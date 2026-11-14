@@ -1341,6 +1341,18 @@ a second CoreDNS rewrite; `fakearm` is given ASO's tenant, which Key
 Vault's challenge names). Run `off-catalog-1112232041-31702`: 26 of 26
 objects Ready and deleted, every chart's outputs evaluated.
 
+A vault's secrets (aso-extensions' `VaultSecret`) are not in the fake
+Resource Manager: aso-extensions serves them from its fake vault
+(`cmd/fakevault`, `pkg/fakecloud/keyvault`), a separate server for one
+vault. The run builds it from `ASOX_COMMIT` beside the other fakes, for the
+Key Vault chart's mock vault (`KV_SECRETS_VAULT`), and puts
+`tools/vaultroute` at every `<vault>.vault.azure.net` (the CoreDNS rewrite
+names it, not `fakearm`): it serves `fakearm`'s certificate and forwards a
+key's requests (`/keys`, `/deletedkeys`) to `fakearm` and the rest to
+`fakevault`, keeping the request's host, from which `fakearm` reads the
+vault's name. `fakevault` trusts the same client under ASO's and the
+manager's service accounts, for `https://vault.azure.net`.
+
 **aso-extensions' manager in both runs** (`hack/asox-manager.sh`, sourced
 by `hack/azure-mock.sh` and `hack/azure-live.sh`). aso-extensions at
 `ASOX_COMMIT` is built once per run: its manager from `cmd/manager` (the
