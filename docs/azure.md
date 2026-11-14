@@ -553,11 +553,11 @@ renders and the fake cloud only (chart README).
 
 | ARM types | ASO |
 | --- | --- |
-| `Insights/components@2020-02-02`, `components/pricingPlans`, `privateLinkScopes/scopedResources`, `components/linkedStorageAccounts` | `insights/Component` (2020-02-02), `insights/PricingPlan` (2017-10-01); the scoped resource through aso-extensions' `PrivateLinkScopesScopedResource` (2021-09-01). **GAP**: the profiler's linked storage account |
+| `Insights/components@2020-02-02`, `components/pricingPlans`, `privateLinkScopes/scopedResources`, `components/linkedStorageAccounts` | `insights/Component` (2020-02-02), `insights/PricingPlan` (2017-10-01); the scoped resource through aso-extensions' `PrivateLinkScopesScopedResource` (2021-09-01) and the profiler's linked storage account through its `ComponentsLinkedStorageAccount` (2020-03-01-preview, `8d7f8c2`) |
 
-Charted as `charts/azure/avm-res-insights-component` (2026-11-12): 20 of
-25 variables and 5 of 6 outputs (the deprecated `resource` is not one).
-Refused: `linked_storage_account` (no kind), `ignore_body_changes`,
+Charted as `charts/azure/avm-res-insights-component` (2026-11-12): 21 of
+25 variables (`linked_storage_account` since 0.2.0) and 5 of 6 outputs
+(the deprecated `resource` is not one). Refused: `ignore_body_changes`,
 `resource_types`, `retry` and `timeouts` (section 8); accepted in part:
 `application_type` (ASO's `Component` enumerates `web` and `other` only)
 and `monitor_private_link_scope` (kind `Resource` only: the
@@ -988,8 +988,10 @@ builder's decision).
 **The application gateway's ARM version.** ASO v2.22.0's
 `ApplicationGateway` is at ARM 2022-07-01 only (gap 18 in section 5), where
 the module sends 2025-03-01. `avm-res-network-applicationgateway` maps
-everything 2022-07-01 carries and refuses each later field by name when set:
-`entra_jwt_validation_configs` (and a rule's `entra_jwt_validation_config`);
+everything 2022-07-01 carries. Since 0.2.0, `entra_jwt_validation_configs`
+(and a rule's `entra_jwt_validation_config`) render aso-extensions'
+`ApplicationGateway` (`network.azure.hfl.dev/v20260301`, `8d7f8c2`) in
+place of ASO's. It refuses each other later field by name when set:
 HTTP settings' `dedicated_backend_connection`, `sni_name`,
 `validate_cert_chain_and_expiry` and `validate_sni`; backend settings'
 `enable_l4_client_ip_preservation`; a TLS listener's `host_names`; a probe's
@@ -998,15 +1000,18 @@ HTTP settings' `dedicated_backend_connection`, `sni_name`,
 and the Basic SKU; the `default_predefined_ssl_policy` output. ASO's
 2022-07-01 type also takes a load distribution target only by reference (no
 name, pool or weight) and has no `id` on a Private Link IP configuration or
-a path rule. A new ASO version of the kind (upstream, a `$supportedFrom`
-entry) closes all of them. Its certificates stay refused: ASO takes a
+a path rule. aso-extensions' 2026-03-01 kind carries all of them; the chart
+maps only the Entra JWT validation on it so far. Its certificates stay refused: ASO takes a
 certificate's `data` and an SSL certificate's `password` only from a
 Kubernetes Secret, and `key_vault_secret_id` is Key Vault secret material,
 which waits on how a component supplies a secret (as the Key Vault
 module's `secrets`).
 
-The virtual machine (`avm-res-compute-virtualmachine`) maps 62 of the
-module's 74 variables and 9 of its 13 outputs. Its interfaces, public IPs
+The virtual machine (`avm-res-compute-virtualmachine`) maps 64 of the
+module's 74 variables and 9 of its 13 outputs (`disk_controller_type` and
+`bypass_platform_safety_checks_on_user_schedule_enabled` since 0.2.0, as
+aso-extensions' `VirtualMachine`, `compute.azure.hfl.dev/v20250401`, in
+place of ASO's). Its interfaces, public IPs
 and data disks are ASO objects; the module's association resources are
 fields of the interface in ARM, and the data disk attachments entries of
 the machine's `storageProfile.dataDisks`. Run commands, the shutdown
@@ -1020,7 +1025,6 @@ Windows machine renders only from an attached OS disk; and the gaps:
 | Chart | Variable | Missing |
 | --- | --- | --- |
 | `avm-res-compute-virtualmachine` | `azure_backup_configurations` | `Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems` (aso-extensions has the vault and its policies, not a protected item) |
-| `avm-res-compute-virtualmachine` | `disk_controller_type`, `bypass_platform_safety_checks_on_user_schedule_enabled` | fields after ASO's `VirtualMachine` API version 2022-03-01 |
 | `avm-res-compute-virtualmachine` | an extension's `provision_after_extensions`; a run command's managed identities | fields after the 2022-03-01 API version of ASO's `VirtualMachinesExtension` and aso-extensions' `VirtualMachinesRunCommand` |
 
 Like azurerm, the chart sends `securityProfile.encryptionAtHost` only when
@@ -1043,9 +1047,11 @@ flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` 
 `cognitive_deployments`), and its `Account` takes the customer managed
 key's `identityClientId` only as a literal, with no `FromConfig` form, so
 a user-assigned identity's client ID, which the module reads from Azure,
-cannot be given (`customer_managed_key.user_assigned_identity`). And ASO's `UserAssignedIdentity`
+cannot be given (`customer_managed_key.user_assigned_identity`). ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
-(`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+(`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`); since
+the chart's 0.2.0 that renders aso-extensions' `UserAssignedIdentity`
+(`managedidentity.azure.hfl.dev/v20241130`) in its place.
 An output gap of the same sort: ASO's `AzureFirewall` status gives an IP
 configuration's ID only, not its private address, so
 `avm-res-network-azurefirewall` has no `private_ip_address` output (nor
@@ -1145,6 +1151,19 @@ address from its DNS configurations), deleted, Azure answering 404. Its
 against aso-extensions' fakearm at `b9beb5b`, with PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
 its zone group Ready and deleted, outputs evaluated).
+
+The aso-extensions shapes (aso-extensions `8d7f8c2`; section 8, "Refusals
+and gaps") have live cases of their own (`<case>x`). Run `cat111401233023`
+(offload `off-catalog-1114005840-25855`, 2026-11-14) passed `uai` and
+`appi` again on their ASO shapes, and `uaix` (aso-extensions'
+`UserAssignedIdentity` with `isolationScope: Regional` and ASO's federated
+credential owned by its ARM ID: 2 objects), `appix` (the component's
+`ComponentsLinkedStorageAccount` to a storage account of the run: 5
+objects) and `caex` (aso-extensions' `ManagedEnvironment` with
+`publicNetworkAccess`, centralus: 1 object): every object Ready, the
+outputs evaluated, deleted, Azure answering 404. The VM was preempted
+during `cax`; the run's environment was deleted by hand. `cax` and
+`appgwx` are opt-in (pull request notes).
 
 The App Service plan chart (`avm-res-web-serverfarm`) is not applied live:
 the sandbox subscription's App Service quota is 0 in eastus2, for B1 and

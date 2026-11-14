@@ -1,0 +1,150 @@
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: network.azure.hfl.dev/v20260301
+kind: ApplicationGateway
+metadata:
+  name: entra-appgw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "entra"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "application_gateway"
+spec:
+  azureName: appgw-jwt
+  backendAddressPools:
+  - name: pool-web
+  backendHttpSettingsCollection:
+  - cookieBasedAffinity: Disabled
+    name: http-80
+    port: 80
+    probe:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/probes/probe-http
+    protocol: Http
+    requestTimeout: 30
+  entraJWTValidationConfigs:
+  - audiences:
+    - api://catalog-appgw
+    clientId: 11111111-1111-1111-1111-111111111111
+    name: api
+    tenantId: 00000000-0000-0000-0000-000000000000
+    unAuthorizedRequestAction: Deny
+  frontendIPConfigurations:
+  - name: fe-public
+    publicIPAddress:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/appgw-jwt-pip
+  frontendPorts:
+  - name: port-80
+    port: 80
+  gatewayIPConfigurations:
+  - name: gw-ip
+    subnet:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw
+  httpListeners:
+  - frontendIPConfiguration:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/frontendIPConfigurations/fe-public
+    frontendPort:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/frontendPorts/port-80
+    name: listener-80
+    protocol: Http
+  location: eastus2
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+  probes:
+  - host: 127.0.0.1
+    interval: 30
+    name: probe-http
+    path: /
+    protocol: Http
+    timeout: 30
+    unhealthyThreshold: 3
+  requestRoutingRules:
+  - backendAddressPool:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/backendAddressPools/pool-web
+    backendHttpSettings:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/backendHttpSettingsCollection/http-80
+    entraJWTValidationConfig:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/entraJWTValidationConfigs/api
+    httpListener:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt/httpListeners/listener-80
+    name: rule-basic
+    priority: 100
+    ruleType: Basic
+  sku:
+    capacity: 1
+    name: Standard_v2
+    tier: Standard_v2
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: entra-appgw-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "entra"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: entra-pip-pub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "entra"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "public_ip:pub"
+spec:
+  azureName: "appgw-jwt-pip"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: entra-appgw-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "entra"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-jwt
+  principalId: "22222222-2222-2222-2222-222222222222"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

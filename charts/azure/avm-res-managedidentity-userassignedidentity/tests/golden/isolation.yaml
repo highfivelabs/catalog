@@ -1,0 +1,85 @@
+---
+# Source: avm-res-managedidentity-userassignedidentity/templates/main.yaml
+apiVersion: managedidentity.azure.com/v1api20230131
+kind: FederatedIdentityCredential
+metadata:
+  name: isolation-fic-ci
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "isolation"
+    app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "federated_identity_credential:ci"
+spec:
+  azureName: "ci-main"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-regional
+  audiences:
+    - "api://AzureADTokenExchange"
+  issuer: "https://token.actions.githubusercontent.com"
+  subject: "repo:example/app:ref:refs/heads/main"
+---
+# Source: avm-res-managedidentity-userassignedidentity/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: isolation-id-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "isolation"
+    app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-regional
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-managedidentity-userassignedidentity/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: isolation-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "isolation"
+    app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "outbound_role_assignment:reader"
+spec:
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  principalIdFromConfig:
+    name: isolation-id-outputs
+    key: principalId
+  roleDefinitionReference:
+    wellKnownName: "Reader"
+---
+# Source: avm-res-managedidentity-userassignedidentity/templates/main.yaml
+apiVersion: managedidentity.azure.hfl.dev/v20241130
+kind: UserAssignedIdentity
+metadata:
+  name: isolation-id
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "isolation"
+    app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "user_assigned_identity"
+spec:
+  azureName: "uami-regional"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  isolationScope: "Regional"
+  operatorSpec:
+    configMapExpressions:
+      - name: isolation-id-outputs
+        key: principalId
+        value: self.status.principalId

@@ -32,7 +32,7 @@ renders the ASO `Component` `appi-shop` and its `PricingPlan`
 | `azapi_resource.this` (`Microsoft.Insights/components`) | always | `Component` (`insights.azure.com/v1api20200202`), `component`, owned by `parent_id` |
 | `azapi_update_resource.pricing_plan` (`components/pricingPlans`, `current`) | always | `PricingPlan` (`insights.azure.com/v1api20171001`), `pricing_plan`, owned by the component: `cap`, `stopSendNotificationWhenHitCap`, and `planType: Basic` (the plan Azure makes; the module's update keeps it, ASO sends the whole body) |
 | `azapi_resource.monitor_private_link_scope` | one per entry | `PrivateLinkScopesScopedResource` (aso-extensions, `insights.azure.hfl.dev/v20210901`), `monitor_private_link_scope:<key>`, owned by the scope, linking the component |
-| `azapi_resource.linked_storage_account` | never | refused: no kind |
+| `azapi_resource.linked_storage_account` | one `linked_storage_account` entry | `ComponentsLinkedStorageAccount` (aso-extensions, `insights.azure.hfl.dev/v20200301preview`), `linked_storage_account:<key>`, owned by the component: the storage account by ID (`linkedStorageAccountReference.armId`). Azure names it `serviceprofiler`, so the map takes one entry |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock` (default name `lock-<name>`) |
 | `azapi_resource.role_assignment` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>`; default name `diag-<name>`, and `allLogs` and `AllMetrics` when neither `logs` nor `metrics` is given, as the module's locals |
@@ -42,8 +42,7 @@ renders the ASO `Component` `appi-shop` and its `PricingPlan`
 
 Every module variable is a value of the same name, type and default
 (`values.yaml`, `values.schema.json`). Refused when set, naming the gap:
-`linked_storage_account` (`Microsoft.Insights/components/linkedStorageAccounts`
-has no ASO or aso-extensions kind), `ignore_body_changes` (ASO cannot leave
+`ignore_body_changes` (ASO cannot leave
 a path to another writer), `resource_types`, `retry` and `timeouts` (ASO's
 mechanics; Bundt sets a component's time limit). Accepted in part:
 `application_type` `web` and `other` (ASO's `Component` enumerates no
@@ -72,3 +71,10 @@ first line. `tests/mock.values.yaml` is applied to aso-extensions' fake
 cloud (`task test-mock-azure`), and the `appi` case of `hack/azure-live.sh`
 (with a workspace it makes) to the Azure sandbox (`docs/azure.md`,
 "8. Charts", Testing).
+
+## Changes
+
+- **0.2.0** (2026-11-13): `linked_storage_account` is mapped to
+  aso-extensions' `ComponentsLinkedStorageAccount` (aso-extensions
+  `8d7f8c2`); the mock case carries one.
+- **0.1.0** (2026-11-13): the port.

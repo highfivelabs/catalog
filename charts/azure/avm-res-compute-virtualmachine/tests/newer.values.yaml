@@ -1,0 +1,54 @@
+# disk_controller_type and bypass_platform_safety_checks_on_user_schedule_enabled,
+# after ASO's VirtualMachine API version 2022-03-01: aso-extensions'
+# VirtualMachine (compute.azure.hfl.dev/v20250401) in place of ASO's, its
+# interface and data disk by ARM ID, and its extension, run command,
+# shutdown schedule, maintenance assignment, lock and role assignment owning
+# or targeting it by ARM ID.
+name: vm-nvme
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+zone: "1"
+os_type: Linux
+sku_size: Standard_B2s
+encryption_at_host_enabled: false
+source_image_reference: {publisher: Canonical, offer: ubuntu-24_04-lts, sku: server, version: latest}
+os_disk: {caching: ReadWrite, storage_account_type: Standard_LRS}
+account_credentials:
+  admin_credentials: {ssh_keys: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK0wmN/Cr3JXqmLW7u+g9pTh+wyqDHpSQEQQ5ZJYHjqh catalog-test"], generate_admin_password_or_ssh_key: false}
+disk_controller_type: NVMe
+patch_mode: AutomaticByPlatform
+bypass_platform_safety_checks_on_user_schedule_enabled: true
+network_interfaces:
+  nic0:
+    name: vm-nvme-nic
+    ip_configurations:
+      ipc0:
+        name: ipconfig1
+        private_ip_subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default
+        create_public_ip_address: true
+        public_ip_address_name: vm-nvme-pip
+public_ip_configuration_details: {zones: ["1"]}
+data_disk_managed_disks:
+  data: {name: vm-nvme-data, lun: 0, caching: ReadWrite, storage_account_type: Standard_LRS, disk_size_gb: 4}
+extensions:
+  script:
+    name: hello
+    publisher: Microsoft.Azure.Extensions
+    type: CustomScript
+    type_handler_version: "2.1"
+    settings: '{"commandToExecute":"echo hello"}'
+shutdown_schedules:
+  nightly:
+    daily_recurrence_time: "1900"
+    timezone: UTC
+    notification_settings: {enabled: false}
+run_commands:
+  hello:
+    name: hello
+    location: eastus2
+    script_source: {script: "echo hello"}
+maintenance_configuration_resource_ids:
+  weekly: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Maintenance/maintenanceConfigurations/Weekly
+lock: {kind: CanNotDelete}
+role_assignments:
+  owner: {role_definition_id_or_name: Virtual Machine Contributor, principal_id: 33333333-3333-3333-3333-333333333333, principal_type: Group}
