@@ -988,8 +988,10 @@ builder's decision).
 **The application gateway's ARM version.** ASO v2.22.0's
 `ApplicationGateway` is at ARM 2022-07-01 only (gap 18 in section 5), where
 the module sends 2025-03-01. `avm-res-network-applicationgateway` maps
-everything 2022-07-01 carries and refuses each later field by name when set:
-`entra_jwt_validation_configs` (and a rule's `entra_jwt_validation_config`);
+everything 2022-07-01 carries. Since 0.2.0, `entra_jwt_validation_configs`
+(and a rule's `entra_jwt_validation_config`) render aso-extensions'
+`ApplicationGateway` (`network.azure.hfl.dev/v20260301`, `8d7f8c2`) in
+place of ASO's. It refuses each other later field by name when set:
 HTTP settings' `dedicated_backend_connection`, `sni_name`,
 `validate_cert_chain_and_expiry` and `validate_sni`; backend settings'
 `enable_l4_client_ip_preservation`; a TLS listener's `host_names`; a probe's
@@ -998,15 +1000,18 @@ HTTP settings' `dedicated_backend_connection`, `sni_name`,
 and the Basic SKU; the `default_predefined_ssl_policy` output. ASO's
 2022-07-01 type also takes a load distribution target only by reference (no
 name, pool or weight) and has no `id` on a Private Link IP configuration or
-a path rule. A new ASO version of the kind (upstream, a `$supportedFrom`
-entry) closes all of them. Its certificates stay refused: ASO takes a
+a path rule. aso-extensions' 2026-03-01 kind carries all of them; the chart
+maps only the Entra JWT validation on it so far. Its certificates stay refused: ASO takes a
 certificate's `data` and an SSL certificate's `password` only from a
 Kubernetes Secret, and `key_vault_secret_id` is Key Vault secret material,
 which waits on how a component supplies a secret (as the Key Vault
 module's `secrets`).
 
-The virtual machine (`avm-res-compute-virtualmachine`) maps 62 of the
-module's 74 variables and 9 of its 13 outputs. Its interfaces, public IPs
+The virtual machine (`avm-res-compute-virtualmachine`) maps 64 of the
+module's 74 variables and 9 of its 13 outputs (`disk_controller_type` and
+`bypass_platform_safety_checks_on_user_schedule_enabled` since 0.2.0, as
+aso-extensions' `VirtualMachine`, `compute.azure.hfl.dev/v20250401`, in
+place of ASO's). Its interfaces, public IPs
 and data disks are ASO objects; the module's association resources are
 fields of the interface in ARM, and the data disk attachments entries of
 the machine's `storageProfile.dataDisks`. Run commands, the shutdown
@@ -1020,7 +1025,6 @@ Windows machine renders only from an attached OS disk; and the gaps:
 | Chart | Variable | Missing |
 | --- | --- | --- |
 | `avm-res-compute-virtualmachine` | `azure_backup_configurations` | `Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems` (aso-extensions has the vault and its policies, not a protected item) |
-| `avm-res-compute-virtualmachine` | `disk_controller_type`, `bypass_platform_safety_checks_on_user_schedule_enabled` | fields after ASO's `VirtualMachine` API version 2022-03-01 |
 | `avm-res-compute-virtualmachine` | an extension's `provision_after_extensions`; a run command's managed identities | fields after the 2022-03-01 API version of ASO's `VirtualMachinesExtension` and aso-extensions' `VirtualMachinesRunCommand` |
 
 Like azurerm, the chart sends `securityProfile.encryptionAtHost` only when

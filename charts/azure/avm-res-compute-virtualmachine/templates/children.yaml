@@ -26,7 +26,9 @@ accepted and has no effect.
 {{- $abandon := include "aso.abandon" . }}
 {{- $rg := include "vm.rgId" (list $ "resource_group_name" $v.resource_group_name) }}
 {{- $vmObj := include "vm.obj" . }}
-{{- $vmRef := dict "group" "compute.azure.com" "kind" "VirtualMachine" "name" $vmObj }}
+{{- $newer := eq (include "vm.newer" .) "true" }}
+{{- $vmRef := ternary (dict "armId" (include "vm.id" .)) (dict "group" "compute.azure.com" "kind" "VirtualMachine" "name" $vmObj) $newer }}
+{{- $vmOwner := ternary (dict "armId" (include "vm.id" .)) (dict "name" $vmObj) $newer }}
 {{- $vmName := include "aso.resourceName" (list $ "virtualMachine" "virtual machine" $v.name 64 "^[a-zA-Z0-9_]([a-zA-Z0-9_.-]{0,62}[a-zA-Z0-9_])?$") }}
 {{- $types := list }}
 {{- range $k, $e := ($v.extensions | default dict) }}
@@ -46,7 +48,7 @@ spec:
   azureName: {{ $e.name | quote }}
   location: {{ $v.location | quote }}
   owner:
-    name: {{ $vmObj }}
+    {{- toYaml $vmOwner | nindent 4 }}
   {{- if not (kindIs "invalid" $e.auto_upgrade_minor_version) }}
   autoUpgradeMinorVersion: {{ $e.auto_upgrade_minor_version }}
   {{- end }}
@@ -89,7 +91,7 @@ spec:
   azureName: {{ $r.name | quote }}
   location: {{ $r.location | quote }}
   owner:
-    name: {{ $vmObj }}
+    {{- toYaml $vmOwner | nindent 4 }}
   {{- with $r.error_blob_uri }}
   errorBlobUri: {{ . | quote }}
   {{- end }}

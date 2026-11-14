@@ -1,0 +1,37 @@
+# An Entra JWT validation configuration and a rule that names it, after
+# ASO's ApplicationGateway API version 2022-07-01: aso-extensions'
+# ApplicationGateway (network.azure.hfl.dev/v20260301) in place of ASO's,
+# its public IP by ARM ID, and the lock and role assignment owned by its
+# ARM ID.
+name: appgw-jwt
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+sku: {name: Standard_v2, tier: Standard_v2, capacity: 1}
+public_ip_addresses:
+  pub: {name: appgw-jwt-pip}
+gateway_ip_configurations:
+  - name: gw-ip
+    subnet: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw}
+frontend_ip_configurations:
+  - {name: fe-public, public_ip_address_key: pub}
+frontend_ports:
+  - {name: port-80, port: 80}
+backend_address_pools:
+  - {name: pool-web}
+probes:
+  - {name: probe-http, protocol: Http, host: 127.0.0.1, path: /, interval: 30, timeout: 30, unhealthy_threshold: 3}
+backend_http_settings_collection:
+  - {name: http-80, port: 80, protocol: Http, cookie_based_affinity: Disabled, request_timeout: 30, probe: {probe_key: probe-http}}
+http_listeners:
+  - {name: listener-80, protocol: Http, frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}, frontend_port: {frontend_port_key: port-80}}
+request_routing_rules:
+  - {name: rule-basic, rule_type: Basic, priority: 100, http_listener: {http_listener_key: listener-80}, backend_address_pool: {backend_address_pool_key: pool-web}, backend_http_settings: {backend_http_settings_key: http-80}, entra_jwt_validation_config: {entra_jwt_validation_config_key: api}}
+entra_jwt_validation_configs:
+  - name: api
+    client_id: 11111111-1111-1111-1111-111111111111
+    tenant_id: 00000000-0000-0000-0000-000000000000
+    audiences: [api://catalog-appgw]
+    un_authorized_request_action: Deny
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader: {role_definition_id_or_name: Reader, principal_id: 22222222-2222-2222-2222-222222222222}

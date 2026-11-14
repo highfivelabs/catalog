@@ -14,7 +14,17 @@ at v0.6.0 (`f5961205`), MIT, Copyright (c) Microsoft Corporation
 2022-07-01, its only one; the module sends 2025-03-01. Everything 2022-07-01
 carries is mapped; each field the later versions added is refused by name
 when set (below), so a module call that uses none of them converts one to
-one.
+one. The exception is Entra JWT validation: `entra_jwt_validation_configs`
+or a rule's `entra_jwt_validation_config` renders aso-extensions'
+`ApplicationGateway` (`network.azure.hfl.dev/v20260301`, beside ASO's under
+its name; aso-extensions `docs/plan.md` §8 open question 11) in place of
+ASO's. Its managed public IPs are then referenced by ARM ID, and the lock,
+role assignments and diagnostic settings own the gateway by ARM ID (their
+kinds name ASO's `ApplicationGateway`). Setting or clearing them on a
+running gateway replaces its Kubernetes object with the other kind's: give
+it `deletion_policy: ABANDON` for that apply, or the old object's delete
+deletes the gateway. The other later fields are not mapped yet on that
+kind, and stay refused.
 
 ## Example
 
@@ -49,7 +59,7 @@ inline, and the `PublicIPAddress` its frontend uses
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azapi_resource.this` | always | `ApplicationGateway` (`network.azure.com/v1api20220701`), `application_gateway`, owned by the resource group `parent_id` names; every component inline, as ARM carries them |
+| `azapi_resource.this` | always | `ApplicationGateway` (`network.azure.com/v1api20220701`), `application_gateway`, owned by the resource group `parent_id` names; every component inline, as ARM carries them. aso-extensions' `ApplicationGateway` (`network.azure.hfl.dev/v20260301`) in its place with an Entra JWT validation configuration (above), its `entraJWTValidationConfigs` (`name`, `audiences`, `clientId`, `tenantId`, `unAuthorizedRequestAction`) and a rule's `entraJWTValidationConfig` resolved by key or ID as the module resolves every reference |
 | `azapi_resource.public_ip_addresses` | one per `public_ip_addresses` entry | `PublicIPAddress` (`v20250301`), `public_ip:<key>`: Standard, Regional, Static, which a frontend with that `public_ip_address_key` references by Kubernetes name |
 | `azurerm_management_lock.this` | `lock` set | `ManagementLock` (aso-extensions), `lock`, named `lock-<kind>` by default, with the module's notes for the kind |
 | `azurerm_role_assignment.this` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
@@ -112,7 +122,6 @@ messages.
 
 | Variable | Kind | Why |
 | --- | --- | --- |
-| `entra_jwt_validation_configs` | gap | ARM 2022-07-01 has no `entraJWTValidationConfigs` |
 | `ssl_certificates` | not-ported | a certificate's `data` and `password` are secrets and `key_vault_secret_id` is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled |
 | `authentication_certificates`, `trusted_client_certificates`, `trusted_root_certificates` | not-ported | ASO's 2022-07-01 type takes a certificate's `data` only from a Kubernetes Secret (a `SecretReference`); `trusted_root_certificates`' `key_vault_secret_id` is Key Vault secret material. A reference to one by `id` is accepted |
 | `ignore_body_changes` | by-design | ASO applies the whole spec it is given |
@@ -128,7 +137,6 @@ lacks it):
 | `backend_settings_collection` | `enable_l4_client_ip_preservation` |
 | `listeners` | `host_names` |
 | `probes` | `enable_probe_proxy_protocol_header` |
-| `request_routing_rules` | `entra_jwt_validation_config` |
 | `rewrite_rule_sets` | a header configuration's `header_value_matcher` |
 | `ssl_profiles` | `client_auth_configuration.verify_client_auth_mode` |
 | `sku` | `family`, and the `Basic` name and tier |
@@ -169,7 +177,7 @@ repository, release, commit, licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-network-applicationgateway`: render cases `basic`,
-`full`, `names` and `mock`, each validated against ASO v2.22.0's CRD
+`full`, `names`, `entra` (aso-extensions' kind), `mock` and `mock-entra`, each validated against ASO v2.22.0's CRD
 schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` (case `appgw`) makes a virtual
 network and subnet with the virtual network chart, applies a Standard_v2
@@ -182,4 +190,8 @@ the outputs evaluated, nothing left. `task test-mock-azure` applies
 
 ## Changes
 
+- **0.2.0** (2026-11-13): `entra_jwt_validation_configs` and a rule's
+  `entra_jwt_validation_config` are mapped: they render aso-extensions'
+  `ApplicationGateway` (`network.azure.hfl.dev/v20260301`, aso-extensions
+  `8d7f8c2`) in place of ASO's.
 - **0.1.0** (2026-11-12): the port.
