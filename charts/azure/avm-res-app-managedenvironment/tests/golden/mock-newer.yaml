@@ -1,0 +1,103 @@
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20251002preview
+kind: ManagedEnvironment
+metadata:
+  name: mock-newer-cae
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "managed_environment"
+spec:
+  azureName: "catalog-cae-newer"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  appLogsConfiguration:
+    destination: "azure-monitor"
+  tags:
+    catalog: mock
+  workloadProfiles:
+    - name: Consumption
+      workloadProfileType: Consumption
+  zoneRedundant: false
+  appInsightsConfiguration: {}
+  availabilityZones: ["1","2","3"]
+  ingressConfiguration: {"headerCountLimit":120,"requestIdleTimeout":10,"terminationGracePeriodSeconds":600,"workloadProfileName":"Consumption"}
+  openTelemetryConfiguration:
+    destinationsConfiguration:
+      otlpConfigurations:
+      - endpoint: https://otel.example.com:4317
+        insecure: false
+        name: collector
+    tracesConfiguration:
+      destinations:
+      - collector
+      includeDapr: true
+  publicNetworkAccess: "Enabled"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsDaprComponent
+metadata:
+  name: mock-newer-dapr-state
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "dapr_component:state"
+spec:
+  azureName: "statestore"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/managedEnvironments/catalog-cae-newer
+  componentType: "state.azure.blobstorage"
+  metadata:
+    - name: "accountName"
+      value: "catalogst"
+  version: "v1"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260101
+kind: ManagedEnvironmentsStorage
+metadata:
+  name: mock-newer-storage-nfs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "storage:nfs"
+spec:
+  azureName: "nfs"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/managedEnvironments/catalog-cae-newer
+  properties:
+    nfsAzureFile:
+      accessMode: ReadWrite
+      server: catalogst.file.core.windows.net
+      shareName: /catalogst/nfs
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: mock-newer-cae-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/managedEnvironments/catalog-cae-newer
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."

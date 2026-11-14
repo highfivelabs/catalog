@@ -250,13 +250,19 @@ total=0; failed=0
 dirs=()
 for d in charts/azure/*/; do [[ "${d}" == */avm-res-resources-resourcegroup/ ]] || dirs+=("${d}"); done
 dirs+=(charts/azure/avm-res-resources-resourcegroup/)
+# Each chart's tests/mock.values.yaml, then any tests/mock-<case>.values.yaml
+# (a second shape of the chart, as an aso-extensions kind in place of ASO's
+# where a field needs the newer API version), each a case of its own.
 for dir in "${dirs[@]}"; do
-  chart="$(basename "${dir}")"
-  [[ -f "${dir}/tests/mock.values.yaml" ]] || continue
-  if [[ -n "${MOCK_CHARTS:-}" && " ${MOCK_CHARTS} " != *" ${chart} "* ]]; then continue; fi
+ chart0="$(basename "${dir}")"
+ if [[ -n "${MOCK_CHARTS:-}" && " ${MOCK_CHARTS} " != *" ${chart0} "* ]]; then continue; fi
+ for mockv in "${dir}"tests/mock.values.yaml "${dir}"tests/mock-*.values.yaml; do
+  [[ -f "${mockv}" ]] || continue
+  case_="$(basename "${mockv}" .values.yaml)"
+  chart="${chart0}"; [[ "${case_}" == mock ]] || chart="${chart0}/${case_#mock-}"
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
-  helm template mock "${dir}" --namespace "${NS}" -f "${dir}/tests/mock.values.yaml" >"${OUT}/${chart}/rendered.yaml"
+  helm template mock "${dir}" --namespace "${NS}" -f "${mockv}" >"${OUT}/${chart}/rendered.yaml"
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
@@ -268,7 +274,7 @@ for dir in "${dirs[@]}"; do
   done
   kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq 'if .items then . else {apiVersion: "v1", kind: "List", items: [.]} end' >"${OUT}/${chart}/live.json"
-  if bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}/live.json" "${dir}/values.yaml" "${dir}/tests/mock.values.yaml" >"${OUT}/${chart}/outputs.json" 2>"${OUT}/${chart}/outputs.err"; then
+  if bin/catalogtool outputs "${dir}/package.yaml" "${OUT}/${chart}/live.json" "${dir}/values.yaml" "${mockv}" >"${OUT}/${chart}/outputs.json" 2>"${OUT}/${chart}/outputs.err"; then
     outputs=evaluated
   else
     outputs="not evaluated: $(tr '\n|' '  ' <"${OUT}/${chart}/outputs.err" | cut -c1-120)"
@@ -296,6 +302,7 @@ for dir in "${dirs[@]}"; do
   echo "| ${chart} | outputs | | | ${outputs} |" >>"${summary}"
   echo "-- outputs: ${outputs}"
   unset ready
+ done
 done
 kubectl -n "${ASO_NS}" logs deployment/azureserviceoperator-controller-manager --tail=-1 >"${OUT}/aso.log" 2>&1 || true
 asox_manager_logs "${OUT}/asox-manager.log"

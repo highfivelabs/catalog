@@ -11,7 +11,8 @@ azapi_update_resource.pricing_plan (components/pricingPlans, current): an
 ASO PricingPlan owned by the component, with the daily cap.
 azapi_resource.monitor_private_link_scope: one aso-extensions
 PrivateLinkScopesScopedResource per entry, owned by the scope, linking the
-component. azapi_resource.linked_storage_account: refused (no kind).
+component. azapi_resource.linked_storage_account: aso-extensions'
+ComponentsLinkedStorageAccount (insights.azure.hfl.dev/v20200301preview).
 azapi_resource.lock: an aso-extensions ManagementLock.
 azapi_resource.role_assignment: one ASO RoleAssignment each.
 azapi_resource.diagnostic_settings: one ASO DiagnosticSetting each. The
@@ -25,7 +26,6 @@ telemetry deployment is not ported.
 {{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's kinds fix the API versions (Component 2020-02-02, PricingPlan 2017-10-01)") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
-{{- include "aso.unsupported" (list $ "linked_storage_account" $v.linked_storage_account "Microsoft.Insights/components/linkedStorageAccounts (the profiler's storage account) has no Azure Service Operator or aso-extensions kind") }}
 {{- range $k, $s := $v.monitor_private_link_scope }}
 {{- if and $s.kind (ne $s.kind "Resource") }}
 {{- include "aso.unsupported" (list $ (printf "monitor_private_link_scope.%s.kind %s" $k $s.kind) true "aso-extensions' PrivateLinkScopesScopedResource is at API 2021-09-01, which has no kind (Resource only)") }}
@@ -90,6 +90,28 @@ spec:
   planType: Basic
   cap: {{ $v.daily_data_cap_in_gb }}
   stopSendNotificationWhenHitCap: {{ eq $v.daily_data_cap_notifications_disabled true }}
+{{- /* azapi_resource.linked_storage_account: aso-extensions'
+ComponentsLinkedStorageAccount, owned by the component; Azure names it
+serviceprofiler (the kind fixes the name), so the map takes one entry. */ -}}
+{{- if gt (len ($v.linked_storage_account | default dict)) 1 }}
+{{- fail (printf "%s: linked_storage_account takes one entry: each entry is the component's one linked storage account (serviceprofiler), so more than one would overwrite each other" $chart) }}
+{{- end }}
+{{- range $k, $l := ($v.linked_storage_account | default dict) }}
+{{- if not $l.resource_id }}{{ fail (printf "%s: linked_storage_account.%s needs a resource_id (the storage account's)" $chart $k) }}{{ end }}
+{{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Storage/storageAccounts/[^/]+$" $l.resource_id) }}
+{{- fail (printf "%s: Each `linked_storage_account[*].resource_id` must be a valid storage account resource ID." $chart) }}
+{{- end }}
+---
+apiVersion: insights.azure.hfl.dev/v20200301preview
+kind: ComponentsLinkedStorageAccount
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $obj "lsa")) "id" (printf "linked_storage_account:%s" $k) "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $obj }}
+  linkedStorageAccountReference:
+    armId: {{ $l.resource_id | quote }}
+{{- end }}
 {{- range $k, $s := $v.monitor_private_link_scope }}
 {{- if not $s.resource_id }}{{ fail (printf "%s: monitor_private_link_scope.%s needs a resource_id (the scope's)" $chart $k) }}{{ end }}
 {{- if not (regexMatch "(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Insights/privateLinkScopes/[^/]+$" $s.resource_id) }}

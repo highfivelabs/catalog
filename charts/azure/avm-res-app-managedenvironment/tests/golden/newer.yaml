@@ -1,0 +1,145 @@
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: insights.azure.com/v1api20210501preview
+kind: DiagnosticSetting
+metadata:
+  name: newer-cae-diag-logs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "diagnostic-setting-logs"
+spec:
+  azureName: "diag-logs"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-newer
+  logs:
+    - categoryGroup: "allLogs"
+      enabled: true
+  metrics:
+    - category: "AllMetrics"
+      enabled: true
+  workspaceReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20251002preview
+kind: ManagedEnvironment
+metadata:
+  name: newer-cae
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "managed_environment"
+spec:
+  azureName: "cae-newer"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+      - reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae"
+  vnetConfiguration:
+    infrastructureSubnetReference:
+      armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/cae
+    internal: true
+  workloadProfiles:
+    - name: "Dedicated"
+      workloadProfileType: "D4"
+      minimumCount: 1
+      maximumCount: 3
+    - name: Consumption
+      workloadProfileType: Consumption
+  zoneRedundant: true
+  appInsightsConfiguration: {}
+  availabilityZones: ["1","2","3"]
+  diskEncryptionConfiguration: {"keyVaultConfiguration":{"auth":{"identityReference":{"armId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-cae"}},"keyUrl":"https://kv-example.vault.azure.net/keys/disk/0123456789abcdef0123456789abcdef"}}
+  ingressConfiguration: {"headerCountLimit":120,"requestIdleTimeout":10,"terminationGracePeriodSeconds":600,"workloadProfileName":"Dedicated"}
+  openTelemetryConfiguration:
+    destinationsConfiguration:
+      dataDogConfiguration:
+        site: datadoghq.com
+      otlpConfigurations:
+      - endpoint: https://otel.example.com:4317
+        headers:
+        - key: x-tenant
+          value: platform
+        insecure: false
+        name: collector
+    logsConfiguration:
+      destinations:
+      - collector
+    metricsConfiguration:
+      destinations:
+      - collector
+      - dataDog
+      includeKeda: true
+    tracesConfiguration:
+      destinations:
+      - collector
+      includeDapr: true
+  publicNetworkAccess: "Disabled"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20250101
+kind: ManagedEnvironmentsDaprComponent
+metadata:
+  name: newer-dapr-state
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "dapr_component:state"
+spec:
+  azureName: "statestore"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-newer
+  componentType: "state.azure.blobstorage"
+  version: "v1"
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: newer-cae-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-CanNotDelete"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-newer
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-app-managedenvironment/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: newer-cae-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "newer"
+    app.kubernetes.io/name: avm-res-app-managedenvironment
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae-newer
+  principalId: "11111111-1111-1111-1111-111111111111"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

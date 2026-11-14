@@ -7,9 +7,10 @@ locals.public_ip_addresses.tf, locals.child_reference_inputs.tf and
 locals.child_reference_resolution.tf (v0.6.0), Copyright (c) Microsoft
 Corporation, MIT.
 
-azapi_resource.this (Microsoft.Network/applicationGateways): one ASO
-ApplicationGateway (network.azure.com/v1api20220701, ASO's only version:
-ARM 2022-07-01, where the module sends 2025-03-01), owned by the resource
+azapi_resource.this (Microsoft.Network/applicationGateways): one
+aso-extensions ApplicationGateway (network.azure.hfl.dev/v20260301; ASO's
+is at ARM 2022-07-01, where the module sends 2025-03-01), its managed
+public IPs by ARM ID, owned by the resource
 group parent_id names, every component inline as ARM carries it. A
 component's internal reference (an *_key) becomes the gateway's ARM ID, the
 collection's segment and the component's configured name, as the module
@@ -32,7 +33,11 @@ azapi provider's mechanics.
 {{- end }}
 {{- if not $v.location }}{{ fail (printf "%s: location is required" $chart) }}{{ end }}
 {{- $later := "ASO's ApplicationGateway is at ARM 2022-07-01, which has no" }}
-{{- include "aso.unsupported" (list $ "entra_jwt_validation_configs" $v.entra_jwt_validation_configs (printf "%s entraJWTValidationConfigs (a later API version's)" $later)) }}
+{{- /* entra_jwt_validation_configs, and a rule's entra_jwt_validation_config,
+are after ASO's ApplicationGateway API version 2022-07-01: the chart always
+renders aso-extensions' ApplicationGateway (network.azure.hfl.dev/v20260301,
+beside ASO's under its name) in place of ASO's, and the lock, role
+assignments and diagnostic settings own it by ARM ID. */ -}}
 {{- include "aso.unsupported" (list $ "ssl_certificates" $v.ssl_certificates "a certificate's data and password are secrets, and key_vault_secret_id is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled") }}
 {{- range $n := list "authentication_certificates" "trusted_client_certificates" }}
 {{- include "aso.unsupported" (list $ $n (index $v $n) "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled") }}
@@ -40,12 +45,12 @@ azapi provider's mechanics.
 {{- include "aso.unsupported" (list $ "trusted_root_certificates" $v.trusted_root_certificates "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference), and key_vault_secret_id is Key Vault secret material; how a component supplies either is not settled") }}
 {{- $ibc := $v.ignore_body_changes | default dict }}
 {{- include "aso.unsupported" (list $ "ignore_body_changes" (concat ($ibc.network_application_gateways | default list) ($ibc.network_public_ip_addresses | default list) (omit $ibc "network_application_gateways" "network_public_ip_addresses" | keys)) "ASO applies the whole spec it is given; it cannot leave a field to another writer") }}
-{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "the API versions are the ASO kinds': ApplicationGateway 2022-07-01, PublicIPAddress 2025-03-01") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "the API versions are the kinds': aso-extensions' ApplicationGateway 2026-03-01, ASO's PublicIPAddress 2025-03-01") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- /* The module's precondition: no legacy ARM-style properties wrappers. */ -}}
 {{- $legacy := list }}
-{{- range $coll := list "backend_address_pools" "backend_http_settings_collection" "backend_settings_collection" "frontend_ip_configurations" "frontend_ports" "gateway_ip_configurations" "http_listeners" "listeners" "load_distribution_policies" "private_link_configurations" "probes" "redirect_configurations" "request_routing_rules" "rewrite_rule_sets" "routing_rules" "ssl_profiles" "url_path_maps" }}
+{{- range $coll := list "backend_address_pools" "backend_http_settings_collection" "backend_settings_collection" "entra_jwt_validation_configs" "frontend_ip_configurations" "frontend_ports" "gateway_ip_configurations" "http_listeners" "listeners" "load_distribution_policies" "private_link_configurations" "probes" "redirect_configurations" "request_routing_rules" "rewrite_rule_sets" "routing_rules" "ssl_profiles" "url_path_maps" }}
 {{- range $i, $item := (index $v $coll | default list) }}
 {{- if and $item (not (kindIs "invalid" $item.properties)) }}{{ $legacy = append $legacy (printf "%s[%d].properties" $coll $i) }}{{ end }}
 {{- end }}
@@ -63,7 +68,7 @@ azapi provider's mechanics.
 {{- fail (printf "%s: Legacy ARM-style properties wrappers are no longer accepted. Lift every field out of the wrapper and remove it. Invalid consumer paths: %s." $chart (join ", " .)) }}
 {{- end }}
 {{- /* Fields ARM 2022-07-01 lacks, refused by name. */ -}}
-{{- $gone := dict "backend_http_settings_collection" (list "dedicated_backend_connection" "sni_name" "validate_cert_chain_and_expiry" "validate_sni") "backend_settings_collection" (list "enable_l4_client_ip_preservation") "listeners" (list "host_names") "probes" (list "enable_probe_proxy_protocol_header") "request_routing_rules" (list "entra_jwt_validation_config") }}
+{{- $gone := dict "backend_http_settings_collection" (list "dedicated_backend_connection" "sni_name" "validate_cert_chain_and_expiry" "validate_sni") "backend_settings_collection" (list "enable_l4_client_ip_preservation") "listeners" (list "host_names") "probes" (list "enable_probe_proxy_protocol_header") }}
 {{- range $coll, $fields := $gone }}
 {{- range $i, $item := (index $v $coll | default list) }}
 {{- range $f := $fields }}
@@ -185,6 +190,7 @@ azapi provider's mechanics.
   "backend_address_pools" (dict "items" $v.backend_address_pools "segment" "backendAddressPools" "key" "backend_address_pool_key")
   "backend_http_settings" (dict "items" $v.backend_http_settings_collection "segment" "backendHttpSettingsCollection" "key" "backend_http_settings_key")
   "backend_settings" (dict "items" $v.backend_settings_collection "segment" "backendSettingsCollection" "key" "backend_settings_key")
+  "entra_jwt_validation_configs" (dict "items" $v.entra_jwt_validation_configs "segment" "entraJWTValidationConfigs" "key" "entra_jwt_validation_config_key")
   "frontend_ip_configurations" (dict "items" $v.frontend_ip_configurations "segment" "frontendIPConfigurations" "key" "frontend_ip_configuration_key")
   "frontend_ports" (dict "items" $v.frontend_ports "segment" "frontendPorts" "key" "frontend_port_key")
   "http_listeners" (dict "items" $v.http_listeners "segment" "httpListeners" "key" "http_listener_key")
@@ -269,7 +275,9 @@ azapi provider's mechanics.
 {{- $o := include "appgw.pick" (list $item (list "name:name" "private_ip_address:privateIPAddress" "private_ip_allocation_method:privateIPAllocationMethod")) | fromJson }}
 {{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $item.private_link_configuration "path" (printf "frontend_ip_configurations[%d].private_link_configuration" $i)) $T.private_link_configurations)) }}{{ $_ := set $o "privateLinkConfiguration" (fromJson .) }}{{ end }}
 {{- if not (kindIs "invalid" $item.public_ip_address_key) }}
-{{- $_ := set $o "publicIPAddress" (dict "reference" (dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" (include "aso.name" (list $.Release.Name "pip" $item.public_ip_address_key)))) }}
+{{- /* aso-extensions' kind resolves an ASO PublicIPAddress by ARM ID. */ -}}
+{{- $ip := index $pips $item.public_ip_address_key }}
+{{- $_ := set $o "publicIPAddress" (dict "reference" (dict "armId" (printf "%s/providers/Microsoft.Network/publicIPAddresses/%s" ($ip.parent_id | default $v.parent_id) (include "aso.cloudName" (list $ "public IP" $ip.name 80 false))))) }}
 {{- else }}
 {{- with (include "appgw.subId" $item.public_ip_address) }}{{ $_ := set $o "publicIPAddress" (fromJson .) }}{{ end }}
 {{- end }}
@@ -403,7 +411,7 @@ azapi provider's mechanics.
 {{- $l := list }}
 {{- range $i, $item := $v.request_routing_rules }}
 {{- $o := include "appgw.pick" (list $item (list "name:name" "priority:priority" "rule_type:ruleType")) | fromJson }}
-{{- range $f := list (list "backend_address_pool" "backendAddressPool" "backend_address_pools") (list "backend_http_settings" "backendHttpSettings" "backend_http_settings") (list "http_listener" "httpListener" "http_listeners") (list "load_distribution_policy" "loadDistributionPolicy" "load_distribution_policies") (list "redirect_configuration" "redirectConfiguration" "redirect_configurations") (list "rewrite_rule_set" "rewriteRuleSet" "rewrite_rule_sets") (list "url_path_map" "urlPathMap" "url_path_maps") }}
+{{- range $f := list (list "backend_address_pool" "backendAddressPool" "backend_address_pools") (list "backend_http_settings" "backendHttpSettings" "backend_http_settings") (list "entra_jwt_validation_config" "entraJWTValidationConfig" "entra_jwt_validation_configs") (list "http_listener" "httpListener" "http_listeners") (list "load_distribution_policy" "loadDistributionPolicy" "load_distribution_policies") (list "redirect_configuration" "redirectConfiguration" "redirect_configurations") (list "rewrite_rule_set" "rewriteRuleSet" "rewrite_rule_sets") (list "url_path_map" "urlPathMap" "url_path_maps") }}
 {{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" (index $item (index $f 0)) "path" (printf "request_routing_rules[%d].%s" $i (index $f 0))) (index $T (index $f 2)))) }}{{ $_ := set $o (index $f 1) (fromJson .) }}{{ end }}
 {{- end }}
 {{- $l = append $l $o }}
@@ -519,14 +527,21 @@ azapi provider's mechanics.
 {{- $z := list }}{{ range $v.zones }}{{ $z = append $z (toString .) }}{{ end }}
 {{- $_ := set $spec "zones" $z }}
 {{- end }}
+{{- if not (kindIs "invalid" $v.entra_jwt_validation_configs) }}
+{{- $l := list }}
+{{- range $item := $v.entra_jwt_validation_configs }}
+{{- $l = append $l (include "appgw.pick" (list $item (list "name:name" "audiences:audiences" "client_id:clientId" "tenant_id:tenantId" "un_authorized_request_action:unAuthorizedRequestAction")) | fromJson) }}
+{{- end }}
+{{- $_ := set $spec "entraJWTValidationConfigs" $l }}
+{{- end }}
 ---
-apiVersion: network.azure.com/v1api20220701
+apiVersion: network.azure.hfl.dev/v20260301
 kind: ApplicationGateway
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "application_gateway" "abandon" $abandon) | nindent 2 }}
 spec:
   {{- toYaml $spec | nindent 2 }}
-{{- $gwOwner := dict "group" "network.azure.com" "kind" "ApplicationGateway" "name" $obj }}
+{{- $gwOwner := dict "armId" $gw }}
 {{- with $v.lock }}
 {{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq .kind "CanNotDelete") }}
 {{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $gwOwner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}

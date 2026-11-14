@@ -1,0 +1,103 @@
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: AuthConfig
+metadata:
+  name: kind-auth-current
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kind"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "auth_config:current"
+spec:
+  azureName: "current"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/containerApps/ca-func
+  platform:
+    enabled: false
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ContainerApp
+metadata:
+  name: kind-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kind"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "container_app"
+spec:
+  azureName: "ca-func"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "functionapp"
+  environmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae"
+  managedEnvironmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae"
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      allowInsecure: false
+      exposedPort: 0
+      external: true
+      targetPort: 80
+      traffic:
+        - latestRevision: true
+          weight: 100
+      transport: auto
+    maxInactiveRevisions: 0
+  template:
+    containers:
+      - name: "fn"
+        image: "mcr.microsoft.com/azure-functions/dotnet8-quickstart-demo:1.0"
+        resources:
+          cpu: 0.5
+          memory: "1Gi"
+    scale:
+      cooldownPeriod: 300
+      maxReplicas: 10
+      pollingInterval: 30
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: authorization.azure.hfl.dev/v1
+kind: ManagementLock
+metadata:
+  name: kind-app-lock
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kind"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "lock"
+spec:
+  azureName: "lock-ca-func"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/containerApps/ca-func
+  level: CanNotDelete
+  notes: "Cannot delete the resource or its child resources."
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: authorization.azure.com/v20220401
+kind: RoleAssignment
+metadata:
+  name: kind-app-role-reader
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "kind"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "role-assignment-reader"
+spec:
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/containerApps/ca-func
+  principalId: "11111111-1111-1111-1111-111111111111"
+  roleDefinitionReference:
+    wellKnownName: "Reader"

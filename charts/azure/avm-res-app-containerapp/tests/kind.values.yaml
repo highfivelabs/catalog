@@ -1,0 +1,25 @@
+# kind, after ASO's ContainerApp API version 2025-01-01: the chart renders
+# aso-extensions' ContainerApp (app.azure.hfl.dev/v20260701), and the auth
+# configuration, the lock and the role assignment own it by its ARM ID.
+name: ca-func
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+container_app_environment_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.App/managedEnvironments/cae
+kind: FunctionApp
+template:
+  containers:
+    - {name: fn, image: mcr.microsoft.com/azure-functions/dotnet8-quickstart-demo:1.0, cpu: 0.5, memory: 1Gi}
+ingress:
+  external_enabled: true
+  target_port: 80
+  traffic_weight:
+    - {latest_revision: true, percentage: 100}
+auth_configs:
+  current:
+    name: current
+    platform: {enabled: false}
+lock: {kind: CanNotDelete}
+role_assignments:
+  reader:
+    role_definition_id_or_name: Reader
+    principal_id: 11111111-1111-1111-1111-111111111111

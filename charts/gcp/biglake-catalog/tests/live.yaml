@@ -1,0 +1,23 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=biglake-catalog): a catalog,
+# a Hive database and an external table over a bucket of the run
+# (config-connector-extensions' BigLakeCatalog and BigLakeDatabase, Config
+# Connector's BigLakeTable).
+project_id: ${PROJECT}
+name: ${RUN_}_lake
+location: us
+labels: {catalog-run: ${RUN}}
+databases:
+  live_db:
+    type: HIVE
+    hive_options:
+      location_uri: gs://${PROJECT}-${RUN}-bl/db
+      parameters: {owner: catalog}
+    tables:
+      live_table:
+        type: HIVE
+        hive_options:
+          table_type: EXTERNAL_TABLE
+          location_uri: gs://${PROJECT}-${RUN}-bl/db/table
+          input_format: org.apache.hadoop.mapred.SequenceFileInputFormat
+          output_format: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat
+          parameters: {provider: iceberg}

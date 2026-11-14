@@ -1,0 +1,225 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from terraform-azurerm-avm-res-web-site main.auth.tf, main.logs.tf,
+main.config.tf and modules/config_authsettingsv2, config_logs,
+config_slotconfignames and publishing_credential_policy (v0.24.1),
+Copyright (c) Microsoft Corporation, MIT.
+
+The site's config sections and publishing credential policies the module
+writes with azapi_update_resource after the site, as aso-extensions kinds
+(web.azure.hfl.dev/v20260715), each owned by the site, each with the name
+Azure fixes (no azureName):
+module.config_authsettingsv2: SitesConfigAuthSettingsV2 (auth_settings_v2);
+module.config_logs: SitesConfigLogs (logs);
+module.config_slotconfignames: SitesConfigSlotConfigNames (sticky_settings);
+module.ftp_publishing_credential_policy and
+module.scm_publishing_credential_policy:
+SitesBasicPublishingCredentialsPolicyFtp and ...Scm, allow false, when
+ftp_publish_basic_authentication_enabled or
+scm_publish_basic_authentication_enabled is false.
+Azure has no DELETE for any of them: deleting the object leaves the last
+values in Azure until the site goes (aso-extensions' Deleter).
+*/ -}}
+{{- /* webcfg.prune: {"v": X} with every null in X dropped, so a body
+built with the module's optional (null) members carries none of them. */ -}}
+{{- define "webcfg.prune" -}}
+{{- if kindIs "map" . -}}
+{{- $o := dict -}}
+{{- range $k, $x := . -}}
+{{- if not (kindIs "invalid" $x) -}}{{- $_ := set $o $k (include "webcfg.prune" $x | fromJson).v -}}{{- end -}}
+{{- end -}}
+{{- toJson (dict "v" $o) -}}
+{{- else if kindIs "slice" . -}}
+{{- $o := list -}}
+{{- range $x := . -}}
+{{- if not (kindIs "invalid" $x) -}}{{- $o = append $o (include "webcfg.prune" $x | fromJson).v -}}{{- end -}}
+{{- end -}}
+{{- toJson (dict "v" $o) -}}
+{{- else -}}
+{{- toJson (dict "v" .) -}}
+{{- end -}}
+{{- end -}}
+{{- $v := .Values }}
+{{- $n := .Chart.Name }}
+{{- $abandon := include "aso.abandon" . }}
+{{- $site := include "aso.name" (list .Release.Name "site") }}
+{{- /* auth_settings_v2: the module's defaults for the optional attributes
+of its object type, then locals.tf's body. */ -}}
+{{- with $v.auth_settings_v2 }}
+{{- $a := merge (deepCopy .) (dict "auth_enabled" false "forward_proxy_convention" "NoProxy" "http_route_api_prefix" "/.auth" "require_authentication" false "require_https" true "runtime_version" "~1" "unauthenticated_client_action" "RedirectToLoginPage") }}
+{{- range $k := list "auth_enabled" "forward_proxy_convention" "http_route_api_prefix" "require_authentication" "require_https" "runtime_version" "unauthenticated_client_action" }}
+{{- if kindIs "invalid" (index $a $k) }}{{ $_ := set $a $k (index (dict "auth_enabled" false "forward_proxy_convention" "NoProxy" "http_route_api_prefix" "/.auth" "require_authentication" false "require_https" true "runtime_version" "~1" "unauthenticated_client_action" "RedirectToLoginPage") $k) }}{{ end }}
+{{- end }}
+{{- $http := dict "requireHttps" $a.require_https "routes" (dict "apiPrefix" $a.http_route_api_prefix) }}
+{{- if ne (toString $a.forward_proxy_convention) "NoProxy" }}
+{{- $_ := set $http "forwardProxy" (dict "convention" $a.forward_proxy_convention "customHostHeaderName" $a.forward_proxy_custom_host_header_name "customProtoHeaderName" $a.forward_proxy_custom_proto_header_name) }}
+{{- end }}
+{{- $body := dict "platform" (dict "enabled" $a.auth_enabled "runtimeVersion" $a.runtime_version "configFilePath" $a.config_file_path) "globalValidation" (dict "excludedPaths" $a.excluded_paths "redirectToProvider" $a.redirect_to_provider "requireAuthentication" $a.require_authentication "unauthenticatedClientAction" $a.unauthenticated_client_action) "httpSettings" $http }}
+{{- with $a.identity_providers }}
+{{- $ip := dict }}
+{{- with .apple }}
+{{- $ip = set $ip "apple" (dict "enabled" .enabled "login" .login "registration" (and .registration (dict "clientId" .registration.client_id "clientSecretSettingName" .registration.client_secret_setting_name))) }}
+{{- end }}
+{{- with .azure_active_directory }}
+{{- $aad := dict "enabled" .enabled "isAutoProvisioned" .is_auto_provisioned }}
+{{- with .registration }}
+{{- $_ := set $aad "registration" (dict "clientId" .client_id "clientSecretCertificateIssuer" .client_secret_certificate_issuer "clientSecretCertificateSubjectAlternativeName" .client_secret_certificate_subject_alternative_name "clientSecretCertificateThumbprint" .client_secret_certificate_thumbprint "clientSecretSettingName" .client_secret_setting_name "openIdIssuer" .open_id_issuer) }}
+{{- end }}
+{{- with .login }}
+{{- $_ := set $aad "login" (dict "disableWWWAuthenticate" .disable_www_authenticate "loginParameters" .login_parameters) }}
+{{- end }}
+{{- if not (kindIs "invalid" .validation) }}
+{{- $val := dict "allowedAudiences" .validation.allowed_audiences }}
+{{- with .validation.default_authorization_policy }}
+{{- $pol := dict "allowedApplications" .allowed_applications "allowedPrincipals" dict }}
+{{- with .allowed_principals }}{{ $_ := set $pol "allowedPrincipals" (dict "groups" .groups "identities" .identities) }}{{ end }}
+{{- $_ := set $val "defaultAuthorizationPolicy" $pol }}
+{{- end }}
+{{- $jwt := dict }}
+{{- with .validation.jwt_claim_checks }}{{ $jwt = dict "allowedClientApplications" .allowed_client_applications "allowedGroups" .allowed_groups }}{{ end }}
+{{- $_ := set $val "jwtClaimChecks" $jwt }}
+{{- $_ := set $aad "validation" $val }}
+{{- end }}
+{{- $_ := set $ip "azureActiveDirectory" $aad }}
+{{- end }}
+{{- with .azure_static_web_apps }}
+{{- $_ := set $ip "azureStaticWebApps" (dict "enabled" .enabled "registration" (and .registration (dict "clientId" .registration.client_id))) }}
+{{- end }}
+{{- with .custom_open_id_connect_providers }}
+{{- $c := dict }}
+{{- range $k, $p := . }}
+{{- $e := dict "enabled" $p.enabled }}
+{{- with $p.login }}{{ $_ := set $e "login" (dict "nameClaimType" .name_claim_type "scopes" .scopes) }}{{ end }}
+{{- with $p.registration }}
+{{- $r := dict "clientId" .client_id }}
+{{- with .client_credential }}{{ $_ := set $r "clientCredential" (dict "method" .method "clientSecretSettingName" .client_secret_setting_name) }}{{ end }}
+{{- with .open_id_connect_configuration }}{{ $_ := set $r "openIdConnectConfiguration" (dict "authorizationEndpoint" .authorization_endpoint "certificationUri" .certification_uri "issuer" .issuer "tokenEndpoint" .token_endpoint "wellKnownOpenIdConfiguration" .well_known_open_id_configuration) }}{{ end }}
+{{- $_ := set $e "registration" $r }}
+{{- end }}
+{{- $_ := set $c $k $e }}
+{{- end }}
+{{- $_ := set $ip "customOpenIdConnectProviders" $c }}
+{{- end }}
+{{- with .facebook }}
+{{- $_ := set $ip "facebook" (dict "enabled" .enabled "graphApiVersion" .graph_api_version "login" .login "registration" (and .registration (dict "appId" .registration.app_id "appSecretSettingName" .registration.app_secret_setting_name))) }}
+{{- end }}
+{{- with .github }}
+{{- $_ := set $ip "gitHub" (dict "enabled" .enabled "login" .login "registration" (and .registration (dict "clientId" .registration.client_id "clientSecretSettingName" .registration.client_secret_setting_name))) }}
+{{- end }}
+{{- with .google }}
+{{- $_ := set $ip "google" (dict "enabled" .enabled "login" .login "registration" (and .registration (dict "clientId" .registration.client_id "clientSecretSettingName" .registration.client_secret_setting_name)) "validation" (and .validation (dict "allowedAudiences" .validation.allowed_audiences))) }}
+{{- end }}
+{{- with .legacy_microsoft_account }}
+{{- $_ := set $ip "legacyMicrosoftAccount" (dict "enabled" .enabled "login" .login "registration" (and .registration (dict "clientId" .registration.client_id "clientSecretSettingName" .registration.client_secret_setting_name)) "validation" (and .validation (dict "allowedAudiences" .validation.allowed_audiences))) }}
+{{- end }}
+{{- with .twitter }}
+{{- $_ := set $ip "twitter" (dict "enabled" .enabled "registration" (and .registration (dict "consumerKey" .registration.consumer_key "consumerSecretSettingName" .registration.consumer_secret_setting_name))) }}
+{{- end }}
+{{- $_ := set $body "identityProviders" $ip }}
+{{- end }}
+{{- with $a.login }}
+{{- $l := dict "allowedExternalRedirectUrls" .allowed_external_redirect_urls "preserveUrlFragmentsForLogins" (ternary false .preserve_url_fragments_for_logins (kindIs "invalid" .preserve_url_fragments_for_logins)) }}
+{{- if not (kindIs "invalid" .cookie_expiration) }}
+{{- $_ := set $l "cookieExpiration" (dict "convention" (.cookie_expiration.convention | default "FixedTime") "timeToExpiration" (.cookie_expiration.time_to_expiration | default "08:00:00")) }}
+{{- end }}
+{{- if not (kindIs "invalid" .nonce) }}
+{{- $_ := set $l "nonce" (dict "nonceExpirationInterval" (.nonce.nonce_expiration_interval | default "00:05:00") "validateNonce" (ternary true .nonce.validate_nonce (kindIs "invalid" .nonce.validate_nonce))) }}
+{{- end }}
+{{- if not (kindIs "invalid" .routes) }}
+{{- $_ := set $l "routes" (dict "logoutEndpoint" .routes.logout_endpoint) }}
+{{- end }}
+{{- if not (kindIs "invalid" .token_store) }}
+{{- $ts := dict "enabled" (ternary false .token_store.enabled (kindIs "invalid" .token_store.enabled)) "tokenRefreshExtensionHours" (ternary 72 .token_store.token_refresh_extension_hours (kindIs "invalid" .token_store.token_refresh_extension_hours)) }}
+{{- with .token_store.azure_blob_storage }}{{ $_ := set $ts "azureBlobStorage" (dict "sasUrlSettingName" .sas_url_setting_name) }}{{ end }}
+{{- with .token_store.file_system }}{{ $_ := set $ts "fileSystem" (dict "directory" .directory) }}{{ end }}
+{{- $_ := set $l "tokenStore" $ts }}
+{{- end }}
+{{- $_ := set $body "login" $l }}
+{{- end }}
+---
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesConfigAuthSettingsV2
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "authv2")) "id" "config_authsettingsv2" "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $site }}
+  {{- toYaml (include "webcfg.prune" $body | fromJson).v | nindent 2 }}
+{{- end }}
+{{- /* logs: each entry writes the site's one logs section, so more than one
+would overwrite each other; application_logs and http_logs: the first entry
+by key, as the module takes it. A blob destination's SAS URL is a secret. */ -}}
+{{- if gt (len ($v.logs | default dict)) 1 }}
+{{- fail (printf "%s: logs takes one entry: every entry writes the site's one logs section (Microsoft.Web/sites/config logs), so more than one would overwrite each other" $n) }}
+{{- end }}
+{{- range $lk, $lv := ($v.logs | default dict) }}
+{{- $body := dict "detailedErrorMessages" (dict "enabled" (ternary false $lv.detailed_error_messages (kindIs "invalid" $lv.detailed_error_messages))) "failedRequestsTracing" (dict "enabled" (ternary false $lv.failed_requests_tracing (kindIs "invalid" $lv.failed_requests_tracing))) }}
+{{- with $lv.application_logs }}
+{{- $al := index . (keys . | sortAlpha | first) }}
+{{- if and $al (not (kindIs "invalid" $al.azure_blob_storage)) }}
+{{- fail (printf "%s: logs.%s.application_logs azure_blob_storage is not supported: its sas_url is a secret value (aso-extensions' SitesConfigLogs takes it from a Kubernetes Secret); how a component supplies one is the builder's decision" $n $lk) }}
+{{- end }}
+{{- $fs := dict "level" "Off" }}
+{{- if and $al $al.file_system }}{{ $fs = dict "level" ($al.file_system.level | default "Off") }}{{ end }}
+{{- $_ := set $body "applicationLogs" (dict "fileSystem" $fs) }}
+{{- end }}
+{{- with $lv.http_logs }}
+{{- $hl := index . (keys . | sortAlpha | first) }}
+{{- $h := dict }}
+{{- if $hl }}
+{{- if not (kindIs "invalid" $hl.azure_blob_storage) }}
+{{- fail (printf "%s: logs.%s.http_logs azure_blob_storage is not supported: its sas_url is a secret value (aso-extensions' SitesConfigLogs takes it from a Kubernetes Secret); how a component supplies one is the builder's decision" $n $lk) }}
+{{- end }}
+{{- with $hl.file_system }}
+{{- if kindIs "invalid" .retention_in_mb }}{{ fail (printf "%s: logs.%s.http_logs file_system needs retention_in_mb" $n $lk) }}{{ end }}
+{{- $_ := set $h "fileSystem" (dict "retentionInDays" (ternary 0 .retention_in_days (kindIs "invalid" .retention_in_days) | int) "retentionInMb" (.retention_in_mb | int)) }}
+{{- end }}
+{{- end }}
+{{- $_ := set $body "httpLogs" $h }}
+{{- end }}
+---
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesConfigLogs
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "logs")) "id" (printf "config_logs:%s" $lk) "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $site }}
+  {{- toYaml $body | nindent 2 }}
+{{- end }}
+{{- /* sticky_settings: one slotConfigNames section, every entry's names
+flattened into it, as the module does. */ -}}
+{{- if $v.sticky_settings }}
+{{- $as := list }}{{ $cs := list }}
+{{- range $k := keys $v.sticky_settings | sortAlpha }}
+{{- $e := index $v.sticky_settings $k }}
+{{- $as = concat $as ($e.app_setting_names | default list) }}
+{{- $cs = concat $cs ($e.connection_string_names | default list) }}
+{{- end }}
+---
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesConfigSlotConfigNames
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name "sticky")) "id" "config_slotconfignames" "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $site }}
+  appSettingNames: {{ if $as }}{{ toJson $as }}{{ else }}[]{{ end }}
+  connectionStringNames: {{ if $cs }}{{ toJson $cs }}{{ else }}[]{{ end }}
+{{- end }}
+{{- /* The publishing credential policies: written only to turn basic
+authentication off (the module's ftp default), as the module does. */ -}}
+{{- range $p := list (list "ftp" "Ftp" $v.ftp_publish_basic_authentication_enabled) (list "scm" "Scm" $v.scm_publish_basic_authentication_enabled) }}
+{{- if not (eq (toString (index $p 2)) "true") }}
+---
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesBasicPublishingCredentialsPolicy{{ index $p 1 }}
+metadata:
+  {{- include "aso.metadata" (dict "root" $ "name" (include "aso.name" (list $.Release.Name (printf "%s-policy" (index $p 0)))) "id" (printf "%s_publishing_credential_policy" (index $p 0)) "abandon" $abandon) | nindent 2 }}
+spec:
+  owner:
+    name: {{ $site }}
+  allow: false
+{{- end }}
+{{- end }}

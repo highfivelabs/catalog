@@ -28,51 +28,28 @@ refused:
     reason: "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)"
   - variable: resource_types
     kind: by-design
-    reason: "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)"
+    reason: "ASO's and aso-extensions' kinds fix the API versions (aso-extensions' ManagedEnvironment 2025-10-02-preview; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)"
   - variable: retry
     kind: by-design
     reason: "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready"
   - variable: timeouts
     kind: by-design
     reason: "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit"
-  # Fields after ASO's ManagedEnvironment API version 2025-01-01 (the module
-  # sends 2025-10-02-preview).
-  - variable: app_insights_configuration
-    kind: gap
-    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no appInsightsConfiguration"
-  - variable: connection_string
-    kind: gap
-    reason: "the Application Insights connection string of appInsightsConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides"
-  - variable: connection_string_version
-    kind: gap
-    reason: "tracks connection_string, whose appInsightsConfiguration ASO's ManagedEnvironment (2025-01-01) does not have"
-  - variable: availability_zones
-    kind: gap
-    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no availabilityZones"
-  - variable: disk_encryption_configuration
-    kind: gap
-    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no diskEncryptionConfiguration"
-  - variable: ingress_configuration
-    kind: gap
-    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no ingressConfiguration"
-  - variable: open_telemetry_configuration
-    kind: gap
-    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no openTelemetryConfiguration"
-  - variable: key
-    kind: gap
-    reason: "the DataDog key of openTelemetryConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides"
-  - variable: key_version
-    kind: gap
-    reason: "tracks key, whose openTelemetryConfiguration ASO's ManagedEnvironment (2025-01-01) does not have"
-  - variable: public_network_access
-    kind: gap
-    reason: "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no publicNetworkAccess"
-  - variable: public_network_access_enabled
-    kind: gap
-    reason: "deprecated form of public_network_access: ASO's ManagedEnvironment (2025-01-01) has no publicNetworkAccess"
   # Secret values: the builder's decision (ASO takes each as a
   # SecretReference to a Kubernetes Secret; how a component supplies one is
   # not settled).
+  - variable: connection_string
+    kind: not-ported
+    reason: "the Application Insights connection string of app_insights_configuration, a secret value the chart does not take (aso-extensions' ManagedEnvironment takes it as a SecretReference)"
+  - variable: connection_string_version
+    kind: not-ported
+    reason: "tracks connection_string, a secret value the chart does not take"
+  - variable: key
+    kind: not-ported
+    reason: "the Datadog API key of open_telemetry_configuration, a secret value the chart does not take (aso-extensions' ManagedEnvironment takes it as a SecretReference)"
+  - variable: key_version
+    kind: not-ported
+    reason: "tracks key, a secret value the chart does not take"
   - variable: shared_key
     kind: not-ported
     reason: "the Log Analytics workspace's shared key, a secret value the chart does not take"

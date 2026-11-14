@@ -123,42 +123,54 @@ runs (`task test-live`, `hack/live-apply.sh`; `task test-live-gke`,
 `hack/live-gke.sh`) run config-connector-extensions' manager at
 `CCE_COMMIT` beside Config Connector's (`hack/cce-manager.sh`), acting as
 the same service account, so a chart's `*.gcp.hfl.dev` kinds are applied
-to Google Cloud, not only rendered and run in the fake cloud. Whether a
-chart can run live now depends only on the runner's roles and the
-project's APIs. The two runners in the live project (`hfl-dev-514205`)
-hold:
+to Google Cloud, not only rendered and run in the fake cloud. A chart's
+live case is files in its `tests/` (`live.yaml` and the rest;
+`hack/live-apply.sh`, "A case can also live beside its chart"), except
+the older cases written into the script.
 
-- `catalog-live-tests` (`task test-live`): `compute.networkAdmin`,
-  `compute.instanceAdmin.v1`, `iam.serviceAccountAdmin`, `storage.admin`,
-  `logging.logWriter`.
-- `cce-live-tests` (`task test-live-gke`, the offramp): those compute and
-  storage roles, plus `compute.securityAdmin`,
-  `compute.loadBalancerAdmin`, `artifactregistry.admin`,
-  `cloudsql.admin`, `container.clusterAdmin`, `gkehub.admin`,
-  `run.admin`, `secretmanager.admin`, `logging.admin`,
-  `iam.serviceAccountUser`, `iam.workloadIdentityPoolAdmin`,
-  `iam.oauthClientAdmin`, `cloudasset.viewer`.
+The two runners in the live project (`hfl-dev-514205`): on 2026-11-13 the
+builder enabled twelve APIs (Cloud KMS, Spanner, Data Catalog, Vertex AI,
+API Gateway, BigLake, Cloud Functions, Cloud Build, Certificate Manager,
+CA Service, Service Management, Network Services) and granted 19 admin
+roles to both `catalog-live-tests` and `cce-live-tests` (LIVEIAM), and let
+the laptop's automation account start offload VMs as either (KEYLIVE). The
+live runs since found three gaps:
+
+- `cce-live-tests` may not create service accounts
+  (`iam.serviceAccounts.create`): a chart that makes one
+  (`cloud-function-v2`, `api-gateway`) runs as `catalog-live-tests`.
+- `catalog-live-tests` may not act as an account it made
+  (`iam.serviceAccounts.actAs`): `api-gateway`'s config cannot run as the
+  account the chart makes, so its case uses the runner's.
+- Neither holds a BigLake role (`roles/biglake.admin`).
 
 Charts with an extension kind (`IAMBinding`, which every chart renders
-for `iam_bindings`, follows its resource's row), as of 2026-11-12:
+for `iam_bindings`, follows its resource's row), as of 2026-11-14. Runs
+are on offload Spot VMs at config-connector-extensions `c2f0c7d2`; the
+chart's README has the details. "Passed" is every object Ready, deleted
+and gone from Google Cloud.
 
-| Chart | Extension kinds | Live now? | What blocks it |
+| Chart | Extension kinds | Live | Cause of what failed |
 | --- | --- | --- | --- |
-| `net-address` | `ComputeNetworkAttachment` | **proven** 2026-11-12 (run `cat-11130337-4e46`, offload VM `off-catalog-1113033335-11323` as `catalog-live-tests`, config-connector-extensions `11baa460`): the attachment, its network and subnet, and both addresses Ready, deleted and gone from Google Cloud, 0 failures, nothing left | nothing |
-| `net-firewall-policy` | `ComputeRegionNetworkFirewallPolicy`, its rules and association; `ComputeNetworkFirewallPolicyRule` | capable, as `cce-live-tests` (`compute.securityAdmin`); no case in `hack/live-apply.sh` yet | hierarchical policies need a folder-level role; `ComputeNetworkFirewallPolicyPacketMirroringRule` needs an organization's security profile group |
-| `net-lb-proxy-int-cross-region` (PR #119) | `ComputeNetworkEndpoint` (proven live by config-connector-extensions) | capable, as `cce-live-tests` (`compute.loadBalancerAdmin`) once merged | nothing beyond a case |
-| `gke-cluster-standard`, `gke-cluster-autopilot` (PR #90) | `GKEBackupBackupPlan`, `GKEBackupRestorePlan` | blocked by a role | `roles/gkebackup.admin` (the API is on) |
-| `dns-response-policy` (PR #131) | `DNSResponsePolicy`, `DNSResponsePolicyRule` | blocked by a role | `roles/dns.admin` (the API is on); the rule's CRD needs config-connector-extensions `0ee17dd` (PR #126) |
-| `dataplex`, `dataplex-aspect-types`, `dataplex-datascan` (PRs #107, #110) | `DataplexLake`, `DataplexZone`, `DataplexAsset`, `DataplexAspectType`, `DataplexDataScan` | blocked by a role | `roles/dataplex.admin` (the API is on) |
-| `backup-dr` (PR #106) | `BackupDRManagementServer` | blocked by a role | `roles/backupdr.admin` (the API is on) |
-| `ncc-spoke-ra` | `ComputeRouterRoutePolicy` | blocked by a role | the hub and spoke need `roles/networkconnectivity.hubAdmin` and `spokeAdmin` (the API is on) |
-| `cloud-function-v2` (PR #128) | `CloudFunctions2Function` | blocked by APIs and a role | Cloud Functions and Cloud Build APIs; `roles/cloudfunctions.admin` |
-| `spanner-instance` (PR #127) | `SpannerInstanceConfig` | blocked by an API and a role; needs `0ee17dd` (PR #126) | Spanner API; `roles/spanner.admin` |
-| `data-catalog-tag` (PR #129) | `DataCatalogTag` | blocked by an API and a role; needs `0ee17dd` | Data Catalog API; `roles/datacatalog.admin` |
-| `geap-agent-runtime` (PR #130) | `AIPlatformReasoningEngine` | blocked by an API and a role; needs `0ee17dd` | Vertex AI API; `roles/aiplatform.admin` |
-| `api-gateway` (PRs #105, #124) | `APIGatewayAPIConfig`, `APIGatewayGateway` | blocked by an API and a role | API Gateway API; `roles/apigateway.admin` |
-| `biglake-catalog` (PR #104) | `BigLakeCatalog`, `BigLakeDatabase` | blocked by an API and a role | BigLake API; `roles/biglake.admin` |
-| `certificate-manager` (PR #95) | `CertificateManagerCertificateIssuanceConfig` | blocked by APIs and a role | Certificate Manager and CA Service APIs; `roles/certificatemanager.owner`, `roles/privateca.admin` |
+| `net-address` | `ComputeNetworkAttachment` | **passed** 2026-11-12 (`cat-11130337-4e46`) | |
+| `net-firewall-policy` | `ComputeNetworkFirewallPolicyRule`; `ComputeRegionNetworkFirewallPolicy`, its association and rules | **passed**, global (`cat-11140025-cb6a`) and regional (`cat-11132355-cc50`) | |
+| `net-lb-proxy-int-cross-region` | `ComputeNetworkEndpoint` | **passed** again (`cat-11132355-cc50`); the case makes no endpoint (config-connector-extensions proves the kind live) | |
+| `dns-response-policy` | `DNSResponsePolicy`, `DNSResponsePolicyRule` | **passed** (`cat-11132355-cc50`) | |
+| `dataplex-aspect-types` | `DataplexAspectType` | **passed** (`cat-11132355-c86b`) | |
+| `dataplex-datascan` | `DataplexDataScan` | **passed** (`cat-11132355-c86b`) | |
+| `spanner-instance` | `SpannerInstanceConfig` | **passed** (`cat-11140135-fd30`) | |
+| `ncc-spoke-ra` | `ComputeRouterRoutePolicy` | **passed** (`cat-11140135-fd30`) | |
+| `geap-agent-runtime` | `AIPlatformReasoningEngine` | **passed** (`cat-11140025-cb6a`), an engine with no code | |
+| `api-gateway` | `APIGatewayAPIConfig`, `APIGatewayGateway` | both Ready and deleted (`cat-11140228-8dc0`) | Config Connector's `APIGatewayAPI` outlived the 10-minute limit (it goes only after its configs); swept |
+| `dataplex` | `DataplexLake`, `DataplexZone`, `DataplexAsset` | all Ready (`cat-11140135-fd30`); not deleted in 25 minutes | config-connector-extensions: its Dataplex controllers exceed Dataplex's 10 requests a minute (429) and do not back off |
+| `geap-agent-gateway` | `NetworkServicesAgentGateway`, `NetworkServicesAgentConnectivityTemplate`, `NetworkServicesAuthzExtension`, `NetworkSecurityAuthzPolicy`; `IAMAccessPolicy`, `IAMPolicyBinding` | the first four Ready and deleted (`cat-11140025-cb6a`); the access policy failed | config-connector-extensions: `IAMAccessPolicy` exceeds IAM's 5 GetAccessPolicy requests a minute (429); the binding waits on it |
+| `certificate-manager` | `CertificateManagerCertificateIssuanceConfig` | failed; the rest of the chart passed (`cat-11140046-902f`) | the API: "Config validation failed", likely for want of a CA in the pool, which a test cannot delete in under 30 days |
+| `cloud-function-v2` | `CloudFunctions2Function` | failed (`cat-11140025-cb6a`, `cat-11140120-96a6`) | config-connector-extensions: its create sends no function name ("Invalid resource name ''") |
+| `data-catalog-tag` | `DataCatalogTag` | failed (`cat-11132355-c86b`) | the API: Data Catalog answers "404 Method not found" to tag and tag-template creation |
+| `backup-dr` | `BackupDRManagementServer` | failed (`cat-11140135-fd30`) | the API: new management servers are restricted ("Management Console is on path for deprecation"); Config Connector's vault and plan were Ready but then failed updates (`access_restriction` required; `backup_rules` not updatable) |
+| `biglake-catalog` | `BigLakeCatalog`, `BigLakeDatabase` | blocked by a role (`cat-11132355-c86b`, `cat-11140120-96a6`) | neither runner holds `roles/biglake.admin` |
+| `compute-mig` (PR #150) | `ComputeAutoscaler`, `ComputePerInstanceConfig` | autoscaled group **passed**; the stateful group's objects passed but it held 2 VMs (`cat-11132344-b82d`) | config-connector-extensions: `ComputePerInstanceConfig` calls `createInstances` (Terraform: `updatePerInstanceConfigs`), and Config Connector does not resize the group back |
+| `gke-cluster-standard`, `gke-cluster-autopilot` | `GKEBackupBackupPlan`, `GKEBackupRestorePlan` | not run | `hack/live-gke.sh` has no backup plan case yet |
 
 ## Factories without a chart
 

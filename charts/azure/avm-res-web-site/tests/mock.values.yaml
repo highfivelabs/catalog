@@ -2,12 +2,15 @@
 # Python web app with a system-assigned identity and app settings, on a
 # plan by ARM ID in the fake cloud's resource group (the fake keeps the
 # references as sent), with a deployment slot (and its private endpoint),
-# a custom domain, a Key Vault certificate and a lock.
+# a custom domain, a Key Vault certificate and a lock; and the config
+# sections and publishing policies as aso-extensions kinds: authentication
+# v2, logs, sticky settings, FTP (the module's default) and SCM basic
+# authentication off.
 name: catalog-app
 location: eastus2
 parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
 service_plan_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Web/serverfarms/catalog-asp
-ftp_publish_basic_authentication_enabled: true
+scm_publish_basic_authentication_enabled: false
 public_network_access_enabled: true
 managed_identities: {system_assigned: true}
 app_settings: {CATALOG: mock}
@@ -35,3 +38,19 @@ certificates:
     name: catalog-app-www
     key_vault_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.KeyVault/vaults/catalog-kv
     key_vault_secret_name: www-catalog-example
+auth_settings_v2:
+  auth_enabled: true
+  unauthenticated_client_action: Return401
+  identity_providers:
+    azure_active_directory:
+      enabled: true
+      registration: {client_id: 22222222-2222-2222-2222-222222222222, open_id_issuer: "https://sts.windows.net/00000000-0000-0000-0000-000000000000/v2.0"}
+logs:
+  app:
+    detailed_error_messages: true
+    application_logs:
+      default: {file_system: {level: Warning}}
+    http_logs:
+      default: {file_system: {retention_in_days: 7, retention_in_mb: 35}}
+sticky_settings:
+  a: {app_setting_names: [CATALOG]}

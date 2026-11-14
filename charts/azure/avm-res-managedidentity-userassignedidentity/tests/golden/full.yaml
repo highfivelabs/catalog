@@ -8,13 +8,13 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.3.0"
   annotations:
     hfl.dev/id: "federated_identity_credential:aks"
 spec:
   azureName: "aks-app"
   owner:
-    name: full-id
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-app
   audiences:
     - "api://AzureADTokenExchange"
   issuer: "https://westeurope.oic.prod-aks.azure.com/11111111-2222-3333-4444-555555555555/66666666-7777-8888-9999-000000000000/"
@@ -29,15 +29,13 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.3.0"
   annotations:
     hfl.dev/id: "lock"
 spec:
   azureName: "lock-CanNotDelete"
   owner:
-    group: managedidentity.azure.com
-    kind: UserAssignedIdentity
-    name: full-id
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-app
   level: CanNotDelete
   notes: "Cannot delete the resource or its child resources."
 ---
@@ -50,7 +48,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.3.0"
   annotations:
     hfl.dev/id: "outbound_role_assignment:blob"
 spec:
@@ -71,7 +69,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.3.0"
   annotations:
     hfl.dev/id: "outbound_role_assignment:kv"
 spec:
@@ -87,7 +85,7 @@ spec:
   conditionVersion: "2.0"
 ---
 # Source: avm-res-managedidentity-userassignedidentity/templates/main.yaml
-apiVersion: managedidentity.azure.com/v1api20230131
+apiVersion: managedidentity.azure.hfl.dev/v20241130
 kind: UserAssignedIdentity
 metadata:
   name: full-id
@@ -95,7 +93,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: "full"
     app.kubernetes.io/name: avm-res-managedidentity-userassignedidentity
-    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/version: "0.3.0"
   annotations:
     hfl.dev/id: "user_assigned_identity"
 spec:
@@ -104,9 +102,9 @@ spec:
   owner:
     armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-app"
   operatorSpec:
-    configMaps:
-      principalId:
-        name: full-id-outputs
+    configMapExpressions:
+      - name: full-id-outputs
         key: principalId
+        value: self.status.principalId
   tags:
     environment: prod

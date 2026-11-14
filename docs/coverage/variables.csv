@@ -3967,7 +3967,7 @@ azure,avm-res-compute-virtualmachine,availability_set_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,azure_backup_configurations,"map(object({backup_policy_resource_id, exclude_disk_luns, include_disk_luns, recovery_vault_name, recovery_vault_resource_id, resource_group_name}))",no,Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems (a protected VM) has no Azure Service Operator or aso-extensions kind,gap
 azure,avm-res-compute-virtualmachine,boot_diagnostics,bool,yes,,
 azure,avm-res-compute-virtualmachine,boot_diagnostics_storage_account_uri,string,yes,,
-azure,avm-res-compute-virtualmachine,bypass_platform_safety_checks_on_user_schedule_enabled,bool,no,"ASO's VirtualMachine is at ARM API 2022-03-01, before patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule",gap
+azure,avm-res-compute-virtualmachine,bypass_platform_safety_checks_on_user_schedule_enabled,bool,yes,,
 azure,avm-res-compute-virtualmachine,capacity_reservation_group_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,computer_name,string,yes,,
 azure,avm-res-compute-virtualmachine,custom_data,string,yes,,
@@ -3977,7 +3977,7 @@ azure,avm-res-compute-virtualmachine,dedicated_host_group_resource_id,string,yes
 azure,avm-res-compute-virtualmachine,dedicated_host_resource_id,string,yes,,
 azure,avm-res-compute-virtualmachine,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
 azure,avm-res-compute-virtualmachine,disable_password_authentication,bool,partial,"true (the default) is mapped; false needs a password, a secret value",not-ported
-azure,avm-res-compute-virtualmachine,disk_controller_type,string,no,"ASO's VirtualMachine is at ARM API 2022-03-01, before storageProfile.diskControllerType",gap
+azure,avm-res-compute-virtualmachine,disk_controller_type,string,yes,,
 azure,avm-res-compute-virtualmachine,edge_zone,string,yes,,
 azure,avm-res-compute-virtualmachine,enable_automatic_updates,bool,no,Windows OS profile only (os_type: a Windows OS profile needs an admin password),not-ported
 azure,avm-res-compute-virtualmachine,enable_telemetry,bool,yes,,
@@ -4043,7 +4043,7 @@ azure,avm-res-resources-resourcegroup,tags,map(string),yes,,
 azure,avm-res-resources-resourcegroup,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
 azure,avm-res-managedidentity-userassignedidentity,enable_telemetry,bool,yes,,
 azure,avm-res-managedidentity-userassignedidentity,federated_identity_credentials,"map(object({audience, issuer, name, subject}))",yes,,
-azure,avm-res-managedidentity-userassignedidentity,isolation_scope,string,no,"ASO's UserAssignedIdentity is at ARM API version 2023-01-31, which has no isolationScope (a later API version's property)",gap
+azure,avm-res-managedidentity-userassignedidentity,isolation_scope,string,yes,,
 azure,avm-res-managedidentity-userassignedidentity,location,string,yes,,
 azure,avm-res-managedidentity-userassignedidentity,lock,"object({kind, name})",yes,,
 azure,avm-res-managedidentity-userassignedidentity,name,string,yes,,
@@ -4423,7 +4423,7 @@ azure,avm-res-insights-component,force_customer_storage_for_profiler,bool,yes,,
 azure,avm-res-insights-component,ignore_body_changes,"object({authorization_locks, authorization_role_assignments, insights_components, insights_components_linked_storage_accounts, insights_components_pricing_plans, insights_diagnostic_settings, +1})",no,Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes),gap
 azure,avm-res-insights-component,internet_ingestion_enabled,bool,yes,,
 azure,avm-res-insights-component,internet_query_enabled,bool,yes,,
-azure,avm-res-insights-component,linked_storage_account,map(object({resource_id})),no,Microsoft.Insights/components/linkedStorageAccounts (the profiler's storage account) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-insights-component,linked_storage_account,map(object({resource_id})),yes,,
 azure,avm-res-insights-component,local_authentication_disabled,bool,yes,,
 azure,avm-res-insights-component,location,string,yes,,
 azure,avm-res-insights-component,lock,"object({kind, name, notes})",yes,,
@@ -4444,7 +4444,7 @@ azure,avm-res-app-containerapp,dapr,"object({app_id, app_port, app_protocol, ena
 azure,avm-res-app-containerapp,enable_telemetry,bool,yes,,
 azure,avm-res-app-containerapp,identity_settings,"list(object({identity, lifecycle}))",partial,"accepted, but lifecycle Retain is refused: ASO's ContainerApp (2025-01-01) takes All, Init, Main and None",gap
 azure,avm-res-app-containerapp,ingress,"object({additional_port_mappings, allow_insecure_connections, client_certificate_mode, cors_policy, custom_domain, custom_domains, +7})",yes,,
-azure,avm-res-app-containerapp,kind,string,no,"ASO's ContainerApp is at ARM API version 2025-01-01, which has no kind (the module sends it with 2025-02-02-preview)",gap
+azure,avm-res-app-containerapp,kind,string,yes,,
 azure,avm-res-app-containerapp,location,string,partial,"accepted, but null is refused: the module reads the resource group's location then, which a render cannot; ASO needs a location",by-design
 azure,avm-res-app-containerapp,lock,"object({kind, name})",yes,,
 azure,avm-res-app-containerapp,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
@@ -4468,8 +4468,8 @@ azure,avm-res-web-site,app_service_active_slot,"object({overwrite_network_config
 azure,avm-res-web-site,app_settings,map(string),yes,,
 azure,avm-res-web-site,application_insights_connection_string,string,no,a secret value (the module marks it sensitive); how a component supplies one is the builder's decision,not-ported
 azure,avm-res-web-site,application_insights_key,string,no,a secret value (the module marks it sensitive); how a component supplies one is the builder's decision,not-ported
-azure,avm-res-web-site,auth_settings,"object({active_directory, additional_login_parameters, allowed_external_redirect_urls, default_provider, enabled, facebook, +9})",no,Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind,gap
-azure,avm-res-web-site,auth_settings_v2,"object({auth_enabled, config_file_path, excluded_paths, forward_proxy_convention, forward_proxy_custom_host_header_name, forward_proxy_custom_proto_header_name, +8})",no,Microsoft.Web/sites/config (authsettingsV2) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-web-site,auth_settings,"object({active_directory, additional_login_parameters, allowed_external_redirect_urls, default_provider, enabled, facebook, +9})",no,"Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind (it has a PUT and no GET; aso-extensions plan.md §8 Q13); the module writes it only without auth_settings_v2, which is mapped",gap
+azure,avm-res-web-site,auth_settings_v2,"object({auth_enabled, config_file_path, excluded_paths, forward_proxy_convention, forward_proxy_custom_host_header_name, forward_proxy_custom_proto_header_name, +8})",yes,,
 azure,avm-res-web-site,auto_generated_domain_name_label_scope,string,yes,,
 azure,avm-res-web-site,backup,"map(object({enabled, name, schedule, storage_account_url}))",no,"Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (its storage_account_url is a SAS URL, a secret, as well)",gap
 azure,avm-res-web-site,builtin_logging_enabled,bool,yes,,
@@ -4488,7 +4488,7 @@ azure,avm-res-web-site,custom_domains,"map(object({certificate_key, hostname, ss
 azure,avm-res-web-site,daily_memory_time_quota,number,yes,,
 azure,avm-res-web-site,dapr_config,"object({app_id, app_port, enable_api_logging, enabled, http_max_request_size, http_read_buffer_size, +1})",yes,,
 azure,avm-res-web-site,delete_empty_service_plan,bool,partial,"accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter",gap
-azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
+azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
 azure,avm-res-web-site,deployment_slots_inherit_lock,bool,yes,,
 azure,avm-res-web-site,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-web-site,dns_configuration,"object({dns_alt_server, dns_max_cache_timeout, dns_retry_attempt_count, dns_retry_attempt_timeout, dns_servers})",yes,,
@@ -4497,7 +4497,7 @@ azure,avm-res-web-site,enabled,bool,yes,,
 azure,avm-res-web-site,end_to_end_encryption_enabled,bool,yes,,
 azure,avm-res-web-site,fc1_runtime_name,string,yes,,
 azure,avm-res-web-site,fc1_runtime_version,string,yes,,
-azure,avm-res-web-site,ftp_publish_basic_authentication_enabled,bool,partial,"accepted as true only; false, the module's default, writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (ftp) with allow false, which has no Azure Service Operator or aso-extensions kind",gap
+azure,avm-res-web-site,ftp_publish_basic_authentication_enabled,bool,yes,,
 azure,avm-res-web-site,function_app_uses_fc1,bool,yes,,
 azure,avm-res-web-site,functions_extension_version,string,yes,,
 azure,avm-res-web-site,host_names_disabled,bool,yes,,
@@ -4513,7 +4513,7 @@ azure,avm-res-web-site,location,string,yes,,
 azure,avm-res-web-site,lock,"object({kind, name})",yes,,
 azure,avm-res-web-site,logic_app_node_version,string,no,"only a Logic App reads it (WEBSITE_NODE_DEFAULT_VERSION), and kind logicapp is refused; accepted at its default",not-ported
 azure,avm-res-web-site,logic_app_runtime_version,string,no,"only a Logic App reads it (FUNCTIONS_EXTENSION_VERSION), and kind logicapp is refused; accepted at its default",not-ported
-azure,avm-res-web-site,logs,"map(object({application_logs, detailed_error_messages, failed_requests_tracing, http_logs}))",no,Microsoft.Web/sites/config (logs) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-web-site,logs,"map(object({application_logs, detailed_error_messages, failed_requests_tracing, http_logs}))",partial,"accepted as aso-extensions SitesConfigLogs (one entry: every entry writes the site's one logs section), but an application or HTTP log's azure_blob_storage is refused: its sas_url is a secret value",not-ported
 azure,avm-res-web-site,manage_connection_strings,bool,yes,,
 azure,avm-res-web-site,managed_environment_id,string,yes,,
 azure,avm-res-web-site,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
@@ -4530,14 +4530,14 @@ azure,avm-res-web-site,resource_config,"object({cpu, memory})",yes,,
 azure,avm-res-web-site,resource_types,"object({authorization_locks, authorization_role_assignments, certificate, config_appsettings, config_authsettings, config_authsettingsv2, +14})",no,"the API versions are the kinds' (ASO Site 2025-05-01; aso-extensions SitesSlot, SitesHostNameBinding, SitesSlotsHostNameBinding and Certificate 2026-07-15)",by-design
 azure,avm-res-web-site,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-web-site,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
-azure,avm-res-web-site,scm_publish_basic_authentication_enabled,bool,partial,"accepted as true (the default) only; false writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (scm), which has no Azure Service Operator or aso-extensions kind",gap
+azure,avm-res-web-site,scm_publish_basic_authentication_enabled,bool,yes,,
 azure,avm-res-web-site,scm_site_also_stopped,bool,yes,,
 azure,avm-res-web-site,service_plan_resource_id,string,yes,,
 azure,avm-res-web-site,site_config,"object({always_on, api_definition_url, api_management_api_id, app_command_line, app_scale_limit, application_insights_connection_string, +59})",partial,"accepted, but application_insights_connection_string and application_insights_key are refused: the Application Insights connection string and key, which the module marks sensitive at the root (a secret value, the builder's decision)",not-ported
 azure,avm-res-web-site,slot_sensitive_app_settings,map(map(string)),no,secret values (the module marks them sensitive); how a component supplies one is the builder's decision,not-ported
 azure,avm-res-web-site,slots_storage_shares_to_mount_sensitive_values,map(string),no,"storage account access keys, secret values (the module marks them sensitive); how a component supplies one is the builder's decision",not-ported
 azure,avm-res-web-site,ssh_enabled,bool,yes,,
-azure,avm-res-web-site,sticky_settings,"map(object({app_setting_names, connection_string_names}))",no,Microsoft.Web/sites/config (slotConfigNames) has no Azure Service Operator or aso-extensions kind,gap
+azure,avm-res-web-site,sticky_settings,"map(object({app_setting_names, connection_string_names}))",yes,,
 azure,avm-res-web-site,storage_account_access_key,string,no,a secret value (the module marks it sensitive) the module writes into the AzureWebJobsStorage connection string; how a component supplies one is the builder's decision. Use storage_uses_managed_identity,not-ported
 azure,avm-res-web-site,storage_account_name,string,yes,,
 azure,avm-res-web-site,storage_account_required,bool,yes,,
@@ -4817,16 +4817,16 @@ azure,avm-res-cache-redis,subnet_resource_id,string,yes,,
 azure,avm-res-cache-redis,tags,map(string),yes,,
 azure,avm-res-cache-redis,tenant_settings,map(string),yes,,
 azure,avm-res-cache-redis,zones,list(string),yes,,
-azure,avm-res-app-managedenvironment,app_insights_configuration,object({connection_string}),no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no appInsightsConfiguration",gap
+azure,avm-res-app-managedenvironment,app_insights_configuration,object({connection_string}),yes,,
 azure,avm-res-app-managedenvironment,app_logs_configuration,"object({destination, log_analytics_configuration})",partial,"accepted with destination azure-monitor (or none), but destination log-analytics is refused: it needs the workspace's shared key, a secret value the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,availability_zones,list(string),no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no availabilityZones",gap
+azure,avm-res-app-managedenvironment,availability_zones,list(string),yes,,
 azure,avm-res-app-managedenvironment,certificate_password,string,no,"the custom domain certificate's password, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
 azure,avm-res-app-managedenvironment,certificate_password_version,number,no,"tracks certificate_password, a secret value the chart does not take",not-ported
 azure,avm-res-app-managedenvironment,certificate_value,string,no,"the custom domain certificate's blob, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
 azure,avm-res-app-managedenvironment,certificate_value_version,number,no,"tracks certificate_value, a secret value the chart does not take",not-ported
 azure,avm-res-app-managedenvironment,certificates,"map(object({certificate_key_vault_properties, location, name, password, password_version, tags, +2}))",partial,"accepted with a Key Vault certificate (certificate_key_vault_properties), but password and value are refused: secret values the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,connection_string,string,no,"the Application Insights connection string of appInsightsConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides",gap
-azure,avm-res-app-managedenvironment,connection_string_version,number,no,"tracks connection_string, whose appInsightsConfiguration ASO's ManagedEnvironment (2025-01-01) does not have",gap
+azure,avm-res-app-managedenvironment,connection_string,string,no,"the Application Insights connection string of app_insights_configuration, a secret value the chart does not take (aso-extensions' ManagedEnvironment takes it as a SecretReference)",not-ported
+azure,avm-res-app-managedenvironment,connection_string_version,number,no,"tracks connection_string, a secret value the chart does not take",not-ported
 azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_identity,string,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_url,string,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_password,string,no,"deprecated; the custom domain certificate's password, a secret value the chart does not take",not-ported
@@ -4842,7 +4842,7 @@ azure,avm-res-app-managedenvironment,dapr_components,"map(object({component_type
 azure,avm-res-app-managedenvironment,dapr_configuration,object({}),yes,,
 azure,avm-res-app-managedenvironment,dapr_subscriptions,"map(object({bulk_subscribe, dead_letter_topic, metadata, name, pubsub_name, routes, +2}))",yes,,
 azure,avm-res-app-managedenvironment,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, log_categories, log_groups, marketplace_partner_resource_id, +4}))",yes,,
-azure,avm-res-app-managedenvironment,disk_encryption_configuration,object({key_vault_configuration}),no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no diskEncryptionConfiguration",gap
+azure,avm-res-app-managedenvironment,disk_encryption_configuration,object({key_vault_configuration}),yes,,
 azure,avm-res-app-managedenvironment,dot_net_components,"map(object({component_type, configurations, name, service_binds}))",yes,,
 azure,avm-res-app-managedenvironment,enable_telemetry,bool,yes,,
 azure,avm-res-app-managedenvironment,http_route_configs,"map(object({custom_domains, name, rules}))",yes,,
@@ -4850,12 +4850,12 @@ azure,avm-res-app-managedenvironment,ignore_body_changes,"object({app_managed_en
 azure,avm-res-app-managedenvironment,infrastructure_resource_group,string,yes,,
 azure,avm-res-app-managedenvironment,infrastructure_resource_group_name,string,yes,,
 azure,avm-res-app-managedenvironment,infrastructure_subnet_id,string,yes,,
-azure,avm-res-app-managedenvironment,ingress_configuration,"object({header_count_limit, request_idle_timeout, termination_grace_period_seconds, workload_profile_name})",no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no ingressConfiguration",gap
+azure,avm-res-app-managedenvironment,ingress_configuration,"object({header_count_limit, request_idle_timeout, termination_grace_period_seconds, workload_profile_name})",yes,,
 azure,avm-res-app-managedenvironment,internal_load_balancer_enabled,bool,yes,,
 azure,avm-res-app-managedenvironment,java_components,"map(object({component_type, configurations, ingress, name, scale, service_binds}))",partial,"accepted for every component type (aso-extensions' ManagedEnvironmentsJavaComponent, ARM API version 2026-03-02-preview), but ingress is refused: the kind has no ingress in its spec (the module sends an empty object, whose one property, fqdn, is read-only)",gap
 azure,avm-res-app-managedenvironment,keda_configuration,object({}),yes,,
-azure,avm-res-app-managedenvironment,key,string,no,"the DataDog key of openTelemetryConfiguration, which ASO's ManagedEnvironment (2025-01-01) does not have; a secret value besides",gap
-azure,avm-res-app-managedenvironment,key_version,number,no,"tracks key, whose openTelemetryConfiguration ASO's ManagedEnvironment (2025-01-01) does not have",gap
+azure,avm-res-app-managedenvironment,key,string,no,"the Datadog API key of open_telemetry_configuration, a secret value the chart does not take (aso-extensions' ManagedEnvironment takes it as a SecretReference)",not-ported
+azure,avm-res-app-managedenvironment,key_version,number,no,"tracks key, a secret value the chart does not take",not-ported
 azure,avm-res-app-managedenvironment,kind,string,yes,,
 azure,avm-res-app-managedenvironment,location,string,yes,,
 azure,avm-res-app-managedenvironment,lock,"object({kind, name, notes})",yes,,
@@ -4867,16 +4867,16 @@ azure,avm-res-app-managedenvironment,maintenance_configurations,"map(object({nam
 azure,avm-res-app-managedenvironment,managed_certificates,"map(object({domain_control_validation, location, name, subject_name, tags}))",yes,,
 azure,avm-res-app-managedenvironment,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
 azure,avm-res-app-managedenvironment,name,string,yes,,
-azure,avm-res-app-managedenvironment,open_telemetry_configuration,"object({destinations_configuration, logs_configuration, metrics_configuration, traces_configuration})",no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no openTelemetryConfiguration",gap
+azure,avm-res-app-managedenvironment,open_telemetry_configuration,"object({destinations_configuration, logs_configuration, metrics_configuration, traces_configuration})",yes,,
 azure,avm-res-app-managedenvironment,parent_id,string,yes,,
 azure,avm-res-app-managedenvironment,peer_authentication,object({mtls}),yes,,
 azure,avm-res-app-managedenvironment,peer_authentication_enabled,bool,yes,,
 azure,avm-res-app-managedenvironment,peer_traffic_configuration,object({encryption}),yes,,
 azure,avm-res-app-managedenvironment,peer_traffic_encryption_enabled,bool,yes,,
-azure,avm-res-app-managedenvironment,public_network_access,any,no,"ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no publicNetworkAccess",gap
-azure,avm-res-app-managedenvironment,public_network_access_enabled,bool,no,deprecated form of public_network_access: ASO's ManagedEnvironment (2025-01-01) has no publicNetworkAccess,gap
+azure,avm-res-app-managedenvironment,public_network_access,any,yes,,
+azure,avm-res-app-managedenvironment,public_network_access_enabled,bool,yes,,
 azure,avm-res-app-managedenvironment,resource_group_name,string,yes,,
-azure,avm-res-app-managedenvironment,resource_types,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,"ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)",by-design
+azure,avm-res-app-managedenvironment,resource_types,"object({app_managed_environments, app_managed_environments_certificates, app_managed_environments_dapr_components, app_managed_environments_dapr_subscriptions, app_managed_environments_dot_net_components, app_managed_environments_http_route_configs, +7})",no,"ASO's and aso-extensions' kinds fix the API versions (aso-extensions' ManagedEnvironment 2025-10-02-preview; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01; RoleAssignment 2022-04-01, DiagnosticSetting 2021-05-01-preview)",by-design
 azure,avm-res-app-managedenvironment,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-app-managedenvironment,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, name, principal_id, +3}))",yes,,
 azure,avm-res-app-managedenvironment,shared_key,string,no,"the Log Analytics workspace's shared key, a secret value the chart does not take",not-ported
@@ -4900,7 +4900,7 @@ azure,avm-res-network-applicationgateway,diagnostic_settings,"map(object({event_
 azure,avm-res-network-applicationgateway,enable_fips,bool,yes,,
 azure,avm-res-network-applicationgateway,enable_http2,bool,yes,,
 azure,avm-res-network-applicationgateway,enable_telemetry,bool,yes,,
-azure,avm-res-network-applicationgateway,entra_jwt_validation_configs,"list(object({audiences, client_id, name, properties, tenant_id, un_authorized_request_action}))",no,"ASO's ApplicationGateway is at ARM 2022-07-01, which has no entraJWTValidationConfigs (a later API version's)",gap
+azure,avm-res-network-applicationgateway,entra_jwt_validation_configs,"list(object({audiences, client_id, name, properties, tenant_id, un_authorized_request_action}))",yes,,
 azure,avm-res-network-applicationgateway,firewall_policy,object({id}),yes,,
 azure,avm-res-network-applicationgateway,force_firewall_policy_association,bool,yes,,
 azure,avm-res-network-applicationgateway,frontend_ip_configurations,"list(object({name, private_ip_address, private_ip_allocation_method, private_link_configuration, properties, public_ip_address, +2}))",yes,,
@@ -4922,8 +4922,8 @@ azure,avm-res-network-applicationgateway,private_link_configurations,"list(objec
 azure,avm-res-network-applicationgateway,probes,"list(object({enable_probe_proxy_protocol_header, host, id, interval, match, min_servers, +9}))",partial,"accepted, except enable_probe_proxy_protocol_header, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks",gap
 azure,avm-res-network-applicationgateway,public_ip_addresses,"map(object({ddos_protection_mode, ddos_protection_plan_resource_id, domain_name_label, idle_timeout_in_minutes, ip_tags, ip_version, +6}))",yes,,
 azure,avm-res-network-applicationgateway,redirect_configurations,"list(object({include_path, include_query_string, name, path_rules, properties, redirect_type, +4}))",yes,,
-azure,avm-res-network-applicationgateway,request_routing_rules,"list(object({backend_address_pool, backend_http_settings, entra_jwt_validation_config, http_listener, load_distribution_policy, name, +6}))",partial,"accepted, except entra_jwt_validation_config, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks",gap
-azure,avm-res-network-applicationgateway,resource_types,"object({network_application_gateways, network_public_ip_addresses})",no,"the API versions are the ASO kinds': ApplicationGateway 2022-07-01, PublicIPAddress 2025-03-01",by-design
+azure,avm-res-network-applicationgateway,request_routing_rules,"list(object({backend_address_pool, backend_http_settings, entra_jwt_validation_config, http_listener, load_distribution_policy, name, +6}))",yes,,
+azure,avm-res-network-applicationgateway,resource_types,"object({network_application_gateways, network_public_ip_addresses})",no,"the API versions are the kinds': aso-extensions' ApplicationGateway 2026-03-01, ASO's PublicIPAddress 2025-03-01",by-design
 azure,avm-res-network-applicationgateway,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-network-applicationgateway,rewrite_rule_sets,"list(object({id, name, properties, rewrite_rules}))",partial,"accepted, except a header configuration's header_value_matcher, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks",gap
 azure,avm-res-network-applicationgateway,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,

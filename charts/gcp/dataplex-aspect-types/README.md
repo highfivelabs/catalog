@@ -117,9 +117,11 @@ became Ready, the outputs evaluated (`ids`, `names`, `timestamps`, `uids`
 all set) and both were deleted. The `IAMMember`s (`v1alpha1`) are only
 render-tested: alpha features are not in fake-cloud cases.
 
-Not applied live: the Dataplex API is enabled in the live-test project,
-but neither live-test service account has a Dataplex role, and this work
-changes no IAM.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=dataplex-aspect-types`, `tests/live.yaml`;
+2026-11-13, run `cat-11132355-c86b`, offload VM
+`off-catalog-1113235106-15596`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): one aspect type
+and a role on it. Passed: both Ready, deleted and gone from Google
+Cloud.
 
 ## Changes
 

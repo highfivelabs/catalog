@@ -1,0 +1,5 @@
+# What the live case makes (hack/live-apply.sh, "A case can also live beside its chart"):
+# the engine's ID is the server's, so it is found by its display name
+# (\$ is a shell's own $, not expanded with the case's variables).
+sh curl -sf -H "Authorization: Bearer \$(gcloud auth print-access-token)" "https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/reasoningEngines?filter=display_name=%22${RUN}-agent%22" | jq -e '.reasoningEngines | length > 0'
+sweep-sh t="\$(gcloud auth print-access-token)"; curl -sf -H "Authorization: Bearer \$t" "https://${REGION}-aiplatform.googleapis.com/v1/projects/${PROJECT}/locations/${REGION}/reasoningEngines?filter=display_name=%22${RUN}-agent%22" | jq -r '.reasoningEngines[]?.name' | while read -r n; do curl -sf -X DELETE -H "Authorization: Bearer \$t" "https://${REGION}-aiplatform.googleapis.com/v1/\$n?force=true" >/dev/null && echo "swept \$n"; done

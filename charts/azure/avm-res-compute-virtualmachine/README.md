@@ -39,7 +39,7 @@ renders the `VirtualMachine` `vm-example` and the `NetworkInterface`
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azurerm_linux_virtual_machine.this` | `os_type` Linux | `VirtualMachine` (`compute.azure.com/v20220301`), `virtual_machine`, owned by the resource group |
+| `azurerm_linux_virtual_machine.this` | `os_type` Linux | aso-extensions' `VirtualMachine` (`compute.azure.hfl.dev/v20250401`), `virtual_machine`, owned by the resource group |
 | `azurerm_windows_virtual_machine.this` | `os_type` Windows with `os_disk_attach_mode` | the same, with no OS profile |
 | `azurerm_network_interface` and its `*_association` resources | one per `network_interfaces` entry | `NetworkInterface` (`network.azure.com/v20250301`), `network_interface:<key>`; the associations are its fields (`networkSecurityGroup`, and per IP configuration `applicationSecurityGroups`, `loadBalancerBackendAddressPools`, `loadBalancerInboundNatRules`, `applicationGatewayBackendAddressPools`) |
 | `azurerm_public_ip` | an IP configuration's `create_public_ip_address` | `PublicIPAddress` (`network.azure.com/v20250301`), `public_ip:<nic key>-<ip configuration key>` |
@@ -56,7 +56,32 @@ renders the `VirtualMachine` `vm-example` and the `NetworkInterface`
 | `random_password`, `tls_private_key`, `azurerm_key_vault_secret`, `azurerm_backup_protected_vm`, telemetry | never | refused or not ported (below) |
 
 ASO's `VirtualMachine` is at ARM API version 2022-03-01, older than
-azurerm's; the fields added since are the gaps below.
+azurerm's. The chart renders aso-extensions' `VirtualMachine`
+(`compute.azure.hfl.dev/v20250401`, beside ASO's under its name;
+aso-extensions `docs/plan.md` §8 open question 11) always, which carries
+`disk_controller_type` (`storageProfile.diskControllerType`) and
+`bypass_platform_safety_checks_on_user_schedule_enabled: true`
+(`patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule`,
+with `patch_mode: AutomaticByPlatform`, as azurerm requires). The machine names its interfaces and
+managed data disks by ARM ID, and the extensions, run commands, shutdown
+schedules, maintenance assignments, lock, role assignments and diagnostic
+settings own or target it by ARM ID (aso-extensions' kinds resolve ASO's
+by ARM ID; ASO's children name ASO's `VirtualMachine`). The other fields
+added since 2022-03-01 are the gaps below.
+
+## Moving from an earlier version
+
+From this version the chart always renders aso-extensions' `VirtualMachine`
+(`compute.azure.hfl.dev/v20250401`), never ASO's (`compute.azure.com/v20220301`), so setting or clearing a newer field
+never swaps the object's kind. That needs aso-extensions' manager and CRDs
+installed beside Azure Service Operator (`docs/azure.md`, "8. Charts";
+aso-extensions pin `ASOX_COMMIT`). For a deployment made by an earlier
+version, which rendered ASO's kind, the upgrade replaces the Kubernetes
+object with one of the other kind under the same name in Azure. Do it
+once, with `deletion_policy: ABANDON`: apply the new version with
+`ABANDON` (the old object is detached, and the new one adopts the machine),
+check it is Ready, then remove `ABANDON`. Without it, the old object's
+delete deletes the machine in Azure.
 
 ## Values: module inputs to ASO
 
@@ -96,10 +121,10 @@ with an attached OS disk and the Windows-only variables
 (`additional_unattend_contents`, `enable_automatic_updates`,
 `hotpatching_enabled`, `timezone`, `winrm_listeners`; null or empty here
 means not set) are refused. Gaps: `azure_backup_configurations` (no kind
-for a Recovery Services protected item), `disk_controller_type` and
-`bypass_platform_safety_checks_on_user_schedule_enabled` (newer than ASO's
-ARM API version), an extension's `provision_after_extensions` and a run
-command's managed identities (likewise). `timeouts` by design. The
+for a Recovery Services protected item), an extension's
+`provision_after_extensions` and a run command's managed identities
+(newer than ASO's `VirtualMachinesExtension` and aso-extensions'
+`VirtualMachinesRunCommand` API version, 2022-03-01). `timeouts` by design. The
 module's `deploy_sequence` is accepted and has no effect: ASO reconciles
 every child once the machine is Ready.
 
@@ -117,6 +142,18 @@ object).
 ## Tests
 
 Render: `tests/*.values.yaml` against `tests/golden`, `kubeconform
--strict`, and the refusals in `tests/*.fail.yaml`. Fake cloud:
-`tests/mock.values.yaml` (`hack/azure-mock.sh`). Live: the `vm` case of
+-strict`, and the refusals in `tests/*.fail.yaml`; `newer` renders
+aso-extensions' kind. Fake cloud: `tests/mock.values.yaml` and
+`tests/mock-newer.values.yaml` (`hack/azure-mock.sh`). Live: the `vm` case of
 `hack/azure-live.sh` (`docs/azure.md`, "8. Charts").
+
+## Changes
+
+- **0.3.0** (2026-11-14): always aso-extensions' `VirtualMachine` (the
+  builder's choice), its interfaces and disks always by ARM ID. Moving from
+  an earlier version: above.
+- **0.2.0** (2026-11-13): `disk_controller_type` and
+  `bypass_platform_safety_checks_on_user_schedule_enabled` are mapped: they
+  render aso-extensions' `VirtualMachine` (`compute.azure.hfl.dev/v20250401`,
+  aso-extensions `8d7f8c2`) in place of ASO's.
+- **0.1.0** (2026-11-13): the port.

@@ -34,11 +34,25 @@ from outside it on port 80 (`tests/golden/basic.yaml`).
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azapi_resource.container_app`, `azapi_resource_action.post_creation_update` | always | `ContainerApp` (`app.azure.com/v20250101`), `container_app`, owned by the resource group. The module PATCHes the template after creation to avoid a PUT's checks; ASO sends the whole body on every change, template included |
-| `azapi_resource.auth_config` | one per `auth_configs` entry | `AuthConfig` (`app.azure.com/v20250101`), `auth_config:<key>`, owned by the container app |
+| `azapi_resource.container_app`, `azapi_resource_action.post_creation_update` | always | aso-extensions' `ContainerApp` (`app.azure.hfl.dev/v20260701`, beside ASO's 2025-01-01 kind under its name; aso-extensions `docs/plan.md` §8 open question 11), `container_app`, owned by the resource group. The module PATCHes the template after creation to avoid a PUT's checks; ASO sends the whole body on every change, template included |
+| `azapi_resource.auth_config` | one per `auth_configs` entry | `AuthConfig` (`app.azure.com/v20250101`), `auth_config:<key>`, owned by the container app by its ARM ID (ASO's kind names ASO's `ContainerApp` as owner) |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock` |
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `data.azapi_resource.rg`, `data.azapi_resource.existing`, `terraform_data.update_keeper`, telemetry | never | not ported: the render reads nothing from Azure |
+
+## Moving from an earlier version
+
+From this version the chart always renders aso-extensions' `ContainerApp`
+(`app.azure.hfl.dev/v20260701`), never ASO's (`app.azure.com/v20250101`), so setting or clearing a newer field
+never swaps the object's kind. That needs aso-extensions' manager and CRDs
+installed beside Azure Service Operator (`docs/azure.md`, "8. Charts";
+aso-extensions pin `ASOX_COMMIT`). For a deployment made by an earlier
+version, which rendered ASO's kind, the upgrade replaces the Kubernetes
+object with one of the other kind under the same name in Azure. Do it
+once, with `deletion_policy: ABANDON`: apply the new version with
+`ABANDON` (the old object is detached, and the new one adopts the app),
+check it is Ready, then remove `ABANDON`. Without it, the old object's
+delete deletes the app in Azure.
 
 ## Values: module inputs to ASO
 
@@ -52,6 +66,7 @@ optional object attributes and its validations.
 | `resource_group_name` (required), `resource_group_id` | `owner.armId`: `resource_group_id` when set (checked to name the same group, as the module checks it), else `/subscriptions/<subscription_id>/resourceGroups/<resource_group_name>`, or `resource_group_name` itself when it is a group's ID |
 | `location` | `location`; required here (below) |
 | `container_app_environment_resource_id` (required) | `environmentReference` and `managedEnvironmentReference`, as the module sends both |
+| `kind` | `kind`: `functionapp` or `workflowapp`, lower-cased (the module passes any string; ARM's enum is lower case) |
 | `workload_profile_name` | `workloadProfileName` |
 | `revision_mode`, `max_inactive_revisions` | `configuration.activeRevisionsMode`, `maxInactiveRevisions` |
 | `managed_identities` | `identity` (`SystemAssigned`, `UserAssigned` or both) |
@@ -87,7 +102,6 @@ let Azure name revisions.
 
 | Variable | Kind | Why |
 | --- | --- | --- |
-| `kind` | gap | ASO's `ContainerApp` is at ARM API version 2025-01-01, which has no `kind` (the module sends it with 2025-02-02-preview) |
 | `timeouts` | by-design | ASO has no per-request timeouts; Bundt sets a component's time limit |
 | `location` null | by-design | the module reads the resource group's location then, which a render cannot; give `location` |
 | `identity_settings[].lifecycle` `Retain` | gap | ASO's `ContainerApp` (2025-01-01) takes `All`, `Init`, `Main` and `None` |
@@ -125,7 +139,7 @@ repository, release, commit, licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-app-containerapp`: render cases `basic`, `full`,
-`names` and `mock`, each validated against ASO v2.22.0's CRD schemas and
+`names`, `kind` (aso-extensions' kind), `mock` and `mock-kind`, each validated against ASO v2.22.0's CRD schemas and
 aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` (case `ca`) applies a container
 app from Microsoft's public hello-world image, scaled to zero, with
@@ -141,4 +155,11 @@ both objects Ready and deleted, outputs evaluated.
 
 ## Changes
 
+- **0.3.0** (2026-11-14): always aso-extensions' `ContainerApp`, its auth
+  configurations, lock and role assignments always owning it by ARM ID (the
+  builder's choice). Moving from an earlier version: above.
+- **0.2.0** (2026-11-13): `kind` is mapped: set, it renders aso-extensions'
+  `ContainerApp` (`app.azure.hfl.dev/v20260701`, aso-extensions `8d7f8c2`)
+  in place of ASO's, its auth configurations, lock and role assignments
+  owned by its ARM ID.
 - **0.1.0** (2026-11-13): the port.

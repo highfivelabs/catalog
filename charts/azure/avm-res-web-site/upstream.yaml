@@ -80,33 +80,21 @@ refused:
   - variable: storage_account_share_name
     kind: not-ported
     reason: "only a Logic App reads it (WEBSITE_CONTENTSHARE beside a connection string with the account key), and kind logicapp is refused"
-  # Kinds Azure Service Operator and aso-extensions (3d9ba27) do not have.
+  # Kinds Azure Service Operator and aso-extensions (8d7f8c2) do not have.
   - variable: auth_settings
     kind: gap
-    reason: "Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind"
-  - variable: auth_settings_v2
-    kind: gap
-    reason: "Microsoft.Web/sites/config (authsettingsV2) has no Azure Service Operator or aso-extensions kind"
+    reason: "Microsoft.Web/sites/config (authsettings) has no Azure Service Operator or aso-extensions kind (it has a PUT and no GET; aso-extensions plan.md §8 Q13); the module writes it only without auth_settings_v2, which is mapped"
   - variable: backup
     kind: gap
     reason: "Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (its storage_account_url is a SAS URL, a secret, as well)"
   - variable: logs
-    kind: gap
-    reason: "Microsoft.Web/sites/config (logs) has no Azure Service Operator or aso-extensions kind"
-  - variable: sticky_settings
-    kind: gap
-    reason: "Microsoft.Web/sites/config (slotConfigNames) has no Azure Service Operator or aso-extensions kind"
+    kind: not-ported
+    reason: "accepted as aso-extensions SitesConfigLogs (one entry: every entry writes the site's one logs section), but an application or HTTP log's azure_blob_storage is refused: its sas_url is a secret value"
+    partial: true
+    fields: [application_logs.azure_blob_storage, http_logs.azure_blob_storage]
   - variable: app_service_active_slot
     kind: gap
     reason: "a slot swap is an action (POST Microsoft.Web/sites/slotsswap), which no Azure Service Operator or aso-extensions kind performs"
-  - variable: ftp_publish_basic_authentication_enabled
-    kind: gap
-    reason: "accepted as true only; false, the module's default, writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (ftp) with allow false, which has no Azure Service Operator or aso-extensions kind"
-    partial: true
-  - variable: scm_publish_basic_authentication_enabled
-    kind: gap
-    reason: "accepted as true (the default) only; false writes Microsoft.Web/sites/basicPublishingCredentialsPolicies (scm), which has no Azure Service Operator or aso-extensions kind"
-    partial: true
   - variable: delete_empty_service_plan
     kind: gap
     reason: "accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter"
@@ -119,7 +107,7 @@ refused:
     fields: [application_insights_connection_string, application_insights_key]
   - variable: deployment_slots
     kind: not-ported
-    reason: "accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a basicPublishingCredentialsPolicies object, which has no kind), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused"
+    reason: "accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused"
     partial: true
     fields: [ftp_publish_basic_authentication_enabled, webdeploy_publish_basic_authentication_enabled, connection_strings, storage_shares_to_mount, zip_deploy_file, site_config.application_insights_connection_string, site_config.application_insights_key, custom_domains.certificate_key]
   - variable: certificates

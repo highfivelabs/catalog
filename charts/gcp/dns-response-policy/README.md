@@ -114,10 +114,12 @@ all three objects became Ready, the outputs evaluated (`id`
 that a bound network exists, nor what the real API refuses in a rule
 (both or neither of `behavior` and `localData`; `SOA` and `NS` records).
 
-Not applied live: the live harness (`hack/live-apply.sh`) runs only Config
-Connector's controllers, not config-connector-extensions', which serve
-both kinds; and neither live-test service account has a Cloud DNS role
-(`roles/dns.admin`), which this work does not grant.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=dns-response-policy`, `tests/live.yaml`;
+2026-11-13, run `cat-11132355-cc50`, offload VM
+`off-catalog-1113235106-1058`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): a policy bound
+to a network of the run, a local data rule and a bypass rule. Passed: the
+policy and both rules Ready, deleted and gone from Google Cloud, with the
+network.
 
 ## Changes
 

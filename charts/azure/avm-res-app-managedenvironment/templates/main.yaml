@@ -5,8 +5,9 @@ Ported from terraform-azurerm-avm-res-app-managedenvironment main.tf,
 main.<child>.tf, locals.tf and modules/<child> (v0.6.0), Copyright (c)
 Microsoft Corporation, MIT.
 
-azapi_resource.this: one ASO ManagedEnvironment (app.azure.com/v20250101),
-owned by the resource group parent_id or resource_group_name names, its
+azapi_resource.this: one aso-extensions ManagedEnvironment
+(app.azure.hfl.dev/v20251002preview, beside ASO's 2025-01-01 kind under its
+name), the children owned by its ARM ID, owned by the resource group parent_id or resource_group_name names, its
 body as the module builds it (local.resource_body), with the deprecated
 inputs folded in as the module's effective_* locals fold them.
 The child modules: aso-extensions kinds (app.azure.hfl.dev), each owned by
@@ -69,29 +70,33 @@ wellKnownName: {{ . | quote }}
 {{- else if include "cae.set" $x }}{{ $ibc = true }}{{ end }}
 {{- end }}
 {{- include "aso.unsupported" (list $ "ignore_body_changes" $ibc "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)") }}
-{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01)") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (aso-extensions' ManagedEnvironment 2025-10-02-preview; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01)") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
-{{- /* What ASO's ManagedEnvironment (2025-01-01) has no field for, and the
-child types with no kind. */ -}}
-{{- $newer := "ASO's ManagedEnvironment is at ARM API version 2025-01-01, which has no %s (the module sends 2025-10-02-preview)" }}
-{{- include "aso.unsupported" (list $ "app_insights_configuration" (include "cae.set" $v.app_insights_configuration) (printf $newer "appInsightsConfiguration")) }}
-{{- include "aso.unsupported" (list $ "availability_zones" (include "cae.set" $v.availability_zones) (printf $newer "availabilityZones")) }}
-{{- include "aso.unsupported" (list $ "disk_encryption_configuration" (include "cae.set" $v.disk_encryption_configuration) (printf $newer "diskEncryptionConfiguration")) }}
-{{- include "aso.unsupported" (list $ "ingress_configuration" (include "cae.set" $v.ingress_configuration) (printf $newer "ingressConfiguration")) }}
-{{- include "aso.unsupported" (list $ "open_telemetry_configuration" (include "cae.set" $v.open_telemetry_configuration) (printf $newer "openTelemetryConfiguration")) }}
-{{- include "aso.unsupported" (list $ "public_network_access" (include "cae.set" $v.public_network_access) (printf $newer "publicNetworkAccess")) }}
-{{- include "aso.unsupported" (list $ "public_network_access_enabled" (include "cae.set" $v.public_network_access_enabled) (printf $newer "publicNetworkAccess")) }}
-{{- include "aso.unsupported" (list $ "connection_string" (include "cae.set" $v.connection_string) (printf $newer "appInsightsConfiguration")) }}
-{{- include "aso.unsupported" (list $ "connection_string_version" (include "cae.set" $v.connection_string_version) (printf $newer "appInsightsConfiguration")) }}
-{{- include "aso.unsupported" (list $ "key" (include "cae.set" $v.key) (printf $newer "openTelemetryConfiguration")) }}
-{{- include "aso.unsupported" (list $ "key_version" (include "cae.set" $v.key_version) (printf $newer "openTelemetryConfiguration")) }}
+{{- /* The fields after ASO's ManagedEnvironment API version 2025-01-01:
+the chart always renders aso-extensions' ManagedEnvironment
+(app.azure.hfl.dev/v20251002preview, beside ASO's under its name; the
+module sends 2025-10-02-preview) in place of ASO's, and owns the children
+by ARM ID (they name ASO's kind as their owner). The secret values these
+carry (connection_string, key) are refused below. */ -}}
+{{- $pna := $v.public_network_access }}
+{{- if and (kindIs "invalid" $pna) (not (kindIs "invalid" $v.public_network_access_enabled)) }}
+{{- $pna = ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
+{{- end }}
+{{- if and (not (kindIs "invalid" $pna)) (not (has $pna (list "Enabled" "Disabled"))) }}
+{{- fail "avm-res-app-managedenvironment: public_network_access must be \"Enabled\" or \"Disabled\"" }}
+{{- end }}
+{{- with $v.disk_encryption_configuration }}{{ with .key_vault_configuration }}{{ with .auth }}{{ with .identity }}
+{{- if not (hasPrefix "/" .) }}
+{{- fail "avm-res-app-managedenvironment: disk_encryption_configuration.key_vault_configuration.auth.identity must be a user-assigned identity's resource ID: ARM 2025-10-02-preview takes no system-assigned identity there" }}
+{{- end }}
+{{- end }}{{ end }}{{ end }}{{ end }}
 {{- /* Secret values: the builder's decision (docs/azure.md, "Charts"). */ -}}
 {{- $secret := "%s is a secret value, which would sit in the component's inputs; how a component supplies one (a Kubernetes Secret for ASO's SecretReference) is not settled" }}
-{{- range $n := list "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
+{{- range $n := list "connection_string" "key" "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
 {{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf $secret $n)) }}
 {{- end }}
-{{- range $n := list "certificate_password_version" "certificate_value_version" "dapr_ai_connection_string_version" "dapr_ai_instrumentation_key_version" "shared_key_version" }}
+{{- range $n := list "connection_string_version" "key_version" "certificate_password_version" "certificate_value_version" "dapr_ai_connection_string_version" "dapr_ai_instrumentation_key_version" "shared_key_version" }}
 {{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf "it tracks %s, a secret value the chart does not take" (trimSuffix "_version" $n))) }}
 {{- end }}
 {{- include "aso.unsupported" (list $ "log_analytics_workspace" (include "cae.set" $v.log_analytics_workspace) "the module reads the workspace's primary shared key and sends it, a secret value the chart does not take; send logs to Azure Monitor (app_logs_configuration.destination azure-monitor and diagnostic_settings) instead") }}
@@ -169,8 +174,12 @@ one, then the Consumption profile Azure makes itself. */ -}}
 {{- $uai := $mi.user_assigned_resource_ids | default list }}
 {{- $idType := "" }}
 {{- if and $mi.system_assigned $uai }}{{ $idType = "SystemAssigned,UserAssigned" }}{{ else if $mi.system_assigned }}{{ $idType = "SystemAssigned" }}{{ else if $uai }}{{ $idType = "UserAssigned" }}{{ end }}
+{{- if and (not (kindIs "invalid" $vnet)) (eq (toString $vnet.internal) "true") (eq (toString $pna) "Enabled") }}
+{{- fail "avm-res-app-managedenvironment: public_network_access cannot be \"Enabled\" when vnet_configuration.internal is true. Set public_network_access to \"Disabled\" or disable the internal load balancer." }}
+{{- end }}
+{{- $envID := printf "%s/providers/Microsoft.App/managedEnvironments/%s" $parent $envName }}
 ---
-apiVersion: app.azure.com/v20250101
+apiVersion: app.azure.hfl.dev/v20251002preview
 kind: ManagedEnvironment
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "managed_environment" "abandon" $abandon) | nindent 2 }}
@@ -274,8 +283,97 @@ spec:
   {{- if not (kindIs "invalid" $zr) }}
   zoneRedundant: {{ $zr }}
   {{- end }}
+  {{- if not (kindIs "invalid" $v.app_insights_configuration) }}
+  appInsightsConfiguration: {}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.availability_zones) }}
+  availabilityZones: {{ toJson $v.availability_zones }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.disk_encryption_configuration) }}
+  {{- $d := dict }}
+  {{- with $v.disk_encryption_configuration.key_vault_configuration }}
+  {{- $kv := dict }}
+  {{- if not (kindIs "invalid" .auth) }}
+  {{- $a := dict }}
+  {{- with .auth.identity }}{{ $_ := set $a "identityReference" (dict "armId" .) }}{{ end }}
+  {{- $_ := set $kv "auth" $a }}
+  {{- end }}
+  {{- with .key_url }}{{ $_ := set $kv "keyUrl" . }}{{ end }}
+  {{- $_ := set $d "keyVaultConfiguration" $kv }}
+  {{- end }}
+  diskEncryptionConfiguration: {{ toJson $d }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.ingress_configuration) }}
+  {{- $i := dict }}
+  {{- with $v.ingress_configuration }}
+  {{- if not (kindIs "invalid" .header_count_limit) }}{{ $_ := set $i "headerCountLimit" (.header_count_limit | int) }}{{ end }}
+  {{- if not (kindIs "invalid" .request_idle_timeout) }}{{ $_ := set $i "requestIdleTimeout" (.request_idle_timeout | int) }}{{ end }}
+  {{- if not (kindIs "invalid" .termination_grace_period_seconds) }}{{ $_ := set $i "terminationGracePeriodSeconds" (.termination_grace_period_seconds | int) }}{{ end }}
+  {{- with .workload_profile_name }}{{ $_ := set $i "workloadProfileName" . }}{{ end }}
+  {{- end }}
+  ingressConfiguration: {{ toJson $i }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.open_telemetry_configuration) }}
+  {{- $o := dict }}
+  {{- $ot := $v.open_telemetry_configuration }}
+  {{- if not (kindIs "invalid" $ot.destinations_configuration) }}
+  {{- $dc := dict }}
+  {{- if not (kindIs "invalid" $ot.destinations_configuration.data_dog_configuration) }}
+  {{- $dd := dict }}
+  {{- with $ot.destinations_configuration.data_dog_configuration.site }}{{ $_ := set $dd "site" . }}{{ end }}
+  {{- $_ := set $dc "dataDogConfiguration" $dd }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ot.destinations_configuration.otlp_configurations) }}
+  {{- $ol := list }}
+  {{- range $ot.destinations_configuration.otlp_configurations }}
+  {{- $c := dict }}
+  {{- with .endpoint }}{{ $_ := set $c "endpoint" . }}{{ end }}
+  {{- if not (kindIs "invalid" .headers) }}
+  {{- $hl := list }}
+  {{- range .headers }}
+  {{- $h := dict }}
+  {{- with .key }}{{ $_ := set $h "key" . }}{{ end }}
+  {{- with .value }}{{ $_ := set $h "value" . }}{{ end }}
+  {{- $hl = append $hl $h }}
+  {{- end }}
+  {{- $_ := set $c "headers" $hl }}
+  {{- end }}
+  {{- if not (kindIs "invalid" .insecure) }}{{ $_ := set $c "insecure" .insecure }}{{ end }}
+  {{- with .name }}{{ $_ := set $c "name" . }}{{ end }}
+  {{- $ol = append $ol $c }}
+  {{- end }}
+  {{- $_ := set $dc "otlpConfigurations" $ol }}
+  {{- end }}
+  {{- $_ := set $o "destinationsConfiguration" $dc }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ot.logs_configuration) }}
+  {{- $l := dict }}
+  {{- if not (kindIs "invalid" $ot.logs_configuration.destinations) }}{{ $_ := set $l "destinations" $ot.logs_configuration.destinations }}{{ end }}
+  {{- $_ := set $o "logsConfiguration" $l }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ot.metrics_configuration) }}
+  {{- $m := dict }}
+  {{- if not (kindIs "invalid" $ot.metrics_configuration.destinations) }}{{ $_ := set $m "destinations" $ot.metrics_configuration.destinations }}{{ end }}
+  {{- if not (kindIs "invalid" $ot.metrics_configuration.include_keda) }}{{ $_ := set $m "includeKeda" $ot.metrics_configuration.include_keda }}{{ end }}
+  {{- $_ := set $o "metricsConfiguration" $m }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $ot.traces_configuration) }}
+  {{- $t := dict }}
+  {{- if not (kindIs "invalid" $ot.traces_configuration.destinations) }}{{ $_ := set $t "destinations" $ot.traces_configuration.destinations }}{{ end }}
+  {{- if not (kindIs "invalid" $ot.traces_configuration.include_dapr) }}{{ $_ := set $t "includeDapr" $ot.traces_configuration.include_dapr }}{{ end }}
+  {{- $_ := set $o "tracesConfiguration" $t }}
+  {{- end }}
+  openTelemetryConfiguration:
+    {{- if $o }}
+    {{- toYaml $o | nindent 4 }}
+    {{- else }} {}
+    {{- end }}
+  {{- end }}
+  {{- with $pna }}
+  publicNetworkAccess: {{ . | quote }}
+  {{- end }}
 {{- /* The child modules, each owned by the environment. */ -}}
-{{- $envOwner := dict "name" $obj }}
+{{- $envOwner := dict "armId" $envID }}
 {{- range $k, $c := ($v.certificates | default dict) }}
 {{- if not $c.name }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a name" $k) }}{{ end }}
 {{- if not $c.location }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a location" $k) }}{{ end }}
@@ -653,7 +751,7 @@ spec:
       weekDay: {{ .week_day | quote }}
     {{- end }}
 {{- end }}
-{{- $owner := dict "group" "app.azure.com" "kind" "ManagedEnvironment" "name" $obj }}
+{{- $owner := dict "armId" $envID }}
 {{- with $v.lock }}
 {{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
 {{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" .kind)) "notes" (.notes | default $notes))) }}

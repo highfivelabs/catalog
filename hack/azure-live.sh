@@ -36,7 +36,7 @@
 # sandbox with tiny resources, check their outputs, delete them, and check
 # Azure no longer has them (docs/azure.md, "8. Charts", Testing).
 # AZURE_LIVE_CASES (space-separated: vnet storage kv nsg rt natgw pip dns
-# uai law acr fwp lb bas appi psql pe appgw cog vm asp afw cosmos redis pldns dnspr ca alz cae sql web)
+# uai uaix law acr fwp lb bas appi appix psql pe appgw appgwx cog vm asp afw cosmos redis pldns dnspr ca cax alz cae caex sql web)
 # applies only those; the default is all but cog, vm, asp, web, redis and
 # cosmos (asp and web: the sandbox has no App Service quota; cog, redis and
 # cosmos: their providers are not registered, docs/azure.md). A case may first apply what
@@ -100,7 +100,7 @@ TIMEOUT="${LIVE_TIMEOUT:-900}"
 # redis is not in the default for the same reason: Microsoft.Cache is not
 # registered (run cat11130800eaa5, 2026-11-13: 403 AuthorizationFailed on
 # Microsoft.Cache/register/action).
-CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai law acr fwp lb bas appi psql pe appgw afw cae pldns dnspr ca alz sql}"
+CASES="${AZURE_LIVE_CASES:-vnet storage kv nsg rt natgw pip dns uai uaix law acr fwp lb bas appi appix psql pe appgw afw cae pldns dnspr ca alz sql}"
 OUT="${ROOT}/offload-artifacts/azure-live"
 WORK="$(mktemp -d)"
 CLUSTER=catalog-azure-live
@@ -915,8 +915,8 @@ EOF
 
 
 
-declare -A PRE=([appgw]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork [web]=avm-res-web-serverfarm)
-declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400 [redis]=2700 [dnspr]=1800 [ca]=2400 [cae]=2400)
+declare -A PRE=([appgw]=avm-res-network-virtualnetwork [appgwx]=avm-res-network-virtualnetwork [dnspr]=avm-res-network-virtualnetwork [web]=avm-res-web-serverfarm)
+declare -A CASE_TIMEOUT=([appgw]=2400 [afw]=2400 [cosmos]=2400 [redis]=2700 [dnspr]=1800 [ca]=2400 [cae]=2400 [appgwx]=2400 [cax]=2400 [caex]=2400)
 # object_list FILE: kind.version.group/name of each object in a render.
 object_list() {
   kubectl get -n "${NS}" -f "$1" -o json \
@@ -1018,6 +1018,71 @@ worker_count: 1
 zone_balancing_enabled: false
 tags: {catalog-run: ${RUN}}
 EOF
+# The aso-extensions shapes of charts that render aso-extensions' kind in
+# place of ASO's when a newer field is set (docs/azure.md, "8. Charts"):
+# each a case of its own, named <case>x, its output under <chart>/<case>.
+# uaix: the identity with isolation_scope Regional (aso-extensions'
+# UserAssignedIdentity), its federated credential by ARM ID. appix: the
+# component with the profiler's linked storage account (aso-extensions'
+# ComponentsLinkedStorageAccount) to a storage account the case makes with
+# the storage chart. caex: an environment with public_network_access
+# (aso-extensions' ManagedEnvironment) in AZURE_LIVE_CAE_LOCATION. cax: a
+# function app kind of container app (aso-extensions' ContainerApp) in an
+# environment it makes first, as ca. appgwx: the gateway with an Entra JWT
+# validation configuration for the live identity's app registration that
+# its rule names (aso-extensions' ApplicationGateway). uaix and appix are in
+# the default cases; caex, cax and appgwx are opt-in (each takes 20 to 35
+# minutes).
+cat >"${WORK}/uaix.yaml" <<EOF
+name: ${RUN}-uaix
+location: ${LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+isolation_scope: Regional
+tags: {catalog-run: ${RUN}}
+federated_identity_credentials:
+  gh: {name: gh-main, audience: [api://AzureADTokenExchange], issuer: https://token.actions.githubusercontent.com, subject: "repo:highfivelabs/catalog:ref:refs/heads/main"}
+EOF
+cat >"${WORK}/appix.yaml" <<EOF
+name: ${RUN}-appix
+location: ${LOCATION}
+parent_id: ${RG}
+workspace_id: ${RG}/providers/Microsoft.OperationalInsights/workspaces/${RUN}-appix-law
+daily_data_cap_in_gb: 1
+retention_in_days: 30
+tags: {catalog-run: ${RUN}}
+linked_storage_account:
+  profiler: {resource_id: ${RG}/providers/Microsoft.Storage/storageAccounts/${RUN}x}
+EOF
+sed -e "s/appi-live-law/appix-live-law/" -e "s/${RUN}-appi-law/${RUN}-appix-law/" "${WORK}/appi.pre.yaml" >"${WORK}/appix.pre.yaml"
+cat >"${WORK}/appix.with.avm-res-storage-storageaccount.yaml" <<EOF
+name: ${RUN}x
+location: ${LOCATION}
+parent_id: ${RG}
+account_sku_name: Standard_LRS
+account_replication_type: LRS
+tags: {catalog-run: ${RUN}}
+EOF
+cat >"${WORK}/caex.yaml" <<EOF
+name: ${RUN}-caex
+location: ${CAE_LOCATION}
+resource_group_name: ${AZURE_LIVE_RESOURCE_GROUP}
+subscription_id: ${AZURE_SUBSCRIPTION_ID}
+zone_redundant: false
+public_network_access: Enabled
+tags: {catalog-run: ${RUN}}
+EOF
+sed -e "s/^name: ${RUN}-ca\$/name: ${RUN}-cax/" -e "s#managedEnvironments/${RUN}-cae\$#managedEnvironments/${RUN}-caxenv#" "${WORK}/ca.yaml" >"${WORK}/cax.yaml"
+echo "kind: functionapp" >>"${WORK}/cax.yaml"
+sed -e "s/name: ca-env/name: cax-env/" -e "s/azureName: ${RUN}-cae\$/azureName: ${RUN}-caxenv/" "${WORK}/ca-pre.objects.yaml" >"${WORK}/cax-pre.objects.yaml"
+sed -e "s/${RUN}-agw-vnet/${RUN}-agwx-vnet/" -e "s/10\.251\.0\./10.252.0./g" "${WORK}/appgw-pre.yaml" >"${WORK}/appgwx-pre.yaml"
+sed -e "s/${RUN}-agw-vnet/${RUN}-agwx-vnet/" -e "s/^name: ${RUN}-agw\$/name: ${RUN}-agwx/" -e "s/${RUN}-agw-pip/${RUN}-agwx-pip/" \
+  -e "s/backend_http_settings: {backend_http_settings_key: http-80}}/backend_http_settings: {backend_http_settings_key: http-80}, entra_jwt_validation_config: {entra_jwt_validation_config_key: live}}/" \
+  "${WORK}/appgw.yaml" >"${WORK}/appgwx.yaml"
+cat >>"${WORK}/appgwx.yaml" <<EOF
+entra_jwt_validation_configs:
+  - {name: live, client_id: ${AZURE_CLIENT_ID}, tenant_id: ${AZURE_TENANT_ID}, audiences: ["api://catalog-${RUN}"], un_authorized_request_action: Deny}
+EOF
 summary="${OUT}/summary.md"
 {
   echo "# Azure live apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -1052,8 +1117,15 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     alz:avm-ptn-alz-management \
     pldns:avm-ptn-network-private-link-private-dns-zones \
     dnspr:avm-res-network-dnsresolver \
-    ca:avm-res-app-containerapp; do
+    ca:avm-res-app-containerapp \
+    uaix:avm-res-managedidentity-userassignedidentity \
+    appix:avm-res-insights-component \
+    caex:avm-res-app-managedenvironment \
+    cax:avm-res-app-containerapp \
+    appgwx:avm-res-network-applicationgateway; do
   case_="${c%%:*}" chart="${c#*:}" dir="charts/azure/${c#*:}"
+  # An aso-extensions shape (<case>x): its output beside the chart's own.
+  [[ "${case_}" != *x ]] || chart="${chart}/${case_}"
   [[ " ${CASES} " == *" ${case_} "* ]] || continue
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"

@@ -1,0 +1,12 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=net-firewall-policy): a
+# global network policy attached to a network of the run, an ingress and an
+# egress rule (config-connector-extensions' ComputeNetworkFirewallPolicyRule).
+name: ${RUN}-nfwp
+parent_id: ${PROJECT}
+region: global
+description: catalog live test ${RUN}
+attachments: {fwp: projects/${PROJECT}/global/networks/${RUN}-nfwp-net}
+ingress_rules:
+  allow-iap-ssh: {priority: 1000, match: {source_ranges: [35.235.240.0/20], layer4_configs: [{protocol: tcp, ports: ["22"]}]}}
+egress_rules:
+  deny-smtp: {priority: 900, action: deny, match: {destination_ranges: [0.0.0.0/0], layer4_configs: [{protocol: tcp, ports: ["25"]}]}}

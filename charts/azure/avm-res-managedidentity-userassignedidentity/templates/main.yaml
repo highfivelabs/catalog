@@ -4,8 +4,9 @@ SPDX-License-Identifier: Apache-2.0
 Ported from terraform-azurerm-avm-res-managedidentity-userassignedidentity
 main.tf and locals.tf (v0.6.0), Copyright (c) Microsoft Corporation, MIT.
 
-azurerm_user_assigned_identity.this: one ASO UserAssignedIdentity
-(managedidentity.azure.com/v1api20230131), owned by the resource group
+azurerm_user_assigned_identity.this: one aso-extensions UserAssignedIdentity
+(managedidentity.azure.hfl.dev/v20241130, beside ASO's 2023-01-31 kind),
+owned by the resource group
 resource_group_name names, exporting its principal ID to a ConfigMap
 (operatorSpec.configMaps). azurerm_federated_identity_credential.this: one
 ASO FederatedIdentityCredential per entry, owned by the identity.
@@ -16,7 +17,16 @@ azurerm_management_lock.this: an aso-extensions ManagementLock, with the
 module's notes. The telemetry is not ported.
 */ -}}
 {{- $v := .Values }}
-{{- include "aso.unsupported" (list $ "isolation_scope" $v.isolation_scope "ASO's UserAssignedIdentity is at ARM API version 2023-01-31, which has no isolationScope") }}
+{{- /* isolation_scope is after ASO's UserAssignedIdentity API version
+2023-01-31: the chart always renders aso-extensions' UserAssignedIdentity
+(managedidentity.azure.hfl.dev/v20241130, beside ASO's under its name) in
+place of ASO's; the principal ID is then exported with a CEL expression
+(operatorSpec.configMapExpressions, the kind has no configMaps), and the
+federated credentials and the lock own it by ARM ID (their kinds name
+ASO's UserAssignedIdentity as owner). */ -}}
+{{- if and (not (kindIs "invalid" $v.isolation_scope)) (ne (toString $v.isolation_scope) "Regional") }}
+{{- fail "avm-res-managedidentity-userassignedidentity: The isolation_scope must be null or `Regional`." }}
+{{- end }}
 {{- include "aso.names" (list $ (list "userAssignedIdentity")) }}
 {{- if not $v.name }}{{ fail "avm-res-managedidentity-userassignedidentity: name is required" }}{{ end }}
 {{- $rg := toString $v.resource_group_name }}
@@ -32,22 +42,27 @@ module's notes. The telemetry is not ported.
 {{- $obj := include "aso.name" (list .Release.Name "id") }}
 {{- $cm := include "aso.name" (list .Release.Name "id" "outputs") }}
 {{- $tags := include "aso.tags" (list $ dict) | fromJson }}
+{{- $idName := include "aso.resourceName" (list $ "userAssignedIdentity" "user-assigned identity" $v.name 128 "^[a-zA-Z0-9][a-zA-Z0-9_-]{2,127}$") }}
+{{- $idID := printf "%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s" $parent $idName }}
 ---
-apiVersion: managedidentity.azure.com/v1api20230131
+apiVersion: managedidentity.azure.hfl.dev/v20241130
 kind: UserAssignedIdentity
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "user_assigned_identity" "abandon" $abandon) | nindent 2 }}
 spec:
-  azureName: {{ include "aso.resourceName" (list $ "userAssignedIdentity" "user-assigned identity" $v.name 128 "^[a-zA-Z0-9][a-zA-Z0-9_-]{2,127}$") | quote }}
+  azureName: {{ $idName | quote }}
   location: {{ $v.location | quote }}
   owner:
     {{- include "aso.owner" (list $ "resource_group_name" $parent) | nindent 4 }}
+  {{- with $v.isolation_scope }}
+  isolationScope: {{ . | quote }}
+  {{- end }}
   {{- if $v.outbound_role_assignments }}
   operatorSpec:
-    configMaps:
-      principalId:
-        name: {{ $cm }}
+    configMapExpressions:
+      - name: {{ $cm }}
         key: principalId
+        value: self.status.principalId
   {{- end }}
   {{- with $tags }}
   tags:
@@ -62,7 +77,7 @@ metadata:
 spec:
   azureName: {{ $f.name | quote }}
   owner:
-    name: {{ $obj }}
+    armId: {{ $idID }}
   audiences:
     {{- range $f.audience }}
     - {{ . | quote }}
@@ -105,5 +120,5 @@ spec:
 {{- end }}
 {{- with $v.lock }}
 {{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
-{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" (dict "group" "managedidentity.azure.com" "kind" "UserAssignedIdentity" "name" $obj) "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
+{{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" (dict "armId" $idID) "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
 {{- end }}

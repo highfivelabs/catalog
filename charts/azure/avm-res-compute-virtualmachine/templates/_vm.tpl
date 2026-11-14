@@ -27,6 +27,13 @@ name (with the chart's subscription_id) or its ID.
 {{- end -}}
 
 {{/*
+vm.id: the machine's ARM ID.
+*/}}
+{{- define "vm.id" -}}
+{{- printf "%s/providers/Microsoft.Compute/virtualMachines/%s" (include "vm.rgId" (list . "resource_group_name" .Values.resource_group_name)) (include "aso.resourceName" (list . "virtualMachine" "virtual machine" .Values.name 64 "^[a-zA-Z0-9_]([a-zA-Z0-9_.-]{0,62}[a-zA-Z0-9_])?$")) -}}
+{{- end -}}
+
+{{/*
 vm.nicOrder: the network interface keys, the primary ones first, as the
 module orders network_interface_ids (azurerm makes the first one primary),
 as JSON.

@@ -131,10 +131,17 @@ there. `iam` is not in the fake-cloud case: it is render-tested only
 (`tests/golden/iam.yaml`), as are the VPC Access connector and direct VPC
 egress.
 
-Not applied live: the catalog's live harness runs only Config Connector's
-controllers, not config-connector-extensions', so the
-`CloudFunctions2Function` has no controller there, and neither live-test
-account holds a Cloud Functions role in the test project.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=cloud-function-v2`, `tests/live.yaml`, a
+one-file Python bundle `tests/live.pre.sh` puts in a bucket of the run):
+failed, on config-connector-extensions' side. In both runs (2026-11-14,
+`cat-11140025-cb6a` as cce-live-tests and `cat-11140120-96a6` as
+catalog-live-tests, config-connector-extensions `c2f0c7d2`) `CloudFunctions2Function`'s create returned
+"Error 400: Invalid resource name '' for pattern
+'projects/{project=*}/locations/{location=*}/functions/{function=*}'":
+the extension's generated create sends no function name. The
+function's service account was Ready as catalog-live-tests;
+cce-live-tests may not create accounts (`iam.serviceAccounts.create`
+denied). Nothing was left after either run.
 
 ## Changes
 
