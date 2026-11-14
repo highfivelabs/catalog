@@ -124,7 +124,8 @@ licence, the date last synced and every refusal.
 
 `task test CHART=avm-res-keyvault-vault`: render cases `basic`, `full`,
 `legacy`, `names`, `pe-unmanaged`, `secrets` (two secrets, their values
-from a Secret) and `mock`, each validated against ASO v2.22.0's CRD
+from a Secret) and `mock` (a secret whose value is in a Secret the
+fake-cloud run makes), each validated against ASO v2.22.0's CRD
 schemas and aso-extensions' `ManagementLock` and `VaultSecret` CRDs, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` applies a standard vault without purge protection (no keys) to the Azure sandbox with
 Azure Service Operator, evaluates the outputs, deletes it and checks Azure
@@ -143,9 +144,12 @@ Ready (`creating secret catalog-secret: key vault: 404 NotFound : fake
 vault: no such operation`): the fake Resource Manager answers a vault's
 data plane for keys only, and aso-extensions' fake secrets data plane
 (`cmd/fakevault`, `pkg/fakecloud/keyvault`) is a separate server that
-`hack/azure-mock.sh` does not run. The mock case keeps no secret until
-the harness routes a vault's secrets to it; the `VaultSecret` is checked
-by the render tests against its CRD.
+`hack/azure-mock.sh` did not run, so the secret was taken out of the mock
+case. `hack/azure-mock.sh` now runs `cmd/fakevault` from `ASOX_COMMIT` and
+sends a vault's secret requests to it (`tools/vaultroute`; `docs/azure.md`,
+"8. Charts"), and the secret is back: run `off-catalog-1114103759-4674`
+(2026-11-14), the vault, key, secret, private endpoint and its DNS zone
+group Ready and deleted, the outputs evaluated.
 
 ## Changes
 
