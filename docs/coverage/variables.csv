@@ -4513,7 +4513,7 @@ azure,avm-res-web-site,location,string,yes,,
 azure,avm-res-web-site,lock,"object({kind, name})",yes,,
 azure,avm-res-web-site,logic_app_node_version,string,no,"only a Logic App reads it (WEBSITE_NODE_DEFAULT_VERSION), and kind logicapp is refused; accepted at its default",not-ported
 azure,avm-res-web-site,logic_app_runtime_version,string,no,"only a Logic App reads it (FUNCTIONS_EXTENSION_VERSION), and kind logicapp is refused; accepted at its default",not-ported
-azure,avm-res-web-site,logs,"map(object({application_logs, detailed_error_messages, failed_requests_tracing, http_logs}))",partial,"accepted as aso-extensions SitesConfigLogs (one entry: every entry writes the site's one logs section), but an application or HTTP log's azure_blob_storage is refused: its sas_url is a secret value",not-ported
+azure,avm-res-web-site,logs,"map(object({application_logs, detailed_error_messages, failed_requests_tracing, http_logs}))",yes,,
 azure,avm-res-web-site,manage_connection_strings,bool,yes,,
 azure,avm-res-web-site,managed_environment_id,string,yes,,
 azure,avm-res-web-site,managed_identities,"object({system_assigned, user_assigned_resource_ids})",yes,,
@@ -4825,8 +4825,8 @@ azure,avm-res-app-managedenvironment,certificate_password_version,number,no,"tra
 azure,avm-res-app-managedenvironment,certificate_value,string,no,"the custom domain certificate's blob, a secret value the chart does not take (reference the certificate in Key Vault)",not-ported
 azure,avm-res-app-managedenvironment,certificate_value_version,number,no,"tracks certificate_value, a secret value the chart does not take",not-ported
 azure,avm-res-app-managedenvironment,certificates,"map(object({certificate_key_vault_properties, location, name, password, password_version, tags, +2}))",partial,"accepted with a Key Vault certificate (certificate_key_vault_properties), but password and value are refused: secret values the chart does not take",not-ported
-azure,avm-res-app-managedenvironment,connection_string,string,no,"the Application Insights connection string of app_insights_configuration, a secret value the chart does not take (aso-extensions' ManagedEnvironment takes it as a SecretReference)",not-ported
-azure,avm-res-app-managedenvironment,connection_string_version,number,no,"tracks connection_string, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,connection_string,string,yes,,
+azure,avm-res-app-managedenvironment,connection_string_version,number,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_identity,string,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_key_vault_url,string,yes,,
 azure,avm-res-app-managedenvironment,custom_domain_certificate_password,string,no,"deprecated; the custom domain certificate's password, a secret value the chart does not take",not-ported
@@ -4854,8 +4854,8 @@ azure,avm-res-app-managedenvironment,ingress_configuration,"object({header_count
 azure,avm-res-app-managedenvironment,internal_load_balancer_enabled,bool,yes,,
 azure,avm-res-app-managedenvironment,java_components,"map(object({component_type, configurations, ingress, name, scale, service_binds}))",partial,"accepted for every component type (aso-extensions' ManagedEnvironmentsJavaComponent, ARM API version 2026-03-02-preview), but ingress is refused: the kind has no ingress in its spec (the module sends an empty object, whose one property, fqdn, is read-only)",gap
 azure,avm-res-app-managedenvironment,keda_configuration,object({}),yes,,
-azure,avm-res-app-managedenvironment,key,string,no,"the Datadog API key of open_telemetry_configuration, a secret value the chart does not take (aso-extensions' ManagedEnvironment takes it as a SecretReference)",not-ported
-azure,avm-res-app-managedenvironment,key_version,number,no,"tracks key, a secret value the chart does not take",not-ported
+azure,avm-res-app-managedenvironment,key,string,yes,,
+azure,avm-res-app-managedenvironment,key_version,number,yes,,
 azure,avm-res-app-managedenvironment,kind,string,yes,,
 azure,avm-res-app-managedenvironment,location,string,yes,,
 azure,avm-res-app-managedenvironment,lock,"object({kind, name, notes})",yes,,
@@ -4889,7 +4889,7 @@ azure,avm-res-app-managedenvironment,workload_profile,"set(object({maximum_count
 azure,avm-res-app-managedenvironment,workload_profiles,"list(object({maximum_count, minimum_count, name, workload_profile_type}))",yes,,
 azure,avm-res-app-managedenvironment,zone_redundancy_enabled,bool,yes,,
 azure,avm-res-app-managedenvironment,zone_redundant,bool,yes,,
-azure,avm-res-network-applicationgateway,authentication_certificates,"list(object({data, name, properties}))",no,"ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled (docs/azure.md, section 8)",not-ported
+azure,avm-res-network-applicationgateway,authentication_certificates,"list(object({data, name, properties}))",yes,,
 azure,avm-res-network-applicationgateway,autoscale_configuration,"object({max_capacity, min_capacity})",yes,,
 azure,avm-res-network-applicationgateway,backend_address_pools,"list(object({backend_addresses, name, properties}))",yes,,
 azure,avm-res-network-applicationgateway,backend_http_settings_collection,"list(object({affinity_cookie_name, authentication_certificates, connection_draining, cookie_based_affinity, dedicated_backend_connection, host_name, +13}))",partial,"accepted, except the fields ARM 2022-07-01 lacks (ASO's ApplicationGateway version): dedicated_backend_connection, sni_name, validate_cert_chain_and_expiry, validate_sni",gap
@@ -4929,13 +4929,13 @@ azure,avm-res-network-applicationgateway,rewrite_rule_sets,"list(object({id, nam
 azure,avm-res-network-applicationgateway,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
 azure,avm-res-network-applicationgateway,routing_rules,"list(object({backend_address_pool, backend_settings, listener, name, priority, properties, +1}))",yes,,
 azure,avm-res-network-applicationgateway,sku,"object({capacity, family, name, tier})",partial,"accepted, except family and the Basic name and tier, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks",gap
-azure,avm-res-network-applicationgateway,ssl_certificates,"list(object({data, key_vault_secret_id, name, password, properties}))",no,"a certificate's data and password are secrets, and key_vault_secret_id is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled (docs/azure.md, section 8)",not-ported
+azure,avm-res-network-applicationgateway,ssl_certificates,"list(object({data, key_vault_secret_id, name, password, properties}))",yes,,
 azure,avm-res-network-applicationgateway,ssl_policy,"object({cipher_suites, disabled_ssl_protocols, min_protocol_version, policy_name, policy_type})",yes,,
 azure,avm-res-network-applicationgateway,ssl_profiles,"list(object({client_auth_configuration, name, properties, ssl_policy, trusted_client_certificates}))",partial,"accepted, except client_auth_configuration.verify_client_auth_mode, which ARM 2022-07-01 (ASO's ApplicationGateway version) lacks",gap
 azure,avm-res-network-applicationgateway,tags,map(string),yes,,
 azure,avm-res-network-applicationgateway,timeouts,"object({create, delete, read, update})",no,Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit,by-design
-azure,avm-res-network-applicationgateway,trusted_client_certificates,"list(object({data, name, properties}))",no,"ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled (docs/azure.md, section 8)",not-ported
-azure,avm-res-network-applicationgateway,trusted_root_certificates,"list(object({data, key_vault_secret_id, name, properties}))",no,"ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference), and key_vault_secret_id is Key Vault secret material; how a component supplies either is not settled (docs/azure.md, section 8)",not-ported
+azure,avm-res-network-applicationgateway,trusted_client_certificates,"list(object({data, name, properties}))",yes,,
+azure,avm-res-network-applicationgateway,trusted_root_certificates,"list(object({data, key_vault_secret_id, name, properties}))",yes,,
 azure,avm-res-network-applicationgateway,url_path_maps,"list(object({default_backend_address_pool, default_backend_http_settings, default_load_distribution_policy, default_redirect_configuration, default_rewrite_rule_set, name, +2}))",partial,"accepted, except a path rule's id: ASO's 2022-07-01 type has none (ARM derives it from the name)",gap
 azure,avm-res-network-applicationgateway,web_application_firewall_configuration,"object({disabled_rule_groups, enabled, exclusions, file_upload_limit_in_mb, firewall_mode, max_request_body_size, +4})",yes,,
 azure,avm-res-network-applicationgateway,zones,list(string),yes,,

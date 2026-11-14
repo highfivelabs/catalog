@@ -78,7 +78,8 @@ the chart always renders aso-extensions' ManagedEnvironment
 (app.azure.hfl.dev/v20251002preview, beside ASO's under its name; the
 module sends 2025-10-02-preview) in place of ASO's, and owns the children
 by ARM ID (they name ASO's kind as their owner). The secret values these
-carry (connection_string, key) are refused below. */ -}}
+carry (connection_string, key) are references to Kubernetes Secrets
+(docs/secrets.md). */ -}}
 {{- $pna := $v.public_network_access }}
 {{- if and (kindIs "invalid" $pna) (not (kindIs "invalid" $v.public_network_access_enabled)) }}
 {{- $pna = ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
@@ -93,12 +94,21 @@ carry (connection_string, key) are refused below. */ -}}
 {{- end }}{{ end }}{{ end }}{{ end }}
 {{- /* Secret values: the builder's decision (docs/azure.md, "Charts"). */ -}}
 {{- $secret := "%s is a secret value, which would sit in the component's inputs; how a component supplies one (a Kubernetes Secret for ASO's SecretReference) is not settled" }}
-{{- range $n := list "connection_string" "key" "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
+{{- range $n := list "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
 {{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf $secret $n)) }}
 {{- end }}
-{{- range $n := list "connection_string_version" "key_version" "certificate_password_version" "certificate_value_version" "dapr_ai_connection_string_version" "dapr_ai_instrumentation_key_version" "shared_key_version" }}
+{{- range $n := list "certificate_password_version" "certificate_value_version" "dapr_ai_connection_string_version" "dapr_ai_instrumentation_key_version" "shared_key_version" }}
 {{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf "it tracks %s, a secret value the chart does not take" (trimSuffix "_version" $n))) }}
 {{- end }}
+{{- /* The Application Insights connection string and the Datadog API key:
+references to Kubernetes Secrets ({secretName, key}; docs/secrets.md),
+which aso-extensions' ManagedEnvironment takes as SecretReferences. The
+module requires each one's _version with it; ASO sends the whole body on
+every change, so the version does nothing. */ -}}
+{{- $connRef := include "aso.secretRef" (list $ "connection_string" $v.connection_string) }}
+{{- $ddKeyRef := include "aso.secretRef" (list $ "key" $v.key) }}
+{{- if and $connRef (kindIs "invalid" $v.connection_string_version) }}{{ fail "avm-res-app-managedenvironment: When connection_string is set, connection_string_version must also be set." }}{{ end }}
+{{- if and $ddKeyRef (kindIs "invalid" $v.key_version) }}{{ fail "avm-res-app-managedenvironment: When key is set, key_version must also be set." }}{{ end }}
 {{- include "aso.unsupported" (list $ "log_analytics_workspace" (include "cae.set" $v.log_analytics_workspace) "the module reads the workspace's primary shared key and sends it, a secret value the chart does not take; send logs to Azure Monitor (app_logs_configuration.destination azure-monitor and diagnostic_settings) instead") }}
 {{- include "aso.unsupported" (list $ "log_analytics_workspace_customer_id" (include "cae.set" $v.log_analytics_workspace_customer_id) "a Log Analytics destination needs the workspace's shared key, a secret value the chart does not take; send logs to Azure Monitor instead") }}
 {{- /* The resource group. */ -}}
@@ -284,7 +294,12 @@ spec:
   zoneRedundant: {{ $zr }}
   {{- end }}
   {{- if not (kindIs "invalid" $v.app_insights_configuration) }}
+  {{- with $connRef }}
+  appInsightsConfiguration:
+    connectionString: {{ . }}
+  {{- else }}
   appInsightsConfiguration: {}
+  {{- end }}
   {{- end }}
   {{- if not (kindIs "invalid" $v.availability_zones) }}
   availabilityZones: {{ toJson $v.availability_zones }}
@@ -344,6 +359,11 @@ spec:
   {{- end }}
   {{- $_ := set $dc "otlpConfigurations" $ol }}
   {{- end }}
+  {{- $_ := set $o "destinationsConfiguration" $dc }}
+  {{- end }}
+  {{- with $ddKeyRef }}
+  {{- $dc := $o.destinationsConfiguration | default dict }}
+  {{- $_ := set $dc "dataDogConfiguration" (merge ($dc.dataDogConfiguration | default dict) (dict "key" (fromJson .))) }}
   {{- $_ := set $o "destinationsConfiguration" $dc }}
   {{- end }}
   {{- if not (kindIs "invalid" $ot.logs_configuration) }}

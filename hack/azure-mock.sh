@@ -263,6 +263,9 @@ for dir in "${dirs[@]}"; do
   echo "== ${chart}"
   mkdir -p "${OUT}/${chart}"
   helm template mock "${dir}" --namespace "${NS}" -f "${mockv}" >"${OUT}/${chart}/rendered.yaml"
+  # The Secrets the case references ("# secret: NAME KIND" lines), made now
+  # from generated material (docs/secrets.md); never in the repository.
+  hack/test-secret.sh "${NS}" "${mockv}"
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(kubectl get -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" -o json \
     | jq -r '(if .items then .items else [.] end)[] | "\(.kind | ascii_downcase).\(.apiVersion | split("/") | .[1]).\(.apiVersion | split("/") | .[0])/\(.metadata.name)"')
@@ -291,6 +294,7 @@ for dir in "${dirs[@]}"; do
     (( left == 0 )) && break
     sleep 5
   done
+  hack/test-secret.sh --delete "${NS}" "${mockv}"
   for o in "${objects[@]}"; do
     total=$((total + 1))
     msg="$(jq -r --arg n "${o#*/}" '.items[] | select(.metadata.name == $n) | (.status.conditions // [])[] | select(.type=="Ready") | .message' "${OUT}/${chart}/live.json" | tr '\n|' '  ' | cut -c1-160)"

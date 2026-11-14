@@ -37,9 +37,10 @@ labels: {}
 # PREVENT is refused: use lock. Not a module variable.
 deletion_policy: null
 
-# Authentication certificates of the application gateway resource.
-# Refused when set: ASO takes a certificate's data only from a Kubernetes
-# Secret.
+# Authentication certificates of the application gateway resource. Each:
+# {name, data: {secretName, key}}: the certificate's public data from a
+# Kubernetes Secret in the component's namespace (ASO takes it only from
+# one; docs/secrets.md).
 authentication_certificates: null
 # Application Gateway autoscale configuration. {min_capacity (required),
 # max_capacity}
@@ -55,12 +56,12 @@ backend_address_pools: null
 # probe_enabled, protocol, request_timeout, trusted_root_certificates:
 # [{id, trusted_root_certificate_key}]}. dedicated_backend_connection,
 # sni_name, validate_cert_chain_and_expiry and validate_sni are refused
-# (not in ARM 2022-07-01). A certificate reference takes only id (the
-# certificates themselves are refused).
+# (not in ARM 2022-07-01).
 backend_http_settings_collection: null
 # Backend settings of the application gateway resource (TLS/TCP proxy).
 # Each: {name, host_name, pick_host_name_from_backend_address, port, probe:
-# {id, probe_key}, protocol, timeout, trusted_root_certificates: [{id}]}.
+# {id, probe_key}, protocol, timeout, trusted_root_certificates: [{id,
+# trusted_root_certificate_key}]}.
 # enable_l4_client_ip_preservation is refused (not in ARM 2022-07-01).
 backend_settings_collection: null
 # Custom error configurations of the application gateway resource. Each:
@@ -109,16 +110,16 @@ global_configuration: null
 # custom_error_configurations, firewall_policy: {id},
 # frontend_ip_configuration: {id, frontend_ip_configuration_key},
 # frontend_port: {id, frontend_port_key}, host_name, host_names, protocol,
-# require_server_name_indication, ssl_certificate: {id}, ssl_profile: {id,
-# ssl_profile_key}}.
+# require_server_name_indication, ssl_certificate: {id,
+# ssl_certificate_key}, ssl_profile: {id, ssl_profile_key}}.
 http_listeners: null
 # Body-relative paths to leave to another writer. Refused when set: ASO
 # applies the whole spec it is given.
 ignore_body_changes: {}
 # Listeners of the application gateway resource (TLS/TCP proxy). Each:
 # {name, frontend_ip_configuration, frontend_port, protocol,
-# ssl_certificate: {id}, ssl_profile}. host_names is refused (not in ARM
-# 2022-07-01).
+# ssl_certificate: {id, ssl_certificate_key}, ssl_profile}. host_names is
+# refused (not in ARM 2022-07-01).
 listeners: null
 # Load distribution policies of the application gateway resource. Each:
 # {name, load_distribution_algorithm, load_distribution_targets: [{id}]}.
@@ -202,9 +203,12 @@ routing_rules: null
 # SKU of an application gateway. {capacity (1 to 125), name, tier}. family
 # and the Basic name and tier are refused (not in ARM 2022-07-01).
 sku: null
-# SSL certificates of the application gateway resource. Refused when set:
-# their data and password are secrets, key_vault_secret_id Key Vault
-# secret material.
+# SSL certificates of the application gateway resource. Each: {name,
+# data: {secretName, key}, password: {secretName, key},
+# key_vault_secret_id}. data (the PFX, base64) and password are references
+# to a Kubernetes Secret in the component's namespace, put there by
+# External Secrets Operator, never values (docs/secrets.md);
+# key_vault_secret_id (a pointer, not the secret) is sent as it is.
 ssl_certificates: null
 # Application Gateway Ssl policy. {cipher_suites, disabled_ssl_protocols,
 # min_protocol_version, policy_name, policy_type}; a Predefined policy
@@ -213,19 +217,20 @@ ssl_policy: null
 # SSL profiles of the application gateway resource. Each: {name,
 # client_auth_configuration: {verify_client_cert_issuer_dn,
 # verify_client_revocation}, ssl_policy, trusted_client_certificates:
-# [{id}]}. verify_client_auth_mode is refused (not in ARM 2022-07-01).
+# [{id, trusted_client_certificate_key}]}. verify_client_auth_mode is
+# refused (not in ARM 2022-07-01).
 ssl_profiles: null
 # (Optional) Tags of the resource.
 tags: null
 # Per-operation timeouts. Refused when set: ASO has none; Bundt sets a
 # component's time limit.
 timeouts: null
-# Trusted client certificates of the application gateway resource. Refused
-# when set: ASO takes a certificate's data only from a Kubernetes Secret.
+# Trusted client certificates of the application gateway resource. Each:
+# {name, data: {secretName, key}} (a Kubernetes Secret; docs/secrets.md).
 trusted_client_certificates: null
-# Trusted Root certificates of the application gateway resource. Refused
-# when set: ASO takes a certificate's data only from a Kubernetes Secret,
-# and key_vault_secret_id is Key Vault secret material.
+# Trusted Root certificates of the application gateway resource. Each:
+# {name, data: {secretName, key}, key_vault_secret_id}: data from a
+# Kubernetes Secret (docs/secrets.md), key_vault_secret_id as it is.
 trusted_root_certificates: null
 # URL path map of the application gateway resource. Each: {name,
 # default_backend_address_pool, default_backend_http_settings,

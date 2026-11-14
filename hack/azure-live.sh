@@ -1028,9 +1028,10 @@ EOF
 # the storage chart. caex: an environment with public_network_access
 # (aso-extensions' ManagedEnvironment) in AZURE_LIVE_CAE_LOCATION. cax: a
 # function app kind of container app (aso-extensions' ContainerApp) in an
-# environment it makes first, as ca. appgwx: the gateway with an Entra JWT
-# validation configuration for the live identity's app registration that
-# its rule names (aso-extensions' ApplicationGateway). uaix and appix are in
+# environment it makes first, as ca. appgwx: the gateway with an HTTPS
+# listener (its certificate from a Secret) and an Entra JWT validation
+# configuration for the live identity's app registration that its rule
+# names (aso-extensions' ApplicationGateway). uaix and appix are in
 # the default cases; caex, cax and appgwx are opt-in (each takes 20 to 35
 # minutes).
 cat >"${WORK}/uaix.yaml" <<EOF
@@ -1076,10 +1077,38 @@ sed -e "s/^name: ${RUN}-ca\$/name: ${RUN}-cax/" -e "s#managedEnvironments/${RUN}
 echo "kind: functionapp" >>"${WORK}/cax.yaml"
 sed -e "s/name: ca-env/name: cax-env/" -e "s/azureName: ${RUN}-cae\$/azureName: ${RUN}-caxenv/" "${WORK}/ca-pre.objects.yaml" >"${WORK}/cax-pre.objects.yaml"
 sed -e "s/${RUN}-agw-vnet/${RUN}-agwx-vnet/" -e "s/10\.251\.0\./10.252.0./g" "${WORK}/appgw-pre.yaml" >"${WORK}/appgwx-pre.yaml"
-sed -e "s/${RUN}-agw-vnet/${RUN}-agwx-vnet/" -e "s/^name: ${RUN}-agw\$/name: ${RUN}-agwx/" -e "s/${RUN}-agw-pip/${RUN}-agwx-pip/" \
-  -e "s/backend_http_settings: {backend_http_settings_key: http-80}}/backend_http_settings: {backend_http_settings_key: http-80}, entra_jwt_validation_config: {entra_jwt_validation_config_key: live}}/" \
-  "${WORK}/appgw.yaml" >"${WORK}/appgwx.yaml"
-cat >>"${WORK}/appgwx.yaml" <<EOF
+# appgwx: HTTPS on 443 with a self-signed certificate the harness
+# generates for the run into a Secret (hack/test-secret.sh, from the
+# "# secret:" line; the chart takes the PFX and its password as references,
+# docs/secrets.md), and Entra JWT validation for the live identity's app
+# registration on the HTTPS rule.
+cat >"${WORK}/appgwx.yaml" <<EOF
+# secret: ${RUN}-agwx-tls pfx
+name: ${RUN}-agwx
+location: ${LOCATION}
+parent_id: ${RG}
+tags: {catalog-run: ${RUN}}
+sku: {name: Standard_v2, tier: Standard_v2, capacity: 1}
+public_ip_addresses:
+  pub: {name: ${RUN}-agwx-pip, zones: []}
+gateway_ip_configurations:
+  - {name: gw-ip, subnet: {id: ${RG}/providers/Microsoft.Network/virtualNetworks/${RUN}-agwx-vnet/subnets/snet-appgw}}
+frontend_ip_configurations:
+  - {name: fe-public, public_ip_address_key: pub}
+frontend_ports:
+  - {name: port-443, port: 443}
+ssl_certificates:
+  - {name: tls, data: {secretName: ${RUN}-agwx-tls, key: pfx}, password: {secretName: ${RUN}-agwx-tls, key: password}}
+backend_address_pools:
+  - {name: pool-web}
+probes:
+  - {name: probe-http, protocol: Http, host: 127.0.0.1, path: /, interval: 30, timeout: 30, unhealthy_threshold: 3}
+backend_http_settings_collection:
+  - {name: http-80, port: 80, protocol: Http, cookie_based_affinity: Disabled, request_timeout: 30, probe: {probe_key: probe-http}}
+http_listeners:
+  - {name: listener-443, protocol: Https, frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}, frontend_port: {frontend_port_key: port-443}, ssl_certificate: {ssl_certificate_key: tls}}
+request_routing_rules:
+  - {name: rule-https, rule_type: Basic, priority: 100, http_listener: {http_listener_key: listener-443}, backend_address_pool: {backend_address_pool_key: pool-web}, backend_http_settings: {backend_http_settings_key: http-80}, entra_jwt_validation_config: {entra_jwt_validation_config_key: live}}
 entra_jwt_validation_configs:
   - {name: live, client_id: ${AZURE_CLIENT_ID}, tenant_id: ${AZURE_TENANT_ID}, audiences: ["api://catalog-${RUN}"], un_authorized_request_action: Deny}
 EOF
@@ -1174,6 +1203,9 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
     code="$(api -o /dev/null -w '%{http_code}' "${ARM}${RG}/providers/Microsoft.Network/privateDnsZones/${zone}?api-version=2020-06-01")"
     [[ "${code}" == 404 ]] || { echo "azure-live: the group already has the private DNS zone ${zone} (${code}); not adopting it" >&2; exit 1; }
   done < <(awk '/^kind: /{k=$2} k=="PrivateDnsZone" && /^  azureName: /{gsub(/"/,"",$2); print $2}' "${OUT}/${chart}/rendered.yaml")
+  # The Secrets the case references ("# secret: NAME KIND" lines), made now
+  # from generated material (docs/secrets.md); never in the repository.
+  hack/test-secret.sh "${NS}" "${WORK}/${case_}.yaml"
   kubectl apply --server-side -n "${NS}" -f "${OUT}/${chart}/rendered.yaml" >"${OUT}/${chart}/apply.log"
   mapfile -t objects < <(object_list "${OUT}/${chart}/rendered.yaml")
   deadline=$(( $(date +%s) + limit ))
@@ -1197,6 +1229,7 @@ for c in vnet:avm-res-network-virtualnetwork storage:avm-res-storage-storageacco
   # Until every object is gone (kubectl get -f fails as soon as one is),
   # then what the case needed first.
   wait_gone "${limit}" "${objects[@]}"
+  hack/test-secret.sh --delete "${NS}" "${WORK}/${case_}.yaml"
   if (( ${#pre_objects[@]} > 0 )); then
     kubectl delete -n "${NS}" -f "${OUT}/${chart}/pre.yaml" --wait=false >/dev/null
     wait_gone "${limit}" "${pre_objects[@]}"
