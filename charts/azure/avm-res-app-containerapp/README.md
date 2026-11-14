@@ -73,8 +73,8 @@ optional object attributes and its validations.
 | `identity_settings` | `configuration.identitySettings`: the identity by ID, its `lifecycle` (default `All`) |
 | `dapr` | `configuration.dapr`, with the module's defaults (`http`, `info`, disabled) |
 | `ingress` | `configuration.ingress`: `allowInsecure`, `clientCertificateMode`, `exposedPort`, `external`, `targetPort`, `transport` (lower case, as ASO's enum has it; the module title-cases it and Azure takes either), `additionalPortMappings`, `corsPolicy`, `customDomains` (`custom_domain` and `custom_domains` together, as the module concatenates them; a certificate by ID), `ipSecurityRestrictions`, `stickySessions`, `traffic` (a weight's `revision_suffix` is its `revisionName`, as in the module) |
-| `registries` | `configuration.registries`: `server` and the pull identity (a user-assigned identity's ID, or `system`) |
-| `secrets` | `configuration.secrets`: Key Vault references (`keyVaultUrl`, the identity by ID or `system`) |
+| `registries` | `configuration.registries`: `server`, the pull identity (a user-assigned identity's ID, or `system`), and `username` with `password_secret_name` as `passwordSecretRef` (the name of one of the app's `secrets`, whose value is a reference to a Kubernetes Secret or a Key Vault secret) |
+| `secrets` | `configuration.secrets`: a secret's `value` as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. Or a Key Vault reference (`keyVaultUrl`, the identity by ID or `system`). One of the two, as in the module |
 | `runtime`, `service` | `configuration.runtime.java.enableMetrics`, `configuration.service.type` |
 | `template` | `template`: containers (args, command, env with values or secret names, image, `resources`, volume mounts, and probes built as the module builds them from `liveness_probes`, `readiness_probes`, `startup_probes` and the deprecated `startup_probe`, with its defaults), init containers, `revisionSuffix`, `scale` (cooldown, minimum and maximum replicas, polling interval, and the Azure Queue, custom, HTTP and TCP rules with their authentication and identity), `serviceBinds`, `terminationGracePeriodSeconds`, `volumes` |
 | `auth_configs` | `AuthConfig`: `platform`, `globalValidation`, `identityProviders` (Entra ID, Facebook, GitHub, Google, Twitter, Apple, Static Web Apps and custom OpenID Connect providers), `login`, `httpSettings`, `encryptionSettings`. Secrets are named, not given: a provider's `*_setting_name` names a container app secret |
@@ -105,8 +105,6 @@ let Azure name revisions.
 | `timeouts` | by-design | ASO has no per-request timeouts; Bundt sets a component's time limit |
 | `location` null | by-design | the module reads the resource group's location then, which a render cannot; give `location` |
 | `identity_settings[].lifecycle` `Retain` | gap | ASO's `ContainerApp` (2025-01-01) takes `All`, `Init`, `Main` and `None` |
-| `registries[].password_secret_name`, `registries[].username` | not-ported | a registry password is a secret value, which the chart does not take: pull with a managed identity (`identity`) |
-| `secrets[].value` | not-ported | a secret's value would sit in the component's inputs; reference a Key Vault secret (`key_vault_secret_id` and `identity`) instead |
 
 ## Outputs
 
@@ -127,7 +125,8 @@ A module block's arguments are the values, plus `subscription_id` when
 a container app that exists when an object with its name is applied, so
 keep the name and leave `namePrefix` empty; set `deletion_policy: ABANDON`
 for the first apply, `terraform state rm` the module, then remove
-`ABANDON`. Move `secrets` with values into Key Vault first.
+`ABANDON`. A secret's value becomes a reference to the Kubernetes Secret
+that holds it (External Secrets Operator puts it there; docs/secrets.md).
 
 ## Upstream
 
@@ -139,7 +138,9 @@ repository, release, commit, licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-app-containerapp`: render cases `basic`, `full`,
-`names`, `kind` (aso-extensions' kind), `mock` and `mock-kind`, each validated against ASO v2.22.0's CRD schemas and
+`names`, `kind` (aso-extensions' kind), `secrets` (secret values from a
+Kubernetes Secret, a registry's password among them), `mock` (with a
+secret from a Secret the fake-cloud run makes) and `mock-kind`, each validated against ASO v2.22.0's CRD schemas and
 aso-extensions' `ManagementLock` CRD, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` (case `ca`) applies a container
 app from Microsoft's public hello-world image, scaled to zero, with
@@ -151,10 +152,18 @@ aso-extensions' fake cloud.
 Results (2026-11-13): live run `cat111307137a10` (offload
 `off-catalog-1113070946-25437`), both objects Ready, outputs evaluated,
 deleted and gone from Azure; fake cloud run `off-catalog-1113030900-10353`,
-both objects Ready and deleted, outputs evaluated.
+both objects Ready and deleted, outputs evaluated. 0.4.0 (2026-11-14): fake cloud run
+`off-catalog-1114090347-8775` (aso-extensions `8d7f8c2`), `mock` with a
+secret from a Secret the run made and `mock-kind`, every object Ready and
+deleted, outputs evaluated.
 
 ## Changes
 
+- **0.4.0** (2026-11-14): `secrets[].value` is mapped as a reference to a
+  Kubernetes Secret, `{secretName, key}` (docs/secrets.md, the builder's
+  decision); a string is refused. With it `registries[].username` and
+  `password_secret_name` are mapped (the password is one of the app's
+  secrets).
 - **0.3.0** (2026-11-14): always aso-extensions' `ContainerApp`, its auth
   configurations, lock and role assignments always owning it by ARM ID (the
   builder's choice). Moving from an earlier version: above.

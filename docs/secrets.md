@@ -113,8 +113,15 @@ elsewhere, or a gateway without an identity.
 | --- | --- | --- |
 | `avm-res-network-applicationgateway` (0.4.0) | `ssl_certificates[].data`, `.password` | `sslCertificates[].data`, `.password` (aso-extensions' `ApplicationGateway`); `key_vault_secret_id` as it is |
 | | `authentication_certificates[].data`, `trusted_client_certificates[].data`, `trusted_root_certificates[].data` | the collections' `data` (public certificates, which the kind takes only from a Secret); `trusted_root_certificates[].key_vault_secret_id` as it is |
-| `avm-res-app-managedenvironment` (0.5.0) | `connection_string` (with `connection_string_version`) | `appInsightsConfiguration.connectionString` (aso-extensions' `ManagedEnvironment`) |
+| `avm-res-app-managedenvironment` (0.6.0) | `connection_string` (with `connection_string_version`) | `appInsightsConfiguration.connectionString` (aso-extensions' `ManagedEnvironment`) |
 | | `key` (the Datadog API key, with `key_version`) | `openTelemetryConfiguration.destinationsConfiguration.dataDogConfiguration.key` |
+| | `shared_key` (with `shared_key_version`), the deprecated `log_analytics_workspace_primary_shared_key`; a `log-analytics` destination | `appLogsConfiguration.logAnalyticsConfiguration.sharedKey` |
+| | `certificate_password`, `certificate_value` (with their `_version`), `custom_domain_configuration.certificate_value`, the deprecated `custom_domain_certificate_*` | `customDomainConfiguration.certificatePassword`, `.certificateValue` |
+| | `dapr_ai_connection_string`, `dapr_ai_instrumentation_key` (with their `_version`), the deprecated `dapr_application_insights_connection_string` | `daprAIConnectionString`, `daprAIInstrumentationKey` |
+| | `certificates[].password`, `.value` | `ManagedEnvironmentsCertificate` `properties.password`, `.value` |
+| | `dapr_components[].secrets[].value` | `ManagedEnvironmentsDaprComponent` `secrets[].value` |
+| | `storages[].account_key` (`azure_file.account_key`, which the module never sends, is checked to be a reference) | `ManagedEnvironmentsStorage` `properties.azureFile.accountKey` |
+| `avm-res-app-containerapp` (0.4.0) | `secrets[].value` (and so a registry's `username` and `password_secret_name`, the name of one of those secrets) | `ContainerApp` `configuration.secrets[].value` (aso-extensions' kind) |
 | `avm-res-web-site` (0.4.0) | `logs.*.application_logs.*.azure_blob_storage.sas_url`, `logs.*.http_logs.*.azure_blob_storage.sas_url` | `applicationLogs.azureBlobStorage.sasUrl`, `httpLogs.azureBlobStorage.sasUrl` (aso-extensions' `SitesConfigLogs`) |
 
 A module's `*_version` beside a write-only secret is required with it, as
@@ -129,13 +136,6 @@ above, chart by chart.
 
 | Chart | Variable | Field (kind) |
 | --- | --- | --- |
-| `avm-res-app-managedenvironment` | `shared_key` (and `log_analytics_workspace_primary_shared_key`; a `log-analytics` destination) | `appLogsConfiguration.logAnalyticsConfiguration.sharedKey` (aso-extensions' `ManagedEnvironment`) |
-| | `certificate_password`, `certificate_value` (and the deprecated `custom_domain_certificate_*`) | `customDomainConfiguration.certificatePassword`, `.certificateValue` |
-| | `dapr_ai_connection_string`, `dapr_ai_instrumentation_key` | `daprAIConnectionString`, `daprAIInstrumentationKey` |
-| | `certificates[].password`, `.value` | `ManagedEnvironmentsCertificate` `properties.password`, `.value` |
-| | `dapr_components[].secrets[].value` | `ManagedEnvironmentsDaprComponent` `secrets[].value` |
-| | `storages[].azure_file.account_key` | `ManagedEnvironmentsStorage` `properties.azureFile.accountKey` |
-| `avm-res-app-containerapp` | `secrets[].value` | `ContainerApp` `configuration.secrets[].value` |
 | `avm-res-web-site` | `certificates[].pfx_blob`, `.password` | aso-extensions' `Certificate` `pfxBlob`, `password` |
 | | `storage_shares_to_mount` (the access key) | `Site` `siteConfig.azureStorageAccounts` |
 | `avm-res-compute-virtualmachine` | `admin_password`, `account_credentials.admin_credentials.password` (and with it a Windows OS profile) | `VirtualMachine` `osProfile.adminPassword` |
@@ -145,7 +145,10 @@ above, chart by chart.
 | `avm-res-cognitiveservices-account` | `custom_question_answering_search_service_key` | `Account` `apiProperties.qnaAzureSearchEndpointKey` |
 | `avm-res-keyvault-vault` | `secrets`, `secrets_value` | aso-extensions' `VaultSecret` (its value from a Secret; its CRD is not copied into `crds/aso-extensions` yet) |
 
-Not this pattern: a value the module generates (`generate_admin_password_or_ssh_key`,
+Not this pattern: the Log Analytics workspace the environment module reads
+its customer ID and shared key from (`log_analytics_workspace`: a lookup
+in Azure, which a render cannot make; give the customer ID and a
+reference to the key instead), a value the module generates (`generate_admin_password_or_ssh_key`,
 `generate_administrator_login_password`: the catalog never generates
 secrets), a password Azure returns once (a registry token's
 `passwords`), and a secret a kind takes in plain text (a web app's

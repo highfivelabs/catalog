@@ -26,8 +26,9 @@ azapi_resource.diagnostic_settings: ASO DiagnosticSettings.
 time_sleep.lock_removal, the role definition lookup, the workspace's
 customer ID and shared key lookups and the telemetry are not ported.
 Secret values (the shared key, certificate passwords and blobs, connection
-strings, keys) and what ASO v2.22.0 and aso-extensions have no field or
-kind for are refused (upstream.yaml).
+strings, keys) are references to Kubernetes Secrets (docs/secrets.md); what
+ASO v2.22.0 and aso-extensions have no field or kind for is refused
+(upstream.yaml).
 */ -}}
 {{- define "cae.set" -}}
 {{- if not (kindIs "invalid" .) -}}
@@ -77,9 +78,8 @@ wellKnownName: {{ . | quote }}
 the chart always renders aso-extensions' ManagedEnvironment
 (app.azure.hfl.dev/v20251002preview, beside ASO's under its name; the
 module sends 2025-10-02-preview) in place of ASO's, and owns the children
-by ARM ID (they name ASO's kind as their owner). The secret values these
-carry (connection_string, key) are references to Kubernetes Secrets
-(docs/secrets.md). */ -}}
+by ARM ID (they name ASO's kind as their owner). The secret values it and
+its children carry are references to Kubernetes Secrets (docs/secrets.md). */ -}}
 {{- $pna := $v.public_network_access }}
 {{- if and (kindIs "invalid" $pna) (not (kindIs "invalid" $v.public_network_access_enabled)) }}
 {{- $pna = ternary "Enabled" "Disabled" $v.public_network_access_enabled }}
@@ -92,25 +92,37 @@ carry (connection_string, key) are references to Kubernetes Secrets
 {{- fail "avm-res-app-managedenvironment: disk_encryption_configuration.key_vault_configuration.auth.identity must be a user-assigned identity's resource ID: ARM 2025-10-02-preview takes no system-assigned identity there" }}
 {{- end }}
 {{- end }}{{ end }}{{ end }}{{ end }}
-{{- /* Secret values: the builder's decision (docs/azure.md, "Charts"). */ -}}
-{{- $secret := "%s is a secret value, which would sit in the component's inputs; how a component supplies one (a Kubernetes Secret for ASO's SecretReference) is not settled" }}
-{{- range $n := list "certificate_password" "certificate_value" "custom_domain_certificate_password" "custom_domain_certificate_value" "dapr_ai_connection_string" "dapr_ai_instrumentation_key" "dapr_application_insights_connection_string" "shared_key" "log_analytics_workspace_primary_shared_key" }}
-{{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf $secret $n)) }}
-{{- end }}
-{{- range $n := list "certificate_password_version" "certificate_value_version" "dapr_ai_connection_string_version" "dapr_ai_instrumentation_key_version" "shared_key_version" }}
-{{- include "aso.unsupported" (list $ $n (include "cae.set" (index $v $n)) (printf "it tracks %s, a secret value the chart does not take" (trimSuffix "_version" $n))) }}
-{{- end }}
-{{- /* The Application Insights connection string and the Datadog API key:
-references to Kubernetes Secrets ({secretName, key}; docs/secrets.md),
-which aso-extensions' ManagedEnvironment takes as SecretReferences. The
-module requires each one's _version with it; ASO sends the whole body on
-every change, so the version does nothing. */ -}}
+{{- /* Secret values: references to Kubernetes Secrets ({secretName, key};
+docs/secrets.md, the builder's decision), which aso-extensions' kinds take
+as SecretReferences; a string (the secret itself) is refused. The module
+requires a top-level secret's _version with it; ASO sends the whole body
+on every change, so the version does nothing. The Application Insights
+connection string, the Datadog API key, the Log Analytics shared key
+(shared_key, else the deprecated log_analytics_workspace_primary_shared_key),
+the custom domain certificate's password and blob (certificate_password,
+else custom_domain_certificate_password; certificate_value, else the
+custom domain configuration's, which the deprecated
+custom_domain_certificate_value fills), and Dapr's Application Insights
+connection string (dapr_ai_connection_string, else the deprecated
+dapr_application_insights_connection_string) and instrumentation key. */ -}}
 {{- $connRef := include "aso.secretRef" (list $ "connection_string" $v.connection_string) }}
 {{- $ddKeyRef := include "aso.secretRef" (list $ "key" $v.key) }}
-{{- if and $connRef (kindIs "invalid" $v.connection_string_version) }}{{ fail "avm-res-app-managedenvironment: When connection_string is set, connection_string_version must also be set." }}{{ end }}
-{{- if and $ddKeyRef (kindIs "invalid" $v.key_version) }}{{ fail "avm-res-app-managedenvironment: When key is set, key_version must also be set." }}{{ end }}
-{{- include "aso.unsupported" (list $ "log_analytics_workspace" (include "cae.set" $v.log_analytics_workspace) "the module reads the workspace's primary shared key and sends it, a secret value the chart does not take; send logs to Azure Monitor (app_logs_configuration.destination azure-monitor and diagnostic_settings) instead") }}
-{{- include "aso.unsupported" (list $ "log_analytics_workspace_customer_id" (include "cae.set" $v.log_analytics_workspace_customer_id) "a Log Analytics destination needs the workspace's shared key, a secret value the chart does not take; send logs to Azure Monitor instead") }}
+{{- $sharedKeyRef := include "aso.secretRef" (list $ "shared_key" $v.shared_key) }}
+{{- $laPrimaryRef := include "aso.secretRef" (list $ "log_analytics_workspace_primary_shared_key" $v.log_analytics_workspace_primary_shared_key) }}
+{{- $certPwRef := include "aso.secretRef" (list $ "certificate_password" $v.certificate_password) }}
+{{- $cdcPwRef := include "aso.secretRef" (list $ "custom_domain_certificate_password" $v.custom_domain_certificate_password) }}
+{{- $certValRef := include "aso.secretRef" (list $ "certificate_value" $v.certificate_value) }}
+{{- $cdcValRef := include "aso.secretRef" (list $ "custom_domain_certificate_value" $v.custom_domain_certificate_value) }}
+{{- $daprConnRef := include "aso.secretRef" (list $ "dapr_ai_connection_string" $v.dapr_ai_connection_string) }}
+{{- $daprAppInsRef := include "aso.secretRef" (list $ "dapr_application_insights_connection_string" $v.dapr_application_insights_connection_string) }}
+{{- $daprKeyRef := include "aso.secretRef" (list $ "dapr_ai_instrumentation_key" $v.dapr_ai_instrumentation_key) }}
+{{- range $p := list (list "connection_string" $connRef) (list "key" $ddKeyRef) (list "shared_key" $sharedKeyRef) (list "certificate_password" $certPwRef) (list "certificate_value" $certValRef) (list "dapr_ai_connection_string" $daprConnRef) (list "dapr_ai_instrumentation_key" $daprKeyRef) }}
+{{- $n := index $p 0 }}
+{{- if and (index $p 1) (kindIs "invalid" (index $v (printf "%s_version" $n))) }}{{ fail (printf "avm-res-app-managedenvironment: When %s is set, %s_version must also be set." $n $n) }}{{ end }}
+{{- end }}
+{{- $laKeyRef := $sharedKeyRef | default $laPrimaryRef }}
+{{- $daprAIConnRef := $daprConnRef | default $daprAppInsRef }}
+{{- include "aso.unsupported" (list $ "log_analytics_workspace" (include "cae.set" $v.log_analytics_workspace) "the module reads the workspace's primary shared key and its customer ID from Azure, which a render cannot; give app_logs_configuration.log_analytics_configuration.customer_id and shared_key (a reference to a Kubernetes Secret, docs/secrets.md) instead") }}
 {{- /* The resource group. */ -}}
 {{- $parent := "" }}
 {{- if $v.parent_id }}
@@ -132,31 +144,42 @@ every change, so the version does nothing. */ -}}
 {{- $envName := include "aso.resourceName" (list $ "managedEnvironment" "Container Apps environment" $v.name 60 "^[a-z][a-z0-9-]{0,58}[a-z0-9]$") }}
 {{- $tags := include "aso.tags" (list $ dict) | fromJson }}
 {{- /* local.effective_app_logs_configuration: app_logs_configuration, else
-the deprecated log_analytics_workspace_destination (the workspace and its
-customer ID are refused above). */ -}}
+the deprecated log_analytics_workspace_customer_id and
+log_analytics_workspace_destination (destination log-analytics unless
+given). log_analytics_workspace is refused above. A log-analytics
+destination needs a customer ID and the shared key, as the module checks. */ -}}
 {{- $alc := $v.app_logs_configuration }}
-{{- if and (kindIs "invalid" $alc) $v.log_analytics_workspace_destination }}
-{{- $alc = dict "destination" $v.log_analytics_workspace_destination }}
+{{- if and (kindIs "invalid" $alc) (or $v.log_analytics_workspace_customer_id $v.log_analytics_workspace_destination) }}
+{{- $alc = dict "destination" ($v.log_analytics_workspace_destination | default "log-analytics") "log_analytics_configuration" (dict "customer_id" $v.log_analytics_workspace_customer_id) }}
 {{- end }}
 {{- if not (kindIs "invalid" $alc) }}
 {{- if and $alc.destination (not (has $alc.destination (list "log-analytics" "azure-monitor"))) }}
 {{- fail "avm-res-app-managedenvironment: app_logs_configuration.destination must be \"log-analytics\" or \"azure-monitor\". Omit app_logs_configuration to disable app logs." }}
 {{- end }}
-{{- if eq (toString $alc.destination) "log-analytics" }}
-{{- fail "avm-res-app-managedenvironment: app_logs_configuration: destination log-analytics is not supported: it needs the workspace's shared key, a secret value the chart does not take; use azure-monitor and diagnostic_settings (docs/azure.md, \"Charts\")" }}
+{{- if and (eq (toString $alc.destination) "log-analytics") (not (and $alc.log_analytics_configuration $alc.log_analytics_configuration.customer_id $laKeyRef)) }}
+{{- fail "avm-res-app-managedenvironment: When app_logs_configuration.destination is \"log-analytics\", both a customer_id and shared_key are required. Set log_analytics_workspace.resource_id or provide app_logs_configuration.log_analytics_configuration.customer_id together with shared_key." }}
 {{- end }}
 {{- end }}
 {{- /* local.effective_custom_domain_configuration. */ -}}
 {{- $cdc := $v.custom_domain_configuration }}
-{{- if and (kindIs "invalid" $cdc) (or $v.custom_domain_dns_suffix $v.custom_domain_certificate_key_vault_url $v.custom_domain_certificate_key_vault_identity) }}
+{{- if and (kindIs "invalid" $cdc) (or $v.custom_domain_dns_suffix $v.custom_domain_certificate_value $v.custom_domain_certificate_key_vault_url $v.custom_domain_certificate_key_vault_identity) }}
 {{- $cdc = dict "dns_suffix" $v.custom_domain_dns_suffix }}
 {{- if or $v.custom_domain_certificate_key_vault_url $v.custom_domain_certificate_key_vault_identity }}
 {{- $_ := set $cdc "certificate_key_vault_properties" (dict "key_vault_url" $v.custom_domain_certificate_key_vault_url "identity" $v.custom_domain_certificate_key_vault_identity) }}
 {{- end }}
 {{- end }}
-{{- if and (not (kindIs "invalid" $cdc)) (include "cae.set" $cdc.certificate_value) }}
-{{- fail (printf "avm-res-app-managedenvironment: custom_domain_configuration: certificate_value is not supported: %s (docs/azure.md, \"Charts\")" (printf $secret "a certificate's blob")) }}
+{{- /* The certificate's password and blob, sent only with a custom domain
+configuration, as in the module. */ -}}
+{{- $cdcValInRef := "" }}
+{{- if not (kindIs "invalid" $cdc) }}
+{{- if kindIs "invalid" $v.custom_domain_configuration }}
+{{- $cdcValInRef = $cdcValRef }}
+{{- else }}
+{{- $cdcValInRef = include "aso.secretRef" (list $ "custom_domain_configuration.certificate_value" $cdc.certificate_value) }}
 {{- end }}
+{{- end }}
+{{- $cdcPassword := $certPwRef | default $cdcPwRef }}
+{{- $cdcValue := $certValRef | default $cdcValInRef }}
 {{- /* local.effective_vnet_configuration. */ -}}
 {{- $vnet := $v.vnet_configuration }}
 {{- if and (kindIs "invalid" $vnet) (or (not (kindIs "invalid" $v.internal_load_balancer_enabled)) $v.infrastructure_subnet_id) }}
@@ -213,12 +236,19 @@ spec:
     {{- end }}
   {{- end }}
   {{- if not (kindIs "invalid" $alc) }}
-  {{- with $alc.destination }}
-  appLogsConfiguration:
-    destination: {{ . | quote }}
-  {{- else }}
-  appLogsConfiguration: {}
+  {{- $l := dict }}
+  {{- with $alc.destination }}{{ $_ := set $l "destination" . }}{{ end }}
+  {{- if and (eq (toString $alc.destination) "log-analytics") $alc.log_analytics_configuration }}
+  {{- $la := dict "sharedKey" (fromJson $laKeyRef) }}
+  {{- with $alc.log_analytics_configuration.customer_id }}{{ $_ := set $la "customerId" . }}{{ end }}
+  {{- if not (kindIs "invalid" $alc.log_analytics_configuration.dynamic_json_columns) }}{{ $_ := set $la "dynamicJsonColumns" $alc.log_analytics_configuration.dynamic_json_columns }}{{ end }}
+  {{- $_ := set $l "logAnalyticsConfiguration" $la }}
   {{- end }}
+  appLogsConfiguration:
+    {{- if $l }}
+    {{- toYaml $l | nindent 4 }}
+    {{- else }} {}
+    {{- end }}
   {{- end }}
   {{- if not (kindIs "invalid" $cdc) }}
   {{- $c := dict }}
@@ -228,12 +258,20 @@ spec:
   {{- with .key_vault_url }}{{ $_ := set $kv "keyVaultUrl" . }}{{ end }}
   {{- $_ := set $c "certificateKeyVaultProperties" $kv }}
   {{- end }}
+  {{- with $cdcPassword }}{{ $_ := set $c "certificatePassword" (fromJson .) }}{{ end }}
+  {{- with $cdcValue }}{{ $_ := set $c "certificateValue" (fromJson .) }}{{ end }}
   {{- with $cdc.dns_suffix }}{{ $_ := set $c "dnsSuffix" . }}{{ end }}
   customDomainConfiguration:
     {{- if $c }}
     {{- toYaml $c | nindent 4 }}
     {{- else }} {}
     {{- end }}
+  {{- end }}
+  {{- with $daprAIConnRef }}
+  daprAIConnectionString: {{ . }}
+  {{- end }}
+  {{- with $daprKeyRef }}
+  daprAIInstrumentationKey: {{ . }}
   {{- end }}
   {{- with $irg }}
   infrastructureResourceGroup: {{ . | quote }}
@@ -397,8 +435,19 @@ spec:
 {{- range $k, $c := ($v.certificates | default dict) }}
 {{- if not $c.name }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a name" $k) }}{{ end }}
 {{- if not $c.location }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a location" $k) }}{{ end }}
-{{- if include "cae.set" $c.password }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s: password is not supported: %s (docs/azure.md, \"Charts\")" $k (printf $secret "a certificate's password")) }}{{ end }}
-{{- if include "cae.set" $c.value }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s: value is not supported: %s; reference a Key Vault secret (certificate_key_vault_properties) instead (docs/azure.md, \"Charts\")" $k (printf $secret "a certificate's blob")) }}{{ end }}
+{{- /* The certificate's password and blob: references to Kubernetes
+Secrets (docs/secrets.md); a string is refused. */ -}}
+{{- $pwRef := include "aso.secretRef" (list $ (printf "certificates.%s.password" $k) $c.password) }}
+{{- $valRef := include "aso.secretRef" (list $ (printf "certificates.%s.value" $k) $c.value) }}
+{{- $p := dict }}
+{{- with $c.certificate_key_vault_properties }}
+{{- $kv := dict }}
+{{- with .identity }}{{ $_ := set $kv "identityReference" (include "cae.identityRef" . | fromYaml) }}{{ end }}
+{{- with .key_vault_url }}{{ $_ := set $kv "keyVaultUrl" . }}{{ end }}
+{{- $_ := set $p "certificateKeyVaultProperties" $kv }}
+{{- end }}
+{{- with $pwRef }}{{ $_ := set $p "password" (fromJson .) }}{{ end }}
+{{- with $valRef }}{{ $_ := set $p "value" (fromJson .) }}{{ end }}
 ---
 apiVersion: app.azure.hfl.dev/v20250101
 kind: ManagedEnvironmentsCertificate
@@ -409,16 +458,9 @@ spec:
   location: {{ $c.location | quote }}
   owner:
     {{- toYaml $envOwner | nindent 4 }}
-  {{- with $c.certificate_key_vault_properties }}
+  {{- with $p }}
   properties:
-    certificateKeyVaultProperties:
-      {{- with .identity }}
-      identityReference:
-        {{- include "cae.identityRef" . | nindent 8 }}
-      {{- end }}
-      {{- with .key_vault_url }}
-      keyVaultUrl: {{ . | quote }}
-      {{- end }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   {{- with $c.tags }}
   tags:
@@ -466,15 +508,20 @@ spec:
   {{- end }}
   {{- with $d.secrets }}
   secrets:
-    {{- range . }}
-    {{- if include "cae.set" .value }}{{ fail (printf "avm-res-app-managedenvironment: dapr_components.%s: a secret's value is not supported: %s; reference a Key Vault secret (key_vault_url and identity) instead (docs/azure.md, \"Charts\")" $k (printf $secret "a Dapr secret's value")) }}{{ end }}
-    - {{- with .name }} name: {{ . | quote }}{{ end }}
-      {{- with .identity }}
+    {{- range $i, $s := . }}
+    {{- /* A secret's value: a reference to a Kubernetes Secret
+    (docs/secrets.md); a string is refused. */ -}}
+    {{- $ref := include "aso.secretRef" (list $ (printf "dapr_components.%s.secrets[%d].value" $k $i) $s.value) }}
+    - {{- with $s.name }} name: {{ . | quote }}{{ end }}
+      {{- with $s.identity }}
       identityReference:
         {{- include "cae.identityRef" . | nindent 8 }}
       {{- end }}
-      {{- with .key_vault_url }}
+      {{- with $s.key_vault_url }}
       keyVaultUrl: {{ . | quote }}
+      {{- end }}
+      {{- with $ref }}
+      value: {{ . }}
       {{- end }}
     {{- end }}
   {{- end }}
@@ -538,9 +585,12 @@ spec:
 {{- end }}
 {{- range $k, $s := ($v.storages | default dict) }}
 {{- if not $s.name }}{{ fail (printf "avm-res-app-managedenvironment: storages.%s needs a name" $k) }}{{ end }}
-{{- if or (include "cae.set" $s.account_key) (and $s.azure_file (include "cae.set" $s.azure_file.account_key)) }}
-{{- fail (printf "avm-res-app-managedenvironment: storages.%s: account_key is not supported: %s (docs/azure.md, \"Charts\")" $k (printf $secret "a storage account key")) }}
-{{- end }}
+{{- /* The storage account key: a reference to a Kubernetes Secret
+(docs/secrets.md), sent in azureFile as the module sends it; a string is
+refused. azure_file.account_key is in the module's type but never sent
+(the module reads account_key); it too must be a reference. */ -}}
+{{- $keyRef := include "aso.secretRef" (list $ (printf "storages.%s.account_key" $k) $s.account_key) }}
+{{- with $s.azure_file }}{{ $_ := include "aso.secretRef" (list $ (printf "storages.%s.azure_file.account_key" $k) .account_key) }}{{ end }}
 ---
 apiVersion: app.azure.hfl.dev/v20260101
 kind: ManagedEnvironmentsStorage
@@ -554,6 +604,7 @@ spec:
   {{- with $s.azure_file }}
   {{- $f := dict }}
   {{- with .access_mode }}{{ $_ := set $f "accessMode" . }}{{ end }}
+  {{- with $keyRef }}{{ $_ := set $f "accountKey" (fromJson .) }}{{ end }}
   {{- with .account_key_vault_properties }}
   {{- $kv := dict }}
   {{- with .identity }}{{ $_ := set $kv "identityReference" (include "cae.identityRef" . | fromYaml) }}{{ end }}
