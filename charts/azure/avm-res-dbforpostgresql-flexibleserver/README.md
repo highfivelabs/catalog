@@ -135,7 +135,11 @@ aso-extensions' manager at `3d9ba27`, 2026-11-13): all 5 objects Ready
 and deleted and the outputs evaluated, `fqdn` among them
 (`<server>.postgres.database.azure.com`). Earlier runs at `b9beb5b` had
 every object Ready but no outputs: that fake computed no
-`fullyQualifiedDomainName`.
+`fullyQualifiedDomainName`. 0.2.0 (run `off-catalog-1114091618-1539`, 2026-11-14, stock ASO v2.22.0 and aso-extensions' manager at `8d7f8c2`): `mock` (5 objects) and
+`mock-password` (password authentication, the administrator's password a
+reference to a Secret the run made with a random value; the server, a
+database and the default firewall rule) Ready and deleted, the outputs
+evaluated.
 
 ## Changes
 

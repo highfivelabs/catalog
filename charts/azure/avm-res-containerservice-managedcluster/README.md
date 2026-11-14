@@ -186,6 +186,11 @@ the maintenance configuration Ready and deleted, the outputs evaluated
 at `b9beb5ba`), run `off-catalog-1113105656-11634` (2026-11-13): the cluster, both pools, the maintenance configuration, the private endpoint and its DNS zone group, the data collection endpoint, rules and associations, the three Prometheus rule groups, the action group and both metric alerts
 Ready and deleted, the outputs evaluated.
 
+0.3.0 (run `off-catalog-1114091618-1539`, 2026-11-14, stock ASO v2.22.0 and aso-extensions' manager at `8d7f8c2`): `mock` (19 objects, as at 0.2.0) and `mock-windows` (the
+cluster, its default pool and a Windows pool, the Windows admin password a
+reference to a Secret the run made with a random value) Ready and deleted,
+the outputs evaluated.
+
 ## Changes
 
 - **0.3.0** (2026-11-14): `windows_profile_password` (with its

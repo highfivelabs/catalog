@@ -145,7 +145,15 @@ aso-extensions' kind, `windows` a Windows machine with its admin password
 from a Secret, `linux-password` Linux password sign-in. Fake cloud:
 `tests/mock.values.yaml`, `tests/mock-newer.values.yaml` and
 `tests/mock-windows.values.yaml` (a Windows machine, its password from a
-Secret the run makes) (`hack/azure-mock.sh`). Live: the `vm` case of
+Secret the run makes) (`hack/azure-mock.sh`). 0.4.0 (run
+`off-catalog-1114093250-22553`, 2026-11-14, stock ASO v2.22.0 and
+aso-extensions' manager at `8d7f8c2`): `mock` (5 objects), `mock-newer`
+(6) and `mock-windows` (the machine and its interface, the admin password
+a reference to a Secret the run made with a random value) Ready and
+deleted, the outputs evaluated. The first run (`off-catalog-1114091618-1539`)
+had every object Ready and deleted, but the Windows case's outputs failed:
+`admin_ssh_keys` read `linuxConfiguration`, which a Windows machine has
+not (fixed in `package.yaml`). Live: the `vm` case of
 `hack/azure-live.sh` (`docs/azure.md`, "8. Charts").
 
 ## Changes

@@ -196,6 +196,11 @@ already collected a firewall rule its server owned when `kubectl delete -f`
 reached it, so the fake and live scripts now delete with
 `--ignore-not-found`.
 
+0.4.0 against the fake cloud (run `off-catalog-1114091618-1539`, 2026-11-14, stock ASO v2.22.0 and aso-extensions' manager at `8d7f8c2`): `mock` (9 objects) and
+`mock-password` (a server with a SQL administrator, its password a
+reference to a Secret the run made with a random value, and a firewall
+rule: 2 objects) Ready and deleted, the outputs evaluated.
+
 Live (`sql` case, `hack/azure-live.sh`): a server with Entra-only
 authentication and the live identity as its Entra administrator, one
 Basic database (locally redundant backups) and a firewall rule for one
