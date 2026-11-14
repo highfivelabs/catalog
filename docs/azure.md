@@ -946,6 +946,22 @@ Each is a mapping still to land or landing, not a gap:
 | `avm-res-operationalinsights-workspace` | `network_security_perimeter_association` | `NetworkSecurityPerimetersResourceAssociation` (`network.azure.hfl.dev`) | #121 |
 | `avm-res-containerservice-managedcluster` | `namespace` | `ManagedClustersManagedNamespace` (`containerservice.azure.hfl.dev`) | #102 |
 
+**Always aso-extensions' kind (the builder's choice, 2026-11-14).** Five
+charts render aso-extensions' kind of ASO's name always, not only when a
+newer field is set, so toggling a field never swaps kinds or deletes the
+Azure resource: `avm-res-app-managedenvironment` 0.4.0
+(`ManagedEnvironment`), `avm-res-app-containerapp` 0.3.0 (`ContainerApp`),
+`avm-res-managedidentity-userassignedidentity` 0.3.0
+(`UserAssignedIdentity`), `avm-res-compute-virtualmachine` 0.3.0
+(`VirtualMachine`) and `avm-res-network-applicationgateway` 0.3.0
+(`ApplicationGateway`). ASO's children of these name them by ARM ID; the
+machine's interfaces and disks and the gateway's public IPs are referenced
+by ARM ID. These charts need aso-extensions installed. A deployment of an
+earlier version moves once with `deletion_policy: ABANDON` (each chart's
+README, "Moving from an earlier version"). `avm-res-web-site` and
+`avm-res-insights-component` keep ASO's `Site` and `Component` (aso-extensions
+has no newer kind of either); their aso-extensions objects are children.
+
 The fake-cloud and live runs install aso-extensions' manager beside ASO
 (`hack/asox-manager.sh`, below), so these kinds are applied and
 reconciled, not only rendered.

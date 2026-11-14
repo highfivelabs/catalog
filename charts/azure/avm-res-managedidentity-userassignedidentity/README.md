@@ -25,9 +25,9 @@ renders the ASO `UserAssignedIdentity` `uami-example`
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azurerm_user_assigned_identity.this` | always | `UserAssignedIdentity` (`managedidentity.azure.com/v1api20230131`), `user_assigned_identity`, owned by the resource group; aso-extensions' `UserAssignedIdentity` (`managedidentity.azure.hfl.dev/v20241130`) in its place when `isolation_scope` is set (below) |
-| `azurerm_federated_identity_credential.this` | one per `federated_identity_credentials` entry | `FederatedIdentityCredential`, `federated_identity_credential:<key>`, owned by the identity |
-| `azurerm_role_assignment.this` | one per `outbound_role_assignments` entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `outbound_role_assignment:<key>`, owned by the entry's `scope` (by ARM ID); its principal the identity's, read with `principalIdFromConfig` from the ConfigMap `<release>-id-outputs` the identity exports (`operatorSpec.configMaps.principalId`) |
+| `azurerm_user_assigned_identity.this` | always | aso-extensions' `UserAssignedIdentity` (`managedidentity.azure.hfl.dev/v20241130`, beside ASO's 2023-01-31 kind under its name; aso-extensions `docs/plan.md` §8 open question 11), `user_assigned_identity`, owned by the resource group; its principal ID exported by a CEL expression (`operatorSpec.configMapExpressions`) |
+| `azurerm_federated_identity_credential.this` | one per `federated_identity_credentials` entry | `FederatedIdentityCredential`, `federated_identity_credential:<key>`, owned by the identity by its ARM ID (ASO's kind names ASO's `UserAssignedIdentity` as owner) |
+| `azurerm_role_assignment.this` | one per `outbound_role_assignments` entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `outbound_role_assignment:<key>`, owned by the entry's `scope` (by ARM ID); its principal the identity's, read with `principalIdFromConfig` from the ConfigMap `<release>-id-outputs` the identity exports (`operatorSpec.configMapExpressions`, `self.status.principalId`) |
 | `azurerm_management_lock.this` | `lock` set | `ManagementLock` (aso-extensions), `lock` |
 | telemetry | never | not ported |
 
@@ -35,6 +35,20 @@ The identity's principal ID is known only once Azure has made it; ASO's
 `principalIdFromConfig` waits for it, which is how the module's
 `azurerm_user_assigned_identity.this.principal_id` reference is carried
 without kro (`docs/azure.md`, "6. kro verdict").
+
+## Moving from an earlier version
+
+From this version the chart always renders aso-extensions' `UserAssignedIdentity`
+(`managedidentity.azure.hfl.dev/v20241130`), never ASO's (`managedidentity.azure.com/v1api20230131`), so setting or clearing a newer field
+never swaps the object's kind. That needs aso-extensions' manager and CRDs
+installed beside Azure Service Operator (`docs/azure.md`, "8. Charts";
+aso-extensions pin `ASOX_COMMIT`). For a deployment made by an earlier
+version, which rendered ASO's kind, the upgrade replaces the Kubernetes
+object with one of the other kind under the same name in Azure. Do it
+once, with `deletion_policy: ABANDON`: apply the new version with
+`ABANDON` (the old object is detached, and the new one adopts the identity (and its client and principal IDs with it)),
+check it is Ready, then remove `ABANDON`. Without it, the old object's
+delete deletes the identity (and its client and principal IDs with it) in Azure.
 
 ## Values: module inputs to ASO
 
@@ -50,7 +64,7 @@ Every module variable is a value of the same name, type and default
 | `outbound_role_assignments` | one assignment each, owned by `scope`: `role_definition_id_or_name` (`armId` or `wellKnownName`), `condition`, `condition_version`, `delegated_managed_identity_resource_id`; `skip_service_principal_aad_check` sends `principalType: ServicePrincipal`, as azurerm does |
 | `lock` | the AVM lock interface, with the module's notes for the kind |
 | `enable_telemetry` | accepted; the chart sends no telemetry |
-| `isolation_scope` | `isolationScope` (`Regional`, the module's only value) of aso-extensions' `UserAssignedIdentity` (`managedidentity.azure.hfl.dev/v20241130`, beside ASO's 2023-01-31 kind under its name; aso-extensions `docs/plan.md` §8 open question 11). Set, the chart renders that kind in place of ASO's: the principal ID goes to the same ConfigMap by a CEL expression (`operatorSpec.configMapExpressions`, `self.status.principalId`; the kind has no `configMaps`), and the federated credentials and the lock own the identity by its ARM ID (their kinds name ASO's `UserAssignedIdentity`). Setting or clearing it on a running identity replaces its Kubernetes object with the other kind's: give it `deletion_policy: ABANDON` for that apply, or the old object's delete deletes the identity (and its client and principal IDs) |
+| `isolation_scope` | `isolationScope` (`Regional`, the module's only value) |
 
 ### Not module inputs
 
@@ -104,6 +118,10 @@ fake cloud with stock ASO (`docs/azure.md`, "8. Charts").
 
 ## Changes
 
+- **0.3.0** (2026-11-14): always aso-extensions' `UserAssignedIdentity`
+  (the builder's choice); the principal ID by CEL expression, the
+  federated credentials and lock by ARM ID. Moving from an earlier version:
+  above.
 - **0.2.0** (2026-11-13): `isolation_scope` is mapped: set, it renders
   aso-extensions' `UserAssignedIdentity` (`managedidentity.azure.hfl.dev/v20241130`,
   aso-extensions `8d7f8c2`) in place of ASO's.

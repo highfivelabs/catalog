@@ -5,10 +5,9 @@ Ported from terraform-azurerm-avm-res-app-managedenvironment main.tf,
 main.<child>.tf, locals.tf and modules/<child> (v0.6.0), Copyright (c)
 Microsoft Corporation, MIT.
 
-azapi_resource.this: one ASO ManagedEnvironment (app.azure.com/v20250101),
-or aso-extensions' (app.azure.hfl.dev/v20251002preview) when a field after
-2025-01-01 is set (the children then owned by its ARM ID),
-owned by the resource group parent_id or resource_group_name names, its
+azapi_resource.this: one aso-extensions ManagedEnvironment
+(app.azure.hfl.dev/v20251002preview, beside ASO's 2025-01-01 kind under its
+name), the children owned by its ARM ID, owned by the resource group parent_id or resource_group_name names, its
 body as the module builds it (local.resource_body), with the deprecated
 inputs folded in as the module's effective_* locals fold them.
 The child modules: aso-extensions kinds (app.azure.hfl.dev), each owned by
@@ -71,11 +70,11 @@ wellKnownName: {{ . | quote }}
 {{- else if include "cae.set" $x }}{{ $ibc = true }}{{ end }}
 {{- end }}
 {{- include "aso.unsupported" (list $ "ignore_body_changes" $ibc "Azure Service Operator applies every property it is given and cannot leave a path to another writer (no ignore-changes)") }}
-{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (ManagedEnvironment 2025-01-01, or aso-extensions' 2025-10-02-preview when a field needs it; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01)") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "ASO's and aso-extensions' kinds fix the API versions (aso-extensions' ManagedEnvironment 2025-10-02-preview; the children 2025-01-01, 2026-01-01, 2026-03-02-preview or 2026-07-01)") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- /* The fields after ASO's ManagedEnvironment API version 2025-01-01:
-any of them set renders aso-extensions' ManagedEnvironment
+the chart always renders aso-extensions' ManagedEnvironment
 (app.azure.hfl.dev/v20251002preview, beside ASO's under its name; the
 module sends 2025-10-02-preview) in place of ASO's, and owns the children
 by ARM ID (they name ASO's kind as their owner). The secret values these
@@ -87,11 +86,6 @@ carry (connection_string, key) are refused below. */ -}}
 {{- if and (not (kindIs "invalid" $pna)) (not (has $pna (list "Enabled" "Disabled"))) }}
 {{- fail "avm-res-app-managedenvironment: public_network_access must be \"Enabled\" or \"Disabled\"" }}
 {{- end }}
-{{- $newer := false }}
-{{- range $n := list "app_insights_configuration" "availability_zones" "disk_encryption_configuration" "ingress_configuration" "open_telemetry_configuration" }}
-{{- if not (kindIs "invalid" (index $v $n)) }}{{ $newer = true }}{{ end }}
-{{- end }}
-{{- if not (kindIs "invalid" $pna) }}{{ $newer = true }}{{ end }}
 {{- with $v.disk_encryption_configuration }}{{ with .key_vault_configuration }}{{ with .auth }}{{ with .identity }}
 {{- if not (hasPrefix "/" .) }}
 {{- fail "avm-res-app-managedenvironment: disk_encryption_configuration.key_vault_configuration.auth.identity must be a user-assigned identity's resource ID: ARM 2025-10-02-preview takes no system-assigned identity there" }}
@@ -185,7 +179,7 @@ one, then the Consumption profile Azure makes itself. */ -}}
 {{- end }}
 {{- $envID := printf "%s/providers/Microsoft.App/managedEnvironments/%s" $parent $envName }}
 ---
-apiVersion: {{ ternary "app.azure.hfl.dev/v20251002preview" "app.azure.com/v20250101" $newer }}
+apiVersion: app.azure.hfl.dev/v20251002preview
 kind: ManagedEnvironment
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "managed_environment" "abandon" $abandon) | nindent 2 }}
@@ -379,7 +373,7 @@ spec:
   publicNetworkAccess: {{ . | quote }}
   {{- end }}
 {{- /* The child modules, each owned by the environment. */ -}}
-{{- $envOwner := ternary (dict "armId" $envID) (dict "name" $obj) $newer }}
+{{- $envOwner := dict "armId" $envID }}
 {{- range $k, $c := ($v.certificates | default dict) }}
 {{- if not $c.name }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a name" $k) }}{{ end }}
 {{- if not $c.location }}{{ fail (printf "avm-res-app-managedenvironment: certificates.%s needs a location" $k) }}{{ end }}
@@ -757,7 +751,7 @@ spec:
       weekDay: {{ .week_day | quote }}
     {{- end }}
 {{- end }}
-{{- $owner := ternary (dict "armId" $envID) (dict "group" "app.azure.com" "kind" "ManagedEnvironment" "name" $obj) $newer }}
+{{- $owner := dict "armId" $envID }}
 {{- with $v.lock }}
 {{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq (toString .kind) "CanNotDelete") }}
 {{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $owner "v" (dict "kind" .kind "name" (.name | default (printf "lock-%s" .kind)) "notes" (.notes | default $notes))) }}

@@ -33,7 +33,7 @@ module's default `zone_redundant: true` needs an infrastructure subnet
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azapi_resource.this` | always | `ManagedEnvironment` (`app.azure.com/v20250101`), `managed_environment`, owned by the resource group; aso-extensions' `ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`) in its place when a field after ASO's 2025-01-01 is set (below) |
+| `azapi_resource.this` | always | aso-extensions' `ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`), `managed_environment`, owned by the resource group |
 | `module.certificates` | one per entry | `ManagedEnvironmentsCertificate` (aso-extensions, `app.azure.hfl.dev/v20250101`), `certificate:<key>` |
 | `module.dapr_components` | one per entry | `ManagedEnvironmentsDaprComponent` (aso-extensions, `v20250101`), `dapr_component:<key>` |
 | `module.dapr_subscriptions` | one per entry | `ManagedEnvironmentsDaprSubscription` (aso-extensions, `v20260302preview`), `dapr_subscription:<key>` |
@@ -48,25 +48,35 @@ module's default `zone_redundant: true` needs an infrastructure subnet
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
 | `time_sleep.lock_removal`, the role definition lookup, the workspace's customer ID and shared key lookups, telemetry | never | not ported: ASO retries a delete a lock still blocks and resolves a role by name itself; the shared key is a secret (below) |
 
-**ASO's kind or aso-extensions'.** ASO's `ManagedEnvironment` is at ARM
-API version 2025-01-01. When any of `app_insights_configuration`,
-`availability_zones`, `disk_encryption_configuration`,
-`ingress_configuration`, `open_telemetry_configuration`,
-`public_network_access` or `public_network_access_enabled` is set, the
-chart renders aso-extensions' `ManagedEnvironment` instead
-(`app.azure.hfl.dev/v20251002preview`, the module's version: the same kind
-name in aso-extensions' group, a superset of ASO's spec; aso-extensions
-`docs/plan.md` §8 open question 11), and every child, the lock, the role
-assignments and the diagnostic settings name the environment by its ARM
-ID (`owner.armId`): their kinds name ASO's `ManagedEnvironment` as owner.
-Setting or clearing one of these fields on a running environment replaces
-its Kubernetes object with the other kind's; give it `deletion_policy:
-ABANDON` for that apply, or the old object's delete deletes the
-environment.
+**aso-extensions' kind.** ASO's `ManagedEnvironment` is at ARM API
+version 2025-01-01, without `appInsightsConfiguration`,
+`availabilityZones`, `diskEncryptionConfiguration`, `ingressConfiguration`,
+`openTelemetryConfiguration` and `publicNetworkAccess`. The chart renders
+aso-extensions' `ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`,
+the module's version: the same kind name in aso-extensions' group, a
+superset of ASO's spec; aso-extensions `docs/plan.md` §8 open question 11)
+always, and every child, the lock, the role assignments and the diagnostic
+settings name the environment by its ARM ID (`owner.armId`): their kinds
+name ASO's `ManagedEnvironment` as owner. See "Moving from an earlier
+version".
 
 Every child is owned by the environment and named as the module names it
 (its `name`), without the `namePrefix`: its name is scoped to the
 environment, whose name carries the prefix.
+
+## Moving from an earlier version
+
+From this version the chart always renders aso-extensions' `ManagedEnvironment`
+(`app.azure.hfl.dev/v20251002preview`), never ASO's (`app.azure.com/v20250101`), so setting or clearing a newer field
+never swaps the object's kind. That needs aso-extensions' manager and CRDs
+installed beside Azure Service Operator (`docs/azure.md`, "8. Charts";
+aso-extensions pin `ASOX_COMMIT`). For a deployment made by an earlier
+version, which rendered ASO's kind, the upgrade replaces the Kubernetes
+object with one of the other kind under the same name in Azure. Do it
+once, with `deletion_policy: ABANDON`: apply the new version with
+`ABANDON` (the old object is detached, and the new one adopts the environment),
+check it is Ready, then remove `ABANDON`. Without it, the old object's
+delete deletes the environment in Azure.
 
 ## Values: module inputs to ASO
 
@@ -222,6 +232,10 @@ made first does not have, and errexit ended the run (fixed in
 
 ## Changes
 
+- **0.4.0** (2026-11-14): always aso-extensions' `ManagedEnvironment`, the
+  children always owned by its ARM ID (the builder's choice, so toggling a
+  field never swaps kinds); `mock` is now that kind without newer fields
+  and `mock-newer` with them. Moving from an earlier version: above.
 - **0.3.0** (2026-11-13): `app_insights_configuration`,
   `availability_zones`, `disk_encryption_configuration`,
   `ingress_configuration`, `open_telemetry_configuration`,

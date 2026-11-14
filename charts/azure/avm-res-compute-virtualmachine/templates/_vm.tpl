@@ -27,19 +27,6 @@ name (with the chart's subscription_id) or its ID.
 {{- end -}}
 
 {{/*
-vm.newer: "true" when a field after ASO's VirtualMachine API version
-2022-03-01 is set (disk_controller_type,
-bypass_platform_safety_checks_on_user_schedule_enabled true): the chart
-then renders aso-extensions' VirtualMachine (compute.azure.hfl.dev/v20250401,
-beside ASO's under its name), and names the machine, its interfaces and its
-disks by ARM ID (aso-extensions' kinds resolve ASO's by ARM ID; ASO's
-children name ASO's VirtualMachine as owner).
-*/}}
-{{- define "vm.newer" -}}
-{{- if or (not (kindIs "invalid" .Values.disk_controller_type)) (eq (toString .Values.bypass_platform_safety_checks_on_user_schedule_enabled) "true") -}}true{{- end -}}
-{{- end -}}
-
-{{/*
 vm.id: the machine's ARM ID.
 */}}
 {{- define "vm.id" -}}
