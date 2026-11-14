@@ -100,8 +100,11 @@ Fake cloud (`task test-mock`, `tests/mock.values.yaml`): a catalog, a
 database and a table. On 2026-11-12 (offload VM
 `off-catalog-1113001844-20314`, config-connector-extensions `11baa460`) all
 three became Ready, the outputs evaluated and all three were deleted.
-That run had Config Connector's `BigLakeTable`; chart 0.2.0's table has
-not been run on the fake cloud.
+That run had Config Connector's `BigLakeTable`. Chart 0.2.0, with
+config-connector-extensions' `BigLakeTable`, ran on 2026-11-14 (offload VM
+`off-catalog-1114175428-26368`, config-connector-extensions `384d07c0`):
+the catalog, the database and the table became Ready, the outputs
+evaluated and all three were deleted.
 
 Live (`hack/live-apply.sh` `LIVE_CHARTS=biglake-catalog`, `tests/live.yaml`):
 blocked by a role. As cce-live-tests (2026-11-13, `cat-11132355-c86b`)
@@ -160,6 +163,17 @@ config-connector-extensions: for a `missingIs403` kind, a 403 on the
 delete or the get after it should end the delete. The sweep removed
 the bucket; a check by hand found no catalog in `us`, `us-central1` or
 `eu`, no `cat-` bucket and no VM left.
+
+config-connector-extensions `384d07c0` (#129) takes that 403, while
+deleting, for gone once a listing proves it (the database's and the
+table's collections answer 403 too after the catalog went, and the
+project's catalogs list without the catalog). The rerun (2026-11-14,
+`cat-11141804-e54f`, offload VM `off-catalog-1114180022-11976`, as
+catalog-live-tests) **passed**: the bucket, the catalog, the database
+and the table were Ready, all deleted at once, and all gone from Google
+Cloud; the outputs evaluated. A check by hand after found no catalog in
+`us`, `us-central1` or `eu` (so no database or table), no `cat-` or
+`cce-` bucket and no VM left.
 
 ## Changes
 
