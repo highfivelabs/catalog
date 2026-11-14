@@ -30,10 +30,14 @@
 # provisioningState, and computes what Azure computes that the charts read
 # (an address, a principal ID, a login server, a vault's URI, FQDNs;
 # aso-extensions' pkg/fakecloud/arm/computed.go), so every Package's outputs
-# must evaluate too. A VaultKey reads its key in the vault's data plane:
-# <vault>.vault.azure.net is fakearm inside the cluster (a CoreDNS rewrite;
-# the fixtures' certificate carries the name), and fakearm is given ASO's
-# tenant, which Key Vault's challenge names. aso-extensions' Entra kinds
+# must evaluate too. A vault's data plane (<vault>.vault.azure.net) is
+# tools/vaultroute inside the cluster (a CoreDNS rewrite; it serves
+# fakearm's certificate, which carries the name): a VaultKey reads its key
+# there, which vaultroute takes to fakearm (given ASO's tenant, which Key
+# Vault's challenge names), and aso-extensions' VaultSecret writes its
+# secret there, which vaultroute takes to aso-extensions' fake vault
+# (cmd/fakevault, one vault: KV_SECRETS_VAULT, the Key Vault chart's mock
+# vault). aso-extensions' Entra kinds
 # (a DirectoryRoleAssignment) reach a fake Microsoft Graph (cmd/fakegraph,
 # MICROSOFT_GRAPH_ENDPOINT on the manager), whose directory holds the
 # principals the mock values name (GRAPH_PRINCIPALS).
@@ -58,6 +62,10 @@ RG="/subscriptions/${SUB}/resourceGroups/catalog-rg"
 # object IDs the mock values assign directory roles to
 # (avm-res-authorization-roleassignment's mock-user).
 GRAPH_PRINCIPALS=0a0a0a0a-0000-4000-8000-000000000001
+# The vault whose secrets the fake vault holds: the Key Vault chart's
+# tests/mock.values.yaml's (cmd/fakevault serves one vault; its secrets'
+# IDs carry this host).
+KV_SECRETS_VAULT=catalog-kv-001
 mkdir -p "${OUT}"
 
 for t in docker kind kubectl helm go jq; do
@@ -72,10 +80,11 @@ trap cleanup EXIT
 source "${ROOT}/hack/asox-manager.sh"
 asox_fetch "${WORK}"
 
-echo "== the fake cloud: fakearm, fakeentra and fakegraph from ${ASOX_TARBALL:-${ASOX_DIR}}"
-(cd "${ASOX_DIR}" && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./cmd/fakearm ./cmd/fakeentra ./cmd/fakegraph \
+echo "== the fake cloud: fakearm, fakeentra, fakegraph and fakevault from ${ASOX_TARBALL:-${ASOX_DIR}}"
+(cd "${ASOX_DIR}" && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./cmd/fakearm ./cmd/fakeentra ./cmd/fakegraph ./cmd/fakevault \
   && go run ./tests/operator/fixtures --out "${WORK}/fixtures" --tenant "${TENANT}" --client "${CLIENT}")
-for b in fakearm fakeentra fakegraph; do
+(cd tools && CGO_ENABLED=0 go build -o "${WORK}/bin/" ./vaultroute)
+for b in fakearm fakeentra fakegraph fakevault vaultroute; do
   mkdir -p "${WORK}/img-${b}"
   cp "${WORK}/bin/${b}" "${WORK}/img-${b}/${b}"
   printf 'FROM scratch\nCOPY %s /%s\nENTRYPOINT ["/%s"]\n' "${b}" "${b}" "${b}" >"${WORK}/img-${b}/Dockerfile"
@@ -86,14 +95,16 @@ kind create cluster --name "${CLUSTER}" --wait 180s
 export KUBECONFIG="${WORK}/kubeconfig"
 kind get kubeconfig --name "${CLUSTER}" >"${KUBECONFIG}"
 asox_build_manager "${WORK}"
-for b in fakearm fakeentra fakegraph; do kind load docker-image "catalog.local/${b}:mock" --name "${CLUSTER}" >/dev/null; done
+for b in fakearm fakeentra fakegraph fakevault vaultroute; do kind load docker-image "catalog.local/${b}:mock" --name "${CLUSTER}" >/dev/null; done
 
 kubectl create namespace fake-cloud >/dev/null
 kubectl create namespace "${ASO_NS}" >/dev/null
-for b in fakearm fakeentra fakegraph; do
+for b in fakearm fakeentra fakegraph fakevault; do
   kubectl -n fake-cloud create secret tls "${b}-tls" --cert "${WORK}/fixtures/${b}.crt" --key "${WORK}/fixtures/${b}.key" >/dev/null
 done
-kubectl -n "${ASO_NS}" create configmap fake-cloud-ca --from-file=ca.crt="${WORK}/fixtures/ca.crt" >/dev/null
+for ns in "${ASO_NS}" fake-cloud; do
+  kubectl -n "${ns}" create configmap fake-cloud-ca --from-file=ca.crt="${WORK}/fixtures/ca.crt" >/dev/null
+done
 # ASO's workload identity token names its service account; the fake Entra
 # puts that subject in the token, and fakearm trusts it for this client.
 ASO_SUBJECT="system:serviceaccount:${ASO_NS}:azureserviceoperator-default"
@@ -178,18 +189,75 @@ metadata: {name: fakegraph, namespace: fake-cloud}
 spec:
   selector: {app: fakegraph}
   ports: [{port: 443, targetPort: 443}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: fakevault, namespace: fake-cloud}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: fakevault}}
+  template:
+    metadata: {labels: {app: fakevault}}
+    spec:
+      containers:
+      - name: fakevault
+        image: catalog.local/fakevault:mock
+        imagePullPolicy: Never
+        args: [--listen=:443, "--base-url=https://${KV_SECRETS_VAULT}.vault.azure.net", "--trust=${CLIENT}=${ASO_SUBJECT}", "--trust=${CLIENT}=${ASOX_SUBJECT}"]
+        ports: [{containerPort: 443}]
+        volumeMounts: [{name: tls, mountPath: /tls, readOnly: true}]
+      volumes: [{name: tls, secret: {secretName: fakevault-tls}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: fakevault, namespace: fake-cloud}
+spec:
+  selector: {app: fakevault}
+  ports: [{port: 443, targetPort: 443}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: vaultroute, namespace: fake-cloud}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: vaultroute}}
+  template:
+    metadata: {labels: {app: vaultroute}}
+    spec:
+      containers:
+      - name: vaultroute
+        image: catalog.local/vaultroute:mock
+        imagePullPolicy: Never
+        args: [--listen=:443, --ca=/fake-cloud-ca/ca.crt, --keys=https://fakearm.fake-cloud.svc, --secrets=https://fakevault.fake-cloud.svc]
+        ports: [{containerPort: 443}]
+        volumeMounts:
+        - {name: tls, mountPath: /tls, readOnly: true}
+        - {name: fake-cloud-ca, mountPath: /fake-cloud-ca, readOnly: true}
+      volumes:
+      - {name: tls, secret: {secretName: fakearm-tls}}
+      - {name: fake-cloud-ca, configMap: {name: fake-cloud-ca}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vaultroute, namespace: fake-cloud}
+spec:
+  selector: {app: vaultroute}
+  ports: [{port: 443, targetPort: 443}]
 EOF
 kubectl apply -f "${WORK}/fake-cloud.yaml" >/dev/null
 kubectl -n fake-cloud rollout status deploy/fakearm --timeout=180s
 kubectl -n fake-cloud rollout status deploy/fakeentra --timeout=180s
 kubectl -n fake-cloud rollout status deploy/fakegraph --timeout=180s
+kubectl -n fake-cloud rollout status deploy/fakevault --timeout=180s
+kubectl -n fake-cloud rollout status deploy/vaultroute --timeout=180s
 # login.microsoftonline.com is the fake Entra inside the cluster, and every
-# vault's data plane (<vault>.vault.azure.net, which ASO's VaultKey reads) is
-# fakearm, which holds the keys and whose certificate carries the name.
+# vault's data plane (<vault>.vault.azure.net: ASO's VaultKey reads keys
+# there, aso-extensions' VaultSecret writes secrets) is vaultroute, which
+# sends keys to fakearm and the rest to fakevault.
 corefile="$(kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')"
 corefile="$(awk '{print} /^ *ready *$/ {
   print "    rewrite name exact login.microsoftonline.com fakeentra.fake-cloud.svc.cluster.local answer auto"
-  print "    rewrite name regex (.+)\\.vault\\.azure\\.net fakearm.fake-cloud.svc.cluster.local answer auto"}' <<<"${corefile}")"
+  print "    rewrite name regex (.+)\\.vault\\.azure\\.net vaultroute.fake-cloud.svc.cluster.local answer auto"}' <<<"${corefile}")"
 grep -q 'vault' <<<"${corefile}" || { echo "azure-mock: no ready line in the Corefile for the rewrite" >&2; exit 1; }
 kubectl -n kube-system create configmap coredns --from-literal=Corefile="${corefile}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 kubectl -n kube-system rollout restart deploy/coredns >/dev/null
@@ -239,7 +307,7 @@ summary="${OUT}/summary.md"
 {
   echo "# Azure fake-cloud apply, $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); aso-extensions ${ASOX_TARBALL:-${ASOX_DIR}}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager on kind against fakearm, fakeentra and fakegraph."
+  echo "Catalog commit $(git rev-parse --short HEAD 2>/dev/null || echo unknown); aso-extensions ${ASOX_TARBALL:-${ASOX_DIR}}; Azure Service Operator v${ASO_VERSION} and aso-extensions' manager on kind against fakearm, fakeentra, fakegraph and fakevault (behind vaultroute)."
   echo
   echo "| Chart | Object | Ready | Deleted | Message |"
   echo "| --- | --- | --- | --- | --- |"
@@ -313,6 +381,8 @@ asox_manager_logs "${OUT}/asox-manager.log"
 kubectl -n fake-cloud logs deployment/fakearm --tail=-1 >"${OUT}/fakearm.log" 2>&1 || true
 kubectl -n fake-cloud logs deployment/fakeentra --tail=-1 >"${OUT}/fakeentra.log" 2>&1 || true
 kubectl -n fake-cloud logs deployment/fakegraph --tail=-1 >"${OUT}/fakegraph.log" 2>&1 || true
+kubectl -n fake-cloud logs deployment/fakevault --tail=-1 >"${OUT}/fakevault.log" 2>&1 || true
+kubectl -n fake-cloud logs deployment/vaultroute --tail=-1 >"${OUT}/vaultroute.log" 2>&1 || true
 {
   echo
   echo "${total} objects; ${failed} failures (an object not Ready or not deleted, or a chart's outputs not evaluated)."
