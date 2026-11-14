@@ -189,7 +189,8 @@ compute-mig-stateful"`, as cce-live-tests (compute roles), with
 config-connector-extensions' manager beside Config Connector's: a zonal
 group of one e2-micro VM held by a `ComputeAutoscaler` (min and max 1, no
 `target_size`) with the health check for auto-healing, and a zonal group of
-`target_size` 1 with one `ComputePerInstanceConfig`; each group's size is
+`target_size` 1 with one `ComputePerInstanceConfig` naming the VM the
+group made; each group's size is
 read after it is made and again after Config Connector reconciles it a
 second time, and must be 1 VM (the named one, for the second). The first run
 (2026-11-13, `cat-11130713-23f6`, offload VM
@@ -205,20 +206,23 @@ offload VM `off-catalog-1113233930-16906`, config-connector-extensions
 - `compute-mig` passed: every object Ready, deleted and gone from Google
   Cloud, `id` evaluated, and the group held 1 VM after it was made and
   after a second reconcile.
-- `compute-mig-stateful` failed its size check, and only that: every
-  object (the group and the `ComputePerInstanceConfig` among them) was
-  Ready, deleted and gone, but the group held 2 VMs, the named
-  `cat-11132344-b82d-migs-0` and one the group made for its
-  `target_size`, with `targetSize` 2, after it was made and still after a
-  second reconcile. The cause is config-connector-extensions'
-  `ComputePerInstanceConfig`, which calls `createInstances` (it grows the
-  group by one), where Terraform calls `updatePerInstanceConfigs`; and
-  Config Connector's `ComputeInstanceGroupManager` does not resize the
-  group back to its spec, as "Differences" assumed it would. Until the
-  kind matches Terraform, a stateful named instance adds a VM to the
-  group's size.
+- `compute-mig-stateful` failed its size check, and only that: the group
+  held 2 VMs, the named `cat-11132344-b82d-migs-0` and one the group made
+  for its `target_size`, with `targetSize` 2, still after a second
+  reconcile: config-connector-extensions' `ComputePerInstanceConfig` then
+  called `createInstances`, which grows the group by one.
 
-The sweep found nothing of the run left.
+config-connector-extensions `aec29642` (cce #124) writes the config with
+`updatePerInstanceConfigs` instead, so the stateful case now applies its
+group first, reads the VM the group made, and adds a `stateful_config`
+entry naming that VM. The run of 2026-11-14 (`cat-11140822-f385`, offload
+VM `off-catalog-1114081815-15536`, as cce-live-tests,
+config-connector-extensions `aec29642`) **passed both cases**: every
+object Ready, deleted and gone from Google Cloud, `id` evaluated; the
+autoscaled group held 1 VM, and the stateful group held 1 VM, the one its
+`ComputePerInstanceConfig` names, with that config (and the run's
+metadata) on it, after it was made and after a second reconcile. The
+sweep found nothing of either run left.
 
 ## Changes
 
