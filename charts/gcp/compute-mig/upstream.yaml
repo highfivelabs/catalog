@@ -1,0 +1,42 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Where this chart came from: the Terraform module it ports and the release
+# it was ported from. Machine-readable; `task upstream-check` keeps it equal
+# to upstream/modules.yaml and Chart.yaml. To take a newer release, see
+# UPSTREAM.md ("Moving the pins").
+module: gcp/compute-mig
+repo: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric
+path: modules/compute-mig
+version: v60.0.0
+commit: f706bc3b6166787df01402f73a96f1de57097477
+license: Apache-2.0
+copyright: Google LLC
+module_url: https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/compute-mig
+registry_url: null
+synced: 2026-11-13
+# Module variables the chart keeps in values.yaml (so tfvars convert one to
+# one) but refuses when set, or accepts only in part. Read by `task
+# coverage`; `task coverage-verify` renders the chart to check that each one
+# is refused. kind: gap (no Config Connector kind or field), alpha (only a
+# v1alpha1 kind), not-ported (Config Connector has it, the chart does not
+# map it yet) or by-design (Bundt replaces it). partial: the variable is
+# accepted, the reason says what is refused.
+refused:
+  - variable: all_instances_config
+    kind: gap
+    reason: "ComputeInstanceGroupManager has no allInstancesConfig field"
+  - variable: instance_lifecycle_policy
+    kind: gap
+    reason: "ComputeInstanceGroupManager has no instanceLifecyclePolicy field"
+  - variable: instance_flexibility_policy_selections
+    kind: gap
+    reason: "ComputeInstanceGroupManager has no instanceFlexibilityPolicy field"
+  - variable: wait_for_instances
+    kind: gap
+    reason: "a Terraform client-side wait for the group's instances; Config Connector has no field for it"
+  - variable: autoscaler_config
+    kind: gap
+    reason: "scaling_control.down beside scaling_control.in: Compute Engine v1, which the autoscaler kinds call, has one scale-in control"
+    partial: true
+    fields: [scaling_control.down]

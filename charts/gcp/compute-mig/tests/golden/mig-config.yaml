@@ -1,0 +1,31 @@
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: mig-config
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mig-config"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "mig-test-2"
+  projectRef:
+    external: "my-project"
+  location: "europe-west8-b"
+  baseInstanceName: "mig-test-2"
+  description: "Terraform managed."
+  targetSize: 1
+  statefulPolicy:
+    preservedState:
+      disks:
+        "data-1":
+          autoDelete: NEVER
+  versions:
+    - name: "default"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"

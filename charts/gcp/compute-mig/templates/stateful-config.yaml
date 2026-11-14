@@ -1,0 +1,64 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/compute-mig/stateful-config.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_compute_per_instance_config.default (a zonal group) or
+google_compute_region_per_instance_config.default (a regional group): one
+ComputePerInstanceConfig or ComputeRegionPerInstanceConfig
+(config-connector-extensions, compute.gcp.hfl.dev/v1beta1) per
+stateful_config entry, its instance named after the key.
+*/ -}}
+{{- $v := .Values }}
+{{- $regional := include "computeMig.regional" . }}
+{{- $abandon := include "kcc.abandon" . }}
+{{- range $k := keys $v.stateful_config | sortAlpha }}
+{{- $c := index $v.stateful_config $k | default dict }}
+---
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: {{ ternary "ComputeRegionPerInstanceConfig" "ComputePerInstanceConfig" (eq $regional "true") }}
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name "instance" $k)) "id" (printf "stateful_config:%s" $k) "project" $v.project_id "abandon" $abandon) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  resourceID: {{ include "kcc.cloudName" (list $ "instance" $k 63 "letter") | quote }}
+  {{- if $regional }}
+  region: {{ $v.location | quote }}
+  regionInstanceGroupManagerRef:
+    name: {{ include "kcc.name" (list $.Release.Name) }}
+  {{- else }}
+  zone: {{ $v.location | quote }}
+  instanceGroupManagerRef:
+    name: {{ include "kcc.name" (list $.Release.Name) }}
+  {{- end }}
+  {{- with $c.minimal_action }}
+  minimalAction: {{ . | quote }}
+  {{- end }}
+  {{- with $c.most_disruptive_action }}
+  mostDisruptiveAllowedAction: {{ . | quote }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $c.remove_state_on_destroy) }}
+  removeInstanceStateOnDestroy: {{ $c.remove_state_on_destroy }}
+  {{- end }}
+  {{- with $c.preserved_state }}
+  preservedState:
+    {{- with .metadata }}
+    metadata:
+      {{- range $mk := keys . | sortAlpha }}
+      {{ $mk | quote }}: {{ index $c.preserved_state.metadata $mk | quote }}
+      {{- end }}
+    {{- end }}
+    {{- with .disks }}
+    disk:
+      {{- range $d := keys . | sortAlpha }}
+      {{- $disk := index $c.preserved_state.disks $d }}
+      - deviceName: {{ $d | quote }}
+        source: {{ $disk.source | quote }}
+        deleteRule: {{ ternary "ON_PERMANENT_INSTANCE_DELETION" "NEVER" (eq (toString $disk.delete_on_instance_deletion) "true") }}
+        mode: {{ ternary "READ_ONLY" "READ_WRITE" (eq (toString $disk.read_only) "true") }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
