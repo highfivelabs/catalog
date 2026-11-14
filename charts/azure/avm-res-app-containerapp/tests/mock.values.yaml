@@ -1,7 +1,10 @@
 # For an apply against the fake cloud (docs/azure.md, "8. Charts"): a
 # container app in the fake cloud's resource group, its environment given
-# by ID (the fake keeps any body), with ingress, a probe and an
-# authentication configuration.
+# by ID (the fake keeps any body), with ingress, a probe, an
+# authentication configuration, and a secret whose value is a reference to
+# a Secret the harness makes before the apply with a random value
+# (hack/test-secret.sh; nothing committed), as the line below asks:
+# secret: catalog-ca-secrets random
 name: catalog-ca
 location: eastus2
 resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
@@ -17,6 +20,12 @@ template:
       memory: 0.5Gi
       readiness_probes:
         - {transport: HTTP, port: 80, path: /}
+      env:
+        - {name: API_KEY, secret_name: api-key}
+secrets:
+  api:
+    name: api-key
+    value: {secretName: catalog-ca-secrets, key: value}
 ingress:
   external_enabled: true
   target_port: 80
