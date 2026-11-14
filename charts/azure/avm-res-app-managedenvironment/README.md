@@ -12,7 +12,7 @@ port of the Azure Verified Module
 at v0.6.0 (`c6709095`), MIT, Copyright (c) Microsoft Corporation
 (`LICENSE.avm`). Bundt Package `azure-avm-res-app-managedenvironment`
 (`package.yaml`). Checked against ASO v2.22.0's CRDs and aso-extensions'
-at `b9beb5b`.
+at `8d7f8c2`.
 
 ## Example
 
@@ -33,7 +33,7 @@ module's default `zone_redundant: true` needs an infrastructure subnet
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azapi_resource.this` | always | `ManagedEnvironment` (`app.azure.com/v20250101`), `managed_environment`, owned by the resource group |
+| `azapi_resource.this` | always | `ManagedEnvironment` (`app.azure.com/v20250101`), `managed_environment`, owned by the resource group; aso-extensions' `ManagedEnvironment` (`app.azure.hfl.dev/v20251002preview`) in its place when a field after ASO's 2025-01-01 is set (below) |
 | `module.certificates` | one per entry | `ManagedEnvironmentsCertificate` (aso-extensions, `app.azure.hfl.dev/v20250101`), `certificate:<key>` |
 | `module.dapr_components` | one per entry | `ManagedEnvironmentsDaprComponent` (aso-extensions, `v20250101`), `dapr_component:<key>` |
 | `module.dapr_subscriptions` | one per entry | `ManagedEnvironmentsDaprSubscription` (aso-extensions, `v20260302preview`), `dapr_subscription:<key>` |
@@ -47,6 +47,22 @@ module's default `zone_redundant: true` needs an infrastructure subnet
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting` (`insights.azure.com/v1api20210501preview`), `diagnostic-setting-<key>` |
 | `time_sleep.lock_removal`, the role definition lookup, the workspace's customer ID and shared key lookups, telemetry | never | not ported: ASO retries a delete a lock still blocks and resolves a role by name itself; the shared key is a secret (below) |
+
+**ASO's kind or aso-extensions'.** ASO's `ManagedEnvironment` is at ARM
+API version 2025-01-01. When any of `app_insights_configuration`,
+`availability_zones`, `disk_encryption_configuration`,
+`ingress_configuration`, `open_telemetry_configuration`,
+`public_network_access` or `public_network_access_enabled` is set, the
+chart renders aso-extensions' `ManagedEnvironment` instead
+(`app.azure.hfl.dev/v20251002preview`, the module's version: the same kind
+name in aso-extensions' group, a superset of ASO's spec; aso-extensions
+`docs/plan.md` §8 open question 11), and every child, the lock, the role
+assignments and the diagnostic settings name the environment by its ARM
+ID (`owner.armId`): their kinds name ASO's `ManagedEnvironment` as owner.
+Setting or clearing one of these fields on a running environment replaces
+its Kubernetes object with the other kind's; give it `deletion_policy:
+ABANDON` for that apply, or the old object's delete deletes the
+environment.
 
 Every child is owned by the environment and named as the module names it
 (its `name`), without the `namePrefix`: its name is scoped to the
@@ -87,6 +103,12 @@ Where the module folds a deprecated input into a newer one (its
 | `lock` | the AVM lock interface, with the module's default name (`lock-<kind>`) and notes |
 | `role_assignments` | the AVM interface: an entry's `name` is the assignment's GUID; a role by name (ASO resolves it) or ID; `skip_service_principal_aad_check` without a `principal_type` sends `ServicePrincipal`, as the module does |
 | `diagnostic_settings` | the AVM interface: log groups (default `allLogs`), log categories, metric categories (default `AllMetrics`; an empty list sends none), the destination type (`Dedicated`, the default, is not sent, as the module does); a setting without a name is `diag-<name>` |
+| `app_insights_configuration` | `appInsightsConfiguration: {}` (aso-extensions' kind): the module sends only the connection string in it, which is refused (a secret); the object's own `connection_string` is informational in the module and not sent |
+| `availability_zones` | `availabilityZones` (aso-extensions' kind) |
+| `disk_encryption_configuration` | `diskEncryptionConfiguration.keyVaultConfiguration` (aso-extensions' kind): `key_url` and `auth.identity` as a user-assigned identity's ID (`identityReference.armId`). `System` is refused: ARM 2025-10-02-preview takes only a user-assigned identity there |
+| `ingress_configuration` | `ingressConfiguration` (aso-extensions' kind) |
+| `open_telemetry_configuration` | `openTelemetryConfiguration` (aso-extensions' kind): the Datadog `site`, OTLP endpoints with their headers, and the logs, metrics and traces destinations. The Datadog key is refused (`key`, a secret); the object's own `data_dog_configuration.key` is informational in the module and not sent |
+| `public_network_access`, `public_network_access_enabled` (deprecated) | `publicNetworkAccess` (aso-extensions' kind), `Enabled` or `Disabled`; `Enabled` with an internal network is refused, as in the module |
 | `enable_telemetry` | accepted; the chart sends no telemetry |
 
 ### Not module inputs
@@ -111,12 +133,8 @@ is not settled); Key Vault references, which hold no value, are taken.
 | `resource_types` | by-design | ASO's and aso-extensions' kinds fix the API versions |
 | `retry` | by-design | ASO retries every failed request itself |
 | `timeouts` | by-design | ASO has no per-request timeouts; Bundt sets a component's time limit |
-| `app_insights_configuration`, `connection_string`, `connection_string_version` | gap | ASO's `ManagedEnvironment` is at ARM API version 2025-01-01, which has no `appInsightsConfiguration` (the module sends 2025-10-02-preview) |
-| `availability_zones` | gap | likewise no `availabilityZones` |
-| `disk_encryption_configuration` | gap | likewise no `diskEncryptionConfiguration` |
-| `ingress_configuration` | gap | likewise no `ingressConfiguration` |
-| `open_telemetry_configuration`, `key`, `key_version` | gap | likewise no `openTelemetryConfiguration` |
-| `public_network_access`, `public_network_access_enabled` | gap | likewise no `publicNetworkAccess` |
+| `connection_string`, `connection_string_version` | not-ported | the Application Insights connection string: a secret |
+| `key`, `key_version` | not-ported | the Datadog API key of the OpenTelemetry configuration: a secret |
 | `log_analytics_workspace` | not-ported | the module reads the workspace's primary shared key and sends it: a secret |
 | `shared_key`, `shared_key_version`, `log_analytics_workspace_primary_shared_key`, `log_analytics_workspace_customer_id` | not-ported | a Log Analytics destination needs the workspace's shared key: a secret |
 | `certificate_password`, `certificate_value` (and their `_version`), `custom_domain_certificate_password`, `custom_domain_certificate_value` | not-ported | the custom domain certificate's password and blob: secrets (reference the certificate in Key Vault instead) |
@@ -169,7 +187,8 @@ repository, release, commit, licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-app-managedenvironment`: render cases `basic`,
-`deprecated`, `full`, `names` and `mock`, each validated against ASO
+`deprecated`, `full`, `names`, `newer` (aso-extensions' kind), `mock` and
+`mock-newer`, each validated against ASO
 v2.22.0's CRD schemas and the aso-extensions CRDs copied in
 `crds/aso-extensions`, and the refusals in `tests/*.fail.yaml`.
 `task test-mock-azure` applies `tests/mock.values.yaml` (the environment
@@ -203,6 +222,14 @@ made first does not have, and errexit ended the run (fixed in
 
 ## Changes
 
+- **0.3.0** (2026-11-13): `app_insights_configuration`,
+  `availability_zones`, `disk_encryption_configuration`,
+  `ingress_configuration`, `open_telemetry_configuration`,
+  `public_network_access` and `public_network_access_enabled` are mapped:
+  any of them renders aso-extensions' `ManagedEnvironment`
+  (`app.azure.hfl.dev/v20251002preview`, aso-extensions `8d7f8c2`) in
+  place of ASO's, the children owned by its ARM ID. `connection_string`,
+  `key` and their `_version`s stay refused, now as secrets.
 - **0.2.0** (2026-11-13): `dapr_subscriptions` and `dot_net_components`
   render aso-extensions' `ManagedEnvironmentsDaprSubscription` and
   `ManagedEnvironmentsDotNetComponent`; `java_components` take `Nacos` and
