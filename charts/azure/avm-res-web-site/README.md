@@ -193,6 +193,12 @@ and deleted, every output evaluated, `resource_uri`
 (`catalog-app.azurewebsites.net`) and `custom_domain_verification_id`
 among them, no longer null.
 
+0.5.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `8d7f8c2`), run `off-catalog-1114090847-14562` (2026-11-14): all 15
+objects Ready and deleted, among them a `Certificate` uploaded from a PFX
+and its password and the `Site` with an Azure Files mount, each from a
+Secret the run made (`hack/test-secret.sh`), and the outputs evaluated.
+
 ## Changes
 
 - **0.5.0** (2026-11-14): a certificate's `pfx_blob` and `password`

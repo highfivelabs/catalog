@@ -143,6 +143,12 @@ register it (run `cat11130328999c`, 2026-11-13; docs/azure.md, section 18).
 fake cloud: passed on 2026-11-13, the account, its deployment and RAI
 policy Ready and deleted, the outputs evaluated.
 
+0.2.0 against the fake cloud (stock ASO v2.22.0, aso-extensions' manager
+at `8d7f8c2`), run `off-catalog-1114090847-14562` (2026-11-14): `mock`
+(the account, its deployment and RAI policy) and `mock-search` (a
+TextAnalytics account whose Search key is a reference to a Secret the
+run made) Ready and deleted, the outputs evaluated.
+
 ## Changes
 
 - **0.2.0** (2026-11-14): `custom_question_answering_search_service_key`
