@@ -688,11 +688,13 @@ sed -e 's/live-xilb-/live-xalb-/g' -e "s/${XILB}-/${XALB}-/g" -e 's#10\.252\.#10
 # the auto-created
 # TCP health check for auto-healing (a long initial delay: no firewall
 # rule admits the probes, so the VM would be recreated after it).
-# compute-mig-stateful: the same chart, a zonal group of target_size 1
-# and one named instance made by config-connector-extensions'
-# ComputePerInstanceConfig (its createInstances grows the group by one,
-# which Config Connector then resizes to the spec's size). mig_check,
-# below, reads what the group holds.
+# compute-mig-stateful: the same chart, a zonal group of target_size 1,
+# applied first without stateful_config; once the group has made its VM,
+# mig_stateful_config adds a stateful_config entry naming that VM, and the
+# case goes on with config-connector-extensions' ComputePerInstanceConfig
+# for it (updatePerInstanceConfigs: a config names a VM the group has and
+# never adds one, so the group stays at 1). mig_check, below, reads what
+# the group holds.
 cat >"${OUT}/compute-mig.values.yaml" <<VALUES
 project_id: ${PROJECT}
 location: ${REGION}-a
@@ -717,12 +719,6 @@ description: catalog live test ${RUN}
 instance_template: projects/${PROJECT}/global/instanceTemplates/${MIGS}-tpl
 target_size: 1
 update_policy: {minimal_action: NONE, type: OPPORTUNISTIC}
-stateful_config:
-  ${MIGS}-0:
-    minimal_action: NONE
-    most_disruptive_action: REPLACE
-    preserved_state:
-      metadata: {catalog-run: ${RUN}}
 VALUES
 # The network, subnet and template each case's group needs (live-mig- or
 # live-migs-).
@@ -778,9 +774,10 @@ done
 # Connector has made it and again after it has reconciled the group a
 # second time (a changed annotation), must be 1 and 1 (charts/gcp/compute-mig,
 # README.md, "The target size"), and the named INSTANCE, when given, must be
-# the one left. Appends a row to the summary; fails otherwise.
+# the one left and have the group's per-instance config (with the run's
+# metadata). Appends a row to the summary; fails otherwise.
 mig_check() {
-  local chart="$1" group="$2" want="${3:-}" zone="${REGION}-a" s1 n1 s2 n2 vms ok=yes
+  local chart="$1" group="$2" want="${3:-}" zone="${REGION}-a" s1 n1 s2 n2 vms cfg="" ok=yes
   "${G[@]}" compute instance-groups managed wait-until "${group}" --zone "${zone}" --stable --timeout 600 >/dev/null 2>&1 || true
   s1="$("${G[@]}" compute instance-groups managed describe "${group}" --zone "${zone}" --format='value(targetSize)' 2>/dev/null || true)"
   n1="$("${G[@]}" compute instance-groups managed list-instances "${group}" --zone "${zone}" --format='value(name)' 2>/dev/null | wc -l | tr -d ' ')"
@@ -793,9 +790,38 @@ mig_check() {
   n2="$(wc -w <<<"${vms}" | tr -d ' ')"
   [[ "${s1}" == 1 && "${n1}" == 1 && "${s2}" == 1 && "${n2}" == 1 ]] || ok=no
   [[ -z "${want}" || " ${vms}" == *" ${want} "* ]] || ok=no
-  echo "   ${group}: targetSize ${s1} with ${n1} VMs; after a second reconcile ${s2} with ${n2} VMs (${vms% }) (want 1 and 1${want:+, ${want}}): ${ok}"
-  echo "| ${chart} | group size | ${ok} | | | targetSize ${s1}, ${n1} VMs; after a second reconcile ${s2}, ${n2} VMs: ${vms% } (want 1${want:+, ${want}}) |" >>"${summary}"
+  if [[ -n "${want}" ]]; then
+    cfg="$("${G[@]}" compute instance-groups managed instance-configs list "${group}" --zone "${zone}" \
+      --format='value(name,preservedState.metadata.catalog-run)' 2>/dev/null | tr '\t\n' ': ' || true)"
+    [[ " ${cfg}" == *" ${want}:${RUN} "* ]] || ok=no
+  fi
+  echo "   ${group}: targetSize ${s1} with ${n1} VMs; after a second reconcile ${s2} with ${n2} VMs (${vms% })${want:+; per-instance configs: ${cfg% }} (want 1 and 1${want:+, ${want}:${RUN}}): ${ok}"
+  echo "| ${chart} | group size | ${ok} | | | targetSize ${s1}, ${n1} VMs; after a second reconcile ${s2}, ${n2} VMs: ${vms% }${want:+; per-instance configs: ${cfg% }} (want 1${want:+, ${want} with its config}) |" >>"${summary}"
   [[ "${ok}" == yes ]]
+}
+
+# mig_stateful_config: compute-mig-stateful's group (and what it needs)
+# applied without stateful_config, Ready, and stable; then its one VM's name
+# in MIGS_VM and a stateful_config entry for that VM appended to the case's
+# values. Fails when the group is not Ready or has no VM.
+mig_stateful_config() {
+  helm template live charts/gcp/compute-mig --namespace "${NS}" -f "${OUT}/compute-mig-stateful.values.yaml" \
+    | cat "${OUT}/compute-mig-stateful.needs.yaml" <(echo "---") - >"${OUT}/compute-mig-stateful.base.yaml"
+  kubectl apply --server-side -n "${NS}" -f "${OUT}/compute-mig-stateful.base.yaml"
+  kubectl wait -n "${NS}" --for=condition=Ready computeinstancegroupmanager.v1beta1.compute.cnrm.cloud.google.com/live \
+    --timeout="${TIMEOUT}s" >/dev/null || { echo "   ${MIGS}: the group is not Ready"; return 1; }
+  "${G[@]}" compute instance-groups managed wait-until "${MIGS}" --zone "${REGION}-a" --stable --timeout 600 >/dev/null 2>&1 || true
+  MIGS_VM="$("${G[@]}" compute instance-groups managed list-instances "${MIGS}" --zone "${REGION}-a" --format='value(name)' 2>/dev/null | head -1)"
+  [[ -n "${MIGS_VM}" ]] || { echo "   ${MIGS}: the group has no VM"; return 1; }
+  echo "   ${MIGS}: its VM is ${MIGS_VM}; adding a per-instance config for it"
+  cat >>"${OUT}/compute-mig-stateful.values.yaml" <<VALUES
+stateful_config:
+  ${MIGS_VM}:
+    minimal_action: NONE
+    most_disruptive_action: REPLACE
+    preserved_state:
+      metadata: {catalog-run: ${RUN}}
+VALUES
 }
 
 summary="${OUT}/summary.md"
@@ -813,6 +839,11 @@ for chart in ${LIVE_CHARTS}; do
   dir="charts/gcp/${chart}"
   # A second case of one chart.
   [[ "${chart}" == compute-mig-stateful ]] && dir=charts/gcp/compute-mig
+  # The per-instance config names a VM the group already has.
+  if [[ "${chart}" == compute-mig-stateful ]] && ! mig_stateful_config; then
+    failed=$((failed + 1))
+    echo "| ${chart} | per-instance config | no | | | the group had no VM to name |" >>"${summary}"
+  fi
   helm template live "${dir}" --namespace "${NS}" -f "${OUT}/${chart}.values.yaml" >"${OUT}/${chart}.rendered.yaml"
   # What the case needs and the chart does not make, applied and deleted with it.
   if [[ -f "${OUT}/${chart}.needs.yaml" ]]; then
@@ -838,7 +869,7 @@ for chart in ${LIVE_CHARTS}; do
   cat "${OUT}/${chart}.outputs.json"
   case "${chart}" in
     compute-mig) mig_check "${chart}" "${MIG}" || failed=$((failed + 1)) ;;
-    compute-mig-stateful) mig_check "${chart}" "${MIGS}" "${MIGS}-0" || failed=$((failed + 1)) ;;
+    compute-mig-stateful) mig_check "${chart}" "${MIGS}" "${MIGS_VM:-}" || failed=$((failed + 1)) ;;
   esac
   kubectl delete -n "${NS}" -f "${OUT}/${chart}.rendered.yaml" --wait=false >/dev/null
   # Config Connector's deletion defender runs as its own pod in a real

@@ -50,7 +50,7 @@ The module's variables, with the same names, types and defaults.
 | `update_policy` | `updatePolicy`: the actions, type, `maxSurge`, `maxUnavailable`, `minReadySec`, `mostDisruptiveAllowedAction`, `replacementMethod`; `regional_redistribution_type` as `instanceRedistributionType` on a regional group only, as fabric's zonal resource has no such field |
 | `distribution_policy` | `distributionPolicy` (`targetShape`, `zones[].zone`) on a regional group only, as fabric's |
 | `autoscaler_config` | a `ComputeAutoscaler` (zonal, `targetRef` the group by name) or `ComputeRegionAutoscaler` (regional, `target` the group's `projects/<project>/regions/<region>/instanceGroupManagers/<name>`): `minReplicas`, `maxReplicas`, `cooldownPeriod`, `mode`, `cpuUtilization` (`predictiveMethod` `OPTIMIZE_AVAILABILITY` with `optimize_availability`), `loadBalancingUtilization`, `metric`, `scaleInControl` and `scalingSchedules` (a schedule's `description`, a bool in fabric's type, as text) |
-| `stateful_config` | a `ComputePerInstanceConfig` or `ComputeRegionPerInstanceConfig` each, the instance named after the key: the two actions, `removeInstanceStateOnDestroy`, `preservedState.metadata` and `disk` (`deleteRule` and `mode` from `delete_on_instance_deletion` and `read_only`, as fabric) |
+| `stateful_config` | a `ComputePerInstanceConfig` or `ComputeRegionPerInstanceConfig` each, the instance named after the key, a VM the group already has ("Differences", below): the two actions, `removeInstanceStateOnDestroy`, `preservedState.metadata` and `disk` (`deleteRule` and `mode` from `delete_on_instance_deletion` and `read_only`, as fabric) |
 | `all_instances_config`, `instance_lifecycle_policy`, `instance_flexibility_policy_selections`, `wait_for_instances` | refused when set (below) |
 | `deletion_policy` | not a fabric variable; `ABANDON` keeps every resource |
 
@@ -114,14 +114,16 @@ Terraform objects, which a Package does not output (`docs/design.md`,
 - **The autoscaler writes the API's defaults** (A2): `mode` `ON`,
   `cooldownPeriod` 60, `cpuUtilization.predictiveMethod` `NONE`, and CPU at
   0.6 when no signal is set, where fabric leaves them null.
-- **A stateful instance is made, not only configured.**
-  config-connector-extensions' per-instance configs create the named
-  instance with `createInstances`; Terraform's call
-  `updatePerInstanceConfigs`. That grows the group by one, past its
-  `targetSize`, and Config Connector does not resize it back: live, the
-  group kept the extra VM after a second reconcile (Tests). A regional group needs
-  `update_policy.regional_redistribution_type: NONE` for it, as a stateful
-  regional group has anyway.
+- **A stateful instance is configured, never made.**
+  config-connector-extensions' per-instance configs write the config with
+  `updatePerInstanceConfigs` and apply it to the group's VM of that name;
+  Terraform's create calls `createInstances`, which makes the VM and grows
+  the group by one. So each `stateful_config` key names a VM the group
+  already has (its `baseInstanceName` and a suffix the group chooses), and
+  the group stays at its `targetSize`. To keep a fabric configuration that
+  named a new VM, raise `target_size` and name the VM the group makes. A
+  regional group needs `update_policy.regional_redistribution_type: NONE`
+  for it, as a stateful regional group has anyway.
 - **The regional autoscaler takes the group's URL**, not a reference, as
   Config Connector's alpha type has it, so it does not wait for the group:
   it retries until the group exists.
