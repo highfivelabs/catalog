@@ -12,9 +12,11 @@
 # `offload/ci` on that commit. A pull request merges only when that status
 # on its head is success (README.md, "The merge gate").
 #
-# It runs on this machine, not a VM: `task check` takes under a minute
-# here (measured 2026-11-11), less than a Spot VM takes to boot, and the
-# linters it runs (shellcheck, actionlint) are not on the offload image.
+# It runs on this machine, not a VM: `task check` took under a minute
+# here (measured 2026-11-11; about six minutes by 2026-11-14, longer than
+# GitHub keeps an idle push connection open, which the pre-push hook
+# handles), and the linters it runs (shellcheck, actionlint) are not on
+# the offload image.
 # It runs with ci.yml's pins: Go from go-version-file (GOTOOLCHAIN), and
 # it fails unless task and every tool ci.yml pins by *_VERSION is
 # installed at that version (task ci:tools installs them), and shellcheck
