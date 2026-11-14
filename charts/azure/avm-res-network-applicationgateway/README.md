@@ -222,7 +222,16 @@ Azure sandbox, evaluates the outputs, deletes it and checks Azure no longer
 has it: passed on 2026-11-13 (run `cat111303093fb2`), 4 objects Ready,
 the outputs evaluated, nothing left. `task test-mock-azure` applies
 `tests/mock.values.yaml` to aso-extensions' fake cloud: passed on
-2026-11-13, both objects Ready and deleted, the outputs evaluated.
+2026-11-13, both objects Ready and deleted, the outputs evaluated. On 2026-11-14 (0.4.0) `mock`, `mock-entra` and `mock-tls` passed
+against the fake cloud (run `off-catalog-1114073904-29070`; `mock-tls`'s
+PFX and password in a Secret the harness generated). Live case `appgwx`
+(aso-extensions' kind: an HTTPS listener on 443 whose certificate is a
+self-signed PFX the harness generated at run time into a Secret, and an
+Entra JWT validation configuration for the live identity's app
+registration on the HTTPS rule) passed on 2026-11-14 (run
+`cat1114074941e3`, offload `off-catalog-1114074511-27681`): 4 objects
+Ready, the gateway `Running`, the outputs evaluated, deleted, Azure
+answering 404, nothing left.
 
 ## Changes
 

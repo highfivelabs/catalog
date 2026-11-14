@@ -1185,7 +1185,11 @@ objects) and `caex` (aso-extensions' `ManagedEnvironment` with
 `publicNetworkAccess`, centralus: 1 object): every object Ready, the
 outputs evaluated, deleted, Azure answering 404. The VM was preempted
 during `cax`; the run's environment was deleted by hand. `cax` and
-`appgwx` are opt-in (pull request notes).
+`appgwx` are opt-in (pull request notes). `appgwx` (HTTPS on 443, its
+certificate a self-signed PFX generated at run time into a Secret the
+chart references, and Entra JWT validation on the HTTPS rule) passed in
+run `cat1114074941e3` on 2026-11-14: 4 objects Ready, the gateway
+`Running`, outputs evaluated, deleted, Azure answering 404.
 
 The App Service plan chart (`avm-res-web-serverfarm`) is not applied live:
 the sandbox subscription's App Service quota is 0 in eastus2, for B1 and
