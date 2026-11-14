@@ -1152,6 +1152,19 @@ against aso-extensions' fakearm at `b9beb5b`, with PR #118's
 `hack/azure-mock.sh`, run `off-catalog-1113025403-8599`: the endpoint and
 its zone group Ready and deleted, outputs evaluated).
 
+The aso-extensions shapes (aso-extensions `8d7f8c2`; section 8, "Refusals
+and gaps") have live cases of their own (`<case>x`). Run `cat111401233023`
+(offload `off-catalog-1114005840-25855`, 2026-11-14) passed `uai` and
+`appi` again on their ASO shapes, and `uaix` (aso-extensions'
+`UserAssignedIdentity` with `isolationScope: Regional` and ASO's federated
+credential owned by its ARM ID: 2 objects), `appix` (the component's
+`ComponentsLinkedStorageAccount` to a storage account of the run: 5
+objects) and `caex` (aso-extensions' `ManagedEnvironment` with
+`publicNetworkAccess`, centralus: 1 object): every object Ready, the
+outputs evaluated, deleted, Azure answering 404. The VM was preempted
+during `cax`; the run's environment was deleted by hand. `cax` and
+`appgwx` are opt-in (pull request notes).
+
 The App Service plan chart (`avm-res-web-serverfarm`) is not applied live:
 the sandbox subscription's App Service quota is 0 in eastus2, for B1 and
 F1 alike. Its case (`asp`: Linux B1, one worker) ran only when named and
