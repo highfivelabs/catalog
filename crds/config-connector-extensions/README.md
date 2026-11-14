@@ -12,6 +12,7 @@ validate Config Connector's own kinds against its CRDs.
 | `compute.gcp.hfl.dev_computerouterroutepolicies.yaml` | `ComputeRouterRoutePolicy` (`compute.gcp.hfl.dev/v1alpha1`: a chart renders it only with `allow_alpha`) | `config/crds/` at `89806ec7a1ea127fd435ca264d2883b9c233de2c` (2026-11-12) |
 | `biglake.gcp.hfl.dev_biglakecatalogs.yaml` | `BigLakeCatalog` (`biglake.gcp.hfl.dev/v1beta1`; Config Connector's own is `v1alpha1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12) |
 | `biglake.gcp.hfl.dev_biglakedatabases.yaml` | `BigLakeDatabase` (`biglake.gcp.hfl.dev/v1beta1`; Config Connector's own is `v1alpha1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12) |
+| `biglake.gcp.hfl.dev_biglaketables.yaml` | `BigLakeTable` (`biglake.gcp.hfl.dev/v1beta1`; Config Connector's own, `bigquerybiglake.cnrm.cloud.google.com`, reads BigLake's 403 for a missing table as a denial and never creates one) | `config/crds/` at `d7b525010062e2ef9b34cbdc8409add693ebb00a` (2026-11-14, the pin) |
 | `certificatemanager.gcp.hfl.dev_certificatemanagercertificateissuanceconfigs.yaml` | `CertificateManagerCertificateIssuanceConfig` (`certificatemanager.gcp.hfl.dev/v1beta1`; Config Connector's own is `v1alpha1`) | `config/crds/` at `f3d17ddac1f255c36dd07972b84042b58ceee53f` (2026-11-12) |
 | `dataplex.gcp.hfl.dev_dataplexaspecttypes.yaml` | `DataplexAspectType` (`dataplex.gcp.hfl.dev/v1beta1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12) |
 | `dataplex.gcp.hfl.dev_dataplexdatascans.yaml` | `DataplexDataScan` (`dataplex.gcp.hfl.dev/v1beta1`) | `config/crds/` at `11baa460f60ad9f9345cefcb6f2b594a95ce0568` (2026-11-12) |
@@ -61,7 +62,7 @@ validate Config Connector's own kinds against its CRDs.
 | `compute.gcp.hfl.dev_computeregionperinstanceconfigs.yaml` | `ComputeRegionPerInstanceConfig` (`compute.gcp.hfl.dev/v1beta1`; Config Connector's own is `v1alpha1`) | `config/crds/` at `35833eb8c7594675ea5237c11373665cd806658e` (2026-11-12) |
 
 `Taskfile.yml`'s `CCE_COMMIT`, which the fake-cloud and live runs use, is
-`c2f0c7d295da38314aad8d8da674d283befcfb46` (2026-11-13), at or after every
+`d7b525010062e2ef9b34cbdc8409add693ebb00a` (2026-11-14), at or after every
 copy above, so the fake cloud serves each of these kinds (each file is the
 same at the pin). A CRD copied from a later commit needs the pin moved
 first, in its own change, before a fake-cloud case renders the kind; until

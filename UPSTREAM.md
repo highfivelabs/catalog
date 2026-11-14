@@ -17,7 +17,7 @@ fabric commit it was ported from in its `Chart.yaml` (`sources` and the
 | Config Connector release | `v1.160.0` (2026-10-29) |
 | Config Connector commit | `c38b031c7f5e5657b6ac6afc18da95e039066ad8` |
 | Gap kinds | `config-connector-extensions` (groups `*.gcp.hfl.dev`), none used by the pilot charts |
-| Gap kinds commit | `2e1ccc9e8484e20746b85fafa610c607e4c40c27` (config-connector-extensions main, 2026-11-14, round 9: DiscoveryEngineCmekConfig; BigLakeCatalog reads BigLake's 403 for a missing catalog as not found before it creates; APIGatewayGateway's and APIGatewayAPIConfig's deletes wait for their operations, and a config's delete is retried while a gateway still uses it; API configs read with `view=FULL`): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
+| Gap kinds commit | `d7b525010062e2ef9b34cbdc8409add693ebb00a` (config-connector-extensions main, 2026-11-14, #128: BigLakeDatabase reads BigLake's 403 for a missing database as not found before it creates, and a BigLakeTable of our own does the same for a missing table, which Config Connector's own BigLakeTable never creates): the kinds `task inventory` classifies Terraform types against (`docs/coverage/gcp-resource-kinds.csv`, class `extensions`) |
 | Azure Service Operator repository | `github.com/Azure/azure-service-operator` |
 | Azure Service Operator release | `v2.22.0` (2026-10-30) |
 | Azure Service Operator CRDs | the release's `azureserviceoperator_customresourcedefinitions_v2.22.0.yaml` |
