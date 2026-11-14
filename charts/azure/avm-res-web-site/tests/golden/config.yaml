@@ -1,0 +1,204 @@
+---
+# Source: avm-res-web-site/templates/main.yaml
+apiVersion: web.azure.com/v20250501
+kind: Site
+metadata:
+  name: config-site
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "config"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "site"
+spec:
+  azureName: "app-config"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  kind: "app,linux"
+  clientAffinityEnabled: false
+  clientCertEnabled: false
+  enabled: true
+  httpsOnly: true
+  outboundVnetRouting:
+    allTraffic: false
+    applicationTraffic: false
+    backupRestoreTraffic: false
+    contentShareTraffic: false
+    imagePullTraffic: false
+  publicNetworkAccess: Disabled
+  reserved: true
+  serverFarmReference:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverfarms/asp
+  siteConfig:
+    alwaysOn: true
+    ftpsState: FtpsOnly
+    http20Enabled: false
+    ipSecurityRestrictionsDefaultAction: Allow
+    loadBalancing: LeastRequests
+    localMySqlEnabled: false
+    managedPipelineMode: Integrated
+    minTlsVersion: "1.3"
+    remoteDebuggingEnabled: false
+    scmIpSecurityRestrictionsDefaultAction: Allow
+    scmIpSecurityRestrictionsUseMain: false
+    scmMinTlsVersion: "1.2"
+    use32BitWorkerProcess: false
+    vnetRouteAllEnabled: false
+    webSocketsEnabled: false
+---
+# Source: avm-res-web-site/templates/config.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesBasicPublishingCredentialsPolicyFtp
+metadata:
+  name: config-ftp-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "config"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "ftp_publishing_credential_policy"
+spec:
+  owner:
+    name: config-site
+  allow: false
+---
+# Source: avm-res-web-site/templates/config.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesBasicPublishingCredentialsPolicyScm
+metadata:
+  name: config-scm-policy
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "config"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "scm_publishing_credential_policy"
+spec:
+  owner:
+    name: config-site
+  allow: false
+---
+# Source: avm-res-web-site/templates/config.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesConfigAuthSettingsV2
+metadata:
+  name: config-authv2
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "config"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "config_authsettingsv2"
+spec:
+  owner:
+    name: config-site
+  globalValidation:
+    excludedPaths:
+    - /health
+    requireAuthentication: true
+    unauthenticatedClientAction: Return401
+  httpSettings:
+    forwardProxy:
+      convention: Custom
+      customHostHeaderName: X-Original-Host
+    requireHttps: true
+    routes:
+      apiPrefix: /.auth
+  identityProviders:
+    azureActiveDirectory:
+      enabled: true
+      registration:
+        clientId: 22222222-2222-2222-2222-222222222222
+        clientSecretSettingName: MICROSOFT_PROVIDER_AUTHENTICATION_SECRET
+        openIdIssuer: https://sts.windows.net/00000000-0000-0000-0000-000000000000/v2.0
+      validation:
+        allowedAudiences:
+        - api://app-config
+        defaultAuthorizationPolicy:
+          allowedApplications:
+          - 33333333-3333-3333-3333-333333333333
+          allowedPrincipals: {}
+        jwtClaimChecks: {}
+    customOpenIdConnectProviders:
+      okta:
+        enabled: true
+        login:
+          nameClaimType: email
+          scopes:
+          - openid
+          - email
+        registration:
+          clientCredential:
+            clientSecretSettingName: OKTA_SECRET
+            method: ClientSecretPost
+          clientId: okta-client
+          openIdConnectConfiguration:
+            wellKnownOpenIdConfiguration: https://example.okta.com/.well-known/openid-configuration
+    gitHub:
+      enabled: false
+      login:
+        scopes:
+        - user
+  login:
+    allowedExternalRedirectUrls:
+    - https://app.example.com
+    nonce:
+      nonceExpirationInterval: "00:05:00"
+      validateNonce: true
+    preserveUrlFragmentsForLogins: false
+    tokenStore:
+      enabled: true
+      tokenRefreshExtensionHours: 72
+  platform:
+    enabled: true
+    runtimeVersion: ~1
+---
+# Source: avm-res-web-site/templates/config.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesConfigLogs
+metadata:
+  name: config-logs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "config"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "config_logs:app"
+spec:
+  owner:
+    name: config-site
+  applicationLogs:
+    fileSystem:
+      level: Warning
+  detailedErrorMessages:
+    enabled: true
+  failedRequestsTracing:
+    enabled: false
+  httpLogs:
+    fileSystem:
+      retentionInDays: 7
+      retentionInMb: 35
+---
+# Source: avm-res-web-site/templates/config.yaml
+apiVersion: web.azure.hfl.dev/v20260715
+kind: SitesConfigSlotConfigNames
+metadata:
+  name: config-sticky
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "config"
+    app.kubernetes.io/name: avm-res-web-site
+    app.kubernetes.io/version: "0.3.0"
+  annotations:
+    hfl.dev/id: "config_slotconfignames"
+spec:
+  owner:
+    name: config-site
+  appSettingNames: ["SLOT_NAME","REGION"]
+  connectionStringNames: ["Db"]

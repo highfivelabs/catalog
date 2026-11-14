@@ -1,0 +1,53 @@
+# The site's config sections and publishing credential policies as
+# aso-extensions kinds (web.azure.hfl.dev/v20260715), each owned by the
+# site: authentication v2 with Entra ID and a custom OpenID Connect
+# provider, logs to the file system, sticky settings, and FTP and SCM basic
+# authentication off (FTP by the module's default).
+name: app-config
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+service_plan_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverFarms/asp
+scm_publish_basic_authentication_enabled: false
+auth_settings_v2:
+  auth_enabled: true
+  require_authentication: true
+  unauthenticated_client_action: Return401
+  forward_proxy_convention: Custom
+  forward_proxy_custom_host_header_name: X-Original-Host
+  excluded_paths: [/health]
+  identity_providers:
+    azure_active_directory:
+      enabled: true
+      registration:
+        client_id: 22222222-2222-2222-2222-222222222222
+        client_secret_setting_name: MICROSOFT_PROVIDER_AUTHENTICATION_SECRET
+        open_id_issuer: https://sts.windows.net/00000000-0000-0000-0000-000000000000/v2.0
+      validation:
+        allowed_audiences: [api://app-config]
+        default_authorization_policy:
+          allowed_applications: [33333333-3333-3333-3333-333333333333]
+    custom_open_id_connect_providers:
+      okta:
+        enabled: true
+        login: {name_claim_type: email, scopes: [openid, email]}
+        registration:
+          client_id: okta-client
+          client_credential: {method: ClientSecretPost, client_secret_setting_name: OKTA_SECRET}
+          open_id_connect_configuration: {well_known_open_id_configuration: "https://example.okta.com/.well-known/openid-configuration"}
+    github:
+      enabled: false
+      login: {scopes: [user]}
+  login:
+    allowed_external_redirect_urls: [https://app.example.com]
+    token_store: {enabled: true}
+    nonce: {}
+logs:
+  app:
+    detailed_error_messages: true
+    application_logs:
+      default: {file_system: {level: Warning}}
+    http_logs:
+      default: {file_system: {retention_in_days: 7, retention_in_mb: 35}}
+sticky_settings:
+  a: {app_setting_names: [SLOT_NAME]}
+  b: {app_setting_names: [REGION], connection_string_names: [Db]}
