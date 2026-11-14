@@ -166,6 +166,18 @@ metric 'GetAccessPolicy Requests'" (IAM allows 5 a minute), so its
 subnet outlived the run's limit (the sweep deleted them). Model Armor
 needs templates of its own API, which the fake-cloud case covers.
 
+The rerun (2026-11-14, `cat-11140810-4fc4`, offload VM
+`off-catalog-1114080558-15613`, as cce-live-tests, now holding
+`roles/iam.accessPolicyAdmin`; config-connector-extensions `aec29642`,
+which backs off on 429): the access policy was **Ready, deleted and gone**,
+as were the gateway, its connectivity template, the authorization
+extension and policy, and the attachment, network and subnet. Only the
+`IAMPolicyBinding` failed: "Permission 'iam.policybindings.get' denied"
+on the project's policy binding. cce-live-tests holds no role with
+`iam.policybindings.get` (`roles/iam.accessPolicyAdmin` has
+`iam.accesspolicies.*` only; `roles/iam.viewer` and `roles/iam.admin` have
+it), so the binding still waits on a role.
+
 ## Changes
 
 - **0.3.0** (2026-11-13): `iap_config` (on by default, as fabric's) and

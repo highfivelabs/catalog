@@ -143,6 +143,14 @@ function's service account was Ready as catalog-live-tests;
 cce-live-tests may not create accounts (`iam.serviceAccounts.create`
 denied). Nothing was left after either run.
 
+config-connector-extensions `aec29642` sends the name. The rerun
+(2026-11-14, `cat-11140810-5876`, offload VM
+`off-catalog-1114080558-20156`, as catalog-live-tests, with the compute
+default service account now holding `roles/cloudbuild.builds.builder`)
+**passed**: the function and its service account Ready, deleted and gone
+from Google Cloud, and the outputs (the function's `uri` among them)
+evaluated. Nothing was left.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: the function from a Cloud Storage

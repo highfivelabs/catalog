@@ -146,6 +146,22 @@ deleted their objects; but the gateway was still in Google Cloud when the
 run checked, and the API itself, which Google Cloud deletes only once its
 configs are gone, outlived the run's 10 minutes (the sweep deleted both).
 
+Two reruns at config-connector-extensions `aec29642` (2026-11-14, as
+cce-live-tests): `cat-11140810-4fc4` (offload VM
+`off-catalog-1114080558-15613`) and, after a fix to `hack/live-apply.sh`
+(it had stopped waiting for deletes at once), `cat-11141004-80a0` (offload
+VM `off-catalog-1114095936-14168`, a 30-minute limit). Both made every
+object Ready, and in both the API outlived the run; the sweep deleted it.
+The cause is config-connector-extensions': `APIGatewayGateway` and
+`APIGatewayAPIConfig` start their delete and remove their finalizers in
+the same second, without waiting for the operation. The config's delete
+then failed in Google Cloud ("config is in use in us-central1:
+[gw-...]", the gateway still being deleted), the config stayed there
+(state `FAILED`), and Config Connector's `APIGatewayAPI` could not be
+deleted ("has nested resources"). The fix belongs in
+config-connector-extensions: wait for each delete operation, and retry the
+config's while a gateway still uses it.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: the API, its config, the gateway, the
