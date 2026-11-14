@@ -14,17 +14,14 @@ at v0.6.0 (`f5961205`), MIT, Copyright (c) Microsoft Corporation
 2022-07-01, its only one; the module sends 2025-03-01. Everything 2022-07-01
 carries is mapped; each field the later versions added is refused by name
 when set (below), so a module call that uses none of them converts one to
-one. The exception is Entra JWT validation: `entra_jwt_validation_configs`
-or a rule's `entra_jwt_validation_config` renders aso-extensions'
-`ApplicationGateway` (`network.azure.hfl.dev/v20260301`, beside ASO's under
-its name; aso-extensions `docs/plan.md` §8 open question 11) in place of
-ASO's. Its managed public IPs are then referenced by ARM ID, and the lock,
-role assignments and diagnostic settings own the gateway by ARM ID (their
-kinds name ASO's `ApplicationGateway`). Setting or clearing them on a
-running gateway replaces its Kubernetes object with the other kind's: give
-it `deletion_policy: ABANDON` for that apply, or the old object's delete
-deletes the gateway. The other later fields are not mapped yet on that
-kind, and stay refused.
+one. The chart renders aso-extensions' `ApplicationGateway`
+(`network.azure.hfl.dev/v20260301`, beside ASO's under its name;
+aso-extensions `docs/plan.md` §8 open question 11) always, which carries
+Entra JWT validation (`entra_jwt_validation_configs`, a rule's
+`entra_jwt_validation_config`); its managed public IPs are referenced by
+ARM ID, and the lock, role assignments and diagnostic settings own the
+gateway by ARM ID (their kinds name ASO's `ApplicationGateway`). The other
+later fields are not mapped yet on that kind, and stay refused.
 
 ## Example
 
@@ -55,11 +52,25 @@ renders one ASO `ApplicationGateway` `appgw-example` with every component
 inline, and the `PublicIPAddress` its frontend uses
 (`tests/golden/basic.yaml`).
 
+## Moving from an earlier version
+
+From this version the chart always renders aso-extensions' `ApplicationGateway`
+(`network.azure.hfl.dev/v20260301`), never ASO's (`network.azure.com/v1api20220701`), so setting or clearing a newer field
+never swaps the object's kind. That needs aso-extensions' manager and CRDs
+installed beside Azure Service Operator (`docs/azure.md`, "8. Charts";
+aso-extensions pin `ASOX_COMMIT`). For a deployment made by an earlier
+version, which rendered ASO's kind, the upgrade replaces the Kubernetes
+object with one of the other kind under the same name in Azure. Do it
+once, with `deletion_policy: ABANDON`: apply the new version with
+`ABANDON` (the old object is detached, and the new one adopts the gateway),
+check it is Ready, then remove `ABANDON`. Without it, the old object's
+delete deletes the gateway in Azure.
+
 ## What it renders
 
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
-| `azapi_resource.this` | always | `ApplicationGateway` (`network.azure.com/v1api20220701`), `application_gateway`, owned by the resource group `parent_id` names; every component inline, as ARM carries them. aso-extensions' `ApplicationGateway` (`network.azure.hfl.dev/v20260301`) in its place with an Entra JWT validation configuration (above), its `entraJWTValidationConfigs` (`name`, `audiences`, `clientId`, `tenantId`, `unAuthorizedRequestAction`) and a rule's `entraJWTValidationConfig` resolved by key or ID as the module resolves every reference |
+| `azapi_resource.this` | always | aso-extensions' `ApplicationGateway` (`network.azure.hfl.dev/v20260301`), `application_gateway`, owned by the resource group `parent_id` names; every component inline, as ARM carries them; its `entraJWTValidationConfigs` (`name`, `audiences`, `clientId`, `tenantId`, `unAuthorizedRequestAction`) and a rule's `entraJWTValidationConfig` resolved by key or ID as the module resolves every reference |
 | `azapi_resource.public_ip_addresses` | one per `public_ip_addresses` entry | `PublicIPAddress` (`v20250301`), `public_ip:<key>`: Standard, Regional, Static, which a frontend with that `public_ip_address_key` references by Kubernetes name |
 | `azurerm_management_lock.this` | `lock` set | `ManagementLock` (aso-extensions), `lock`, named `lock-<kind>` by default, with the module's notes for the kind |
 | `azurerm_role_assignment.this` | one per entry | `RoleAssignment` (`authorization.azure.com/v20220401`), `role-assignment-<key>` |
@@ -190,6 +201,8 @@ the outputs evaluated, nothing left. `task test-mock-azure` applies
 
 ## Changes
 
+- **0.3.0** (2026-11-14): always aso-extensions' `ApplicationGateway` (the
+  builder's choice). Moving from an earlier version: above.
 - **0.2.0** (2026-11-13): `entra_jwt_validation_configs` and a rule's
   `entra_jwt_validation_config` are mapped: they render aso-extensions'
   `ApplicationGateway` (`network.azure.hfl.dev/v20260301`, aso-extensions

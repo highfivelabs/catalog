@@ -8,9 +8,10 @@ Corporation, MIT.
 
 azurerm_linux_virtual_machine.this (azurerm_windows_virtual_machine.this
 only with an attached OS disk; a Windows OS profile needs an admin
-password, a secret value): one ASO VirtualMachine
-(compute.azure.com/v20220301, ASO's newest), owned by the resource group,
-its network interfaces and data disks by Kubernetes reference.
+password, a secret value): one aso-extensions VirtualMachine
+(compute.azure.hfl.dev/v20250401, beside ASO's 2022-03-01 kind under its
+name), owned by the resource group, its network interfaces and data disks
+by ARM ID.
 azurerm_management_lock.this_*_virtualmachine: an aso-extensions
 ManagementLock with the module's notes. azurerm_role_assignment
 this_virtual_machine: one ASO RoleAssignment each; system_managed_identity:
@@ -38,8 +39,6 @@ attached one is kept.
 {{- include "aso.unsupported" (list $ "run_commands_secrets" $v.run_commands_secrets "protected parameters and run-as passwords are secret values; how a component supplies one is the builder's decision") }}
 {{- include "aso.unsupported" (list $ "azure_backup_configurations" $v.azure_backup_configurations "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems (a protected VM) has no Azure Service Operator or aso-extensions kind") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
-{{- /* The fields after ASO's 2022-03-01 (vm.newer). */ -}}
-{{- $newer := eq (include "vm.newer" .) "true" }}
 {{- $dct := $v.disk_controller_type }}
 {{- if and (eq (toString $v.bypass_platform_safety_checks_on_user_schedule_enabled) "true") (ne (toString $v.patch_mode) "AutomaticByPlatform") }}
 {{- fail "avm-res-compute-virtualmachine: bypass_platform_safety_checks_on_user_schedule_enabled can only be set to true when patch_mode is AutomaticByPlatform" }}
@@ -112,7 +111,7 @@ attached one is kept.
 {{- $rg := include "vm.rgId" (list $ "resource_group_name" $v.resource_group_name) }}
 {{- $abandon := include "aso.abandon" . }}
 {{- $obj := include "vm.obj" . }}
-{{- $owner := ternary (dict "armId" (include "vm.id" .)) (dict "group" "compute.azure.com" "kind" "VirtualMachine" "name" $obj) $newer }}
+{{- $owner := dict "armId" (include "vm.id" .) }}
 {{- $tags := include "aso.tags" (list $ dict) | fromJson }}
 {{- $mi := $v.managed_identities | default dict }}
 {{- $uai := $mi.user_assigned_resource_ids | default list }}
@@ -124,7 +123,7 @@ attached one is kept.
 {{- $od := $v.os_disk | default dict }}
 {{- $cmName := include "aso.name" (list .Release.Name "vm" "identity") }}
 ---
-apiVersion: {{ ternary "compute.azure.hfl.dev/v20250401" "compute.azure.com/v20220301" $newer }}
+apiVersion: compute.azure.hfl.dev/v20250401
 kind: VirtualMachine
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "virtual_machine" "abandon" $abandon) | nindent 2 }}
@@ -220,16 +219,10 @@ spec:
       {{- $nics := include "vm.nics" $ | fromJson }}
       {{- range $i, $k := (include "vm.nicOrder" $ | fromJsonArray) }}
       - reference:
-          {{- if $newer }}
           {{- $n := index $nics $k }}
           {{- $nicRg := $rg }}
           {{- with $n.resource_group_name }}{{ $nicRg = include "vm.rgId" (list $ (printf "network_interfaces.%s.resource_group_name" $k) .) }}{{ end }}
           armId: {{ printf "%s/providers/Microsoft.Network/networkInterfaces/%s" $nicRg (include "aso.cloudName" (list $ "network interface" $n.name 80 false)) }}
-          {{- else }}
-          group: network.azure.com
-          kind: NetworkInterface
-          name: {{ include "aso.name" (list $.Release.Name "nic" $k) }}
-          {{- end }}
         primary: {{ eq $i 0 }}
       {{- end }}
   {{- if $mi.system_assigned }}
@@ -335,12 +328,9 @@ spec:
   storageProfile:
     {{- $dds := list }}
     {{- range $k, $d := ($v.data_disk_managed_disks | default dict) }}
-    {{- $ref := dict "group" "compute.azure.com" "kind" "Disk" "name" (include "aso.name" (list $.Release.Name "disk" $k)) }}
-    {{- if $newer }}
     {{- $drg := $rg }}
     {{- with $d.resource_group_name }}{{ $drg = include "vm.rgId" (list $ (printf "data_disk_managed_disks.%s.resource_group_name" $k) .) }}{{ end }}
-    {{- $ref = dict "armId" (printf "%s/providers/Microsoft.Compute/disks/%s" $drg (include "aso.cloudName" (list $ "disk" $d.name 80 false))) }}
-    {{- end }}
+    {{- $ref := dict "armId" (printf "%s/providers/Microsoft.Compute/disks/%s" $drg (include "aso.cloudName" (list $ "disk" $d.name 80 false))) }}
     {{- $dds = append $dds (dict "lun" $d.lun "caching" $d.caching "create" ($d.disk_attachment_create_option | default "Attach") "wa" $d.write_accelerator_enabled "ref" $ref) }}
     {{- end }}
     {{- range $k, $d := ($v.data_disk_existing_disks | default dict) }}

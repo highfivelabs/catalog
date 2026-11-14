@@ -7,11 +7,10 @@ locals.public_ip_addresses.tf, locals.child_reference_inputs.tf and
 locals.child_reference_resolution.tf (v0.6.0), Copyright (c) Microsoft
 Corporation, MIT.
 
-azapi_resource.this (Microsoft.Network/applicationGateways): one ASO
-ApplicationGateway (network.azure.com/v1api20220701, ASO's only version:
-ARM 2022-07-01, where the module sends 2025-03-01), or aso-extensions'
-(network.azure.hfl.dev/v20260301) when an Entra JWT validation
-configuration is set (its managed public IPs then by ARM ID), owned by the resource
+azapi_resource.this (Microsoft.Network/applicationGateways): one
+aso-extensions ApplicationGateway (network.azure.hfl.dev/v20260301; ASO's
+is at ARM 2022-07-01, where the module sends 2025-03-01), its managed
+public IPs by ARM ID, owned by the resource
 group parent_id names, every component inline as ARM carries it. A
 component's internal reference (an *_key) becomes the gateway's ARM ID, the
 collection's segment and the component's configured name, as the module
@@ -35,14 +34,10 @@ azapi provider's mechanics.
 {{- if not $v.location }}{{ fail (printf "%s: location is required" $chart) }}{{ end }}
 {{- $later := "ASO's ApplicationGateway is at ARM 2022-07-01, which has no" }}
 {{- /* entra_jwt_validation_configs, and a rule's entra_jwt_validation_config,
-are after ASO's ApplicationGateway API version 2022-07-01: either set
+are after ASO's ApplicationGateway API version 2022-07-01: the chart always
 renders aso-extensions' ApplicationGateway (network.azure.hfl.dev/v20260301,
 beside ASO's under its name) in place of ASO's, and the lock, role
 assignments and diagnostic settings own it by ARM ID. */ -}}
-{{- $newer := not (kindIs "invalid" $v.entra_jwt_validation_configs) }}
-{{- range $item := ($v.request_routing_rules | default list) }}
-{{- if and $item (not (kindIs "invalid" $item.entra_jwt_validation_config)) }}{{ $newer = true }}{{ end }}
-{{- end }}
 {{- include "aso.unsupported" (list $ "ssl_certificates" $v.ssl_certificates "a certificate's data and password are secrets, and key_vault_secret_id is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled") }}
 {{- range $n := list "authentication_certificates" "trusted_client_certificates" }}
 {{- include "aso.unsupported" (list $ $n (index $v $n) "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference); how a component supplies one is not settled") }}
@@ -50,7 +45,7 @@ assignments and diagnostic settings own it by ARM ID. */ -}}
 {{- include "aso.unsupported" (list $ "trusted_root_certificates" $v.trusted_root_certificates "ASO's ApplicationGateway (2022-07-01) takes a certificate's data only from a Kubernetes Secret (a SecretReference), and key_vault_secret_id is Key Vault secret material; how a component supplies either is not settled") }}
 {{- $ibc := $v.ignore_body_changes | default dict }}
 {{- include "aso.unsupported" (list $ "ignore_body_changes" (concat ($ibc.network_application_gateways | default list) ($ibc.network_public_ip_addresses | default list) (omit $ibc "network_application_gateways" "network_public_ip_addresses" | keys)) "ASO applies the whole spec it is given; it cannot leave a field to another writer") }}
-{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "the API versions are the ASO kinds': ApplicationGateway 2022-07-01, PublicIPAddress 2025-03-01") }}
+{{- include "aso.unsupported" (list $ "resource_types" $v.resource_types "the API versions are the kinds': aso-extensions' ApplicationGateway 2026-03-01, ASO's PublicIPAddress 2025-03-01") }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff, until the resource is ready") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- /* The module's precondition: no legacy ARM-style properties wrappers. */ -}}
@@ -280,13 +275,9 @@ assignments and diagnostic settings own it by ARM ID. */ -}}
 {{- $o := include "appgw.pick" (list $item (list "name:name" "private_ip_address:privateIPAddress" "private_ip_allocation_method:privateIPAllocationMethod")) | fromJson }}
 {{- with (include "appgw.ref" (merge (dict "chart" $chart "gw" $gw "ref" $item.private_link_configuration "path" (printf "frontend_ip_configurations[%d].private_link_configuration" $i)) $T.private_link_configurations)) }}{{ $_ := set $o "privateLinkConfiguration" (fromJson .) }}{{ end }}
 {{- if not (kindIs "invalid" $item.public_ip_address_key) }}
-{{- if $newer }}
 {{- /* aso-extensions' kind resolves an ASO PublicIPAddress by ARM ID. */ -}}
 {{- $ip := index $pips $item.public_ip_address_key }}
 {{- $_ := set $o "publicIPAddress" (dict "reference" (dict "armId" (printf "%s/providers/Microsoft.Network/publicIPAddresses/%s" ($ip.parent_id | default $v.parent_id) (include "aso.cloudName" (list $ "public IP" $ip.name 80 false))))) }}
-{{- else }}
-{{- $_ := set $o "publicIPAddress" (dict "reference" (dict "group" "network.azure.com" "kind" "PublicIPAddress" "name" (include "aso.name" (list $.Release.Name "pip" $item.public_ip_address_key)))) }}
-{{- end }}
 {{- else }}
 {{- with (include "appgw.subId" $item.public_ip_address) }}{{ $_ := set $o "publicIPAddress" (fromJson .) }}{{ end }}
 {{- end }}
@@ -544,13 +535,13 @@ assignments and diagnostic settings own it by ARM ID. */ -}}
 {{- $_ := set $spec "entraJWTValidationConfigs" $l }}
 {{- end }}
 ---
-apiVersion: {{ ternary "network.azure.hfl.dev/v20260301" "network.azure.com/v1api20220701" $newer }}
+apiVersion: network.azure.hfl.dev/v20260301
 kind: ApplicationGateway
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "application_gateway" "abandon" $abandon) | nindent 2 }}
 spec:
   {{- toYaml $spec | nindent 2 }}
-{{- $gwOwner := ternary (dict "armId" $gw) (dict "group" "network.azure.com" "kind" "ApplicationGateway" "name" $obj) $newer }}
+{{- $gwOwner := dict "armId" $gw }}
 {{- with $v.lock }}
 {{- $notes := ternary "Cannot delete the resource or its child resources." "Cannot delete or modify the resource or its child resources." (eq .kind "CanNotDelete") }}
 {{- include "aso.lock" (dict "root" $ "base" $obj "idPrefix" "" "owner" $gwOwner "v" (dict "kind" .kind "name" .name "notes" $notes)) }}
