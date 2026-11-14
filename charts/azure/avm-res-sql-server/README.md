@@ -64,14 +64,15 @@ the server is ready and the server's ARM ID is never needed.
 
 Every module variable is a value of the same name, type and default
 (`values.yaml`, `values.schema.json`), so a module block's arguments
-convert one to one. 23 of the module's 28 variables are mapped, three of
+convert one to one. 26 of the module's 28 variables are mapped, three of
 them in part (below). The server's:
 
 | Variable | ASO field |
 | --- | --- |
 | `server_version` | `version` |
-| `azuread_administrator` | `administrators` (`administratorType: ActiveDirectory`, `login`, `sid`, `tenantId`, `azureADOnlyAuthentication: true`) |
-| `administrator_login` | `administratorLogin` (passed through; see "No password") |
+| `azuread_administrator` | `administrators` (`administratorType: ActiveDirectory`, `login`, `sid`, `tenantId`, `azureADOnlyAuthentication` from `azuread_authentication_only`) |
+| `administrator_login` | `administratorLogin` |
+| `administrator_login_password`, or `administrator_login_password_wo` with `administrator_login_password_wo_version` | `administratorLoginPassword`, as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused. The two are one field here (ASO keeps no state); not both, as in the module. The version is required with `_wo`, as the provider requires it, and does nothing |
 | `public_network_access_enabled`, `outbound_network_restriction_enabled` | `publicNetworkAccess`, `restrictOutboundNetworkAccess` |
 | `managed_identities`, `primary_user_assigned_identity_id` | `identity`, `primaryUserAssignedIdentityReference` |
 | `transparent_data_encryption_key_vault_key_id` | `keyId` |
@@ -97,21 +98,16 @@ azurerm builds it). An elastic pool's `sku`, `per_database_settings`,
 
 Not as in the module:
 
-- **No password, Entra-only.** `administrator_login_password`,
-  `administrator_login_password_wo`, `administrator_login_password_wo_version`,
-  `generate_administrator_login_password` (when true) and
-  `administrator_login_password_key_vault_configuration` are refused (by
-  design): a password, given or generated, is a secret value, which does
-  not belong in a component's inputs. ASO takes one only from a Kubernetes
-  Secret (`administratorLoginPassword`), and how a component supplies that
-  Secret is the builder's decision, still open; the Key Vault copy needs
-  the password too. Because Azure needs a password for a server that is
-  not Entra-only, the chart needs `azuread_administrator` with
-  `azuread_authentication_only: true`; the render stops otherwise, naming
-  the reason. The Entra administrator is a login on the server (the
-  database-level administrator), not an Azure role assignment.
-  `administrator_login` is kept and passed through; Azure decides whether
-  it takes one without a password.
+- **The password from a Kubernetes Secret, never generated.** A server
+  that is not Entra-only needs `administrator_login` and a password
+  reference (above); the render stops otherwise, naming the reason.
+  `generate_administrator_login_password` (when true) is refused: the
+  catalog never generates a secret. `administrator_login_password_key_vault_configuration`
+  is refused: it writes the password into Key Vault, where the chart has
+  no value to write; keep the password in Key Vault and let External
+  Secrets Operator copy it into the Secret instead. The Entra administrator
+  is a login on the server (the database-level administrator), not an
+  Azure role assignment.
 - **A database's `import`** is refused: a `.bacpac` import is an action
   with a storage key and an administrator password (secret values) and no
   ASO kind. **`threat_detection_policy.storage_account_access_key`** is
@@ -169,7 +165,9 @@ is deleted.
 
 `tests/*.values.yaml` render to `tests/golden/` and pass `kubeconform
 -strict`; `tests/*.fail.yaml` must be refused with the message on their
-first line. `tests/mock.values.yaml` is applied to aso-extensions' fake
+first line. `password` renders a server with a SQL administrator whose
+password is a Secret reference beside a (not Entra-only) Entra
+administrator, `password-wo` the write-only form. `tests/mock.values.yaml` is applied to aso-extensions' fake
 cloud (`task test-mock-azure`), and the `sql` case of `hack/azure-live.sh`
 to the Azure sandbox (`docs/azure.md`, "8. Charts", Testing).
 
@@ -198,6 +196,11 @@ already collected a firewall rule its server owned when `kubectl delete -f`
 reached it, so the fake and live scripts now delete with
 `--ignore-not-found`.
 
+0.4.0 against the fake cloud (run `off-catalog-1114091618-1539`, 2026-11-14, stock ASO v2.22.0 and aso-extensions' manager at `8d7f8c2`): `mock` (9 objects) and
+`mock-password` (a server with a SQL administrator, its password a
+reference to a Secret the run made with a random value, and a firewall
+rule: 2 objects) Ready and deleted, the outputs evaluated.
+
 Live (`sql` case, `hack/azure-live.sh`): a server with Entra-only
 authentication and the live identity as its Entra administrator, one
 Basic database (locally redundant backups) and a firewall rule for one
@@ -218,6 +221,12 @@ deleted.
 
 ## Changes
 
+- **0.4.0** (2026-11-14): `administrator_login_password` and
+  `administrator_login_password_wo` (with its `_version`) are mapped as
+  references to a Kubernetes Secret, `{secretName, key}` (docs/secrets.md,
+  the builder's decision), so a server need not be Entra-only;
+  `azuread_authentication_only` is sent as given. Generating a password
+  and writing it to Key Vault stay refused.
 - **0.2.0** (2026-11-13): `express_vulnerability_assessment_enabled: true`
   renders aso-extensions' `ServersSqlVulnerabilityAssessment` and is no
   longer refused.

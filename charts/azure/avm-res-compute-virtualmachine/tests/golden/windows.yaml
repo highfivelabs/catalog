@@ -1,0 +1,87 @@
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: windows-nic-nic0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "network_interface:nic0"
+spec:
+  azureName: "vm-win-nic"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  enableAcceleratedNetworking: false
+  enableIPForwarding: false
+  ipConfigurations:
+    - name: "ipconfig1"
+      primary: true
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default"
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: compute.azure.hfl.dev/v20250401
+kind: VirtualMachine
+metadata:
+  name: windows-vm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "windows"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "virtual_machine"
+spec:
+  azureName: "vm-win"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  extensionsTimeBudget: "PT1H30M"
+  hardwareProfile:
+    vmSize: "Standard_D2ds_v5"
+  networkProfile:
+    networkInterfaces:
+      - reference:
+          armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/networkInterfaces/vm-win-nic
+        primary: true
+  osProfile:
+    adminUsername: "winadmin"
+    allowExtensionOperations: true
+    computerName: "vm-win"
+    adminPassword: {"key":"password","name":"vm-win-admin"}
+    windowsConfiguration:
+      enableAutomaticUpdates: true
+      patchSettings:
+        assessmentMode: ImageDefault
+        enableHotpatching: false
+        patchMode: AutomaticByOS
+      provisionVMAgent: true
+      timeZone: "UTC"
+      winRM:
+        listeners:
+          - protocol: "Http"
+  priority: Regular
+  storageProfile:
+    imageReference:
+      offer: "WindowsServer"
+      publisher: "MicrosoftWindowsServer"
+      sku: "2022-datacenter-g2"
+      version: "latest"
+    osDisk:
+      caching: ReadWrite
+      createOption: FromImage
+      deleteOption: Delete
+      managedDisk:
+        storageAccountType: Premium_LRS
+      osType: Windows
+      writeAcceleratorEnabled: false
+  zones:
+    - "1"

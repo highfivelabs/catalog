@@ -1,0 +1,25 @@
+# For an apply against the fake cloud: a Windows machine whose admin
+# password is a reference to a Secret the harness makes before the apply
+# with a random value (hack/test-secret.sh; nothing committed), as the line
+# below asks, with an interface and the Windows-only settings.
+# secret: catalog-vm-win-admin random
+name: catalog-vmwin
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+zone: "1"
+os_type: Windows
+sku_size: Standard_B2s
+encryption_at_host_enabled: false
+os_disk: {caching: ReadWrite, storage_account_type: Standard_LRS}
+account_credentials:
+  admin_credentials: {username: catalogadmin, password: {secretName: catalog-vm-win-admin, key: value}}
+timezone: UTC
+winrm_listeners: [{protocol: Http}]
+tags: {catalog: mock}
+network_interfaces:
+  nic0:
+    name: catalog-vmwin-nic
+    ip_configurations:
+      ipc0:
+        name: ipconfig1
+        private_ip_subnet_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default

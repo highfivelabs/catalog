@@ -36,13 +36,22 @@ ported.
 */ -}}
 {{- $v := .Values }}
 {{- $chart := .Chart.Name }}
-{{- $secret := "a password is a secret value, which does not belong in a component's inputs; use Entra-only authentication (azuread_administrator with azuread_authentication_only: true)" }}
 {{- $timeouts := "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit" }}
-{{- include "aso.unsupported" (list $ "administrator_login_password" $v.administrator_login_password $secret) }}
-{{- include "aso.unsupported" (list $ "administrator_login_password_wo" $v.administrator_login_password_wo $secret) }}
-{{- include "aso.unsupported" (list $ "administrator_login_password_wo_version" $v.administrator_login_password_wo_version "it versions administrator_login_password_wo, which is refused") }}
-{{- include "aso.unsupported" (list $ "generate_administrator_login_password" $v.generate_administrator_login_password $secret) }}
-{{- include "aso.unsupported" (list $ "administrator_login_password_key_vault_configuration" $v.administrator_login_password_key_vault_configuration "it stores the administrator password, a secret value the chart does not take, in Key Vault") }}
+{{- /* The administrator password: a reference to a Kubernetes Secret
+({secretName, key}; docs/secrets.md), which ASO's Server takes as its
+administratorLoginPassword SecretReference. administrator_login_password
+and the write-only administrator_login_password_wo are the same field here
+(ASO never keeps the value in state either); the _wo_version is required
+with _wo, as the provider requires it, and does nothing: ASO sends the
+whole body on every change. The catalog never generates a password. */ -}}
+{{- $pwRef := include "aso.secretRef" (list $ "administrator_login_password" $v.administrator_login_password) }}
+{{- $woRef := include "aso.secretRef" (list $ "administrator_login_password_wo" $v.administrator_login_password_wo) }}
+{{- if and $pwRef $woRef }}{{ fail (printf "%s: The variables `administrator_login_password` and `administrator_login_password_wo` cannot be used together. Please specify only one of them." $chart) }}{{ end }}
+{{- if and $woRef (kindIs "invalid" $v.administrator_login_password_wo_version) }}{{ fail (printf "%s: When administrator_login_password_wo is set, administrator_login_password_wo_version must also be set." $chart) }}{{ end }}
+{{- if and (not $woRef) (not (kindIs "invalid" $v.administrator_login_password_wo_version)) }}{{ fail (printf "%s: administrator_login_password_wo_version versions administrator_login_password_wo: set both or neither" $chart) }}{{ end }}
+{{- $passwordRef := $pwRef | default $woRef }}
+{{- include "aso.unsupported" (list $ "generate_administrator_login_password" $v.generate_administrator_login_password "the catalog never generates a secret: give administrator_login_password as a reference to a Kubernetes Secret (docs/secrets.md), or use Entra-only authentication") }}
+{{- include "aso.unsupported" (list $ "administrator_login_password_key_vault_configuration" $v.administrator_login_password_key_vault_configuration "it writes the administrator password into Key Vault; the password comes from a Kubernetes Secret (docs/secrets.md), which External Secrets Operator can fill from Key Vault instead") }}
 {{- range $k, $r := $v.firewall_rules }}
 {{- include "aso.unsupported" (list $ (printf "firewall_rules.%s.timeouts" $k) $r.timeouts $timeouts) }}
 {{- end }}
@@ -64,8 +73,8 @@ ported.
 {{- end }}
 {{- $sub := index (splitList "/" $parent) 2 }}
 {{- $admin := $v.azuread_administrator }}
-{{- if not (and $admin (eq $admin.azuread_authentication_only true)) }}
-{{- fail (printf "%s: a server without Entra-only authentication needs administrator_login_password, a secret value the chart does not take: set azuread_administrator with azuread_authentication_only: true (docs/azure.md, \"Charts\")" $chart) }}
+{{- if and (not (and $admin (eq $admin.azuread_authentication_only true))) (not (and $v.administrator_login $passwordRef)) }}
+{{- fail (printf "%s: a server without Entra-only authentication needs administrator_login and administrator_login_password, a reference to a Kubernetes Secret (docs/secrets.md); or set azuread_administrator with azuread_authentication_only: true" $chart) }}
 {{- end }}
 {{- $abandon := include "aso.abandon" . }}
 {{- $obj := include "aso.name" (list .Release.Name "sql") }}
@@ -86,14 +95,19 @@ spec:
   {{- with $v.administrator_login }}
   administratorLogin: {{ . | quote }}
   {{- end }}
+  {{- with $passwordRef }}
+  administratorLoginPassword: {{ . }}
+  {{- end }}
+  {{- with $admin }}
   administrators:
     administratorType: ActiveDirectory
-    azureADOnlyAuthentication: true
-    login: {{ $admin.login_username | quote }}
-    sid: {{ $admin.object_id | quote }}
-    {{- with $admin.tenant_id }}
+    azureADOnlyAuthentication: {{ eq .azuread_authentication_only true }}
+    login: {{ .login_username | quote }}
+    sid: {{ .object_id | quote }}
+    {{- with .tenant_id }}
     tenantId: {{ . | quote }}
     {{- end }}
+  {{- end }}
   {{- $mi := $v.managed_identities | default dict }}
   {{- $uai := $mi.user_assigned_resource_ids | default list }}
   {{- if or $mi.system_assigned $uai }}

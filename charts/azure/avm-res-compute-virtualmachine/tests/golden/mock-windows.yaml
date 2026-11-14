@@ -1,0 +1,91 @@
+---
+# Source: avm-res-compute-virtualmachine/templates/network.yaml
+apiVersion: network.azure.com/v20250301
+kind: NetworkInterface
+metadata:
+  name: mock-windows-nic-nic0
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-windows"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "network_interface:nic0"
+spec:
+  azureName: "catalog-vmwin-nic"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  enableAcceleratedNetworking: false
+  enableIPForwarding: false
+  ipConfigurations:
+    - name: "ipconfig1"
+      primary: true
+      privateIPAddressVersion: IPv4
+      privateIPAllocationMethod: Dynamic
+      subnet:
+        reference:
+          armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/virtualNetworks/vnet/subnets/default"
+  tags:
+    catalog: mock
+---
+# Source: avm-res-compute-virtualmachine/templates/main.yaml
+apiVersion: compute.azure.hfl.dev/v20250401
+kind: VirtualMachine
+metadata:
+  name: mock-windows-vm
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-windows"
+    app.kubernetes.io/name: avm-res-compute-virtualmachine
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "virtual_machine"
+spec:
+  azureName: "catalog-vmwin"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  extensionsTimeBudget: "PT1H30M"
+  hardwareProfile:
+    vmSize: "Standard_B2s"
+  networkProfile:
+    networkInterfaces:
+      - reference:
+          armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.Network/networkInterfaces/catalog-vmwin-nic
+        primary: true
+  osProfile:
+    adminUsername: "catalogadmin"
+    allowExtensionOperations: true
+    computerName: "catalog-vmwin"
+    adminPassword: {"key":"value","name":"catalog-vm-win-admin"}
+    windowsConfiguration:
+      enableAutomaticUpdates: true
+      patchSettings:
+        assessmentMode: ImageDefault
+        enableHotpatching: false
+        patchMode: AutomaticByOS
+      provisionVMAgent: true
+      timeZone: "UTC"
+      winRM:
+        listeners:
+          - protocol: "Http"
+  priority: Regular
+  storageProfile:
+    imageReference:
+      offer: "WindowsServer"
+      publisher: "MicrosoftWindowsServer"
+      sku: "2022-datacenter-g2"
+      version: "latest"
+    osDisk:
+      caching: ReadWrite
+      createOption: FromImage
+      deleteOption: Delete
+      managedDisk:
+        storageAccountType: Standard_LRS
+      osType: Windows
+      writeAcceleratorEnabled: false
+  tags:
+    catalog: mock
+  zones:
+    - "1"

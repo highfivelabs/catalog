@@ -40,7 +40,7 @@ renders the `VirtualMachine` `vm-example` and the `NetworkInterface`
 | Module resource | When | Object (`hfl.dev/id`) |
 | --- | --- | --- |
 | `azurerm_linux_virtual_machine.this` | `os_type` Linux | aso-extensions' `VirtualMachine` (`compute.azure.hfl.dev/v20250401`), `virtual_machine`, owned by the resource group |
-| `azurerm_windows_virtual_machine.this` | `os_type` Windows with `os_disk_attach_mode` | the same, with no OS profile |
+| `azurerm_windows_virtual_machine.this` | `os_type` Windows | the same, with a Windows OS profile (none with `os_disk_attach_mode`) |
 | `azurerm_network_interface` and its `*_association` resources | one per `network_interfaces` entry | `NetworkInterface` (`network.azure.com/v20250301`), `network_interface:<key>`; the associations are its fields (`networkSecurityGroup`, and per IP configuration `applicationSecurityGroups`, `loadBalancerBackendAddressPools`, `loadBalancerInboundNatRules`, `applicationGatewayBackendAddressPools`) |
 | `azurerm_public_ip` | an IP configuration's `create_public_ip_address` | `PublicIPAddress` (`network.azure.com/v20250301`), `public_ip:<nic key>-<ip configuration key>` |
 | `azurerm_managed_disk` | one per `data_disk_managed_disks` entry | `Disk` (`compute.azure.com/v20240302`), `data_disk:<key>` |
@@ -95,7 +95,10 @@ Every module variable is a value of the same name, type and default
 | `os_disk_attach_mode`, `os_managed_disk_id` | `osDisk.createOption: Attach` with `managedDisk.reference`; no OS profile |
 | `account_credentials.admin_credentials.username`, `admin_username` | `osProfile.adminUsername` (the module's precedence) |
 | `account_credentials.admin_credentials.ssh_keys`, `admin_ssh_keys` | `linuxConfiguration.ssh.publicKeys` (path `/home/<user>/.ssh/authorized_keys`) |
-| `computer_name`, `custom_data`, `allow_extension_operations`, `secrets`, `provision_vm_agent`, `patch_mode`, `patch_assessment_mode`, `reboot_setting` | `osProfile` and `linuxConfiguration` |
+| `account_credentials.admin_credentials.password`, `admin_password` | `osProfile.adminPassword` (the module's precedence) on Windows, and on Linux with password sign-in, as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused, and the catalog never generates one |
+| `account_credentials.password_authentication_disabled`, `disable_password_authentication` | `linuxConfiguration.disablePasswordAuthentication` (false needs a password reference) |
+| `enable_automatic_updates`, `hotpatching_enabled`, `timezone`, `winrm_listeners` (Windows) | `windowsConfiguration.enableAutomaticUpdates`, `.patchSettings.enableHotpatching`, `.timeZone`, `.winRM.listeners`; null here takes the module's default (true, false), and on Linux they are ignored, as in the module |
+| `computer_name`, `custom_data`, `allow_extension_operations`, `secrets`, `provision_vm_agent`, `patch_mode`, `patch_assessment_mode`, `reboot_setting` | `osProfile` and `linuxConfiguration` or `windowsConfiguration` (`patch_mode` defaults to `AutomaticByOS` on Windows, as azurerm; a Windows `computer_name` is at most 15 characters) |
 | `user_data`, `license_type`, `plan`, `platform_fault_domain`, `priority`, `eviction_policy` and `max_bid_price` (with Spot only, as azurerm), `extensions_time_budget` | the fields of the same meaning |
 | `availability_set_resource_id`, `capacity_reservation_group_resource_id`, `dedicated_host_resource_id`, `dedicated_host_group_resource_id`, `proximity_placement_group_resource_id`, `virtual_machine_scale_set_resource_id` | `*.reference.armId` |
 | `boot_diagnostics`, `boot_diagnostics_storage_account_uri` | `diagnosticsProfile.bootDiagnostics` |
@@ -109,18 +112,13 @@ Every module variable is a value of the same name, type and default
 | `lock`, `role_assignments`, `role_assignments_system_managed_identity`, `diagnostic_settings`, `tags` | the AVM interfaces |
 | `enable_telemetry` | accepted; nothing is sent |
 
-**Refused** (`upstream.yaml`): anything that needs a secret value, which
-is the builder's decision: `admin_password`, an
-`account_credentials` password or `key_vault_configuration`,
-`generated_secrets_key_vault_secret_config`, password sign-in
-(`disable_password_authentication: false`), generating an SSH key pair or
-password (give public keys), `run_commands_secrets`, an extension's
-`protected_settings` (its `protected_settings_from_key_vault` is mapped),
-and a Windows machine's OS profile, so `os_type: Windows` renders only
-with an attached OS disk and the Windows-only variables
-(`additional_unattend_contents`, `enable_automatic_updates`,
-`hotpatching_enabled`, `timezone`, `winrm_listeners`; null or empty here
-means not set) are refused. Gaps: `azure_backup_configurations` (no kind
+**Refused** (`upstream.yaml`): generating an SSH key pair or a password
+(give public keys or a password reference: the catalog never generates a
+secret), writing one to Key Vault (`account_credentials.key_vault_configuration`,
+`generated_secrets_key_vault_secret_config`), `run_commands_secrets`, an
+extension's `protected_settings` (its `protected_settings_from_key_vault`
+is mapped), and `additional_unattend_contents` (an unattend file can carry
+a password, and the kind takes it only in plain text). Gaps: `azure_backup_configurations` (no kind
 for a Recovery Services protected item), an extension's
 `provision_after_extensions` and a run command's managed identities
 (newer than ASO's `VirtualMachinesExtension` and aso-extensions'
@@ -143,12 +141,32 @@ object).
 
 Render: `tests/*.values.yaml` against `tests/golden`, `kubeconform
 -strict`, and the refusals in `tests/*.fail.yaml`; `newer` renders
-aso-extensions' kind. Fake cloud: `tests/mock.values.yaml` and
-`tests/mock-newer.values.yaml` (`hack/azure-mock.sh`). Live: the `vm` case of
+aso-extensions' kind, `windows` a Windows machine with its admin password
+from a Secret, `linux-password` Linux password sign-in. Fake cloud:
+`tests/mock.values.yaml`, `tests/mock-newer.values.yaml` and
+`tests/mock-windows.values.yaml` (a Windows machine, its password from a
+Secret the run makes) (`hack/azure-mock.sh`). 0.4.0 (run
+`off-catalog-1114093250-22553`, 2026-11-14, stock ASO v2.22.0 and
+aso-extensions' manager at `8d7f8c2`): `mock` (5 objects), `mock-newer`
+(6) and `mock-windows` (the machine and its interface, the admin password
+a reference to a Secret the run made with a random value) Ready and
+deleted, the outputs evaluated. The first run (`off-catalog-1114091618-1539`)
+had every object Ready and deleted, but the Windows case's outputs failed:
+`admin_ssh_keys` read `linuxConfiguration`, which a Windows machine has
+not (fixed in `package.yaml`). Live: the `vm` case of
 `hack/azure-live.sh` (`docs/azure.md`, "8. Charts").
 
 ## Changes
 
+- **0.4.0** (2026-11-14): the admin password
+  (`account_credentials.admin_credentials.password`, `admin_password`) is
+  mapped as a reference to a Kubernetes Secret, `{secretName, key}`
+  (docs/secrets.md, the builder's decision), so a Windows machine renders
+  its OS profile (with `enable_automatic_updates`, `hotpatching_enabled`,
+  `timezone` and `winrm_listeners`) and a Linux one can use password
+  sign-in. Generating a password or key stays refused;
+  `additional_unattend_contents` is refused because its content is plain
+  text in the kind.
 - **0.3.0** (2026-11-14): always aso-extensions' `VirtualMachine` (the
   builder's choice), its interfaces and disks always by ARM ID. Moving from
   an earlier version: above.

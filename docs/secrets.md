@@ -127,10 +127,16 @@ elsewhere, or a gateway without an identity.
 | | `storage_shares_to_mount[].access_key`, `slots_storage_shares_to_mount_sensitive_values[]` | `siteConfig.azureStorageAccounts[].accessKey` (ASO's `Site`, aso-extensions' `SitesSlot`) |
 | `avm-res-cognitiveservices-account` (0.2.0) | `custom_question_answering_search_service_key` | `properties.apiProperties.qnaAzureSearchEndpointKey` (ASO's `Account`; `TextAnalytics` only, as in the module) |
 | `avm-res-keyvault-vault` (0.3.0) | `secrets_value[]`, `secrets_value_wo[]` (with `secrets` and `secrets_value_wo_version`) | aso-extensions' `VaultSecret` `value`, one per `secrets` entry, written in the vault's data plane |
+| `avm-res-compute-virtualmachine` (0.4.0) | `account_credentials.admin_credentials.password`, `admin_password` | `osProfile.adminPassword` (aso-extensions' `VirtualMachine`): a Windows machine's OS profile, or Linux password sign-in |
+| `avm-res-containerservice-managedcluster` (0.3.0) | `windows_profile_password` (with its `_version`), `aad_profile.server_app_secret`, `service_principal_profile.secret` | `ManagedCluster` `windowsProfile.adminPassword`, `aadProfile.serverAppSecret`, `servicePrincipalProfile.secret` |
+| `avm-res-dbforpostgresql-flexibleserver` (0.2.0) | `administrator_password`, or `administrator_password_wo` with its `_version` | `FlexibleServer` `administratorLoginPassword` |
+| `avm-res-sql-server` (0.4.0) | `administrator_login_password`, or `administrator_login_password_wo` with its `_version` | `Server` `administratorLoginPassword` |
 
 A module's `*_version` beside a write-only secret is required with it, as
 in the module, and does nothing: the controller sends the whole body on
-every change.
+every change. A module's plain and write-only (`_wo`) forms of one
+password are one field here (the controller keeps no state): give one,
+not both.
 
 ## Still refused, could take a reference next
 
@@ -140,20 +146,20 @@ above, chart by chart.
 
 | Chart | Variable | Field (kind) |
 | --- | --- | --- |
-| `avm-res-compute-virtualmachine` | `admin_password`, `account_credentials.admin_credentials.password` (and with it a Windows OS profile) | `VirtualMachine` `osProfile.adminPassword` |
-| `avm-res-containerservice-managedcluster` | `windows_profile_password`, `aad_profile.server_app_secret`, `service_principal_profile.secret` | `ManagedCluster` `windowsProfile.adminPassword`, `aadProfile.serverAppSecret`, `servicePrincipalProfile.secret` |
-| `avm-res-dbforpostgresql-flexibleserver` | `administrator_password` (`_wo`) | `FlexibleServer` `administratorLoginPassword` |
-| `avm-res-sql-server` | `administrator_login_password` (`_wo`) | `Server` `administratorLoginPassword` |
+| `avm-res-compute-virtualmachine` | `run_commands_secrets.*.run_as_password` (its `protected_parameters` are plain text in the kind, so the variable stays partly refused) | aso-extensions' `VirtualMachinesRunCommand` `runAsPasswordFromSecret` |
 
 Not this pattern: the Log Analytics workspace the environment module reads
 its customer ID and shared key from (`log_analytics_workspace`: a lookup
 in Azure, which a render cannot make; give the customer ID and a
 reference to the key instead), a value the module generates (`generate_admin_password_or_ssh_key`,
 `generate_administrator_login_password`: the catalog never generates
-secrets), a password Azure returns once (a registry token's
+secrets, nor writes one to Key Vault, as
+`account_credentials.key_vault_configuration` and
+`administrator_login_password_key_vault_configuration` would), a password Azure returns once (a registry token's
 `passwords`), and a secret a kind takes in plain text (a web app's
 `connection_strings`, its Application Insights settings, a Redis cache's
-storage connection strings): those need the kind to take a reference
+storage connection strings, a virtual machine's
+`additional_unattend_contents`, which can carry a password): those need the kind to take a reference
 first.
 
 ## Tests

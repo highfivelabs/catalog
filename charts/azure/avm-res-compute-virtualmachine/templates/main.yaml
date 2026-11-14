@@ -6,9 +6,9 @@ main.linux_vm.tf, main.windows_vm.tf, locals.auth.tf, main.authentication.tf
 and main.diagnostic_settings.tf (v0.21.0), Copyright (c) Microsoft
 Corporation, MIT.
 
-azurerm_linux_virtual_machine.this (azurerm_windows_virtual_machine.this
-only with an attached OS disk; a Windows OS profile needs an admin
-password, a secret value): one aso-extensions VirtualMachine
+azurerm_linux_virtual_machine.this and azurerm_windows_virtual_machine.this
+(its admin password a reference to a Kubernetes Secret, docs/secrets.md):
+one aso-extensions VirtualMachine
 (compute.azure.hfl.dev/v20250401, beside ASO's 2022-03-01 kind under its
 name), owned by the resource group, its network interfaces and data disks
 by ARM ID.
@@ -29,11 +29,15 @@ attached one is kept.
 {{- if not $v.name }}{{ fail "avm-res-compute-virtualmachine: name is required" }}{{ end }}
 {{- if not $v.location }}{{ fail "avm-res-compute-virtualmachine: location is required" }}{{ end }}
 {{- /* Refusals: secret values, kinds and fields ASO lacks, timeouts. */ -}}
-{{- $secret := "it is a secret value; how a component supplies one is the builder's decision (docs/azure.md, \"Charts\")" }}
 {{- $ac := $v.account_credentials | default dict }}
 {{- $adm := $ac.admin_credentials | default dict }}
-{{- include "aso.unsupported" (list $ "admin_password" $v.admin_password $secret) }}
-{{- include "aso.unsupported" (list $ "account_credentials.admin_credentials.password" $adm.password $secret) }}
+{{- /* The admin password: a reference to a Kubernetes Secret ({secretName,
+key}; docs/secrets.md), which the VirtualMachine takes as its
+osProfile.adminPassword SecretReference. account_credentials' password
+comes first, then the deprecated admin_password (locals.auth.tf). The
+catalog never generates one. */ -}}
+{{- $acPwRef := include "aso.secretRef" (list $ "account_credentials.admin_credentials.password" $adm.password) }}
+{{- $pwRef := $acPwRef | default (include "aso.secretRef" (list $ "admin_password" $v.admin_password)) }}
 {{- include "aso.unsupported" (list $ "account_credentials.key_vault_configuration" $ac.key_vault_configuration "it writes the generated password or SSH private key to Key Vault, a secret value the chart does not make") }}
 {{- include "aso.unsupported" (list $ "generated_secrets_key_vault_secret_config" $v.generated_secrets_key_vault_secret_config "it writes the generated password or SSH private key to Key Vault, a secret value the chart does not make") }}
 {{- include "aso.unsupported" (list $ "run_commands_secrets" $v.run_commands_secrets "protected parameters and run-as passwords are secret values; how a component supplies one is the builder's decision") }}
@@ -43,19 +47,14 @@ attached one is kept.
 {{- if and (eq (toString $v.bypass_platform_safety_checks_on_user_schedule_enabled) "true") (ne (toString $v.patch_mode) "AutomaticByPlatform") }}
 {{- fail "avm-res-compute-virtualmachine: bypass_platform_safety_checks_on_user_schedule_enabled can only be set to true when patch_mode is AutomaticByPlatform" }}
 {{- end }}
-{{- $win := "it sets a Windows OS profile, which needs an admin password, a secret value (os_type)" }}
-{{- range $w := list "additional_unattend_contents" "winrm_listeners" }}
-{{- include "aso.unsupported" (list $ $w (index $v $w) $win) }}
-{{- end }}
-{{- range $w := list "enable_automatic_updates" "hotpatching_enabled" "timezone" }}
-{{- if not (kindIs "invalid" (index $v $w)) }}
-{{- fail (printf "%s: %s is not supported: %s (docs/azure.md, \"Charts\")" $chart $w $win) }}
-{{- end }}
-{{- end }}
+{{- include "aso.unsupported" (list $ "additional_unattend_contents" $v.additional_unattend_contents "an unattend file's content can carry a password (AutoLogon) and the provider treats it as sensitive, but the VirtualMachine takes it only in plain text, so it would sit in the component's inputs (docs/secrets.md)") }}
 {{- $linux := eq (lower (toString $v.os_type)) "linux" }}
 {{- $attach := eq $v.os_disk_attach_mode true }}
-{{- if and (not $linux) (not $attach) }}
-{{- fail (printf "%s: os_type Windows is not supported unless os_disk_attach_mode: a Windows VM needs an admin password, a secret value; how a component supplies one is the builder's decision (docs/azure.md, \"Charts\")" $chart) }}
+{{- if and (not $linux) (not $attach) (not $pwRef) }}
+{{- fail (printf "%s: a Windows VM needs an admin password: give account_credentials.admin_credentials.password (or admin_password) as a reference to a Kubernetes Secret, {secretName, key} (docs/secrets.md); the catalog never generates one" $chart) }}
+{{- end }}
+{{- if and (not $linux) (not $attach) (gt (len (toString ($v.computer_name | default $v.name))) 15) }}
+{{- fail (printf "%s: a Windows VM's computer_name (default: name) is at most 15 characters" $chart) }}
 {{- end }}
 {{- /* Credentials, as locals.auth.tf decides them. */ -}}
 {{- $pwDisabled := not (or (eq $ac.password_authentication_disabled false) (eq $v.disable_password_authentication false)) }}
@@ -74,10 +73,12 @@ attached one is kept.
 {{- end }}
 {{- $keys := list }}
 {{- if and $linux (not $attach) }}
-{{- if not $pwDisabled }}
-{{- fail (printf "%s: disable_password_authentication (account_credentials.password_authentication_disabled) false is not supported: password sign-in needs a password, a secret value; how a component supplies one is the builder's decision (docs/azure.md, \"Charts\")" $chart) }}
-{{- end }}
 {{- range $k := ($v.admin_ssh_keys | default list) }}{{ $keys = append $keys (dict "username" $k.username "key" $k.public_key) }}{{ end }}
+{{- end }}
+{{- if and $linux (not $attach) (not $pwDisabled) (not $pwRef) }}
+{{- fail (printf "%s: password sign-in (disable_password_authentication or account_credentials.password_authentication_disabled false) needs a password: give account_credentials.admin_credentials.password (or admin_password) as a reference to a Kubernetes Secret, {secretName, key} (docs/secrets.md); the catalog never generates one" $chart) }}
+{{- end }}
+{{- if and $linux (not $attach) $pwDisabled }}
 {{- $input := $acKeys }}
 {{- if not $input }}{{ range $k := ($v.admin_ssh_keys | default list) }}{{ $input = append $input $k.public_key }}{{ end }}{{ end }}
 {{- range $k := $input }}{{ $keys = append $keys (dict "username" $username "key" $k) }}{{ end }}
@@ -240,11 +241,15 @@ spec:
     {{- with $v.custom_data }}
     customData: {{ . | quote }}
     {{- end }}
+    {{- $bypass := eq (toString $v.bypass_platform_safety_checks_on_user_schedule_enabled) "true" }}
+    {{- if or (not $linux) (not $pwDisabled) }}
+    adminPassword: {{ $pwRef }}
+    {{- end }}
+    {{- if $linux }}
     linuxConfiguration:
-      disablePasswordAuthentication: true
+      disablePasswordAuthentication: {{ $pwDisabled }}
       patchSettings:
         assessmentMode: {{ $v.patch_assessment_mode | default "ImageDefault" }}
-        {{- $bypass := eq (toString $v.bypass_platform_safety_checks_on_user_schedule_enabled) "true" }}
         {{- if or $v.reboot_setting $bypass }}
         automaticByPlatformSettings:
           {{- if $bypass }}
@@ -256,12 +261,49 @@ spec:
         {{- end }}
         patchMode: {{ $v.patch_mode | default "ImageDefault" }}
       provisionVMAgent: {{ ne $v.provision_vm_agent false }}
+      {{- with $keys }}
       ssh:
         publicKeys:
-          {{- range $k := (uniq $keys) }}
+          {{- range $k := (uniq .) }}
           - keyData: {{ $k.key | quote }}
             path: {{ printf "/home/%s/.ssh/authorized_keys" $k.username | quote }}
           {{- end }}
+      {{- end }}
+    {{- else }}
+    {{- /* azurerm_windows_virtual_machine's OS profile: patch_mode defaults
+    to AutomaticByOS there; enable_automatic_updates (true) and
+    hotpatching_enabled (false) are null in values.yaml and take the
+    module's defaults here. */}}
+    windowsConfiguration:
+      enableAutomaticUpdates: {{ ne $v.enable_automatic_updates false }}
+      patchSettings:
+        assessmentMode: {{ $v.patch_assessment_mode | default "ImageDefault" }}
+        {{- if or $v.reboot_setting $bypass }}
+        automaticByPlatformSettings:
+          {{- if $bypass }}
+          bypassPlatformSafetyChecksOnUserSchedule: true
+          {{- end }}
+          {{- with $v.reboot_setting }}
+          rebootSetting: {{ . }}
+          {{- end }}
+        {{- end }}
+        enableHotpatching: {{ eq $v.hotpatching_enabled true }}
+        patchMode: {{ $v.patch_mode | default "AutomaticByOS" }}
+      provisionVMAgent: {{ ne $v.provision_vm_agent false }}
+      {{- with $v.timezone }}
+      timeZone: {{ . | quote }}
+      {{- end }}
+      {{- with $v.winrm_listeners }}
+      winRM:
+        listeners:
+          {{- range . }}
+          - protocol: {{ .protocol | quote }}
+            {{- with .certificate_url }}
+            certificateUrl: {{ . | quote }}
+            {{- end }}
+          {{- end }}
+      {{- end }}
+    {{- end }}
     {{- with $v.secrets }}
     secrets:
       {{- range $s := . }}
