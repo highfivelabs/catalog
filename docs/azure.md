@@ -350,8 +350,9 @@ mapped too; `customer_managed_key` is a gap (section 8).
 
 Chart `charts/azure/avm-res-keyvault-vault`: private endpoints mapped from
 0.2.0 (2026-11-13) as `PrivateEndpoint` and
-`PrivateEndpointsPrivateDnsZoneGroup`; secrets stay refused (a secret's
-value, the builder's decision).
+`PrivateEndpointsPrivateDnsZoneGroup`; secrets from 0.3.0 (2026-11-14)
+as aso-extensions `VaultSecret`s, each value a reference to a Kubernetes
+Secret (secrets.md).
 
 ### 5. avm-res-compute-virtualmachine (v0.21.0; mostly azurerm)
 
@@ -497,7 +498,8 @@ authentication only (section 8).
 
 Chart `charts/azure/avm-res-cognitiveservices-account` (2026-11-13): 38 of
 41 variables (`retry`, `timeouts` by design; the search service key, a
-secret value, not ported; a user-assigned identity for the customer
+secret value, not ported until 0.2.0, which takes it as a reference to a
+Kubernetes Secret (secrets.md); a user-assigned identity for the customer
 managed key and a deployment's dynamic throttling refused: field gaps), 7
 of 11 outputs (not the access keys, the sensitive object or the whole
 account). Private endpoints, deployments and RAI policies are mapped.
@@ -600,9 +602,10 @@ credential policies (`ftp_publish_basic_authentication_enabled: false`,
 the module's default, renders the FTP one) are too. Still gaps: the
 `sites/config` sections `auth_settings` (v1) and `backup`, a slot's
 publishing credential policies and the slot swap (`app_service_active_slot`,
-an action). Connection strings, storage mounts, the Application Insights
-key and connection string and PFX uploads are refused as secret values
-(the builder's decision); Logic Apps (`kind: logicapp`) too, since the
+an action). Connection strings and the Application Insights key and
+connection string are refused as secret values (the builder's decision;
+storage mounts' access keys and PFX uploads are references to Kubernetes
+Secrets from 0.5.0, secrets.md); Logic Apps (`kind: logicapp`) too, since the
 module writes the storage account key into an app setting. Not applied
 live: the sandbox's App Service quota is 0 (the serverfarm chart below);
 its case `web` is opt-in. Its `tests/mock.values.yaml` passed against the
@@ -1096,10 +1099,12 @@ a chart takes secret material as a reference to a Kubernetes Secret,
 `{secretName, key}`, which External Secrets Operator puts in the cluster;
 never as a value, and never generated. Mapped so far: the application
 gateway's certificates, the Container Apps environment's Application
-Insights connection string and Datadog key, and the web app's Blob
-Storage log SAS URLs. secrets.md lists the variables still refused as
-secret values whose kinds already take a `SecretReference` (the Key
-Vault module's `secrets` onto aso-extensions' `VaultSecret` among them).
+Insights connection string and Datadog key, the web app's Blob Storage
+log SAS URLs, PFX certificates and storage mounts' access keys, the
+Cognitive Services account's search key, and the Key Vault module's
+`secrets` (aso-extensions' `VaultSecret`). secrets.md lists the variables
+still refused as secret values whose kinds already take a
+`SecretReference`.
 
 **Testing.** Layer 1 (render, `task test`) as on Google Cloud: golden
 files, `kubeconform -strict` against ASO v2.22.0's CRDs and aso-extensions'

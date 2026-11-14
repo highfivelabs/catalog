@@ -12,9 +12,11 @@ with the body the module builds (_site.tpl, site.body). The config
 submodules the module applies after the site are carried inline where ASO's
 Site has the field: config_appsettings (siteConfig.appSettings, the merged
 app settings of locals.app_settings.tf) and config_metadata
-(siteConfig.metadata). config_authsettingsv2, config_logs, config_slotconfignames and the
+(siteConfig.metadata) and config_azurestorageaccounts
+(siteConfig.azureStorageAccounts, each access key a reference to a
+Kubernetes Secret; docs/secrets.md). config_authsettingsv2, config_logs, config_slotconfignames and the
 publishing credential policies are aso-extensions kinds (config.yaml).
-config_connectionstrings, config_azurestorageaccounts, config_authsettings
+config_connectionstrings, config_authsettings
 (v1), config_backup and the slot swap are refused (upstream.yaml). azapi_resource.lock, role_assignment and
 diagnostic_setting: the AVM interfaces (avm-utl-interfaces 0.7.0, diagnostic
 settings v2). Slots, custom domains, certificates and private endpoints are
@@ -39,9 +41,7 @@ ported.
 {{- include "aso.unsupported" (list $ "application_insights_key" $v.application_insights_key $secv) }}
 {{- include "aso.unsupported" (list $ "storage_account_access_key" $v.storage_account_access_key $secv) }}
 {{- include "aso.unsupported" (list $ "slot_sensitive_app_settings" $v.slot_sensitive_app_settings $secv) }}
-{{- include "aso.unsupported" (list $ "slots_storage_shares_to_mount_sensitive_values" $v.slots_storage_shares_to_mount_sensitive_values $secv) }}
 {{- include "aso.unsupported" (list $ "connection_strings" $v.connection_strings "a connection string's value is a secret (ASO's siteConfig.connectionStrings takes it in plain text); how a component supplies one is the builder's decision") }}
-{{- include "aso.unsupported" (list $ "storage_shares_to_mount" $v.storage_shares_to_mount "each mount needs the storage account's access key, a secret value (ASO's siteConfig.azureStorageAccounts takes it from a Kubernetes Secret); how a component supplies one is the builder's decision") }}
 {{- with $v.site_config }}
 {{- include "aso.unsupported" (list $ "site_config.application_insights_connection_string" .application_insights_connection_string "the Application Insights connection string, which the module marks sensitive as application_insights_connection_string; a secret value is the builder's decision") }}
 {{- include "aso.unsupported" (list $ "site_config.application_insights_key" .application_insights_key "the Application Insights instrumentation key, which the module marks sensitive as application_insights_key; a secret value is the builder's decision") }}
@@ -148,7 +148,7 @@ spec:
   owner:
     {{- include "aso.owner" (list $ "parent_id" $v.parent_id) | nindent 4 }}
   kind: {{ include "site.armKind" . | quote }}
-  {{- (include "site.body" (dict "root" $ "v" $v "sc" $sc "slot" false "appSettings" $merged "serverFarm" $farm "vnetBackup" $v.virtual_network_backup_restore_enabled) | fromJson).v | toYaml | nindent 2 }}
+  {{- (include "site.body" (dict "root" $ "v" $v "sc" $sc "slot" false "appSettings" $merged "serverFarm" $farm "vnetBackup" $v.virtual_network_backup_restore_enabled "storage" (include "site.storageMounts" (list $ "storage_shares_to_mount" $v.storage_shares_to_mount nil) | fromJson).v) | fromJson).v | toYaml | nindent 2 }}
   {{- with (include "aso.tags" (list $ dict) | fromJson) }}
   tags:
     {{- toYaml . | nindent 4 }}

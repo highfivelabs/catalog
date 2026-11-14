@@ -201,6 +201,36 @@ Arguments (a dict):
           virtual_network_backup_restore_enabled, a slot's
           vnet_backup_restore_enabled)
 */}}
+{{- /*
+site.storageMounts: storage_shares_to_mount as siteConfig.azureStorageAccounts
+(module config_azurestorageaccounts, which PUTs the same map to
+sites/config/azurestorageaccounts), keyed by each mount's name. The access
+key is a reference to a Kubernetes Secret, {secretName, key}
+(docs/secrets.md), which ASO takes as a SecretReference. A slot's keys are
+in slots_storage_shares_to_mount_sensitive_values, by the mount's key, as
+in the module; the site's are each mount's access_key.
+  include "site.storageMounts" (list $ "storage_shares_to_mount" $mounts $keys) | fromJson).v
+*/ -}}
+{{- define "site.storageMounts" -}}
+{{- $root := index . 0 -}}{{- $path := index . 1 -}}{{- $mounts := index . 2 | default dict -}}{{- $keys := index . 3 -}}
+{{- $out := dict -}}
+{{- range $k := keys $mounts | sortAlpha -}}
+{{- $m := index $mounts $k -}}
+{{- range $f := list "account_name" "mount_path" "name" "share_name" -}}
+{{- if not (index $m $f) }}{{ fail (printf "%s: %s.%s.%s is required" $root.Chart.Name $path $k $f) }}{{ end -}}
+{{- end -}}
+{{- $ref := "" -}}
+{{- if kindIs "invalid" $keys -}}
+{{- if kindIs "invalid" $m.access_key }}{{ fail (printf "%s: %s.%s.access_key is required: a reference to a Kubernetes Secret, {secretName, key} (docs/secrets.md)" $root.Chart.Name $path $k) }}{{ end -}}
+{{- $ref = include "aso.secretRef" (list $root (printf "%s.%s.access_key" $path $k) $m.access_key) -}}
+{{- else -}}
+{{- if not (hasKey $keys $k) }}{{ fail (printf "%s: %s.%s needs its access key in slots_storage_shares_to_mount_sensitive_values.%s, a reference to a Kubernetes Secret, {secretName, key} (docs/secrets.md)" $root.Chart.Name $path $k $k) }}{{ end -}}
+{{- $ref = include "aso.secretRef" (list $root (printf "slots_storage_shares_to_mount_sensitive_values.%s" $k) (index $keys $k)) -}}
+{{- end -}}
+{{- $_ := set $out (toString $m.name) (dict "type" ($m.type | default "AzureFiles") "accountName" $m.account_name "shareName" $m.share_name "mountPath" $m.mount_path "accessKey" (fromJson $ref)) -}}
+{{- end -}}
+{{- toJson (dict "v" (ternary nil $out (eq (len $out) 0))) -}}
+{{- end -}}
 {{- define "site.body" -}}
 {{- $null := index (dict) "null" -}}
 {{- $root := .root -}}{{- $v := .v -}}{{- $sc := .sc -}}{{- $slot := .slot -}}
@@ -384,7 +414,8 @@ Arguments (a dict):
   "acrUserManagedIdentityID" $sc.container_registry_managed_identity_client_id
   "functionAppScaleLimit" (ternary $sc.app_scale_limit nil $fnNotFc1)
   "localMySqlEnabled" (ternary $sc.local_mysql_enabled nil (or $slot $web))
-  "autoSwapSlotName" $sc.auto_swap_slot_name -}}
+  "autoSwapSlotName" $sc.auto_swap_slot_name
+  "azureStorageAccounts" .storage -}}
 {{- $dapr := $null -}}
 {{- with $v.dapr_config }}{{ $dapr = dict "appId" .app_id "appPort" .app_port "enableApiLogging" .enable_api_logging "enabled" .enabled "httpMaxRequestSize" .http_max_request_size "httpReadBufferSize" .http_read_buffer_size "logLevel" .log_level }}{{ end -}}
 {{- $dns := $null -}}
