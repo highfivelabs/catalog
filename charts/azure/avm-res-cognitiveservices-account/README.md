@@ -57,6 +57,7 @@ preconditions stop the render with its messages.
 | `custom_subdomain_name` | `customSubDomainName`; unset, `azure-cognitive-<suffix>` for every kind but AIServices, as the module (its suffix is random; the chart's is stable) |
 | `allow_project_management`, `dynamic_throttling_enabled`, `fqdns`, `public_network_access_enabled`, `outbound_network_access_restricted`, `local_auth_enabled` | `allowProjectManagement`, `dynamicThrottlingEnabled`, `allowedFqdnList`, `publicNetworkAccess`, `restrictOutboundNetworkAccess`, `disableLocalAuth` (its negation; false when null) |
 | `qna_runtime_endpoint`, `custom_question_answering_search_service_id`, `metrics_advisor_*` | `apiProperties` (`qnaRuntimeEndpoint`, `qnaAzureSearchEndpointId`, `aadClientId`, `aadTenantId`, `superUser`, `websiteName`), each only for its kind, as the module sends them |
+| `custom_question_answering_search_service_key` | `apiProperties.qnaAzureSearchEndpointKey` (`TextAnalytics` only, as in the module), as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused |
 | `network_acls` | `networkAcls`: `defaultAction`, `ipRules`, `virtualNetworkRules` (subnets by ID), `bypass` |
 | `storage` | `userOwnedStorage` |
 | `managed_identities` | `identity` (system-assigned, user-assigned by ID, or both) |
@@ -73,8 +74,6 @@ preconditions stop the render with its messages.
 **Refused** (`upstream.yaml`): `retry` and `timeouts` (by design: ASO
 retries on its own; Bundt sets a component's time limit), at the top and in
 deployment and RAI policy entries;
-`custom_question_answering_search_service_key` (a secret value: ASO reads it
-from a Kubernetes Secret, and how a component supplies one is not settled);
 `customer_managed_key.user_assigned_identity` (the module reads the
 identity's client ID from Azure; ASO's `encryption.keyVaultProperties.identityClientId`
 is a literal, with no `FromConfig` form); a deployment's
@@ -128,7 +127,9 @@ repository, release, commit, licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-cognitiveservices-account`: render cases `basic`,
-`full`, `aiservices`, `metrics`, `names` and `mock`, each validated against
+`full`, `aiservices`, `metrics`, `names`, `search` (the Search service's
+key from a Secret), `mock` and `mock-search` (the key from a Secret the
+fake-cloud run makes), each validated against
 ASO v2.22.0's CRD schemas and aso-extensions' `ManagementLock` and
 `AccountsRaiPolicy` CRDs, and the refusals in `tests/*.fail.yaml`.
 `task test-live-azure` with `AZURE_LIVE_CASES=cog` applies a free
@@ -144,4 +145,7 @@ policy Ready and deleted, the outputs evaluated.
 
 ## Changes
 
+- **0.2.0** (2026-11-14): `custom_question_answering_search_service_key`
+  is mapped, as a reference to a Kubernetes Secret, `{secretName, key}`
+  (docs/secrets.md, the builder's decision).
 - **0.1.0** (2026-11-13): the port.

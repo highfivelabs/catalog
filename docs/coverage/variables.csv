@@ -3945,10 +3945,10 @@ azure,avm-res-keyvault-vault,purge_protection_enabled,bool,yes,,
 azure,avm-res-keyvault-vault,resource_types,"object({authorization_locks, authorization_role_assignments, insights_diagnostic_settings, keyvault_vaults, network_private_endpoints, network_private_endpoints_private_dns_zone_groups})",no,ASO's kinds fix the API versions (Vault 2023-07-01),by-design
 azure,avm-res-keyvault-vault,retry,"object({error_message_regex, interval_seconds, max_interval_seconds})",no,"Azure Service Operator retries every failed request itself, with backoff, until the resource is ready",by-design
 azure,avm-res-keyvault-vault,role_assignments,"map(object({condition, condition_version, delegated_managed_identity_resource_id, description, principal_id, principal_type, +2}))",yes,,
-azure,avm-res-keyvault-vault,secrets,"map(object({content_type, expiration_date, name, not_before_date, role_assignments, tags}))",no,"aso-extensions has VaultSecret, whose value comes from a Kubernetes Secret; how a component supplies that Secret is not settled, so the chart does not map secrets yet",not-ported
-azure,avm-res-keyvault-vault,secrets_value,map(string),no,"the values of secrets, which the chart does not map yet (a secret's value belongs in a Kubernetes Secret, not in a component's inputs)",not-ported
-azure,avm-res-keyvault-vault,secrets_value_wo,map(string),no,"the write-only values of secrets, which the chart does not map yet",not-ported
-azure,avm-res-keyvault-vault,secrets_value_wo_version,map(number),no,"the write-only value versions of secrets, which the chart does not map yet",not-ported
+azure,avm-res-keyvault-vault,secrets,"map(object({content_type, expiration_date, name, not_before_date, role_assignments, tags}))",yes,,
+azure,avm-res-keyvault-vault,secrets_value,map(string),yes,,
+azure,avm-res-keyvault-vault,secrets_value_wo,map(string),yes,,
+azure,avm-res-keyvault-vault,secrets_value_wo_version,map(number),yes,,
 azure,avm-res-keyvault-vault,sku_name,string,yes,,
 azure,avm-res-keyvault-vault,soft_delete_retention_days,number,yes,,
 azure,avm-res-keyvault-vault,tags,map(string),yes,,
@@ -4348,7 +4348,7 @@ azure,avm-res-cognitiveservices-account,aml_workspace,"object({identity_client_i
 azure,avm-res-cognitiveservices-account,associated_projects,list(string),yes,,
 azure,avm-res-cognitiveservices-account,cognitive_deployments,"map(object({dynamic_throttling_enabled, model, name, rai_policy_name, retry, scale, +2}))",partial,"accepted, but dynamic_throttling_enabled true is refused (ASO's Deployment has no dynamicThrottlingEnabled), and so are retry and timeouts (by design)",gap
 azure,avm-res-cognitiveservices-account,custom_question_answering_search_service_id,string,yes,,
-azure,avm-res-cognitiveservices-account,custom_question_answering_search_service_key,string,no,"a secret value: ASO reads the key from a Kubernetes Secret (apiProperties.qnaAzureSearchEndpointKey), and how a component supplies a Secret is not settled",not-ported
+azure,avm-res-cognitiveservices-account,custom_question_answering_search_service_key,string,yes,,
 azure,avm-res-cognitiveservices-account,custom_subdomain_name,string,yes,,
 azure,avm-res-cognitiveservices-account,customer_managed_key,"object({key_name, key_vault_resource_id, key_version, user_assigned_identity})",partial,"accepted, but user_assigned_identity is refused (the module reads its client ID from Azure; ASO's Account takes encryption.keyVaultProperties.identityClientId only as a literal) and key_version is required (the module reads the key's current version from Key Vault)",gap
 azure,avm-res-cognitiveservices-account,default_project,string,yes,,
@@ -4474,7 +4474,7 @@ azure,avm-res-web-site,auto_generated_domain_name_label_scope,string,yes,,
 azure,avm-res-web-site,backup,"map(object({enabled, name, schedule, storage_account_url}))",no,"Microsoft.Web/sites/config (backup) has no Azure Service Operator or aso-extensions kind (its storage_account_url is a SAS URL, a secret, as well)",gap
 azure,avm-res-web-site,builtin_logging_enabled,bool,yes,,
 azure,avm-res-web-site,bundle_version,string,no,"only a Logic App reads it (the extension bundle's version), and kind logicapp is refused; accepted at its default",not-ported
-azure,avm-res-web-site,certificates,"map(object({host_names, key_vault_id, key_vault_secret_name, name, password, pfx_blob, +1}))",partial,"accepted as aso-extensions Certificate from Key Vault (key_vault_id, key_vault_secret_name), but pfx_blob and password are refused: secret material, the builder's decision",not-ported
+azure,avm-res-web-site,certificates,"map(object({host_names, key_vault_id, key_vault_secret_name, name, password, pfx_blob, +1}))",yes,,
 azure,avm-res-web-site,client_affinity_enabled,bool,yes,,
 azure,avm-res-web-site,client_affinity_partitioning_enabled,bool,yes,,
 azure,avm-res-web-site,client_affinity_proxy_enabled,bool,yes,,
@@ -4488,7 +4488,7 @@ azure,avm-res-web-site,custom_domains,"map(object({certificate_key, hostname, ss
 azure,avm-res-web-site,daily_memory_time_quota,number,yes,,
 azure,avm-res-web-site,dapr_config,"object({app_id, app_port, enable_api_logging, enabled, http_max_request_size, http_read_buffer_size, +1})",yes,,
 azure,avm-res-web-site,delete_empty_service_plan,bool,partial,"accepted as true (the default, Azure's) only; ASO deletes a site without the deleteEmptyServerFarm query parameter",gap
-azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings and storage_shares_to_mount (secret values), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
+azure,avm-res-web-site,deployment_slots,"map(object({app_settings, auto_generated_domain_name_label_scope, client_affinity_enabled, client_affinity_partitioning_enabled, client_affinity_proxy_enabled, client_certificate_enabled, +43}))",partial,"accepted as aso-extensions SitesSlot and SitesSlotsHostNameBinding, but a slot's ftp_publish_basic_authentication_enabled and webdeploy_publish_basic_authentication_enabled must be true (false writes a slot's basicPublishingCredentialsPolicies object, which has no kind: aso-extensions' policies are the site's), and its connection_strings (secret values in plain text), zip_deploy_file (application code), site_config.application_insights_* (secret values) and custom_domains.*.certificate_key (a thumbprint Azure computes) are refused",not-ported
 azure,avm-res-web-site,deployment_slots_inherit_lock,bool,yes,,
 azure,avm-res-web-site,diagnostic_settings,"map(object({event_hub_authorization_rule_resource_id, event_hub_name, log_analytics_destination_type, logs, marketplace_partner_resource_id, metrics, +3}))",yes,,
 azure,avm-res-web-site,dns_configuration,"object({dns_alt_server, dns_max_cache_timeout, dns_retry_attempt_count, dns_retry_attempt_timeout, dns_servers})",yes,,
@@ -4535,7 +4535,7 @@ azure,avm-res-web-site,scm_site_also_stopped,bool,yes,,
 azure,avm-res-web-site,service_plan_resource_id,string,yes,,
 azure,avm-res-web-site,site_config,"object({always_on, api_definition_url, api_management_api_id, app_command_line, app_scale_limit, application_insights_connection_string, +59})",partial,"accepted, but application_insights_connection_string and application_insights_key are refused: the Application Insights connection string and key, which the module marks sensitive at the root (a secret value, the builder's decision)",not-ported
 azure,avm-res-web-site,slot_sensitive_app_settings,map(map(string)),no,secret values (the module marks them sensitive); how a component supplies one is the builder's decision,not-ported
-azure,avm-res-web-site,slots_storage_shares_to_mount_sensitive_values,map(string),no,"storage account access keys, secret values (the module marks them sensitive); how a component supplies one is the builder's decision",not-ported
+azure,avm-res-web-site,slots_storage_shares_to_mount_sensitive_values,map(string),yes,,
 azure,avm-res-web-site,ssh_enabled,bool,yes,,
 azure,avm-res-web-site,sticky_settings,"map(object({app_setting_names, connection_string_names}))",yes,,
 azure,avm-res-web-site,storage_account_access_key,string,no,a secret value (the module marks it sensitive) the module writes into the AzureWebJobsStorage connection string; how a component supplies one is the builder's decision. Use storage_uses_managed_identity,not-ported
@@ -4545,7 +4545,7 @@ azure,avm-res-web-site,storage_account_share_name,string,no,"only a Logic App re
 azure,avm-res-web-site,storage_authentication_type,string,yes,,
 azure,avm-res-web-site,storage_container_endpoint,string,yes,,
 azure,avm-res-web-site,storage_container_type,string,yes,,
-azure,avm-res-web-site,storage_shares_to_mount,"map(object({access_key, account_name, mount_path, name, share_name, type}))",no,"each mount needs the storage account's access key, a secret value (ASO's siteConfig.azureStorageAccounts takes it from a Kubernetes Secret); how a component supplies one is the builder's decision",not-ported
+azure,avm-res-web-site,storage_shares_to_mount,"map(object({access_key, account_name, mount_path, name, share_name, type}))",yes,,
 azure,avm-res-web-site,storage_user_assigned_identity_client_id,string,yes,,
 azure,avm-res-web-site,storage_user_assigned_identity_id,string,yes,,
 azure,avm-res-web-site,storage_uses_managed_identity,bool,yes,,

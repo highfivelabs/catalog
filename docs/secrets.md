@@ -115,7 +115,11 @@ elsewhere, or a gateway without an identity.
 | | `authentication_certificates[].data`, `trusted_client_certificates[].data`, `trusted_root_certificates[].data` | the collections' `data` (public certificates, which the kind takes only from a Secret); `trusted_root_certificates[].key_vault_secret_id` as it is |
 | `avm-res-app-managedenvironment` (0.5.0) | `connection_string` (with `connection_string_version`) | `appInsightsConfiguration.connectionString` (aso-extensions' `ManagedEnvironment`) |
 | | `key` (the Datadog API key, with `key_version`) | `openTelemetryConfiguration.destinationsConfiguration.dataDogConfiguration.key` |
-| `avm-res-web-site` (0.4.0) | `logs.*.application_logs.*.azure_blob_storage.sas_url`, `logs.*.http_logs.*.azure_blob_storage.sas_url` | `applicationLogs.azureBlobStorage.sasUrl`, `httpLogs.azureBlobStorage.sasUrl` (aso-extensions' `SitesConfigLogs`) |
+| `avm-res-web-site` (0.5.0) | `logs.*.application_logs.*.azure_blob_storage.sas_url`, `logs.*.http_logs.*.azure_blob_storage.sas_url` | `applicationLogs.azureBlobStorage.sasUrl`, `httpLogs.azureBlobStorage.sasUrl` (aso-extensions' `SitesConfigLogs`) |
+| | `certificates[].pfx_blob`, `.password` | aso-extensions' `Certificate` `pfxBlob`, `password` (a PFX upload; Key Vault and a PFX together are refused, as in the module) |
+| | `storage_shares_to_mount[].access_key`, `slots_storage_shares_to_mount_sensitive_values[]` | `siteConfig.azureStorageAccounts[].accessKey` (ASO's `Site`, aso-extensions' `SitesSlot`) |
+| `avm-res-cognitiveservices-account` (0.2.0) | `custom_question_answering_search_service_key` | `properties.apiProperties.qnaAzureSearchEndpointKey` (ASO's `Account`; `TextAnalytics` only, as in the module) |
+| `avm-res-keyvault-vault` (0.3.0) | `secrets_value[]`, `secrets_value_wo[]` (with `secrets` and `secrets_value_wo_version`) | aso-extensions' `VaultSecret` `value`, one per `secrets` entry, written in the vault's data plane |
 
 A module's `*_version` beside a write-only secret is required with it, as
 in the module, and does nothing: the controller sends the whole body on
@@ -136,14 +140,10 @@ above, chart by chart.
 | | `dapr_components[].secrets[].value` | `ManagedEnvironmentsDaprComponent` `secrets[].value` |
 | | `storages[].azure_file.account_key` | `ManagedEnvironmentsStorage` `properties.azureFile.accountKey` |
 | `avm-res-app-containerapp` | `secrets[].value` | `ContainerApp` `configuration.secrets[].value` |
-| `avm-res-web-site` | `certificates[].pfx_blob`, `.password` | aso-extensions' `Certificate` `pfxBlob`, `password` |
-| | `storage_shares_to_mount` (the access key) | `Site` `siteConfig.azureStorageAccounts` |
 | `avm-res-compute-virtualmachine` | `admin_password`, `account_credentials.admin_credentials.password` (and with it a Windows OS profile) | `VirtualMachine` `osProfile.adminPassword` |
 | `avm-res-containerservice-managedcluster` | `windows_profile_password`, `aad_profile.server_app_secret`, `service_principal_profile.secret` | `ManagedCluster` `windowsProfile.adminPassword`, `aadProfile.serverAppSecret`, `servicePrincipalProfile.secret` |
 | `avm-res-dbforpostgresql-flexibleserver` | `administrator_password` (`_wo`) | `FlexibleServer` `administratorLoginPassword` |
 | `avm-res-sql-server` | `administrator_login_password` (`_wo`) | `Server` `administratorLoginPassword` |
-| `avm-res-cognitiveservices-account` | `custom_question_answering_search_service_key` | `Account` `apiProperties.qnaAzureSearchEndpointKey` |
-| `avm-res-keyvault-vault` | `secrets`, `secrets_value` | aso-extensions' `VaultSecret` (its value from a Secret; its CRD is not copied into `crds/aso-extensions` yet) |
 
 Not this pattern: a value the module generates (`generate_admin_password_or_ssh_key`,
 `generate_administrator_login_password`: the catalog never generates

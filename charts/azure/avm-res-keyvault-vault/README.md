@@ -1,6 +1,6 @@
 # avm-res-keyvault-vault
 
-An Azure Key Vault with its keys and private endpoints, and its lock,
+An Azure Key Vault with its keys, secrets and private endpoints, and its lock,
 role assignments and diagnostic settings, as Azure Service Operator (ASO) objects. A port of
 the Azure Verified Module
 [`avm-res-keyvault-vault`](https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/tree/7c53adbc7f4f716fa00b21af90e1a120db5e19ef)
@@ -8,8 +8,8 @@ at v0.13.0 (`7c53adbc`), MIT, Copyright (c) Microsoft Corporation
 (`LICENSE.avm`). Bundt Package `azure-avm-res-keyvault-vault`
 (`package.yaml`). Checked against ASO v2.22.0's CRDs.
 
-Partial: secrets are not mapped (a secret's value is the builder's
-decision), and certificate contacts have no kind (below).
+Partial: certificate contacts have no kind (below). A secret's value is
+a reference to a Kubernetes Secret ([secrets](../../../docs/secrets.md)).
 
 ## Example
 
@@ -31,6 +31,8 @@ firewall that denies all (`tests/golden/basic.yaml`).
 | `azapi_resource.this` (`Microsoft.KeyVault/vaults`) | always | `Vault` (`keyvault.azure.com/v1api20230701`), `vault`, owned by `parent_id` |
 | `module.keys` (`azurerm_key_vault_key`) | one per `keys` entry | `VaultKey` (`keyvault.azure.com/v20230701`, `Microsoft.KeyVault/vaults/keys`), `key:<key>`, owned by the vault |
 | the keys' `role_assignments` | one per assignment | `RoleAssignment`, `key:<key>/role-assignment-<k>`, owned by the key |
+| `module.secrets` (`azurerm_key_vault_secret`) | one per `secrets` entry | `VaultSecret` (aso-extensions, `keyvault.azure.hfl.dev/v1`, written in the vault's data plane as azurerm writes it), `secret:<key>`, owned by the vault |
+| the secrets' `role_assignments` | one per assignment | `RoleAssignment`, `secret:<key>/role-assignment-<k>`, owned by the secret's versionless ARM ID |
 | `azapi_resource.lock` | `lock` set | `ManagementLock` (aso-extensions), `lock`: `lock-<name>` |
 | `azapi_resource.role_assignments` | one per entry | `RoleAssignment`, `role-assignment-<key>` |
 | `azapi_resource.diagnostic_settings` | one per entry | `DiagnosticSetting`, `diagnostic-setting-<key>`: `diag-<name>` unless named |
@@ -63,6 +65,7 @@ Every module variable is a value of the same name, type and default
 | `network_acls` | `networkAcls`: `bypass`, `defaultAction`, `ipRules`, `virtualNetworkRules`; `null` leaves them out |
 | `public_network_access_enabled`, `soft_delete_retention_days` | `publicNetworkAccess`, `softDeleteRetentionInDays` |
 | `keys` | per key: `kty`, `keyOps` (`["sign", "verify"]`), `keySize`, `curveName`, `attributes.nbf` and `exp` (the dates as Unix times), `tags`, `release_policy` (the JSON base64url-encoded, as azurerm sends it), `rotationPolicy` (`expire_after` as `attributes.expiryTime`, `automatic` as a `rotate` action, `notify_before_expiry` as a `notify` action), `role_assignments`; `release_policy.immutable` refused |
+| `secrets`, `secrets_value`, `secrets_value_wo`, `secrets_value_wo_version` | per secret: `azureName`, `contentType`, `notBefore`, `expiresOn` (the module's UTC datetimes, checked as it checks them), `tags`, `role_assignments`, and `value` from `secrets_value` (or `secrets_value_wo`) under the entry's key, as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused, and so is an entry with neither or both. A change to the Secret makes a new version, so `secrets_value_wo_version` is accepted and does nothing. As azurerm's defaults: `createMode: createOrRecover` (a soft-deleted secret of the name is recovered) and `deleteMode: delete` (deleting the object soft-deletes the secret) |
 | `lock`, `role_assignments`, `diagnostic_settings` | the AVM interfaces (`docs/azure.md`, "8. Charts"); a role assignment with `skip_service_principal_aad_check` and no `principal_type` is `ServicePrincipal`, as the module sets it. The module lists every diagnostic category Azure offers, the unused ones disabled; the chart lists the enabled ones, the same setting |
 | `private_endpoints` | per entry: `subnet.reference.armId`, `customNetworkInterfaceName`, one `privateLinkServiceConnections` entry (`pse-<name>` unless named, `groupIds` the `subresource_name`, default `vault`), `ipConfigurations` (`groupId` as the connection's, `memberName` default `default`) and `applicationSecurityGroups`, sent empty when unset as the module sends them, `location`, `tags`; the zone group and lock above. An entry's `role_assignments` are accepted and ignored, as the module ignores them |
 | `private_endpoints_manage_dns_zone_group` | false: no zone groups, for zones managed elsewhere (Azure Policy) |
@@ -87,7 +90,6 @@ tenant ID (a lower-case GUID), the SKU and the retention days.
 | --- | --- | --- |
 | `contacts` | gap | certificate contacts are a Key Vault data-plane setting, with no ASO or aso-extensions kind |
 | a key's `release_policy.immutable` | gap | ASO's `VaultKey` release policy has `contentType` and `data` only |
-| `secrets`, `secrets_value`, `secrets_value_wo`, `secrets_value_wo_version` | not ported | aso-extensions has `VaultSecret`, whose value comes from a Kubernetes Secret; how a component supplies that Secret is not settled |
 | `ignore_body_changes` | gap | ASO cannot leave a path to another writer |
 | `resource_types`, `retry`, `timeouts` | by design | ASO's kinds fix the API versions; ASO retries itself and has no per-request timeouts |
 
@@ -99,10 +101,8 @@ tenant ID (a lower-case GUID), the SKU and the retention days.
 | `resource_id`, `uri` | the vault's `status.id` and `status.properties.vaultUri` |
 | `keys_resource_ids` | `{<key>: {id, name, resource_id, resource_versionless_id, versionless_id}}`, from each key's status, as the module outputs them |
 | `keys` | the same map: the module's key objects also carry the public key material (`n`, `e`, `x`, `y`, PEM, OpenSSH), which ASO's status does not |
+| `secrets_resource_ids`, `secrets` | `{<key>: {id, name, resource_id, resource_versionless_id, versionless_id}}`, from each secret's status (its current version's URI and version) and the vault's ARM ID, as the module outputs them (the module's `secrets` is the same map) |
 | `private_endpoints` | `{<key>: {id, name, location, subnet_id}}`, from each endpoint; the module's azurerm-shaped object also carries Azure's DNS configurations and network interface, which are not outputs here |
-
-Not outputs: `secrets` and `secrets_resource_ids`, which the chart
-refuses.
 
 ## From Terraform
 
@@ -123,8 +123,10 @@ licence, the date last synced and every refusal.
 ## Tests
 
 `task test CHART=avm-res-keyvault-vault`: render cases `basic`, `full`,
-`legacy`, `names`, `pe-unmanaged` and `mock`, each validated against ASO v2.22.0's CRD
-schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
+`legacy`, `names`, `pe-unmanaged`, `secrets` (two secrets, their values
+from a Secret) and `mock` (a secret whose value is in a Secret the
+fake-cloud run makes), each validated against ASO v2.22.0's CRD
+schemas and aso-extensions' `ManagementLock` and `VaultSecret` CRDs, and the refusals in
 `tests/*.fail.yaml`. `task test-live-azure` applies a standard vault without purge protection (no keys) to the Azure sandbox with
 Azure Service Operator, evaluates the outputs, deletes it and checks Azure
 no longer has it: passed on 2026-11-12. `task test-mock-azure` applies its `tests/mock.values.yaml` to aso-extensions'
@@ -136,6 +138,11 @@ Ready and deleted, the outputs evaluated.
 
 ## Changes
 
+- **0.3.0** (2026-11-14): `secrets`, `secrets_value`, `secrets_value_wo`
+  and `secrets_value_wo_version` are mapped, as aso-extensions
+  `VaultSecret`s whose values are references to Kubernetes Secrets,
+  `{secretName, key}` (docs/secrets.md, the builder's decision); new
+  outputs `secrets` and `secrets_resource_ids`.
 - **0.2.0** (2026-11-13): `private_endpoints` (with
   `private_endpoints_manage_dns_zone_group`) render ASO `PrivateEndpoint`,
   `PrivateEndpointsPrivateDnsZoneGroup` and a lock each; new output

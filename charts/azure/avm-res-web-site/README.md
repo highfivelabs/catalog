@@ -74,7 +74,8 @@ module's `ignore_null_property`.
 | `function_app_uses_fc1`, `fc1_runtime_name`, `fc1_runtime_version`, `always_ready`, `maximum_instance_count`, `instance_memory_in_mb`, `storage_container_type`, `storage_container_endpoint`, `storage_authentication_type`, `storage_user_assigned_identity_id` | `functionAppConfig`. The module lower-cases the storage and authentication types; ASO's enums take ARM's casing (`blobContainer`, `SystemAssignedIdentity` ...), which the chart sends |
 | `managed_identities` | `identity` |
 | `deployment_slots` (in part), `deployment_slots_inherit_lock`, `all_child_resources_inherit_tags` | `SitesSlot`s with the slot module's body; the site's lock on a slot without one; the site's tags merged into a slot's |
-| `custom_domains` (in part), `certificates` (in part) | `SitesHostNameBinding` (`sslState`, `thumbprint`), `Certificate` (`keyVaultReference`, `keyVaultSecretName`, `hostNames`, its own `tags`) |
+| `custom_domains` (in part), `certificates` | `SitesHostNameBinding` (`sslState`, `thumbprint`), `Certificate` (`keyVaultReference`, `keyVaultSecretName`, `hostNames`, its own `tags`); a PFX upload's `pfx_blob` and `password` as `pfxBlob` and `password`, each a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused, and Key Vault and a PFX together are refused, as in the module |
+| `storage_shares_to_mount`, `slots_storage_shares_to_mount_sensitive_values` | `siteConfig.azureStorageAccounts` on the `Site` and on each `SitesSlot` (the module's `config_azurestorageaccounts`, which PUTs the same map), keyed by each mount's `name`: `type` (default `AzureFiles`), `accountName`, `shareName`, `mountPath`, and `accessKey` as a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)): a site mount's `access_key`, a slot mount's key in `slots_storage_shares_to_mount_sensitive_values` by the mount's key, as in the module. A string is refused |
 | `private_endpoints`, `private_endpoints_manage_dns_zone_group`, `private_endpoints_inherit_lock` | as above; as in the module, the site's endpoints take only their own lock (the slot module reads `private_endpoints_inherit_lock`) |
 | `tags` | `spec.tags` |
 | `lock`, `role_assignments`, `diagnostic_settings` | the AVM interfaces (avm-utl-interfaces 0.7.0; diagnostic settings v2) |
@@ -99,21 +100,19 @@ module's `ignore_null_property`.
 | --- | --- | --- |
 | `retry`, `timeouts`, `ignore_body_changes`, `resource_types` | by-design | the azapi provider's mechanics: ASO retries itself and owns every field; Bundt sets a component's time limit; the API versions are the kinds' |
 | `zip_deploy_file` | by-design | uploads application code, which a Package does not carry |
-| `application_insights_connection_string`, `application_insights_key`, `storage_account_access_key`, `slot_sensitive_app_settings`, `slots_storage_shares_to_mount_sensitive_values` | not-ported | secret values the module marks sensitive: how a component supplies one is the builder's decision |
+| `application_insights_connection_string`, `application_insights_key`, `storage_account_access_key`, `slot_sensitive_app_settings` | not-ported | secret values the module marks sensitive: how a component supplies one is the builder's decision |
 | `connection_strings` | not-ported | a connection string's value is a secret (ASO takes it in plain text) |
-| `storage_shares_to_mount` | not-ported | each mount needs the account's access key, a secret value |
 | `kind` (in part) | not-ported | `logicapp` is refused: the module writes the storage account key into an app setting |
 | `logic_app_node_version`, `logic_app_runtime_version`, `bundle_version`, `use_extension_bundle`, `storage_account_share_name` | not-ported | only a Logic App reads them; accepted at their defaults |
 | `auth_settings`, `backup` | gap | `Microsoft.Web/sites/config` (`authsettings`, `backup`) has no ASO or aso-extensions kind (each has a PUT and no GET; aso-extensions `docs/plan.md` §8 Q13). The module writes `auth_settings` only without `auth_settings_v2`, which is mapped |
 | `app_service_active_slot` | gap | a slot swap is an action (`slotsswap`), not a resource |
 | `delete_empty_service_plan` (in part) | gap | `false` is refused: ASO sends no `deleteEmptyServerFarm` |
 | `site_config` (in part) | not-ported | `application_insights_connection_string`, `application_insights_key`: secret values |
-| `deployment_slots` (in part) | not-ported | a slot must set `ftp_publish_basic_authentication_enabled` and `webdeploy_publish_basic_authentication_enabled` to `true` (a slot's publishing policies have no kind; aso-extensions' are the site's); its `connection_strings`, `storage_shares_to_mount`, `zip_deploy_file`, `site_config.application_insights_*` and `custom_domains.*.certificate_key` are refused |
-| `certificates` (in part) | not-ported | `pfx_blob`, `password`: secret material. Use Key Vault |
+| `deployment_slots` (in part) | not-ported | a slot must set `ftp_publish_basic_authentication_enabled` and `webdeploy_publish_basic_authentication_enabled` to `true` (a slot's publishing policies have no kind; aso-extensions' are the site's); its `connection_strings`, `zip_deploy_file`, `site_config.application_insights_*` and `custom_domains.*.certificate_key` are refused |
 | `custom_domains` (in part) | not-ported | `certificate_key`: the binding takes the thumbprint Azure computes for the certificate, which a render cannot read; set `thumbprint` |
 
-Coverage: 79 of the module's 99 variables are accepted (7 of them in
-part), 20 refused; 13 of its 14 outputs.
+Coverage: 81 of the module's 99 variables are accepted (6 of them in
+part), 18 refused; 13 of its 14 outputs.
 
 ## Outputs
 
@@ -155,8 +154,11 @@ Windows .NET app with most site variables, a certificate, a custom domain,
 a private endpoint and the interfaces), `function` (identity-based host
 storage), `flex` (Flex Consumption), `slots`, `names`, `config` (authentication v2,
 logs, sticky settings, both publishing policies), `logs-blob` (logs to
-Blob Storage, the SAS URLs from a Secret) and `mock` (its application
-logs' SAS URL from a Secret the fake-cloud run makes), each
+Blob Storage, the SAS URLs from a Secret), `secrets` (a certificate
+uploaded as a PFX with its password, and storage mounts on the site and a
+slot, their access keys, all from Secrets) and `mock` (its application
+logs' SAS URL, a PFX certificate with its password and a storage mount's
+access key from Secrets the fake-cloud run makes), each
 validated against ASO v2.22.0's CRD schemas and aso-extensions' copied CRDs
 (`crds/aso-extensions`), and the refusals in `tests/*.fail.yaml`.
 
@@ -193,6 +195,12 @@ among them, no longer null.
 
 ## Changes
 
+- **0.5.0** (2026-11-14): a certificate's `pfx_blob` and `password`
+  (a PFX upload), `storage_shares_to_mount` and
+  `slots_storage_shares_to_mount_sensitive_values` (with a slot's
+  `storage_shares_to_mount`) are mapped, each secret a reference to a
+  Kubernetes Secret, `{secretName, key}` (docs/secrets.md, the builder's
+  decision).
 - **0.4.0** (2026-11-14): a log's `azure_blob_storage` is mapped, its
   `sas_url` a reference to a Kubernetes Secret, `{secretName, key}`
   (docs/secrets.md, the builder's decision).
