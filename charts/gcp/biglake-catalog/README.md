@@ -117,6 +117,23 @@ missing catalog for a denial and never creates it. The fix belongs in
 config-connector-extensions (read a 403 on get as not found, or look the
 catalog up by list). The bucket was made and deleted; nothing was left.
 
+config-connector-extensions `2e1ccc9e` (#127) reads that 403 as not
+found for `BigLakeCatalog` only. The rerun (2026-11-14,
+`cat-11141340-9f1f`, offload VM `off-catalog-1114133543-14417`, as
+catalog-live-tests, a 30-minute limit; the catalog ID
+`cat_11141340_9f1f_lake`, letters, digits and underscores only) got
+further: the **catalog was Ready, deleted and gone**, as was the bucket.
+The database and the table failed the same way the catalog had:
+"Permission 'biglake.databases.get' denied" and "Permission
+'biglake.tables.get' denied", though catalog-live-tests holds
+`roles/biglake.admin` and had just made the catalog. BigLake answers a
+get of a missing database or table with 403 too. The fixes belong
+upstream: config-connector-extensions' `BigLakeDatabase` needs
+`missingIs403` as `BigLakeCatalog` has it, and Config Connector's own
+`BigLakeTable` (`bigquerybiglake.cnrm.cloud.google.com`) takes the 403
+for a denial the same way. Neither was made, so each delete was a no-op;
+the sweep after found nothing left.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port: the catalog, its databases and their

@@ -153,7 +153,7 @@ Charts with an extension kind (`IAMBinding`, which every chart renders
 for `iam_bindings`, follows its resource's row), as of 2026-11-14. Runs
 are on offload Spot VMs at config-connector-extensions `c2f0c7d2`, or
 `aec29642` for the runs of `cat-11140810-*` and `cat-11140822-*` and
-later; the
+later, or `2e1ccc9e` for the runs of `cat-11141340-*`; the
 chart's README has the details. "Passed" is every object Ready, deleted
 and gone from Google Cloud.
 
@@ -168,14 +168,14 @@ and gone from Google Cloud.
 | `spanner-instance` | `SpannerInstanceConfig` | **passed** (`cat-11140135-fd30`) | |
 | `ncc-spoke-ra` | `ComputeRouterRoutePolicy` | **passed** (`cat-11140135-fd30`) | |
 | `geap-agent-runtime` | `AIPlatformReasoningEngine` | **passed** (`cat-11140025-cb6a`), an engine with no code | |
-| `api-gateway` | `APIGatewayAPIConfig`, `APIGatewayGateway` | both Ready and deleted (`cat-11141004-80a0`); the config stayed in Google Cloud, so the API outlived the run | config-connector-extensions: the gateway's and the config's deletes do not wait for their operations; the config's failed ("config is in use") while the gateway was still going, and Config Connector's `APIGatewayAPI` then cannot be deleted; swept |
+| `api-gateway` | `APIGatewayAPIConfig`, `APIGatewayGateway` | **passed** (`cat-11141340-1026`, at `2e1ccc9e`, as `catalog-live-tests`) | |
 | `dataplex` | `DataplexLake`, `DataplexZone`, `DataplexAsset` | **passed** (`cat-11141004-80a0`) | |
 | `geap-agent-gateway` | `NetworkServicesAgentGateway`, `NetworkServicesAgentConnectivityTemplate`, `NetworkServicesAuthzExtension`, `NetworkSecurityAuthzPolicy`; `IAMAccessPolicy`, `IAMPolicyBinding` | all but the binding Ready, deleted and gone, the access policy now among them (`cat-11140810-4fc4`); the binding failed | a role: `cce-live-tests` has no `iam.policybindings.get` (`roles/iam.accessPolicyAdmin` does not grant it; `roles/iam.viewer` or `roles/iam.admin` does) |
 | `certificate-manager` | `CertificateManagerCertificateIssuanceConfig` | failed; the rest of the chart passed (`cat-11140046-902f`) | the API: "Config validation failed", likely for want of a CA in the pool, which a test cannot delete in under 30 days |
 | `cloud-function-v2` | `CloudFunctions2Function` | **passed** (`cat-11140810-5876`, as `catalog-live-tests`) | |
 | `data-catalog-tag` | `DataCatalogTag` | failed (`cat-11132355-c86b`) | the API: Data Catalog answers "404 Method not found" to tag and tag-template creation |
 | `backup-dr` | `BackupDRManagementServer` | failed (`cat-11140135-fd30`) | the API: new management servers are restricted ("Management Console is on path for deprecation"); Config Connector's vault and plan were Ready but then failed updates (`access_restriction` required; `backup_rules` not updatable) |
-| `biglake-catalog` | `BigLakeCatalog`, `BigLakeDatabase` | failed (`cat-11140810-4fc4`, with `roles/biglake.admin`) | config-connector-extensions: BigLake answers a get of a missing catalog with 403 ("or it may not exist"), not 404, and the controller, reading before it creates, never creates it |
+| `biglake-catalog` | `BigLakeCatalog`, `BigLakeDatabase` | the catalog **Ready, deleted and gone** (`cat-11141340-9f1f`, at `2e1ccc9e`, as `catalog-live-tests`); the database and the table failed | BigLake answers a get of a missing database or table with 403, not 404, as it does a catalog's: config-connector-extensions' `BigLakeDatabase` lacks the `missingIs403` its `BigLakeCatalog` has since `2e1ccc9e`, and Config Connector's `BigLakeTable` reads the 403 as a denial too |
 | `compute-mig` | `ComputeAutoscaler`, `ComputePerInstanceConfig` | **passed**, the autoscaled and the stateful group, each held at 1 VM (`cat-11140822-f385`) | |
 | `gke-cluster-standard`, `gke-cluster-autopilot` | `GKEBackupBackupPlan`, `GKEBackupRestorePlan` | not run | `hack/live-gke.sh` has no backup plan case yet |
 
