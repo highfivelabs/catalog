@@ -8,6 +8,17 @@
 # refuses the push. Skipped: deletions, tags, a commit whose offload/ci is
 # already success, and the gate's own push of a commit it just passed
 # (OFFLOAD_CI_VERIFIED).
+#
+# Git opens the connection to the remote before it runs this hook and
+# sends the ref updates after it. GitHub closes an SSH push connection
+# left idle for long (measured 2026-11-14: open after a 5-minute hook,
+# closed after a 16-minute one, "Connection to github.com closed by remote
+# host", git exits 141 and the branch is not updated), and the gate runs
+# longer than that. So once the gate passes, the hook updates the branch
+# itself on a new connection, only when that is a fast-forward (or a new
+# branch): the push that ran the hook may then fail on its closed
+# connection, but the branch already holds the checked commit. A push
+# that is not a fast-forward is left to git, as before.
 set -euo pipefail
 
 # A git hook runs with GIT_DIR (and GIT_INDEX_FILE ...) set to this
@@ -18,9 +29,10 @@ unset $(git rev-parse --local-env-vars)
 
 ROOT="$(git rev-parse --show-toplevel)"
 REPO="$(git remote get-url origin | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')"
+REMOTE="${1:-origin}"
 ZERO=0000000000000000000000000000000000000000
 fail=0
-while read -r _lref lsha rref _rsha; do
+while read -r _lref lsha rref rsha; do
   [[ "$lsha" != "$ZERO" ]] || continue
   [[ "$rref" == refs/heads/* ]] || continue
   [[ "${OFFLOAD_CI_VERIFIED:-}" != "$lsha" ]] || continue
@@ -35,6 +47,16 @@ while read -r _lref lsha rref _rsha; do
   if ! "$ROOT/hack/ci/gate.sh" "$lsha" </dev/null; then
     echo "pre-push: the gate failed for $lsha: push refused" >&2
     fail=1
+    continue
+  fi
+  # The branch, updated now on a connection of its own (above); the
+  # nested hook skips the commit (OFFLOAD_CI_VERIFIED). Never forced.
+  if [[ "$rsha" == "$ZERO" ]] || git merge-base --is-ancestor "$rsha" "$lsha" 2>/dev/null; then
+    if OFFLOAD_CI_VERIFIED="$lsha" git push -q "$REMOTE" "$lsha:$rref" </dev/null; then
+      echo "pre-push: updated ${rref#refs/heads/} to $lsha after the gate; if this push now reports a closed connection, the branch is already updated"
+    else
+      echo "pre-push: could not update ${rref#refs/heads/} after the gate; the push goes on as git started it" >&2
+    fi
   fi
 done
 exit $fail
