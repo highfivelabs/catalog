@@ -23,7 +23,6 @@ suffix from the account's ID instead (README.md). The key listings
 {{- $n := "avm-res-cognitiveservices-account" }}
 {{- include "aso.unsupported" (list $ "retry" $v.retry "Azure Service Operator retries every failed request itself, with backoff") }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
-{{- include "aso.unsupported" (list $ "custom_question_answering_search_service_key" $v.custom_question_answering_search_service_key "a secret value: ASO reads the key from a Kubernetes Secret (apiProperties.qnaAzureSearchEndpointKey), and how a component supplies a Secret is not settled") }}
 {{- include "aso.names" (list $ (list "account")) }}
 {{- if not $v.name }}{{ fail (printf "%s: name is required" $n) }}{{ end }}
 {{- /* The module's validations and preconditions. */ -}}
@@ -35,9 +34,15 @@ suffix from the account's ID instead (README.md). The key listings
 {{- fail (printf "%s: If specified, the value of 'scenario' must be \"agent\"." $n) }}
 {{- end }}
 {{- end }}
+{{- /* The Search service key: a reference to a Kubernetes Secret
+({secretName, key}; docs/secrets.md), which ASO takes as a SecretReference
+(apiProperties.qnaAzureSearchEndpointKey). Only for TextAnalytics, as in
+the module. */ -}}
+{{- $searchKey := include "aso.secretRef" (list $ "custom_question_answering_search_service_key" $v.custom_question_answering_search_service_key) }}
 {{- $ai := eq $v.kind "AIServices" }}
 {{- if not $ai }}
 {{- if and (eq $v.kind "QnAMaker") (not $v.qna_runtime_endpoint) }}{{ fail (printf "%s: the QnAMaker runtime endpoint `qna_runtime_endpoint` is required when kind is set to `QnAMaker`" $n) }}{{ end }}
+{{- if and $searchKey (ne $v.kind "TextAnalytics") }}{{ fail (printf "%s: the Search Service Key `custom_question_answering_search_service_key` can only be set when kind is set to `TextAnalytics`" $n) }}{{ end }}
 {{- if and $v.custom_question_answering_search_service_id (ne $v.kind "TextAnalytics") }}{{ fail (printf "%s: the Search Service ID `custom_question_answering_search_service_id` can only be set when kind is set to `TextAnalytics`" $n) }}{{ end }}
 {{- range $f := list "metrics_advisor_aad_client_id" "metrics_advisor_aad_tenant_id" "metrics_advisor_super_user_name" "metrics_advisor_website_name" }}
 {{- if and (index $v $f) (ne $v.kind "MetricsAdvisor") }}{{ fail (printf "%s: %s can only used set when kind is set to `MetricsAdvisor`" $n $f) }}{{ end }}
@@ -140,6 +145,7 @@ spec:
     {{- $api := dict }}
     {{- if and (eq $v.kind "QnAMaker") $v.qna_runtime_endpoint }}{{ $_ := set $api "qnaRuntimeEndpoint" $v.qna_runtime_endpoint }}{{ end }}
     {{- if and (eq $v.kind "TextAnalytics") $v.custom_question_answering_search_service_id }}{{ $_ := set $api "qnaAzureSearchEndpointId" $v.custom_question_answering_search_service_id }}{{ end }}
+    {{- if and (eq $v.kind "TextAnalytics") $searchKey }}{{ $_ := set $api "qnaAzureSearchEndpointKey" (fromJson $searchKey) }}{{ end }}
     {{- if eq $v.kind "MetricsAdvisor" }}
     {{- with $v.metrics_advisor_aad_client_id }}{{ $_ := set $api "aadClientId" . }}{{ end }}
     {{- with $v.metrics_advisor_aad_tenant_id }}{{ $_ := set $api "aadTenantId" . }}{{ end }}

@@ -83,7 +83,8 @@ bundle_version: '[1.*, 2.0.0)'
 # from a `custom_domains` entry (on the main site or any slot) via
 # `certificate_key`, removing the need for callers to invoke the
 # `certificate` submodule directly.
-# From Key Vault only: pfx_blob and password (secret values) are refused.
+# pfx_blob and password are references to Kubernetes Secrets,
+# {secretName, key} (docs/secrets.md); a string is refused.
 certificates: {}
 # Should client affinity be enabled for the App Service? Defaults to
 # `false`.
@@ -141,8 +142,7 @@ delete_empty_service_plan: true
 # A map of deployment slots to create for the App Service.
 # Each slot must set ftp_publish_basic_authentication_enabled and
 # webdeploy_publish_basic_authentication_enabled to true; its
-# connection_strings, storage_shares_to_mount, private_endpoints,
-# zip_deploy_file, site_config.application_insights_* and
+# connection_strings, private_endpoints, zip_deploy_file, site_config.application_insights_* and
 # custom_domains.*.certificate_key are refused.
 deployment_slots: {}
 # Whether to inherit the lock from the parent resource for the deployment
@@ -321,8 +321,8 @@ slot_sensitive_app_settings: {}
 # file shares to mount to the deployment slots. The key is the supplied
 # input to `var.deployment_slots.<slot_key>.storage_shares_to_mount`. The
 # value is the secret value (storage access key).
-# Refused when set: secret values (the module marks them sensitive), the
-# builder's decision.
+# Each value is a reference to a Kubernetes Secret, {secretName, key}
+# (docs/secrets.md); a string is refused.
 slots_storage_shares_to_mount_sensitive_values: {}
 # (Optional) Should SSH be enabled for the App Service?
 ssh_enabled: null
@@ -358,8 +358,8 @@ storage_container_endpoint: null
 # Ignored unless `function_app_uses_fc1` is `true`.
 storage_container_type: blobContainer
 # A map of Storage Account file shares to mount to the App Service.
-# Refused when set: each mount needs the storage account's access key, a
-# secret value.
+# access_key is a reference to a Kubernetes Secret, {secretName, key}
+# (docs/secrets.md); a string is refused.
 storage_shares_to_mount: {}
 # (Optional) The client ID of the User Assigned Managed Identity the
 # Functions host authenticates as when reaching the default storage account.

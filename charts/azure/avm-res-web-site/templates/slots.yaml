@@ -29,7 +29,6 @@ private_endpoints_inherit_lock) and role assignments.
 {{- range $key, $in := ($v.deployment_slots | default dict) }}
 {{- $p := printf "deployment_slots.%s" $key }}
 {{- include "aso.unsupported" (list $ (printf "%s.connection_strings" $p) $in.connection_strings "a connection string's value is a secret (ASO's siteConfig.connectionStrings takes it in plain text); how a component supplies one is the builder's decision") }}
-{{- include "aso.unsupported" (list $ (printf "%s.storage_shares_to_mount" $p) $in.storage_shares_to_mount "each mount needs the storage account's access key (slots_storage_shares_to_mount_sensitive_values), a secret value; how a component supplies one is the builder's decision") }}
 {{- include "aso.unsupported" (list $ (printf "%s.zip_deploy_file" $p) $in.zip_deploy_file "a zip deploy uploads a local file to the slot's Kudu (extensions/zipDeploy), application code a Package does not carry") }}
 {{- with $in.site_config }}
 {{- include "aso.unsupported" (list $ (printf "%s.site_config.application_insights_connection_string" $p) .application_insights_connection_string "the Application Insights connection string, which the module marks sensitive as application_insights_connection_string; a secret value is the builder's decision") }}
@@ -68,7 +67,7 @@ spec:
   owner:
     name: {{ $site }}
   kind: {{ include "site.armKind" $ | quote }}
-  {{- (include "site.body" (dict "root" $ "v" $s "sc" $sc "slot" true "appSettings" ($s.app_settings | default dict) "serverFarm" $slotFarm "vnetBackup" $s.vnet_backup_restore_enabled) | fromJson).v | toYaml | nindent 2 }}
+  {{- (include "site.body" (dict "root" $ "v" $s "sc" $sc "slot" true "appSettings" ($s.app_settings | default dict) "serverFarm" $slotFarm "vnetBackup" $s.vnet_backup_restore_enabled "storage" (include "site.storageMounts" (list $ (printf "deployment_slots.%s.storage_shares_to_mount" $key) $s.storage_shares_to_mount ($v.slots_storage_shares_to_mount_sensitive_values | default dict)) | fromJson).v) | fromJson).v | toYaml | nindent 2 }}
   {{- with $tags }}
   tags:
     {{- toYaml . | nindent 4 }}
