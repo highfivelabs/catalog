@@ -108,8 +108,21 @@ zone, a bucket asset, a role on the lake and one on the zone. On
 fake cloud serves `getIamPolicy` on a lake and a zone) all five objects
 became Ready, the outputs evaluated and all five were deleted.
 
-Not applied live: the Dataplex API is enabled in the live-test project,
-but neither live-test service account has a Dataplex role.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=dataplex`, `tests/live.yaml`; as
+cce-live-tests, config-connector-extensions `c2f0c7d2`): a lake, a RAW zone and an asset over a bucket of
+the run, and a role on the lake and on the zone.
+
+- 2026-11-13, run `cat-11132355-c86b`: the lake, the zone and both
+  `IAMBinding`s Ready, deleted and gone; the asset was made but not
+  Ready: config-connector-extensions' `DataplexAsset`, polling its
+  operation, got "429 Quota exceeded ... api_requests per minute per user
+  per region" (Dataplex allows 10 a minute here).
+- 2026-11-14, run `cat-11140135-fd30`: every object Ready, so all three
+  kinds and both bindings are proven to create; but the lake, the zone and
+  the asset were not deleted within the run's 25 minutes (the sweep
+  deleted them after). Both failures are the extension's: its Dataplex
+  controllers poll faster than Dataplex's quota allows and do not back
+  off.
 
 ## Changes
 

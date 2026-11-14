@@ -135,11 +135,12 @@ outputs evaluated (`id` the engine's
 not run the package: it stores the engine as sent. The PSC interface,
 secrets, KMS key and environment are only render-tested.
 
-Live: not run. The catalog's live harness runs Config Connector's
-controllers only, not config-connector-extensions' (so not
-`AIPlatformReasoningEngine`); the live-test project has the Vertex AI API
-off, and neither live-test service account has a Vertex AI role. This work
-changes no IAM and enables no API.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=geap-agent-runtime`, `tests/live.yaml`;
+2026-11-14, run `cat-11140025-cb6a`, offload VM
+`off-catalog-1114002056-10707`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): an engine with
+no code and no account of its own. Passed: the
+`AIPlatformReasoningEngine` Ready, deleted and gone. A package needs a
+pickled agent in Cloud Storage, which only the fake-cloud case covers.
 
 ## Changes
 

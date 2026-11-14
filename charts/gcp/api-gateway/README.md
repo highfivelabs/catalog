@@ -133,8 +133,18 @@ binding's delete stopped on "reference APIGatewayAPI ... is not ready".
 Deleting every object at once makes this a race in the binding's
 controller, not in the chart.
 
-Not applied live: the API Gateway API is not enabled in the live-test
-project, and neither live-test service account has an API Gateway role.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=api-gateway`, `tests/live.yaml`; config-connector-extensions `c2f0c7d2`):
+the API, its config, the gateway and a role on each. As cce-live-tests
+(run `cat-11140025-cb6a`), the chart's service account could not be made
+(`iam.serviceAccounts.create` denied); as catalog-live-tests
+(`cat-11140120-96a6`) it was made, but the config could not run as it
+(`iam.serviceAccounts.actAs` denied). The case now runs the config as
+the runner. That run (2026-11-14, `cat-11140228-8dc0`, offload VM
+`off-catalog-1114020110-6165`, as cce-live-tests) made every object
+Ready, `APIGatewayAPIConfig` and `APIGatewayGateway` among them, and
+deleted their objects; but the gateway was still in Google Cloud when the
+run checked, and the API itself, which Google Cloud deletes only once its
+configs are gone, outlived the run's 10 minutes (the sweep deleted both).
 
 ## Changes
 

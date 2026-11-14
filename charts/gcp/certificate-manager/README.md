@@ -87,9 +87,17 @@ Fake cloud (`task test-mock MOCK_CHARTS=certificate-manager`, offload run
 authorization, the certificate it authorizes, the map and its entry all
 Ready; the outputs evaluated; all four deleted at once and gone.
 
-Not applied live: neither live-test service account has a Certificate
-Manager role. The issuance config is render-tested only: the fake cloud's
-config-connector-extensions pin (`CCE_COMMIT`) predates the kind.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=certificate-manager`, `tests/live.yaml`;
+2026-11-14, run `cat-11140046-902f`, offload VM
+`off-catalog-1114004144-1090`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): a DNS
+authorization, a certificate it authorizes, a map with an entry for it,
+and an issuance config on a CA pool of the run. The authorization,
+certificate, map, entry and pool were Ready, deleted and gone. The issuance
+config (config-connector-extensions'
+`CertificateManagerCertificateIssuanceConfig`) was refused: "Error 400:
+Config validation failed". The pool has no CA; an enabled CA is the
+likely requirement, and a CA cannot be deleted without 30 days pending,
+so the live case does not make one.
 
 ## Changes
 

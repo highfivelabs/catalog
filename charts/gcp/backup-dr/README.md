@@ -102,8 +102,23 @@ in it and a management server. On 2026-11-12 (offload VM
 three became Ready, the outputs evaluated (`management_server_uri` null:
 mockgcp's server reports no management URI) and all three were deleted.
 
-Not applied live: the Backup and DR API is enabled in the live-test
-project, but neither live-test service account has a Backup and DR role.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=backup-dr`, `tests/live.yaml`, with
+a network of the run that has private services access; as
+cce-live-tests, config-connector-extensions `c2f0c7d2`). Failed, on the
+API's side: on 2026-11-14 (run `cat-11140135-fd30`, offload VM
+`off-catalog-1114013054-5293`) Backup and DR refused the management server
+(config-connector-extensions' `BackupDRManagementServer`): "Invalid
+resource state ... Management Console is on path for deprecation and
+creation of new Management server is restricted"
+(`MANAGEMENT_SERVER_CREATION_RESTRICTED`), so the kind cannot be proven
+live in a new project. The vault and plan (Config Connector's) were made
+and Ready, then Config Connector tried to update both and failed: the
+vault's update "'access_restriction' is required in this request", the
+plan's "updating BackupPlan is not supported, fields: [backup_rules]";
+neither was deleted within the run's limit, and the sweep (the vault by
+hand, with `force`) deleted both. An earlier run (`cat-11132355-83c4`) was
+stopped by offload's 45-minute silence limit while it waited for the
+server; everything it made was deleted by hand.
 
 ## Changes
 

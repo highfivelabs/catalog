@@ -165,6 +165,10 @@ changed. No endpoint is applied live: the harness runs Config Connector's
 controllers, not config-connector-extensions' (`ComputeNetworkEndpoint`
 passes on the fake cloud).
 
+Rerun 2026-11-13 (run `cat-11132355-cc50`, offload VM
+`off-catalog-1113235106-1058`, as cce-live-tests, config-connector-extensions `c2f0c7d2`): passed again,
+every object Ready, deleted and gone.
+
 ## Changes
 
 - **0.1.0** (2026-11-12): the port.

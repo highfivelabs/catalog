@@ -1,0 +1,25 @@
+# The live case (hack/live-apply.sh LIVE_CHARTS=geap-agent-gateway): a
+# Google-managed egress gateway and the connectivity template it makes over
+# a network attachment of the run, fabric's default IAP authorization on it
+# (NetworkServicesAuthzExtension and NetworkSecurityAuthzPolicy), and an
+# IAM v3 access policy bound to it (IAMAccessPolicy and IAMPolicyBinding);
+# all config-connector-extensions' kinds. Model Armor needs templates of
+# its own API, which the fake-cloud case covers.
+allow_alpha: true
+name: ${RUN}-agw
+description: catalog live test ${RUN}
+project_id: ${PROJECT}
+project_number: "${PROJECT_NUMBER}"
+region: ${REGION}
+access_path: AGENT_TO_ANYWHERE
+labels: {catalog-run: ${RUN}}
+networking_config:
+  psc_i_network_attachment_id: projects/${PROJECT}/regions/${REGION}/networkAttachments/${RUN}-agw-na
+  access_types: [PRIVATE]
+access_policies:
+  ${RUN}-ap:
+    target_resource: gateway
+    rules:
+      registry:
+        principals: ["serviceAccount:${RUNNER}"]
+        registry: true

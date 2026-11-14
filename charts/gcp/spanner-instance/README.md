@@ -119,10 +119,16 @@ offload VM `off-catalog-1113025758-23434`, config-connector-extensions at
 database and the IAM policies on the instance and the database all Ready
 and deleted, and the three outputs evaluated.
 
-Not applied live: a Spanner instance is billed while it exists, neither
-live-test service account has a Spanner role, and the live harness runs
-only Config Connector's controllers, not config-connector-extensions'
-`SpannerInstanceConfig`.
+Live (`hack/live-apply.sh` `LIVE_CHARTS=spanner-instance`, `tests/live.yaml`; as
+cce-live-tests, config-connector-extensions `c2f0c7d2`): a user-managed instance configuration with
+regional-us-central1's replicas, an instance on it at 100 processing
+units, a database with DDL, and IAM on both. The first run
+(`cat-11132355-c86b`) listed one replica, and the API refused the
+configuration ("All `replicas` of base config regional-us-central1 must be
+included": the base has three read-write replicas), so the case lists all
+three. The rerun (2026-11-14, `cat-11140135-fd30`, offload VM
+`off-catalog-1114013054-5293`) passed: the configuration, instance,
+database and both `IAMPartialPolicy`s Ready, deleted and gone.
 
 ## Changes
 
