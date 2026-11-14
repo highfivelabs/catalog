@@ -5,8 +5,9 @@
 # outputs, selected from the live objects (resources.<id>) and the
 # component's values (inputs). resource_id is the machine's ARM ID from
 # ASO's status; name its Azure name. admin_ssh_keys are the public keys the
-# machine was given, admin_username its administrator (null with an
-# attached OS disk, as in the module). data_disks, network_interfaces and
+# machine was given (none on Windows or with password sign-in only),
+# admin_username its administrator (null with an attached OS disk, as in
+# the module). data_disks, network_interfaces and
 # public_ips are keyed like the module's (a public IP by
 # "<interface key>-<IP configuration key>") with each object's id and name
 # (and a public IP's address), not the whole azurerm object.
@@ -29,6 +30,8 @@ spec:
       'osProfile' in resources.virtual_machine.spec ? resources.virtual_machine.spec.osProfile.adminUsername : null
     admin_ssh_keys: >-
       'osProfile' in resources.virtual_machine.spec
+      && 'linuxConfiguration' in resources.virtual_machine.spec.osProfile
+      && 'ssh' in resources.virtual_machine.spec.osProfile.linuxConfiguration
       ? resources.virtual_machine.spec.osProfile.linuxConfiguration.ssh.publicKeys.map(k, {'public_key': k.keyData, 'username': k.path.split('/')[2]})
       : []
     system_assigned_mi_principal_id: >-
