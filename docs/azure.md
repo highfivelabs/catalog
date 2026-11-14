@@ -553,11 +553,11 @@ renders and the fake cloud only (chart README).
 
 | ARM types | ASO |
 | --- | --- |
-| `Insights/components@2020-02-02`, `components/pricingPlans`, `privateLinkScopes/scopedResources`, `components/linkedStorageAccounts` | `insights/Component` (2020-02-02), `insights/PricingPlan` (2017-10-01); the scoped resource through aso-extensions' `PrivateLinkScopesScopedResource` (2021-09-01). **GAP**: the profiler's linked storage account |
+| `Insights/components@2020-02-02`, `components/pricingPlans`, `privateLinkScopes/scopedResources`, `components/linkedStorageAccounts` | `insights/Component` (2020-02-02), `insights/PricingPlan` (2017-10-01); the scoped resource through aso-extensions' `PrivateLinkScopesScopedResource` (2021-09-01) and the profiler's linked storage account through its `ComponentsLinkedStorageAccount` (2020-03-01-preview, `8d7f8c2`) |
 
-Charted as `charts/azure/avm-res-insights-component` (2026-11-12): 20 of
-25 variables and 5 of 6 outputs (the deprecated `resource` is not one).
-Refused: `linked_storage_account` (no kind), `ignore_body_changes`,
+Charted as `charts/azure/avm-res-insights-component` (2026-11-12): 21 of
+25 variables (`linked_storage_account` since 0.2.0) and 5 of 6 outputs
+(the deprecated `resource` is not one). Refused: `ignore_body_changes`,
 `resource_types`, `retry` and `timeouts` (section 8); accepted in part:
 `application_type` (ASO's `Component` enumerates `web` and `other` only)
 and `monitor_private_link_scope` (kind `Resource` only: the
@@ -1043,9 +1043,11 @@ flag (`avm-res-keyvault-vault`'s `keys`). ASO's cognitive services `Deployment` 
 `cognitive_deployments`), and its `Account` takes the customer managed
 key's `identityClientId` only as a literal, with no `FromConfig` form, so
 a user-assigned identity's client ID, which the module reads from Azure,
-cannot be given (`customer_managed_key.user_assigned_identity`). And ASO's `UserAssignedIdentity`
+cannot be given (`customer_managed_key.user_assigned_identity`). ASO's `UserAssignedIdentity`
 is at ARM API version 2023-01-31, without the later `isolationScope`
-(`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`).
+(`avm-res-managedidentity-userassignedidentity`'s `isolation_scope`); since
+the chart's 0.2.0 that renders aso-extensions' `UserAssignedIdentity`
+(`managedidentity.azure.hfl.dev/v20241130`) in its place.
 An output gap of the same sort: ASO's `AzureFirewall` status gives an IP
 configuration's ID only, not its private address, so
 `avm-res-network-azurefirewall` has no `private_ip_address` output (nor
