@@ -1602,7 +1602,7 @@ Rank 84. Terraform module: [`modules/ai-applications`](https://github.com/Google
 | `google_dialogflow_cx_agent` | DialogflowCXAgent | alpha only |
 | `google_dialogflow_cx_security_settings` | DialogflowSecuritySettings | alpha only |
 | `google_discovery_engine_chat_engine` | DiscoveryEngineEngine | alpha only |
-| `google_discovery_engine_cmek_config` | none | **gap** |
+| `google_discovery_engine_cmek_config` | DiscoveryEngineCmekConfig (discoveryengine.gcp.hfl.dev/v1alpha1) | gap kind (config-connector-extensions) |
 | `google_discovery_engine_data_store` | DiscoveryEngineDataStore | alpha only |
 | `google_discovery_engine_schema` | DiscoveryEngineSchema | alpha only |
 | `google_discovery_engine_search_engine` | DiscoveryEngineEngine | alpha only |
