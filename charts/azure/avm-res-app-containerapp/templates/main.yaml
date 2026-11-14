@@ -7,7 +7,8 @@ main.auth_config.tf, main.interfaces.tf and locals.tf (v0.9.0), Copyright
 
 azapi_resource.container_app (and azapi_resource_action.post_creation_update,
 which PATCHes the same template after creation): one ASO ContainerApp
-(app.azure.com/v20250101), owned by the resource group, its template as
+(app.azure.com/v20250101), or aso-extensions' (app.azure.hfl.dev/v20260701)
+when kind is set, owned by the resource group, its template as
 the module builds it (local.template_body). ASO applies the whole body on
 every change, so the module's PATCH is not needed.
 azapi_resource.auth_config: one ASO AuthConfig per auth_configs entry,
@@ -15,7 +16,7 @@ owned by the container app.
 azapi_resource.lock: an aso-extensions ManagementLock.
 azapi_resource.role_assignments: ASO RoleAssignments.
 The telemetry and the module's data sources (the resource group, the
-existing app's revision suffix) are not ported. kind and timeouts are
+existing app's revision suffix) are not ported. timeouts is
 refused, and parts of identity_settings, registries and secrets
 (upstream.yaml).
 */ -}}
@@ -60,7 +61,20 @@ wellKnownName: {{ . | quote }}
 {{- if not $v.name }}{{ fail "avm-res-app-containerapp: name is required" }}{{ end }}
 {{- if not $v.container_app_environment_resource_id }}{{ fail "avm-res-app-containerapp: container_app_environment_resource_id is required" }}{{ end }}
 {{- if not $v.location }}{{ fail "avm-res-app-containerapp: location is required: the module reads it from the resource group when it is null, which a render cannot (ASO needs a location)" }}{{ end }}
-{{- include "aso.unsupported" (list $ "kind" $v.kind "ASO's ContainerApp is at ARM API version 2025-01-01, which has no kind (the module sends it with 2025-02-02-preview)") }}
+{{- /* kind is after ASO's ContainerApp API version 2025-01-01: set, it
+renders aso-extensions' ContainerApp (app.azure.hfl.dev/v20260701, beside
+ASO's under its name) in place of ASO's, and the auth configs, the lock and
+the role assignments own it by ARM ID (their kinds name ASO's ContainerApp
+as owner). ARM's values are functionapp and workflowapp; the module passes
+any string, so the case Azure ignores is folded. */ -}}
+{{- $kindV := "" }}
+{{- if $v.kind }}
+{{- $kindV = lower (toString $v.kind) }}
+{{- if not (has $kindV (list "functionapp" "workflowapp")) }}
+{{- fail (printf "avm-res-app-containerapp: kind %q is not one ARM 2026-07-01 takes: functionapp or workflowapp" (toString $v.kind)) }}
+{{- end }}
+{{- end }}
+{{- $newer := ne $kindV "" }}
 {{- include "aso.unsupported" (list $ "timeouts" $v.timeouts "Azure Service Operator has no per-request timeouts; Bundt sets a component's time limit") }}
 {{- $rgName := toString $v.resource_group_name }}
 {{- if not $rgName }}{{ fail "avm-res-app-containerapp: resource_group_name is required" }}{{ end }}
@@ -87,8 +101,9 @@ wellKnownName: {{ . | quote }}
 {{- $uai := $mi.user_assigned_resource_ids | default list }}
 {{- $idType := "" }}
 {{- if and $mi.system_assigned $uai }}{{ $idType = "SystemAssigned,UserAssigned" }}{{ else if $mi.system_assigned }}{{ $idType = "SystemAssigned" }}{{ else if $uai }}{{ $idType = "UserAssigned" }}{{ end }}
+{{- $appID := printf "%s/providers/Microsoft.App/containerApps/%s" $parent $appName }}
 ---
-apiVersion: app.azure.com/v20250101
+apiVersion: {{ ternary "app.azure.hfl.dev/v20260701" "app.azure.com/v20250101" $newer }}
 kind: ContainerApp
 metadata:
   {{- include "aso.metadata" (dict "root" $ "name" $obj "id" "container_app" "abandon" $abandon) | nindent 2 }}
@@ -97,6 +112,9 @@ spec:
   location: {{ $v.location | quote }}
   owner:
     {{- include "aso.owner" (list $ "the resource group" $parent) | nindent 4 }}
+  {{- with $kindV }}
+  kind: {{ . | quote }}
+  {{- end }}
   {{- with $idType }}
   identity:
     type: {{ . }}
@@ -467,7 +485,7 @@ spec:
   tags:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-{{- $owner := dict "group" "app.azure.com" "kind" "ContainerApp" "name" $obj }}
+{{- $owner := ternary (dict "armId" $appID) (dict "group" "app.azure.com" "kind" "ContainerApp" "name" $obj) $newer }}
 {{- range $k, $a := ($v.auth_configs | default dict) }}
 {{- if not $a.name }}{{ fail (printf "avm-res-app-containerapp: auth_configs.%s needs a name" $k) }}{{ end }}
 {{- $spec := dict }}
@@ -641,7 +659,11 @@ metadata:
 spec:
   azureName: {{ $a.name | quote }}
   owner:
+    {{- if $newer }}
+    armId: {{ $appID }}
+    {{- else }}
     name: {{ $obj }}
+    {{- end }}
   {{- with $spec }}
   {{- toYaml . | nindent 2 }}
   {{- end }}

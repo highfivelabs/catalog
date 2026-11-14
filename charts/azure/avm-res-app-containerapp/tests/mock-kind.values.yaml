@@ -1,0 +1,27 @@
+# For an apply against the fake cloud: kind set, so aso-extensions'
+# ContainerApp (app.azure.hfl.dev/v20260701) in place of ASO's, its
+# environment given by ID (the fake keeps any body), with ingress and an
+# authentication configuration owned by the app's ARM ID.
+name: catalog-ca-func
+location: eastus2
+resource_group_name: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg
+container_app_environment_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/managedEnvironments/catalog-cae
+kind: functionapp
+tags: {catalog: mock}
+template:
+  min_replicas: 0
+  max_replicas: 1
+  containers:
+    - name: hello
+      image: mcr.microsoft.com/k8se/quickstart:latest
+      cpu: 0.25
+      memory: 0.5Gi
+ingress:
+  external_enabled: true
+  target_port: 80
+  traffic_weight:
+    - {latest_revision: true, percentage: 100}
+auth_configs:
+  current:
+    name: current
+    platform: {enabled: false}

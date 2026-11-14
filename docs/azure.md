@@ -570,10 +570,12 @@ aso-extensions kind's 2021-09-01 API has no `kind` or
 | --- | --- |
 | `App/containerApps@2025-07-01` (and a preview), `containerApps/authConfigs@2025-01-01` | `app/ContainerApp`, `app/AuthConfig`. Covered, on an older API |
 
-Covered, but for `kind`. Chart `charts/azure/avm-res-app-containerapp`
-(2026-11-13): 22 of 24 variables and all 12 outputs; the app as a
+Covered. Chart `charts/azure/avm-res-app-containerapp`
+(2026-11-13): 23 of 24 variables and all 12 outputs; the app as a
 `ContainerApp` (2025-01-01), each `auth_configs` entry as an `AuthConfig`.
-Refused: `kind` (2025-01-01 has none), `timeouts` (by design), and in part
+Since 0.2.0 `kind` renders aso-extensions' `ContainerApp`
+(`app.azure.hfl.dev/v20260701`) in place of ASO's. Refused: `timeouts`
+(by design), and in part
 a null `location`, an identity setting's `Retain` lifecycle (not in
 2025-01-01), registry passwords and secret values (secret values; Key
 Vault references are taken).
@@ -917,7 +919,7 @@ aso-extensions:
 | --- | --- | --- |
 | `avm-res-storage-storageaccount` | `static_website` | none: the blob service's data plane (Set Blob Service Properties, `staticWebsite`) |
 | `avm-res-keyvault-vault` | `contacts` | none: Key Vault's data plane (certificate contacts, `/certificates/contacts`) |
-| `avm-res-app-containerapp` | `kind`, `identity_settings[].lifecycle` `Retain` | none: fields of a later API version than ASO's `ContainerApp` (2025-01-01) |
+| `avm-res-app-containerapp` | `identity_settings[].lifecycle` `Retain` | none: in no ARM version at the specs commit ASO's generator pins (aso-extensions `docs/plan.md` §8 open question 12); `kind` maps to aso-extensions' `ContainerApp` (`app.azure.hfl.dev/v20260701`) since 0.2.0 |
 | `avm-res-network-routetable` | `subnet_resource_ids` | none: the association is the `routeTable` property of an existing subnet; ASO has no subnet association kind and sets a subnet's properties only by owning the whole `VirtualNetworksSubnet` |
 | `avm-res-network-loadbalancer` | `backend_address_pool_network_interfaces` | none: a NIC joins a pool through its own `ipConfigurations[].loadBalancerBackendAddressPools`; ASO has no association kind and sets a NIC's IP configurations only by owning the whole `NetworkInterface` |
 

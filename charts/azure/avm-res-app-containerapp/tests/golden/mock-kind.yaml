@@ -1,0 +1,68 @@
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.com/v20250101
+kind: AuthConfig
+metadata:
+  name: mock-kind-auth-current
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-kind"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "auth_config:current"
+spec:
+  azureName: "current"
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/containerApps/catalog-ca-func
+  platform:
+    enabled: false
+---
+# Source: avm-res-app-containerapp/templates/main.yaml
+apiVersion: app.azure.hfl.dev/v20260701
+kind: ContainerApp
+metadata:
+  name: mock-kind-app
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "mock-kind"
+    app.kubernetes.io/name: avm-res-app-containerapp
+    app.kubernetes.io/version: "0.2.0"
+  annotations:
+    hfl.dev/id: "container_app"
+spec:
+  azureName: "catalog-ca-func"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg"
+  kind: "functionapp"
+  environmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/managedEnvironments/catalog-cae"
+  managedEnvironmentReference:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/catalog-rg/providers/Microsoft.App/managedEnvironments/catalog-cae"
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      allowInsecure: false
+      exposedPort: 0
+      external: true
+      targetPort: 80
+      traffic:
+        - latestRevision: true
+          weight: 100
+      transport: auto
+    maxInactiveRevisions: 0
+  template:
+    containers:
+      - name: "hello"
+        image: "mcr.microsoft.com/k8se/quickstart:latest"
+        resources:
+          cpu: 0.25
+          memory: "0.5Gi"
+    scale:
+      cooldownPeriod: 300
+      maxReplicas: 1
+      minReplicas: 0
+      pollingInterval: 30
+  tags:
+    catalog: mock
