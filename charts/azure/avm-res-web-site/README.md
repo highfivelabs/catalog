@@ -79,7 +79,7 @@ module's `ignore_null_property`.
 | `tags` | `spec.tags` |
 | `lock`, `role_assignments`, `diagnostic_settings` | the AVM interfaces (avm-utl-interfaces 0.7.0; diagnostic settings v2) |
 | `auth_settings_v2` | `SitesConfigAuthSettingsV2`: the module's body (`modules/config_authsettingsv2`, its defaults for the object's optional attributes), every identity provider; nulls left out, and `allowedPrincipals` and `jwtClaimChecks` as `{}` where the module sends their cleared shape. The config sections have no name of their own (Azure fixes it) and no DELETE: deleting the object leaves the last values on the site until the site goes |
-| `logs` | `SitesConfigLogs`: `detailedErrorMessages`, `failedRequestsTracing`, the first `application_logs` entry's file system level and the first `http_logs` entry's file system retention, as the module takes them. One entry only (each writes the site's one `logs` section); a blob storage destination is refused (its `sas_url` is a secret) |
+| `logs` | `SitesConfigLogs`: `detailedErrorMessages`, `failedRequestsTracing`, the first `application_logs` entry's file system level and Blob Storage destination, and the first `http_logs` entry's file system retention and Blob Storage destination, as the module takes them. One entry only (each writes the site's one `logs` section). A Blob Storage destination's `sas_url` is a reference to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); a string is refused |
 | `sticky_settings` | `SitesConfigSlotConfigNames`: every entry's app setting and connection string names, flattened as the module does |
 | `ftp_publish_basic_authentication_enabled`, `scm_publish_basic_authentication_enabled` | `false` renders the `ftp` or `scm` publishing credential policy with `allow: false`; `true` renders nothing, as in the module |
 | `enable_telemetry`, `manage_connection_strings`, `zip_deploy_wait_duration` | accepted; nothing is sent (no telemetry, no connection strings, no zip deploy to wait for) |
@@ -105,7 +105,6 @@ module's `ignore_null_property`.
 | `kind` (in part) | not-ported | `logicapp` is refused: the module writes the storage account key into an app setting |
 | `logic_app_node_version`, `logic_app_runtime_version`, `bundle_version`, `use_extension_bundle`, `storage_account_share_name` | not-ported | only a Logic App reads them; accepted at their defaults |
 | `auth_settings`, `backup` | gap | `Microsoft.Web/sites/config` (`authsettings`, `backup`) has no ASO or aso-extensions kind (each has a PUT and no GET; aso-extensions `docs/plan.md` §8 Q13). The module writes `auth_settings` only without `auth_settings_v2`, which is mapped |
-| `logs` (in part) | not-ported | an application or HTTP log's `azure_blob_storage`: its `sas_url` is a secret |
 | `app_service_active_slot` | gap | a slot swap is an action (`slotsswap`), not a resource |
 | `delete_empty_service_plan` (in part) | gap | `false` is refused: ASO sends no `deleteEmptyServerFarm` |
 | `site_config` (in part) | not-ported | `application_insights_connection_string`, `application_insights_key`: secret values |
@@ -155,7 +154,9 @@ refusals.
 Windows .NET app with most site variables, a certificate, a custom domain,
 a private endpoint and the interfaces), `function` (identity-based host
 storage), `flex` (Flex Consumption), `slots`, `names`, `config` (authentication v2,
-logs, sticky settings, both publishing policies) and `mock`, each
+logs, sticky settings, both publishing policies), `logs-blob` (logs to
+Blob Storage, the SAS URLs from a Secret) and `mock` (its application
+logs' SAS URL from a Secret the fake-cloud run makes), each
 validated against ASO v2.22.0's CRD schemas and aso-extensions' copied CRDs
 (`crds/aso-extensions`), and the refusals in `tests/*.fail.yaml`.
 
@@ -192,6 +193,9 @@ among them, no longer null.
 
 ## Changes
 
+- **0.4.0** (2026-11-14): a log's `azure_blob_storage` is mapped, its
+  `sas_url` a reference to a Kubernetes Secret, `{secretName, key}`
+  (docs/secrets.md, the builder's decision).
 - **0.3.0** (2026-11-13): `auth_settings_v2`, `logs`, `sticky_settings`,
   `ftp_publish_basic_authentication_enabled` and
   `scm_publish_basic_authentication_enabled` are mapped to aso-extensions'

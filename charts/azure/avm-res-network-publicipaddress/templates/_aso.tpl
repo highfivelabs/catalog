@@ -148,6 +148,36 @@ or field fail here, naming the gap, instead of being silently dropped.
 {{- end -}}
 
 {{/*
+aso.secretRef: secret material (a certificate's PFX and password, a
+connection string, an API key, a SAS URL) as a reference to a Kubernetes
+Secret in the component's namespace, never as a value (docs/secrets.md):
+{secretName, key} becomes ASO's SecretReference {name, key}, as JSON, or ""
+when the value is null. The Secret is expected to come from External
+Secrets Operator. A string (the secret itself) or any other shape stops the
+render.
+  {{ include "aso.secretRef" (list $ "ssl_certificates[0].data" .data) }}
+*/}}
+{{- define "aso.secretRef" -}}
+{{- $root := index . 0 -}}{{- $path := index . 1 -}}{{- $v := index . 2 -}}
+{{- if not (kindIs "invalid" $v) -}}
+{{- if not (kindIs "map" $v) -}}
+{{- fail (printf "%s: %s takes a reference to a Kubernetes Secret, {secretName, key}, never the secret's value (docs/secrets.md)" $root.Chart.Name $path) -}}
+{{- end -}}
+{{- $n := $v.secretName -}}{{- $k := $v.key -}}
+{{- if or (omit $v "secretName" "key" | keys) (not (kindIs "string" $n)) (not (kindIs "string" $k)) -}}
+{{- fail (printf "%s: %s is {secretName, key}: the name of a Kubernetes Secret in the component's namespace and the key that holds the value (docs/secrets.md)" $root.Chart.Name $path) -}}
+{{- end -}}
+{{- if or (gt (len $n) 253) (not (regexMatch "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$" $n)) -}}
+{{- fail (printf "%s: %s.secretName %q is not a Kubernetes Secret name (lowercase letters, digits, '-' and '.', at most 253 characters)" $root.Chart.Name $path $n) -}}
+{{- end -}}
+{{- if or (gt (len $k) 253) (not (regexMatch "^[-._a-zA-Z0-9]+$" $k)) -}}
+{{- fail (printf "%s: %s.key %q is not a Secret key (letters, digits, '-', '_' and '.')" $root.Chart.Name $path $k) -}}
+{{- end -}}
+{{- toJson (dict "name" $n "key" $k) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 aso.owner: an ASO owner reference from an Azure resource ID (a module's
 parent_id, resource_group_id ...), checked to be one.
   {{ include "aso.owner" (list $ "parent_id" .Values.parent_id) }}

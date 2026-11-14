@@ -13,6 +13,7 @@ those modules keeps its variables, its names and its outputs.
 | `docs/gcp-inventory.md` | every fabric module against Config Connector v1.160.0, ranked, and the gaps for config-connector-extensions |
 | `docs/aws.md` | the top terraform-aws-modules against ACK, ranked, the gaps for ack-extensions, and how the AWS charts differ from the Google Cloud ones (section 8) |
 | `docs/coverage/` | how much of each tracked open-source module the catalog carries: CSVs per module, variable, output and resource type, SVG bars, and the method (`task coverage`) |
+| `docs/secrets.md` | secret material (certificates, keys, connection strings) as a reference to a Kubernetes Secret, `{secretName, key}`, that External Secrets Operator puts in the cluster; what takes one, and what could next |
 | `docs/migrating-from-terraform.md`, `examples/` | moving a Terraform module call to the catalog: the mapping, `catalogtool convert` (`task convert`), a worked example for each chart with its plan, and adopting resources that already exist |
 | `docs/upstream-status.md`, `.github/workflows/upstream-watch.yml` | which tracked modules have a newer release than their pin, and what changed (`task upstream-watch`); a daily workflow keeps one tracking issue; `task upstream-bump` records a release as taken |
 | `charts/gcp/<module>/`, `charts/aws/<module>/` | one chart per ported module, with its Bundt Package (`package.yaml`), README and tests |
@@ -134,8 +135,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | --- | ---: | --- | ---: |
 | Google Cloud: Cloud Foundation Fabric and terraform-google-modules | 98 | ![gcp](docs/coverage/gcp.svg) | 1002 of 1478 (67.8%) |
 | AWS: terraform-aws-modules | 42 | ![aws](docs/coverage/aws.svg) | 533 of 2348 (22.7%) |
-| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 1010 of 1170 (86.3%) |
-| **All** | **177** | | **2545 of 4996 (50.9%)** |
+| Azure: Azure Verified Modules | 37 | ![azure](docs/coverage/azure.svg) | 1018 of 1170 (87.0%) |
+| **All** | **177** | | **2553 of 4996 (51.1%)** |
 
 ### Google Cloud: Cloud Foundation Fabric and terraform-google-modules
 
@@ -326,8 +327,8 @@ How much of the Terraform modules people use today the catalog carries, counted 
 | [`avm-res-documentdb-databaseaccount`](https://github.com/Azure/terraform-azurerm-avm-res-documentdb-databaseaccount/tree/v0.12.0) ([chart](charts/azure/avm-res-documentdb-databaseaccount)) | ![avm-res-documentdb-databaseaccount](docs/coverage/bars/azure-avm-res-documentdb-databaseaccount.svg) 38 of 38 | 43 of 47 | 16 | ported |
 | [`avm-res-network-dnsresolver`](https://github.com/Azure/terraform-azurerm-avm-res-network-dnsresolver/tree/v0.8.0) ([chart](charts/azure/avm-res-network-dnsresolver)) | ![avm-res-network-dnsresolver](docs/coverage/bars/azure-avm-res-network-dnsresolver.svg) 10 of 10 | 7 of 7 | 8 | ported |
 | [`avm-res-cache-redis`](https://github.com/Azure/terraform-azurerm-avm-res-cache-redis/tree/v0.5.0) ([chart](charts/azure/avm-res-cache-redis)) | ![avm-res-cache-redis](docs/coverage/bars/azure-avm-res-cache-redis.svg) 31 of 31 | 4 of 5 | 10 | partial |
-| [`avm-res-app-managedenvironment`](https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0) ([chart](charts/azure/avm-res-app-managedenvironment)) | ![avm-res-app-managedenvironment](docs/coverage/bars/azure-avm-res-app-managedenvironment.svg) 48 of 72 | 16 of 18 | 1 | partial |
-| [`avm-res-network-applicationgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway/tree/v0.6.0) ([chart](charts/azure/avm-res-network-applicationgateway)) | ![avm-res-network-applicationgateway](docs/coverage/bars/azure-avm-res-network-applicationgateway.svg) 42 of 50 | 10 of 11 | 4 | partial |
+| [`avm-res-app-managedenvironment`](https://github.com/Azure/terraform-azurerm-avm-res-app-managedenvironment/tree/v0.6.0) ([chart](charts/azure/avm-res-app-managedenvironment)) | ![avm-res-app-managedenvironment](docs/coverage/bars/azure-avm-res-app-managedenvironment.svg) 52 of 72 | 16 of 18 | 1 | partial |
+| [`avm-res-network-applicationgateway`](https://github.com/Azure/terraform-azurerm-avm-res-network-applicationgateway/tree/v0.6.0) ([chart](charts/azure/avm-res-network-applicationgateway)) | ![avm-res-network-applicationgateway](docs/coverage/bars/azure-avm-res-network-applicationgateway.svg) 46 of 50 | 10 of 11 | 4 | partial |
 | [`avm-ptn-network-private-link-private-dns-zones`](https://github.com/Azure/terraform-azurerm-avm-ptn-network-private-link-private-dns-zones/tree/v0.23.2) ([chart](charts/azure/avm-ptn-network-private-link-private-dns-zones)) | ![avm-ptn-network-private-link-private-dns-zones](docs/coverage/bars/azure-avm-ptn-network-private-link-private-dns-zones.svg) 18 of 19 | 3 of 3 | 1 | partial |
 | [`avm-res-network-ddosprotectionplan`](https://github.com/Azure/terraform-azurerm-avm-res-network-ddosprotectionplan/tree/v0.3.0) ([chart](charts/azure/avm-res-network-ddosprotectionplan)) | ![avm-res-network-ddosprotectionplan](docs/coverage/bars/azure-avm-res-network-ddosprotectionplan.svg) 7 of 7 | 3 of 3 | 3 | ported |
 | [`avm-ptn-alz-management`](https://github.com/Azure/terraform-azurerm-avm-ptn-alz-management/tree/v0.10.0) ([chart](charts/azure/avm-ptn-alz-management)) | ![avm-ptn-alz-management](docs/coverage/bars/azure-avm-ptn-alz-management.svg) 29 of 30 | 6 of 8 | 8 | partial |

@@ -106,8 +106,10 @@ messages.
 | `gateway_ip_configurations` | `gatewayIPConfigurations` (the subnet by ID) |
 | `frontend_ip_configurations` | `frontendIPConfigurations`: `privateIPAddress`, `privateIPAllocationMethod`, `privateLinkConfiguration`, `subnet`, `publicIPAddress` (by ID, or the public IP `public_ip_address_key` names, with the module's five validations) |
 | `frontend_ports`, `backend_address_pools`, `probes` | the same collections (`probes[].id` is accepted and, as in the module, not sent) |
-| `backend_http_settings_collection`, `backend_settings_collection` | the same collections, with `probe` by key or ID and certificate references by ID |
-| `http_listeners`, `listeners` | the same collections, with frontend, port, SSL certificate (by ID) and SSL profile references |
+| `backend_http_settings_collection`, `backend_settings_collection` | the same collections, with `probe` and the certificate references by key or ID |
+| `http_listeners`, `listeners` | the same collections, with frontend, port, SSL certificate and SSL profile references |
+| `ssl_certificates` | `sslCertificates`: `name`; `data` (the PFX, base64) and `password` as references to a Kubernetes Secret, `{secretName, key}` ([secrets](../../../docs/secrets.md)); `key_vault_secret_id` as it is |
+| `authentication_certificates`, `trusted_client_certificates`, `trusted_root_certificates` | the same collections: `name`, `data` as a reference to a Kubernetes Secret (the kind takes a certificate's data only from one), and a trusted root's `key_vault_secret_id` as it is |
 | `request_routing_rules`, `routing_rules` | the same collections and references |
 | `url_path_maps` | `urlPathMaps`, the defaults and each path rule's references |
 | `redirect_configurations` | `redirectConfigurations`, with `targetListener`, `pathRules`, `requestRoutingRules` and `urlPathMaps` references |
@@ -129,12 +131,33 @@ messages.
 | `labels` | Kubernetes labels on every object. ASO never copies labels to Azure |
 | `deletion_policy` | `DELETE` (default) or `ABANDON` (ASO's `detach-on-delete` on every object). `PREVENT` is refused: use `lock` |
 
+### Certificates and secrets
+
+The chart never takes a secret's value ([secrets](../../../docs/secrets.md)).
+A certificate's `data` and a PFX's `password` are references to a
+Kubernetes Secret in the component's namespace, `{secretName, key}`,
+expected to come from External Secrets Operator; a string there stops the
+render. An HTTPS listener with its certificate from a Secret:
+
+```yaml
+ssl_certificates:
+  - name: tls
+    data: {secretName: appgw-tls, key: pfx}          # the PFX, base64
+    password: {secretName: appgw-tls, key: password}
+  - name: tls-kv                                     # or from Key Vault, through
+    key_vault_secret_id: https://kv.vault.azure.net/secrets/appgw-tls  # a user-assigned identity
+frontend_ports:
+  - {name: port-443, port: 443}
+http_listeners:
+  - {name: listener-443, protocol: Https, frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}, frontend_port: {frontend_port_key: port-443}, ssl_certificate: {ssl_certificate_key: tls}}
+```
+
+The Secret must be there before the gateway can be Ready.
+
 ### Refused when set
 
 | Variable | Kind | Why |
 | --- | --- | --- |
-| `ssl_certificates` | not-ported | a certificate's `data` and `password` are secrets and `key_vault_secret_id` is Key Vault secret material; ASO takes data and password only from a Kubernetes Secret, and how a component supplies one is not settled |
-| `authentication_certificates`, `trusted_client_certificates`, `trusted_root_certificates` | not-ported | ASO's 2022-07-01 type takes a certificate's `data` only from a Kubernetes Secret (a `SecretReference`); `trusted_root_certificates`' `key_vault_secret_id` is Key Vault secret material. A reference to one by `id` is accepted |
 | `ignore_body_changes` | by-design | ASO applies the whole spec it is given |
 | `resource_types` | by-design | the API versions are the ASO kinds' |
 | `retry`, `timeouts` | by-design | ASO retries itself; Bundt sets a component's time limit |
@@ -188,19 +211,37 @@ repository, release, commit, licence and the date last synced.
 ## Tests
 
 `task test CHART=avm-res-network-applicationgateway`: render cases `basic`,
-`full`, `names`, `entra` (aso-extensions' kind), `mock` and `mock-entra`, each validated against ASO v2.22.0's CRD
-schemas and aso-extensions' `ManagementLock` CRD, and the refusals in
-`tests/*.fail.yaml`. `task test-live-azure` (case `appgw`) makes a virtual
+`full`, `names`, `entra` (aso-extensions' kind), `tls` (certificates from
+Secrets and Key Vault), `mock`, `mock-entra` and `mock-tls`, each validated against ASO v2.22.0's CRD
+schemas and aso-extensions' CRDs, and the refusals in
+`tests/*.fail.yaml` (among them a certificate's data or password given as
+a value). `task test-live-azure` (case `appgw`) makes a virtual
 network and subnet with the virtual network chart, applies a Standard_v2
 gateway of capacity 1 with the public IP it makes on that subnet to the
 Azure sandbox, evaluates the outputs, deletes it and checks Azure no longer
 has it: passed on 2026-11-13 (run `cat111303093fb2`), 4 objects Ready,
 the outputs evaluated, nothing left. `task test-mock-azure` applies
 `tests/mock.values.yaml` to aso-extensions' fake cloud: passed on
-2026-11-13, both objects Ready and deleted, the outputs evaluated.
+2026-11-13, both objects Ready and deleted, the outputs evaluated. On 2026-11-14 (0.4.0) `mock`, `mock-entra` and `mock-tls` passed
+against the fake cloud (run `off-catalog-1114073904-29070`; `mock-tls`'s
+PFX and password in a Secret the harness generated). Live case `appgwx`
+(aso-extensions' kind: an HTTPS listener on 443 whose certificate is a
+self-signed PFX the harness generated at run time into a Secret, and an
+Entra JWT validation configuration for the live identity's app
+registration on the HTTPS rule) passed on 2026-11-14 (run
+`cat1114074941e3`, offload `off-catalog-1114074511-27681`): 4 objects
+Ready, the gateway `Running`, the outputs evaluated, deleted, Azure
+answering 404, nothing left.
 
 ## Changes
 
+- **0.4.0** (2026-11-14): `ssl_certificates`, `authentication_certificates`,
+  `trusted_client_certificates` and `trusted_root_certificates` are mapped:
+  a certificate's `data` and `password` are references to a Kubernetes
+  Secret, `{secretName, key}` (docs/secrets.md, the builder's decision),
+  `key_vault_secret_id` is sent as it is, and a listener's, settings' or
+  profile's reference to one resolves by its `*_key`. A string where a
+  reference is expected is refused. Renders without them are unchanged.
 - **0.3.0** (2026-11-14): always aso-extensions' `ApplicationGateway` (the
   builder's choice). Moving from an earlier version: above.
 - **0.2.0** (2026-11-13): `entra_jwt_validation_configs` and a rule's

@@ -149,7 +149,10 @@ spec:
 {{- end }}
 {{- /* logs: each entry writes the site's one logs section, so more than one
 would overwrite each other; application_logs and http_logs: the first entry
-by key, as the module takes it. A blob destination's SAS URL is a secret. */ -}}
+by key, as the module takes it. A blob destination's SAS URL is secret
+material: a reference to a Kubernetes Secret ({secretName, key};
+docs/secrets.md), which aso-extensions' SitesConfigLogs takes as a
+SecretReference. */ -}}
 {{- if gt (len ($v.logs | default dict)) 1 }}
 {{- fail (printf "%s: logs takes one entry: every entry writes the site's one logs section (Microsoft.Web/sites/config logs), so more than one would overwrite each other" $n) }}
 {{- end }}
@@ -157,19 +160,25 @@ by key, as the module takes it. A blob destination's SAS URL is a secret. */ -}}
 {{- $body := dict "detailedErrorMessages" (dict "enabled" (ternary false $lv.detailed_error_messages (kindIs "invalid" $lv.detailed_error_messages))) "failedRequestsTracing" (dict "enabled" (ternary false $lv.failed_requests_tracing (kindIs "invalid" $lv.failed_requests_tracing))) }}
 {{- with $lv.application_logs }}
 {{- $al := index . (keys . | sortAlpha | first) }}
-{{- if and $al (not (kindIs "invalid" $al.azure_blob_storage)) }}
-{{- fail (printf "%s: logs.%s.application_logs azure_blob_storage is not supported: its sas_url is a secret value (aso-extensions' SitesConfigLogs takes it from a Kubernetes Secret); how a component supplies one is the builder's decision" $n $lk) }}
-{{- end }}
 {{- $fs := dict "level" "Off" }}
 {{- if and $al $al.file_system }}{{ $fs = dict "level" ($al.file_system.level | default "Off") }}{{ end }}
-{{- $_ := set $body "applicationLogs" (dict "fileSystem" $fs) }}
+{{- $a := dict "fileSystem" $fs }}
+{{- if and $al (not (kindIs "invalid" $al.azure_blob_storage)) }}
+{{- $b := $al.azure_blob_storage }}
+{{- $sas := include "aso.secretRef" (list $ (printf "logs.%s.application_logs.azure_blob_storage.sas_url" $lk) $b.sas_url) }}
+{{- if not $sas }}{{ fail (printf "%s: logs.%s.application_logs azure_blob_storage needs sas_url" $n $lk) }}{{ end }}
+{{- $_ := set $a "azureBlobStorage" (dict "level" ($b.level | default "Off") "retentionInDays" (ternary 0 $b.retention_in_days (kindIs "invalid" $b.retention_in_days) | int) "sasUrl" (fromJson $sas)) }}
+{{- end }}
+{{- $_ := set $body "applicationLogs" $a }}
 {{- end }}
 {{- with $lv.http_logs }}
 {{- $hl := index . (keys . | sortAlpha | first) }}
 {{- $h := dict }}
 {{- if $hl }}
-{{- if not (kindIs "invalid" $hl.azure_blob_storage) }}
-{{- fail (printf "%s: logs.%s.http_logs azure_blob_storage is not supported: its sas_url is a secret value (aso-extensions' SitesConfigLogs takes it from a Kubernetes Secret); how a component supplies one is the builder's decision" $n $lk) }}
+{{- with $hl.azure_blob_storage }}
+{{- $sas := include "aso.secretRef" (list $ (printf "logs.%s.http_logs.azure_blob_storage.sas_url" $lk) .sas_url) }}
+{{- if not $sas }}{{ fail (printf "%s: logs.%s.http_logs azure_blob_storage needs sas_url" $n $lk) }}{{ end }}
+{{- $_ := set $h "azureBlobStorage" (dict "retentionInDays" (ternary 0 .retention_in_days (kindIs "invalid" .retention_in_days) | int) "sasUrl" (fromJson $sas)) }}
 {{- end }}
 {{- with $hl.file_system }}
 {{- if kindIs "invalid" .retention_in_mb }}{{ fail (printf "%s: logs.%s.http_logs file_system needs retention_in_mb" $n $lk) }}{{ end }}

@@ -1,0 +1,16 @@
+# Application and HTTP logs to Blob Storage: each destination's SAS URL is
+# a reference to a Kubernetes Secret in the component's namespace
+# (docs/secrets.md), put there by External Secrets Operator, never a value.
+name: app-logs
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+service_plan_resource_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Web/serverFarms/asp-example
+ftp_publish_basic_authentication_enabled: true
+logs:
+  app:
+    application_logs:
+      default:
+        azure_blob_storage: {level: Information, retention_in_days: 14, sas_url: {secretName: app-logs-sas, key: application}}
+    http_logs:
+      default:
+        azure_blob_storage: {retention_in_days: 7, sas_url: {secretName: app-logs-sas, key: http}}

@@ -1,0 +1,74 @@
+# An HTTPS gateway whose certificates come from Kubernetes Secrets
+# (docs/secrets.md): an SSL certificate's PFX and password by reference
+# ({secretName, key}, put there by External Secrets Operator), a second
+# one from Key Vault by secret ID (a pointer, sent as it is) through a
+# user-assigned identity, a trusted root certificate the HTTPS backend
+# settings name by key, and a trusted client certificate an SSL profile
+# names by key. No secret value is in the values.
+name: appgw-tls
+location: eastus2
+parent_id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+sku: {name: Standard_v2, tier: Standard_v2, capacity: 1}
+managed_identities:
+  user_assigned_resource_ids: [/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-appgw]
+public_ip_addresses:
+  pub: {name: pip-appgw-tls}
+gateway_ip_configurations:
+  - name: gw-ip
+    subnet: {id: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw}
+frontend_ip_configurations:
+  - {name: fe-public, public_ip_address_key: pub}
+frontend_ports:
+  - {name: port-443, port: 443}
+  - {name: port-8443, port: 8443}
+ssl_certificates:
+  - name: tls-eso
+    data: {secretName: appgw-tls, key: pfx}
+    password: {secretName: appgw-tls, key: password}
+  - name: tls-kv
+    key_vault_secret_id: https://kv-example.vault.azure.net/secrets/appgw-tls
+trusted_root_certificates:
+  - name: backend-ca
+    data: {secretName: appgw-backend-ca, key: ca.cer}
+trusted_client_certificates:
+  - name: client-ca
+    data: {secretName: appgw-client-ca, key: ca.pem}
+ssl_profiles:
+  - name: mtls
+    trusted_client_certificates: [{trusted_client_certificate_key: client-ca}]
+backend_address_pools:
+  - name: pool-web
+    backend_addresses: [{fqdn: api.example.internal}]
+backend_http_settings_collection:
+  - name: https-443
+    port: 443
+    protocol: Https
+    cookie_based_affinity: Disabled
+    request_timeout: 30
+    host_name: api.example.internal
+    trusted_root_certificates: [{trusted_root_certificate_key: backend-ca}]
+http_listeners:
+  - name: listener-443
+    protocol: Https
+    frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}
+    frontend_port: {frontend_port_key: port-443}
+    ssl_certificate: {ssl_certificate_key: tls-eso}
+  - name: listener-8443
+    protocol: Https
+    frontend_ip_configuration: {frontend_ip_configuration_key: fe-public}
+    frontend_port: {frontend_port_key: port-8443}
+    ssl_certificate: {ssl_certificate_key: tls-kv}
+    ssl_profile: {ssl_profile_key: mtls}
+request_routing_rules:
+  - name: rule-443
+    rule_type: Basic
+    priority: 100
+    http_listener: {http_listener_key: listener-443}
+    backend_address_pool: {backend_address_pool_key: pool-web}
+    backend_http_settings: {backend_http_settings_key: https-443}
+  - name: rule-8443
+    rule_type: Basic
+    priority: 110
+    http_listener: {http_listener_key: listener-8443}
+    backend_address_pool: {backend_address_pool_key: pool-web}
+    backend_http_settings: {backend_http_settings_key: https-443}

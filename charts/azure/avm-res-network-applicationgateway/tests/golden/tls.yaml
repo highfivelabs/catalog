@@ -1,0 +1,158 @@
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: network.azure.hfl.dev/v20260301
+kind: ApplicationGateway
+metadata:
+  name: tls-appgw
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tls"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "application_gateway"
+spec:
+  azureName: appgw-tls
+  backendAddressPools:
+  - backendAddresses:
+    - fqdn: api.example.internal
+    name: pool-web
+  backendHttpSettingsCollection:
+  - cookieBasedAffinity: Disabled
+    hostName: api.example.internal
+    name: https-443
+    port: 443
+    protocol: Https
+    requestTimeout: 30
+    trustedRootCertificates:
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/trustedRootCertificates/backend-ca
+  frontendIPConfigurations:
+  - name: fe-public
+    publicIPAddress:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-appgw-tls
+  frontendPorts:
+  - name: port-443
+    port: 443
+  - name: port-8443
+    port: 8443
+  gatewayIPConfigurations:
+  - name: gw-ip
+    subnet:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/virtualNetworks/vnet/subnets/snet-appgw
+  httpListeners:
+  - frontendIPConfiguration:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/frontendIPConfigurations/fe-public
+    frontendPort:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/frontendPorts/port-443
+    name: listener-443
+    protocol: Https
+    sslCertificate:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/sslCertificates/tls-eso
+  - frontendIPConfiguration:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/frontendIPConfigurations/fe-public
+    frontendPort:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/frontendPorts/port-8443
+    name: listener-8443
+    protocol: Https
+    sslCertificate:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/sslCertificates/tls-kv
+    sslProfile:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/sslProfiles/mtls
+  identity:
+    type: UserAssigned
+    userAssignedIdentities:
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-appgw
+  location: eastus2
+  owner:
+    armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example
+  requestRoutingRules:
+  - backendAddressPool:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/backendAddressPools/pool-web
+    backendHttpSettings:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/backendHttpSettingsCollection/https-443
+    httpListener:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/httpListeners/listener-443
+    name: rule-443
+    priority: 100
+    ruleType: Basic
+  - backendAddressPool:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/backendAddressPools/pool-web
+    backendHttpSettings:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/backendHttpSettingsCollection/https-443
+    httpListener:
+      reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/httpListeners/listener-8443
+    name: rule-8443
+    priority: 110
+    ruleType: Basic
+  sku:
+    capacity: 1
+    name: Standard_v2
+    tier: Standard_v2
+  sslCertificates:
+  - data:
+      key: pfx
+      name: appgw-tls
+    name: tls-eso
+    password:
+      key: password
+      name: appgw-tls
+  - keyVaultSecretId: https://kv-example.vault.azure.net/secrets/appgw-tls
+    name: tls-kv
+  sslProfiles:
+  - name: mtls
+    trustedClientCertificates:
+    - reference:
+        armId: /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/applicationGateways/appgw-tls/trustedClientCertificates/client-ca
+  trustedClientCertificates:
+  - data:
+      key: ca.pem
+      name: appgw-client-ca
+    name: client-ca
+  trustedRootCertificates:
+  - data:
+      key: ca.cer
+      name: appgw-backend-ca
+    name: backend-ca
+---
+# Source: avm-res-network-applicationgateway/templates/main.yaml
+apiVersion: network.azure.com/v20250301
+kind: PublicIPAddress
+metadata:
+  name: tls-pip-pub
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "tls"
+    app.kubernetes.io/name: avm-res-network-applicationgateway
+    app.kubernetes.io/version: "0.4.0"
+  annotations:
+    hfl.dev/id: "public_ip:pub"
+spec:
+  azureName: "pip-appgw-tls"
+  location: "eastus2"
+  owner:
+    armId: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example"
+  ddosSettings:
+    protectionMode: VirtualNetworkInherited
+  idleTimeoutInMinutes: 4
+  publicIPAddressVersion: IPv4
+  publicIPAllocationMethod: Static
+  sku:
+    name: Standard
+    tier: Regional
