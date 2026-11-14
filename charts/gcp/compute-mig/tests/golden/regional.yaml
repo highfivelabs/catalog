@@ -1,0 +1,95 @@
+---
+# Source: compute-mig/templates/main.yaml
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeInstanceGroupManager
+metadata:
+  name: regional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "regional"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "group_manager"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  resourceID: "mig-test"
+  projectRef:
+    external: "my-project"
+  location: "europe-west8"
+  baseInstanceName: "mig-test"
+  description: "Terraform managed."
+  targetSize: 2
+  updatePolicy:
+    minimalAction: "REFRESH"
+    type: "OPPORTUNISTIC"
+    instanceRedistributionType: "NONE"
+    maxSurge:
+      fixed: 0
+    maxUnavailable:
+      fixed: 2
+  distributionPolicy:
+    targetShape: "EVEN"
+    zones:
+      - zone: "europe-west8-a"
+      - zone: "europe-west8-b"
+  versions:
+    - name: "default"
+      instanceTemplateRef:
+        external: "projects/my-project/global/instanceTemplates/nginx-template"
+---
+# Source: compute-mig/templates/autoscaler.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeRegionAutoscaler
+metadata:
+  name: regional
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "regional"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "autoscaler"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "mig-test"
+  region: "europe-west8"
+  target: "projects/my-project/regions/europe-west8/instanceGroupManagers/mig-test"
+  description: "Terraform managed."
+  autoscalingPolicy:
+    minReplicas: 2
+    maxReplicas: 4
+    cooldownPeriod: 60
+    mode: "ON"
+    loadBalancingUtilization:
+      target: 0.8
+    scaleInControl:
+      maxScaledInReplicas:
+        fixed: 1
+      timeWindowSec: 600
+---
+# Source: compute-mig/templates/stateful-config.yaml
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: ComputeRegionPerInstanceConfig
+metadata:
+  name: regional-instance-instance-1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: "regional"
+    app.kubernetes.io/name: compute-mig
+    app.kubernetes.io/version: "0.1.0"
+  annotations:
+    hfl.dev/id: "stateful_config:instance-1"
+    cnrm.cloud.google.com/project-id: "my-project"
+spec:
+  projectRef:
+    external: "my-project"
+  resourceID: "instance-1"
+  region: "europe-west8"
+  regionInstanceGroupManagerRef:
+    name: regional
+  preservedState:
+    metadata:
+      "role": "primary"

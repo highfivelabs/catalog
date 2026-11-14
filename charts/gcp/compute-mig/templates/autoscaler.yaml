@@ -1,0 +1,110 @@
+{{- /*
+Copyright 2026 High Five Labs
+SPDX-License-Identifier: Apache-2.0
+Ported from cloud-foundation-fabric modules/compute-mig/autoscaler.tf
+(v60.0.0), Copyright 2022 Google LLC, Apache-2.0.
+
+google_compute_autoscaler.default (a zonal group): a ComputeAutoscaler;
+google_compute_region_autoscaler.default (a regional group): a
+ComputeRegionAutoscaler. Both are config-connector-extensions kinds
+(compute.gcp.hfl.dev/v1beta1): Config Connector's own are v1alpha1, and
+its regional one has no controller.
+*/ -}}
+{{- $v := .Values }}
+{{- with $v.autoscaler_config }}
+{{- $as := . }}
+{{- $regional := include "computeMig.regional" $ }}
+{{- $scaling := $as.scaling_control | default dict }}
+{{- $signals := $as.scaling_signals | default dict }}
+{{- if and $scaling.down $scaling.in }}
+{{- fail "compute-mig: autoscaler_config.scaling_control.down is not supported beside scaling_control.in: Compute Engine v1, which the autoscaler kinds call, has one scale-in control (scaleInControl), and scaling_control.down (the beta API's scaleDownControl) is sent as it; set one of them (docs/gcp-inventory.md, \"Gaps\")" }}
+{{- end }}
+{{- $scaleIn := $scaling.in | default $scaling.down }}
+{{- $name := include "kcc.resourceName" (list $ "autoscaler" "autoscaler" $v.name 63 "letter") }}
+---
+apiVersion: compute.gcp.hfl.dev/v1beta1
+kind: {{ ternary "ComputeRegionAutoscaler" "ComputeAutoscaler" (eq $regional "true") }}
+metadata:
+  {{- include "kcc.metadata" (dict "root" $ "name" (include "kcc.name" (list $.Release.Name)) "id" "autoscaler" "project" $v.project_id "abandon" (include "kcc.abandon" $)) | nindent 2 }}
+spec:
+  projectRef:
+    external: {{ $v.project_id | quote }}
+  resourceID: {{ $name | quote }}
+  {{- if $regional }}
+  region: {{ $v.location | quote }}
+  {{- /* The regional kind takes the group's URL, not a reference (as
+  Config Connector's alpha type has it). */}}
+  target: {{ printf "projects/%s/regions/%s/instanceGroupManagers/%s" $v.project_id $v.location (include "computeMig.groupName" $) | quote }}
+  {{- else }}
+  zone: {{ $v.location | quote }}
+  targetRef:
+    name: {{ include "kcc.name" (list $.Release.Name) }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $v.description) }}
+  description: {{ $v.description | quote }}
+  {{- end }}
+  autoscalingPolicy:
+    minReplicas: {{ $as.min_replicas }}
+    maxReplicas: {{ $as.max_replicas }}
+    {{- /* fabric leaves mode, the cool-down and the predictive method null,
+    and the API fills in ON, 60 and NONE; config-connector-extensions'
+    autoscalers compare every field the API returns, so the chart writes
+    the API's values rather than have each reconcile patch them back
+    (README.md, "Assumptions", A2). */}}
+    cooldownPeriod: {{ ternary 60 $as.cooldown_period (kindIs "invalid" $as.cooldown_period) }}
+    mode: {{ $as.mode | default "ON" | quote }}
+    {{- $cpu := $signals.cpu_utilization }}
+    {{- if and (not $cpu) (not $signals.load_balancing_utilization) (not $signals.metrics) }}
+    {{- /* No signal: the API scales on CPU at 0.6 (A2). */}}
+    {{- $cpu = dict "target" 0.6 }}
+    {{- end }}
+    {{- with $cpu }}
+    cpuUtilization:
+      target: {{ .target }}
+      predictiveMethod: {{ ternary "OPTIMIZE_AVAILABILITY" "NONE" (eq (toString .optimize_availability) "true") }}
+    {{- end }}
+    {{- with $signals.load_balancing_utilization }}
+    loadBalancingUtilization:
+      target: {{ .target }}
+    {{- end }}
+    {{- with $signals.metrics }}
+    metric:
+      {{- range . }}
+      - name: {{ .name | quote }}
+        {{- with .type }}
+        type: {{ . | quote }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .target_value) }}
+        target: {{ .target_value }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .single_instance_assignment) }}
+        singleInstanceAssignment: {{ .single_instance_assignment }}
+        {{- end }}
+        {{- with .time_series_filter }}
+        filter: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- with $scaleIn }}
+    scaleInControl:
+      {{- include "computeMig.scaleIn" . | fromJson | toYaml | nindent 6 }}
+    {{- end }}
+    {{- with $signals.schedules }}
+    scalingSchedules:
+      {{- range . }}
+      - name: {{ .name | quote }}
+        durationSec: {{ .duration_sec }}
+        minRequiredReplicas: {{ .min_required_replicas }}
+        schedule: {{ .cron_schedule | quote }}
+        {{- if not (kindIs "invalid" .description) }}
+        description: {{ .description | toString | quote }}
+        {{- end }}
+        {{- if not (kindIs "invalid" .disabled) }}
+        disabled: {{ .disabled }}
+        {{- end }}
+        {{- with .timezone }}
+        timeZone: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+{{- end }}

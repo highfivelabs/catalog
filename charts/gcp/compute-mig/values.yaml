@@ -1,0 +1,98 @@
+# Copyright 2026 High Five Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Values mirror the Terraform variables of fabric's compute-mig module
+# (v60.0.0): same names, types and defaults, so a module block's arguments
+# become this file one to one (README.md, "From Terraform").
+# values.schema.json carries the types and the module's validations.
+
+# Names, labels and tags (docs/design.md, "Names, labels and tags"). Not
+# Terraform variables: Bundt supplies names from a team's naming convention
+# and stamps its identity labels; the chart takes them and computes none.
+#
+# names.group, names.healthCheck, names.autoscaler: the managed instance
+# group's (and its instances' base name), the health check's and the
+# autoscaler's names in full. A name set here takes no namePrefix; unset,
+# fabric's (name).
+names: {}
+# An optional convenience: "<namePrefix>-" in front of every name the chart
+# derives (the group, the health check, the autoscaler) or is given in an
+# entry (the stateful_config instances), never one set under names. Empty
+# (the default) changes nothing.
+namePrefix: ""
+# fabric has no labels variable: Kubernetes labels on every object. None of
+# the module's resources takes Google Cloud labels, so an unprefixed key
+# reaches no cloud resource; it must still be a valid Google Cloud label.
+labels: {}
+# Cloud labels on every resource that takes them (none of these do).
+tags: {}
+
+# Metadata and labels set to all instances in the group: {labels,
+# metadata}. Refused when set: ComputeInstanceGroupManager has no
+# allInstancesConfig field.
+all_instances_config: null
+# Auto-healing policies for this group: {health_check, initial_delay_sec}.
+# health_check unset uses the auto-created one (health_check_config).
+auto_healing_policies: null
+# Optional autoscaler configuration: {max_replicas, min_replicas,
+# cooldown_period, mode, scaling_control: {down, in}, scaling_signals:
+# {cpu_utilization, load_balancing_utilization, metrics, schedules}}.
+autoscaler_config: null
+# Name used for the default version.
+default_version_name: default
+# Optional description used for all resources managed by this module.
+description: Terraform managed.
+# Distribution policy for regional MIG: {target_shape, zones}.
+distribution_policy: null
+# Optional auto-created health check: check_interval_sec, description,
+# enable_logging, healthy_threshold, timeout_sec, unhealthy_threshold and
+# one of grpc, http, http2, https, tcp, ssl.
+health_check_config: null
+# Instance flexibility policy selections, {NAME: {rank, machine_types}}.
+# Refused when set: ComputeInstanceGroupManager has no
+# instanceFlexibilityPolicy field.
+instance_flexibility_policy_selections: {}
+# The instance lifecycle policy for the MIG. Refused when set:
+# ComputeInstanceGroupManager has no instanceLifecyclePolicy field.
+instance_lifecycle_policy: null
+# Instance template for the default version (a self link or id).
+instance_template: null
+# Compute zone or region.
+location: null
+# Managed group name.
+name: null
+# Named ports, {NAME: PORT}.
+named_ports: null
+# Project id.
+project_id: null
+# Stateful configuration for individual instances, {INSTANCE NAME:
+# {minimal_action, most_disruptive_action, remove_state_on_destroy,
+# preserved_state: {disks: {DEVICE: {source, delete_on_instance_deletion,
+# read_only}}, metadata}}}.
+stateful_config: {}
+# Stateful disk configuration applied at the MIG level to all instances, in
+# device name => on permanent instance delete rule as boolean.
+stateful_disks: {}
+# Optional list of URLs for target pools to which new instances in the
+# group are added.
+target_pools: []
+# Group target size, leave null when using an autoscaler. Null takes the
+# autoscaler's min_replicas; null without an autoscaler, and 0, are refused:
+# Config Connector never sends a size of 0 (README.md, "The target size").
+target_size: null
+# Update policy: {minimal_action, type, max_surge, max_unavailable,
+# min_ready_sec, most_disruptive_action, regional_redistribution_type,
+# replacement_method}.
+update_policy: null
+# Additional application versions, {NAME: {instance_template, target_size:
+# {fixed, percent}}}.
+versions: {}
+# Wait for all instances to be created/updated before returning: {enabled,
+# status}. Refused when set: a Terraform client-side wait, which Config
+# Connector has no field for.
+wait_for_instances: null
+
+# Not a fabric variable: DELETE (the default) or ABANDON, which keeps the
+# cloud resources when the component is deleted. PREVENT has no Config
+# Connector equivalent.
+deletion_policy: null
