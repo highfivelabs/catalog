@@ -182,7 +182,7 @@ not have. Each is refused by the chart when set.
 | 41 | [alloydb](#alloydb) | full | L | 1458 | 33 | 4 / 0 / 0 |
 | 42 | [spanner-instance](#spanner-instance) | partial | M | 426 | 7 | 6 / 0 / 1 |
 | 43 | [bigtable-instance](#bigtable-instance) | full | S | 308 | 11 | 4 / 0 / 0 |
-| 44 | [firestore](#firestore) | full, with alpha | M | 452 | 7 | 2 / 3 / 0 |
+| 44 | [firestore](#firestore) | partial | M | 452 | 7 | 2 / 2 / 1 |
 | 45 | [managed-kafka](#managed-kafka) | full, with alpha | S | 283 | 11 | 2 / 2 / 0 |
 | 46 | [net-cloud-armor](#net-cloud-armor) | partial | XL | 2216 | 33 | 4 / 0 / 3 |
 | 47 | [net-swp](#net-swp) | partial | M | 474 | 14 | 1 / 0 / 5 |
@@ -1007,11 +1007,11 @@ Rank 43. Terraform module: [`modules/bigtable-instance`](https://github.com/Goog
 
 This module allows to crete a firestore datatabase, fields, indexes and documents.
 
-Rank 44. Terraform module: [`modules/firestore`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/firestore). Coverage: **full, with alpha**. Size: M (452 lines of Terraform, 7 variables, 7 outputs).
+Rank 44. Terraform module: [`modules/firestore`](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/tree/v60.0.0/modules/firestore). Coverage: **partial**. Size: M (452 lines of Terraform, 7 variables, 7 outputs).
 
 | Terraform resource | Config Connector | |
 | --- | --- | --- |
-| `google_firestore_backup_schedule` | FirestoreBackupSchedule | alpha only |
+| `google_firestore_backup_schedule` | FirestoreBackupSchedule (firestore.gcp.hfl.dev/v1beta1) | gap kind (config-connector-extensions) |
 | `google_firestore_database` | FirestoreDatabase |  |
 | `google_firestore_document` | FirestoreDocument | alpha only |
 | `google_firestore_field` | FirestoreField | alpha only |
